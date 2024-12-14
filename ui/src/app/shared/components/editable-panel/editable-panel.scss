@@ -1,5 +1,4 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import 'node_modules/argo-ui/src/styles/theme';
 
 .editable-panel {
     position: relative;
@@ -12,46 +11,6 @@
         position: absolute;
         top: 30px;
         right: 3em;
-    }
-
-    &__divider {
-        position: relative;
-        border-top: 2px solid lightgray;
-        padding-top: 8px;
-    }
-
-    &__buttons-relative {
-        position: relative;
-        justify-content: right;        
-    }
-
-    &__buttons-relative-button {
-        margin-left: 8px;
-    }
-
-    &__collapsible-button {
-        position: absolute;
-        top: 30px;
-        right: 30px;
-        &__override {
-            @include themify($themes) {
-                color: themed('light-argo-teal-7');
-            }
-        }
-    }
-
-    &__sticky-title {
-        z-index: 10;
-        opacity: 75%;
-        position: sticky;
-        padding-left: 15px;
-        padding-right: 15px;
-        margin-bottom: 5px;
-        text-align: center;
-        top: 0px;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        overflow: hidden;        
     }
 
     .form-field__select {

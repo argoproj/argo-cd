@@ -31,7 +31,6 @@ argocd-application-controller [flags]
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
-      --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
@@ -40,7 +39,6 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: text|json (default "text")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
-      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
       --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                                          Start metrics server on given port (default 8082)
@@ -75,9 +73,8 @@ argocd-application-controller [flags]
       --sentinelmaster string                                     Redis sentinel master group name. (default "master")
       --server string                                             The address and port of the Kubernetes API server
       --server-side-diff-enabled                                  Feature flag to enable ServerSide diff. Default ("false")
-      --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
+      --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                                     Number of application status processors (default 20)
-      --sync-timeout int                                          Specifies the timeout after which a sync would be terminated. 0 means no timeout (default 0).
       --tls-server-name string                                    If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                                              Bearer token for authentication to the API server
       --user string                                               The name of the kubeconfig user to use

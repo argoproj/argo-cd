@@ -7,8 +7,6 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
     If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
     For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
     - in the case of git generators, PRs must require admin approval.
-    - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
-    
 
 ## Git Generator: Directories
 
@@ -443,9 +441,3 @@ stringData:
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.
-
-## Repository credentials for ApplicationSets
-If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it, you need to add the repository as a "non project scoped" repository.  
-- When doing that through the UI, set this to a **blank** value in the dropdown menu.
-- When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
-- When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))

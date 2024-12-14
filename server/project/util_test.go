@@ -3,8 +3,6 @@ package project
 import (
 	"reflect"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestUnique(t *testing.T) {
@@ -41,8 +39,9 @@ func TestUnique(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := unique(tt.slice)
-			assert.Truef(t, reflect.DeepEqual(got, tt.want), "unique() = %v, want %v", got, tt.want)
+			if got := unique(tt.slice); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("unique() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

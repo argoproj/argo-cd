@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"net/netip"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"context"
 
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -20,7 +21,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util"
 )
 
 func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
@@ -39,10 +39,6 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
 	return secrets, nil
 }
 
@@ -116,8 +112,8 @@ func (db *db) watchSecrets(ctx context.Context,
 	secretType string,
 	handleAddEvent func(secret *apiv1.Secret),
 	handleModEvent func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret),
-	handleDeleteEvent func(secret *apiv1.Secret),
-) {
+	handleDeleteEvent func(secret *apiv1.Secret)) {
+
 	secretListOptions := func(options *metav1.ListOptions) {
 		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
 		options.LabelSelector = labelSelector.String()

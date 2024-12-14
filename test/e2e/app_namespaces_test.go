@@ -6,7 +6,6 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -38,7 +37,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, ctx.AppName())
 		}).
 		When().
@@ -77,11 +76,11 @@ func TestForbiddenNamespace(t *testing.T) {
 func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 	ctx := Given(t)
 	ctx.And(func() {
-		CheckError(SetResourceOverrides(map[string]ResourceOverride{
+		SetResourceOverrides(map[string]ResourceOverride{
 			"ConfigMap": {
 				HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 			},
-		}))
+		})
 	}).
 		Async(true).
 		SetAppNamespace(AppNamespace()).

@@ -5,10 +5,8 @@ import (
 	"testing"
 	"text/tabwriter"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTreeViewAppGet(t *testing.T) {
@@ -39,7 +37,9 @@ func TestTreeViewAppGet(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 	treeViewAppGet("", objs, childMapping, parent, stateMap, w)
-	require.NoError(t, w.Flush())
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	output := buf.String()
 	assert.Contains(t, output, "ReplicaSet")
 	assert.Contains(t, output, "Rollout")
@@ -76,7 +76,9 @@ func TestTreeViewDetailedAppGet(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 	detailedTreeViewAppGet("", objs, childMapping, parent, stateMap, w)
-	require.NoError(t, w.Flush())
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 
 	output := buf.String()
 
@@ -116,7 +118,9 @@ func TestTreeViewAppResources(t *testing.T) {
 	orphanParent := orphan
 
 	treeViewAppResourcesOrphaned("", objsOrphan, orphanchildMapping, orphanParent, w)
-	require.NoError(t, w.Flush())
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	output := buf.String()
 
 	assert.Contains(t, output, "ReplicaSet")
@@ -154,7 +158,9 @@ func TestTreeViewDetailedAppResources(t *testing.T) {
 	orphanchildMapping := make(map[string][]string)
 	orphanParent := orphan
 	detailedTreeViewAppResourcesOrphaned("", objsOrphan, orphanchildMapping, orphanParent, w)
-	require.NoError(t, w.Flush())
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	output := buf.String()
 
 	assert.Contains(t, output, "ReplicaSet")

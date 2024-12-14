@@ -51,19 +51,16 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
-                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         name:
                           type: string
                         requeueAfterSeconds:
@@ -195,10 +192,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -210,10 +203,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -231,10 +220,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -249,10 +234,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -275,8 +256,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -333,8 +312,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -431,10 +408,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -446,10 +419,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -467,10 +436,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -485,10 +450,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -511,8 +472,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -569,8 +528,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -677,8 +634,6 @@ spec:
                       type: object
                     clusters:
                       properties:
-                        flatList:
-                          type: boolean
                         selector:
                           properties:
                             matchExpressions:
@@ -692,19 +647,16 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
-                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
                               type: object
                           type: object
-                          x-kubernetes-map-type: atomic
                         template:
                           properties:
                             metadata:
@@ -831,10 +783,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -846,10 +794,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -867,10 +811,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -885,10 +825,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -911,8 +847,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -969,8 +903,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -1067,10 +999,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -1082,10 +1010,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -1103,10 +1027,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -1121,10 +1041,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -1147,8 +1063,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -1205,8 +1119,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -1466,10 +1378,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -1481,10 +1389,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -1502,10 +1406,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -1520,10 +1420,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -1546,8 +1442,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -1604,8 +1498,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -1702,10 +1594,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -1717,10 +1605,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -1738,10 +1622,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -1756,10 +1636,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -1782,8 +1658,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -1840,8 +1714,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -2081,10 +1953,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -2096,10 +1964,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -2117,10 +1981,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -2135,10 +1995,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -2161,8 +2017,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -2219,8 +2073,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -2317,10 +2169,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -2332,10 +2180,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -2353,10 +2197,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -2371,10 +2211,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -2397,8 +2233,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -2455,8 +2289,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -2577,19 +2409,16 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -2721,10 +2550,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -2736,10 +2561,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -2757,10 +2578,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -2775,10 +2592,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -2801,8 +2614,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -2859,8 +2670,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -2957,10 +2766,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -2972,10 +2777,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -2993,10 +2794,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -3011,10 +2808,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -3037,8 +2830,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -3095,8 +2886,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -3203,8 +2992,6 @@ spec:
                                 type: object
                               clusters:
                                 properties:
-                                  flatList:
-                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -3218,19 +3005,16 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -3357,10 +3141,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -3372,10 +3152,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -3393,10 +3169,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -3411,10 +3183,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -3437,8 +3205,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -3495,8 +3261,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -3593,10 +3357,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -3608,10 +3368,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -3629,10 +3385,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -3647,10 +3399,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -3673,8 +3421,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -3731,8 +3477,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -3992,10 +3736,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -4007,10 +3747,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4028,10 +3764,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4046,10 +3778,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -4072,8 +3800,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -4130,8 +3856,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -4228,10 +3952,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -4243,10 +3963,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -4264,10 +3980,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -4282,10 +3994,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -4308,8 +4016,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4366,8 +4072,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -4607,10 +4311,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -4622,10 +4322,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -4643,10 +4339,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4661,10 +4353,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -4687,8 +4375,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -4745,8 +4431,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -4843,10 +4527,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -4858,10 +4538,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -4879,10 +4555,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -4897,10 +4569,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -4923,8 +4591,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4981,8 +4647,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -5230,10 +4894,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -5245,10 +4905,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -5266,10 +4922,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -5284,10 +4936,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -5310,8 +4958,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -5368,8 +5014,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -5466,10 +5110,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -5481,10 +5121,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -5502,10 +5138,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -5520,10 +5152,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -5546,8 +5174,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -5604,8 +5230,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -5808,33 +5432,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -5910,16 +5507,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -6072,10 +5659,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -6087,10 +5670,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -6108,10 +5687,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -6126,10 +5701,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -6152,8 +5723,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -6210,8 +5779,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -6308,10 +5875,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -6323,10 +5886,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -6344,10 +5903,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -6362,10 +5917,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -6388,8 +5939,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -6446,8 +5995,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -6640,33 +6187,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -6747,16 +6267,6 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -6909,10 +6419,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -6924,10 +6430,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -6945,10 +6447,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -6963,10 +6461,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -6989,8 +6483,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -7047,8 +6539,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -7145,10 +6635,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -7160,10 +6646,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -7181,10 +6663,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -7199,10 +6677,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -7225,8 +6699,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -7283,8 +6755,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -7400,19 +6870,16 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         template:
@@ -7541,10 +7008,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -7556,10 +7019,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -7577,10 +7036,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -7595,10 +7050,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -7621,8 +7072,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7679,8 +7128,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7777,10 +7224,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -7792,10 +7235,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -7813,10 +7252,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -7831,10 +7266,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -7857,8 +7288,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7915,8 +7344,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -8039,19 +7466,16 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   name:
                                     type: string
                                   requeueAfterSeconds:
@@ -8183,10 +7607,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8198,10 +7618,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8219,10 +7635,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -8237,10 +7649,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -8263,8 +7671,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8321,8 +7727,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -8419,10 +7823,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8434,10 +7834,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -8455,10 +7851,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -8473,10 +7865,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -8499,8 +7887,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8557,8 +7943,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -8665,8 +8049,6 @@ spec:
                                 type: object
                               clusters:
                                 properties:
-                                  flatList:
-                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -8680,19 +8062,16 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
                                         type: object
                                     type: object
-                                    x-kubernetes-map-type: atomic
                                   template:
                                     properties:
                                       metadata:
@@ -8819,10 +8198,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8834,10 +8209,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8855,10 +8226,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -8873,10 +8240,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -8899,8 +8262,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8957,8 +8318,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9055,10 +8414,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9070,10 +8425,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -9091,10 +8442,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -9109,10 +8456,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -9135,8 +8478,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9193,8 +8534,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -9454,10 +8793,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9469,10 +8804,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9490,10 +8821,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -9508,10 +8835,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -9534,8 +8857,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9592,8 +8913,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9690,10 +9009,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9705,10 +9020,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -9726,10 +9037,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -9744,10 +9051,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -9770,8 +9073,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9828,8 +9129,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10069,10 +9368,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10084,10 +9379,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10105,10 +9396,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -10123,10 +9410,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -10149,8 +9432,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10207,8 +9488,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10305,10 +9584,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10320,10 +9595,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -10341,10 +9612,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -10359,10 +9626,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -10385,8 +9648,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10443,8 +9704,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10692,10 +9951,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10707,10 +9962,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10728,10 +9979,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -10746,10 +9993,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -10772,8 +10015,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10830,8 +10071,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10928,10 +10167,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10943,10 +10178,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -10964,10 +10195,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -10982,10 +10209,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -11008,8 +10231,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11066,8 +10287,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -11270,33 +10489,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -11372,16 +10564,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -11534,10 +10716,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11549,10 +10727,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -11570,10 +10744,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -11588,10 +10758,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -11614,8 +10780,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11672,8 +10836,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -11770,10 +10932,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -11785,10 +10943,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -11806,10 +10960,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -11824,10 +10974,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -11850,8 +10996,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11908,8 +11052,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12102,33 +11244,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -12209,16 +11324,6 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -12371,10 +11476,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -12386,10 +11487,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -12407,10 +11504,6 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
-                                                  skipSchemaValidation:
-                                                    type: boolean
-                                                  skipTests:
-                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -12425,10 +11518,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -12451,8 +11540,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12509,8 +11596,6 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
-                                              name:
-                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -12607,10 +11692,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -12622,10 +11703,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -12643,10 +11720,6 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
-                                                    skipSchemaValidation:
-                                                      type: boolean
-                                                    skipTests:
-                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -12661,10 +11734,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -12687,8 +11756,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12745,8 +11812,6 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
-                                                name:
-                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12862,19 +11927,16 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
                                     type: object
                                 type: object
-                                x-kubernetes-map-type: atomic
                             type: object
                           type: array
                         mergeKeys:
@@ -13007,10 +12069,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -13022,10 +12080,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -13043,10 +12097,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -13061,10 +12111,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -13087,8 +12133,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -13145,8 +12189,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13243,10 +12285,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -13258,10 +12296,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -13279,10 +12313,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -13297,10 +12327,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -13323,8 +12349,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -13381,8 +12405,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -13629,10 +12651,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -13644,10 +12662,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -13665,10 +12679,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -13683,10 +12693,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -13709,8 +12715,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -13767,8 +12771,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13865,10 +12867,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -13880,10 +12878,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -13901,10 +12895,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -13919,10 +12909,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -13945,8 +12931,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -14003,8 +12987,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -14207,33 +13189,6 @@ spec:
                               - passwordRef
                               - username
                               type: object
-                            bearerToken:
-                              properties:
-                                tokenRef:
-                                  properties:
-                                    key:
-                                      type: string
-                                    secretName:
-                                      type: string
-                                  required:
-                                  - key
-                                  - secretName
-                                  type: object
-                              required:
-                              - tokenRef
-                              type: object
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
-                            insecure:
-                              type: boolean
                             project:
                               type: string
                             repo:
@@ -14309,16 +13264,6 @@ spec:
                           properties:
                             api:
                               type: string
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
                             insecure:
                               type: boolean
                             labels:
@@ -14471,10 +13416,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -14486,10 +13427,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -14507,10 +13444,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -14525,10 +13458,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -14551,8 +13480,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -14609,8 +13536,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -14707,10 +13632,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -14722,10 +13643,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -14743,10 +13660,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -14761,10 +13674,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -14787,8 +13696,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -14845,8 +13752,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -15039,33 +13944,6 @@ spec:
                               - passwordRef
                               - username
                               type: object
-                            bearerToken:
-                              properties:
-                                tokenRef:
-                                  properties:
-                                    key:
-                                      type: string
-                                    secretName:
-                                      type: string
-                                  required:
-                                  - key
-                                  - secretName
-                                  type: object
-                              required:
-                              - tokenRef
-                              type: object
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
-                            insecure:
-                              type: boolean
                             project:
                               type: string
                           required:
@@ -15146,16 +14024,6 @@ spec:
                               type: boolean
                             api:
                               type: string
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
                             group:
                               type: string
                             includeSharedProjects:
@@ -15308,10 +14176,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -15323,10 +14187,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -15344,10 +14204,6 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
-                                        skipSchemaValidation:
-                                          type: boolean
-                                        skipTests:
-                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -15362,10 +14218,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -15388,8 +14240,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -15446,8 +14296,6 @@ spec:
                                         version:
                                           type: string
                                       type: object
-                                    name:
-                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -15544,10 +14392,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -15559,10 +14403,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -15580,10 +14420,6 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
-                                          skipSchemaValidation:
-                                            type: boolean
-                                          skipTests:
-                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -15598,10 +14434,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -15624,8 +14456,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -15682,8 +14512,6 @@ spec:
                                           version:
                                             type: string
                                         type: object
-                                      name:
-                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -15799,19 +14627,16 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                                x-kubernetes-list-type: atomic
                             required:
                             - key
                             - operator
                             type: object
                           type: array
-                          x-kubernetes-list-type: atomic
                         matchLabels:
                           additionalProperties:
                             type: string
                           type: object
                       type: object
-                      x-kubernetes-map-type: atomic
                   type: object
                 type: array
               goTemplate:
@@ -16015,10 +14840,6 @@ spec:
                             type: object
                           helm:
                             properties:
-                              apiVersions:
-                                items:
-                                  type: string
-                                type: array
                               fileParameters:
                                 items:
                                   properties:
@@ -16030,10 +14851,6 @@ spec:
                                 type: array
                               ignoreMissingValueFiles:
                                 type: boolean
-                              kubeVersion:
-                                type: string
-                              namespace:
-                                type: string
                               parameters:
                                 items:
                                   properties:
@@ -16051,10 +14868,6 @@ spec:
                                 type: string
                               skipCrds:
                                 type: boolean
-                              skipSchemaValidation:
-                                type: boolean
-                              skipTests:
-                                type: boolean
                               valueFiles:
                                 items:
                                   type: string
@@ -16069,10 +14882,6 @@ spec:
                             type: object
                           kustomize:
                             properties:
-                              apiVersions:
-                                items:
-                                  type: string
-                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -16095,8 +14904,6 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                              kubeVersion:
-                                type: string
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -16153,8 +14960,6 @@ spec:
                               version:
                                 type: string
                             type: object
-                          name:
-                            type: string
                           path:
                             type: string
                           plugin:
@@ -16251,10 +15056,6 @@ spec:
                               type: object
                             helm:
                               properties:
-                                apiVersions:
-                                  items:
-                                    type: string
-                                  type: array
                                 fileParameters:
                                   items:
                                     properties:
@@ -16266,10 +15067,6 @@ spec:
                                   type: array
                                 ignoreMissingValueFiles:
                                   type: boolean
-                                kubeVersion:
-                                  type: string
-                                namespace:
-                                  type: string
                                 parameters:
                                   items:
                                     properties:
@@ -16287,10 +15084,6 @@ spec:
                                   type: string
                                 skipCrds:
                                   type: boolean
-                                skipSchemaValidation:
-                                  type: boolean
-                                skipTests:
-                                  type: boolean
                                 valueFiles:
                                   items:
                                     type: string
@@ -16305,10 +15098,6 @@ spec:
                               type: object
                             kustomize:
                               properties:
-                                apiVersions:
-                                  items:
-                                    type: string
-                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -16331,8 +15120,6 @@ spec:
                                   items:
                                     type: string
                                   type: array
-                                kubeVersion:
-                                  type: string
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:
@@ -16389,8 +15176,6 @@ spec:
                                 version:
                                   type: string
                               type: object
-                            name:
-                              type: string
                             path:
                               type: string
                             plugin:
@@ -16510,16 +15295,11 @@ spec:
                       type: string
                     step:
                       type: string
-                    targetRevisions:
-                      items:
-                        type: string
-                      type: array
                   required:
                   - application
                   - message
                   - status
                   - step
-                  - targetRevisions
                   type: object
                 type: array
               conditions:
@@ -16541,42 +15321,6 @@ spec:
                   - reason
                   - status
                   - type
-                  type: object
-                type: array
-              resources:
-                items:
-                  properties:
-                    group:
-                      type: string
-                    health:
-                      properties:
-                        lastTransitionTime:
-                          format: date-time
-                          type: string
-                        message:
-                          type: string
-                        status:
-                          type: string
-                      type: object
-                    hook:
-                      type: boolean
-                    kind:
-                      type: string
-                    name:
-                      type: string
-                    namespace:
-                      type: string
-                    requiresDeletionConfirmation:
-                      type: boolean
-                    requiresPruning:
-                      type: boolean
-                    status:
-                      type: string
-                    syncWave:
-                      format: int64
-                      type: integer
-                    version:
-                      type: string
                   type: object
                 type: array
             type: object

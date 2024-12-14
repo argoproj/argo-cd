@@ -44,7 +44,7 @@ import (
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
 		Example: `
@@ -78,9 +78,8 @@ func NewGenAppSpecCommand() *cobra.Command {
 		outputFormat string
 		annotations  []string
 		inline       bool
-		setFinalizer bool
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "generate-spec APPNAME",
 		Short: "Generate declarative config for an application",
 		Example: `
@@ -113,9 +112,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if setFinalizer {
-				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
-			}
+
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
 			defer io.Close(closer)
@@ -129,7 +126,6 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	command.Flags().BoolVarP(&inline, "inline", "i", false, "If set then generated resource is written back to the file specified in --file flag")
-	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
 
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
@@ -163,7 +159,7 @@ func printLine(format string, a ...interface{}) {
 }
 
 func NewDiffReconcileResults() *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "diff-reconcile-results PATH1 PATH2",
 		Short: "Compare results of two reconciliations and print diff.",
 		Run: func(c *cobra.Command, args []string) {
@@ -188,12 +184,12 @@ func NewDiffReconcileResults() *cobra.Command {
 func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(val)
 	if err != nil {
-		return nil, fmt.Errorf("error while marhsalling value: %w", err)
+		return nil, err
 	}
 	res := make(map[string]interface{})
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		return nil, fmt.Errorf("error while unmarhsalling data: %w", err)
+		return nil, err
 	}
 	return &unstructured.Unstructured{Object: res}, nil
 }
@@ -227,7 +223,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	for k, v := range resMap2 {
 		secondUn, err := toUnstructured(v)
 		if err != nil {
-			return fmt.Errorf("error converting second resource of second map to unstructure: %w", err)
+			return err
 		}
 		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
@@ -253,7 +249,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
 		Run: func(c *cobra.Command, args []string) {
@@ -332,13 +328,13 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 		return fmt.Errorf("format %s is not supported", outputFormat)
 	}
 
-	return os.WriteFile(outputPath, data, 0o644)
+	return os.WriteFile(outputPath, data, 0644)
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
+		return nil, err
 	}
 
 	var items []appReconcileResult
@@ -387,13 +383,14 @@ func reconcileApplications(
 		return true
 	}, func(r *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{})
+
 	if err != nil {
-		return nil, fmt.Errorf("error starting new metrics server: %w", err)
+		return nil, err
 	}
 	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
 	if err := stateCache.Init(); err != nil {
-		return nil, fmt.Errorf("error initializing state cache: %w", err)
+		return nil, err
 	}
 
 	cache := appstatecache.NewCache(
@@ -406,7 +403,7 @@ func reconcileApplications(
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
+		return nil, err
 	}
 
 	sort.Slice(appsList.Items, func(i, j int) bool {
@@ -429,7 +426,7 @@ func reconcileApplications(
 
 		proj, err := projLister.AppProjects(namespace).Get(app.Spec.Project)
 		if err != nil {
-			return nil, fmt.Errorf("error getting namespaced project: %w", err)
+			return nil, err
 		}
 
 		sources := make([]v1alpha1.ApplicationSource, 0)
@@ -437,9 +434,9 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
+		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
-			return nil, fmt.Errorf("error comparing app states: %w", err)
+			return nil, err
 		}
 		items = append(items, appReconcileResult{
 			Name:       app.Name,

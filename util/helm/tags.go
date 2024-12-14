@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -18,13 +17,13 @@ func (t TagsList) MaxVersion(constraints *semver.Constraints) (*semver.Version, 
 	for _, tag := range t.Tags {
 		v, err := semver.NewVersion(tag)
 
-		// Invalid semantic version ignored
-		if errors.Is(err, semver.ErrInvalidSemVer) {
+		//Invalid semantic version ignored
+		if err == semver.ErrInvalidSemVer {
 			log.Debugf("Invalid semantic version: %s", tag)
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("invalid constraint in tags: %w", err)
+			return nil, fmt.Errorf("invalid constraint in tags: %v", err)
 		}
 		if constraints.Check(v) {
 			versions = append(versions, v)

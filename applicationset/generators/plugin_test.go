@@ -631,7 +631,9 @@ func TestPluginGenerateParams(t *testing.T) {
 	ctx := context.Background()
 
 	for _, testCase := range testCases {
+
 		t.Run(testCase.name, func(t *testing.T) {
+
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 				Plugin: &argoprojiov1alpha1.PluginGenerator{
 					ConfigMapRef: argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
@@ -643,9 +645,10 @@ func TestPluginGenerateParams(t *testing.T) {
 			}
 
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 				authHeader := r.Header.Get("Authorization")
 				_, tokenKey := plugin.ParseSecretKey(testCase.configmap.Data["token"])
-				expectedToken := testCase.secret.Data[strings.ReplaceAll(tokenKey, "$", "")]
+				expectedToken := testCase.secret.Data[strings.Replace(tokenKey, "$", "", -1)]
 				if authHeader != "Bearer "+string(expectedToken) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
@@ -654,7 +657,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, err := w.Write(testCase.content)
 				if err != nil {
-					require.NoError(t, fmt.Errorf("Error Write %w", err))
+					assert.NoError(t, fmt.Errorf("Error Write %v", err))
 				}
 			})
 
@@ -670,7 +673,7 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+			var pluginGenerator = NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -681,20 +684,21 @@ func TestPluginGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo, nil)
+			got, err := pluginGenerator.GenerateParams(&generatorConfig, &applicationSetInfo)
+
 			if err != nil {
 				fmt.Println(err)
 			}
 
 			if testCase.expectedError != nil {
-				require.EqualError(t, err, testCase.expectedError.Error())
+				assert.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				expectedJson, err := json.Marshal(testCase.expected)
 				require.NoError(t, err)
 				gotJson, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.JSONEq(t, string(expectedJson), string(gotJson))
+				assert.Equal(t, string(expectedJson), string(gotJson))
 			}
 		})
 	}
