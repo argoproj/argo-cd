@@ -84,7 +84,7 @@ func TestMergeLogStreams_RaceCondition(t *testing.T) {
 
 		go func() {
 			parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
-			time.Sleep(time.Duration(i%3) * time.Millisecond) // Reduce the variability in timing
+			time.Sleep(time.Duration(i%3) * time.Millisecond)
 			close(first)
 		}()
 
