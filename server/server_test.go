@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	gosync "sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -53,7 +51,6 @@ type FakeArgoCDServer struct {
 }
 
 func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
-	t.Helper()
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -421,72 +418,6 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 	assert.Nil(t, s.settings.Certificate)
 }
 
-func TestGracefulShutdown(t *testing.T) {
-	port, err := test.GetFreePort()
-	require.NoError(t, err)
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
-	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
-	redis, redisCloser := test.NewInMemoryRedis()
-	defer redisCloser()
-	s := NewServer(
-		context.Background(),
-		ArgoCDServerOpts{
-			ListenPort:    port,
-			Namespace:     test.FakeArgoCDNamespace,
-			KubeClientset: kubeclientset,
-			AppClientset:  apps.NewSimpleClientset(),
-			RepoClientset: mockRepoClient,
-			RedisClient:   redis,
-		},
-		ApplicationSetOpts{},
-	)
-
-	projInformerCancel := test.StartInformer(s.projInformer)
-	defer projInformerCancel()
-	appInformerCancel := test.StartInformer(s.appInformer)
-	defer appInformerCancel()
-	appsetInformerCancel := test.StartInformer(s.appsetInformer)
-	defer appsetInformerCancel()
-
-	lns, err := s.Listen()
-	require.NoError(t, err)
-
-	shutdown := false
-	runCtx, runCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer runCancel()
-
-	err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-	require.Error(t, err, "API Server is not running. It either hasn't started or is restarting.")
-
-	var wg gosync.WaitGroup
-	wg.Add(1)
-	go func(shutdown *bool) {
-		defer wg.Done()
-		s.Run(runCtx, lns)
-		*shutdown = true
-	}(&shutdown)
-
-	for {
-		if s.available.Load() {
-			err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-			require.NoError(t, err)
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	s.stopCh <- syscall.SIGINT
-
-	wg.Wait()
-
-	err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-	require.Error(t, err, "API Server is terminating and unable to serve requests.")
-
-	assert.True(t, s.terminateRequested.Load())
-	assert.False(t, s.available.Load())
-	assert.True(t, shutdown)
-}
-
 func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string
@@ -546,7 +477,6 @@ func TestAuthenticate(t *testing.T) {
 }
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -612,7 +542,6 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
-	t.Helper()
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
@@ -1426,7 +1355,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			name:                        "file exists",
 			filename:                    "exists.html",
 			createFile:                  true,
-			expectedStatus:              http.StatusOK,
+			expectedStatus:              200,
 			expectedCacheControlHeaders: nil,
 		},
 		{
@@ -1440,7 +1369,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			name:                        "main js bundle exists",
 			filename:                    "main.e4188e5adc97bbfc00c3.js",
 			createFile:                  true,
-			expectedStatus:              http.StatusOK,
+			expectedStatus:              200,
 			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
 		},
 		{
@@ -1603,10 +1532,9 @@ func TestReplaceBaseHRef(t *testing.T) {
 
 func Test_enforceContentTypes(t *testing.T) {
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
-		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
-			writer.WriteHeader(http.StatusOK)
+			writer.WriteHeader(200)
 		})
 	}
 
@@ -1614,33 +1542,33 @@ func Test_enforceContentTypes(t *testing.T) {
 
 	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequest("GET", "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, 200, resp.StatusCode)
 	})
 
 	t.Run("POST", func(t *testing.T) {
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req := httptest.NewRequest("POST", "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
-		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
+		assert.Equal(t, 415, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequest("POST", "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
+		assert.Equal(t, 200, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequest("POST", "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
-		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
+		assert.Equal(t, 415, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
 }

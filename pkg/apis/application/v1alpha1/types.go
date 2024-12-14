@@ -3,11 +3,9 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"math"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,7 +18,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -39,6 +36,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
@@ -191,8 +189,6 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
-	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
-	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -399,10 +395,6 @@ type ApplicationSourceHelm struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
-	// SkipTests skips test manifest installation step (Helm's --skip-tests).
-	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
-	// SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
-	SkipSchemaValidation bool `json:"skipSchemaValidation,omitempty" protobuf:"bytes,15,opt,name=skipSchemaValidation"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -484,7 +476,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && !h.SkipTests && !h.SkipSchemaValidation && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -1051,16 +1043,6 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
-func (a *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
-	for i := range a.Resources {
-		res := a.Resources[i]
-		if kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name) == key {
-			return &res, true
-		}
-	}
-	return nil, false
-}
-
 // GetRevisions will return the current revision associated with the Application.
 // If app has multisources, it will return all corresponding revisions preserving
 // order from the app.spec.sources. If app has only one source, it will return a
@@ -1619,8 +1601,6 @@ type HealthStatus struct {
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
-	// LastTransitionTime is the time the HealthStatus was set or updated
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // InfoItem contains arbitrary, human readable information about an application
@@ -1834,17 +1814,16 @@ func (n *ResourceNode) GroupKindVersion() schema.GroupVersionKind {
 // ResourceStatus holds the current sync and health status of a resource
 // TODO: describe members of this type
 type ResourceStatus struct {
-	Group                        string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
-	Version                      string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
-	Kind                         string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
-	Namespace                    string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	Name                         string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
-	Status                       SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
-	Health                       *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
-	Hook                         bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
-	RequiresPruning              bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
-	SyncWave                     int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
-	RequiresDeletionConfirmation bool           `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
+	Group           string         `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version         string         `json:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind            string         `json:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+	Namespace       string         `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+	Name            string         `json:"name,omitempty" protobuf:"bytes,5,opt,name=name"`
+	Status          SyncStatusCode `json:"status,omitempty" protobuf:"bytes,6,opt,name=status"`
+	Health          *HealthStatus  `json:"health,omitempty" protobuf:"bytes,7,opt,name=health"`
+	Hook            bool           `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
+	RequiresPruning bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
+	SyncWave        int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 }
 
 // GroupVersionKind returns the GVK schema type for given resource status
@@ -1964,11 +1943,11 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 
-	if !maps.Equal(c.Annotations, other.Annotations) {
+	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
 		return false
 	}
 
-	if !maps.Equal(c.Labels, other.Labels) {
+	if !collections.StringMapsEqual(c.Labels, other.Labels) {
 		return false
 	}
 
@@ -2064,12 +2043,6 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
-
-	// DisableCompression bypasses automatic GZip compression requests to the server.
-	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
-
-	// ProxyURL is the URL to the proxy to be used for all requests send to the server
-	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3133,9 +3106,6 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		DisableCompression:  config.DisableCompression,
 		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
-	if config.Proxy != nil {
-		transport.Proxy = config.Proxy
-	}
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
 		return err
@@ -3159,22 +3129,8 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	return nil
 }
 
-// ParseProxyUrl returns a parsed url and verifies that schema is correct
-func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
-	u, err := url.Parse(proxyUrl)
-	if err != nil {
-		return nil, err
-	}
-	switch u.Scheme {
-	case "http", "https", "socks5":
-	default:
-		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
-	}
-	return u, nil
-}
-
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
@@ -3258,33 +3214,22 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
-	if c.Config.ProxyUrl != "" {
-		u, err := ParseProxyUrl(c.Config.ProxyUrl)
-		if err != nil {
-			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
-		}
-		config.Proxy = http.ProxyURL(u)
-	}
-	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
-	return config, nil
+	return config
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+func (c *Cluster) RESTConfig() *rest.Config {
+	config := c.RawRestConfig()
+	err := SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
+		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
 	}
-	err = SetK8SConfigDefaults(config)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
-	}
-	return config, nil
+	return config
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data
@@ -3365,28 +3310,4 @@ func (a *Application) QualifiedName() string {
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
-}
-
-// GetAnnotation returns the value of the specified annotation if it exists,
-// e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
-// If the annotation does not exist, it returns an empty string.
-func (a *Application) GetAnnotation(annotation string) string {
-	v, exists := a.Annotations[annotation]
-	if !exists {
-		return ""
-	}
-
-	return v
-}
-
-func (a *Application) IsDeletionConfirmed(since time.Time) bool {
-	val := a.GetAnnotation(synccommon.AnnotationDeletionApproved)
-	if val == "" {
-		return false
-	}
-	parsedVal, err := time.Parse(time.RFC3339, val)
-	if err != nil {
-		return false
-	}
-	return parsedVal.After(since) || parsedVal.Equal(since)
 }

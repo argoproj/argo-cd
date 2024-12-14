@@ -262,7 +262,7 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: oidc
+      - type: OIDC
         id: oidc
         name: OIDC
         config:
@@ -292,7 +292,7 @@ data:
   dex.config: |
     connectors:
       # OIDC
-      - type: oidc
+      - type: OIDC
         id: oidc
         name: OIDC
         config:

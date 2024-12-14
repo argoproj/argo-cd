@@ -11,7 +11,6 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_app_condition` | gauge | Report Applications conditions. It contains the conditions currently present in the application status. |
 | `argocd_app_k8s_request_total` | counter | Number of Kubernetes requests executed during application reconciliation |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
-| `argocd_app_orphaned_resources_count` | gauge | Number of orphaned resources per application. |
 | `argocd_app_reconcile` | histogram | Application reconciliation performance in seconds. |
 | `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |

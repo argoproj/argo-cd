@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"runtime/debug"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -44,13 +43,6 @@ func NewCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-
-			// Recover from panic and log the error using the configured logger instead of the default.
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
-				}
-			}()
 
 			config, err := plugin.ReadPluginConfig(configFilePath)
 			errors.CheckError(err)

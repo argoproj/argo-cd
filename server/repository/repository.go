@@ -128,7 +128,6 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	// ListRepositories normalizes the repo, sanitizes it, and augments it with connection details.
 	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
@@ -147,7 +146,30 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
 
-	return repo, nil
+	// For backwards compatibility, if we have no repo type set assume a default
+	rType := repo.Type
+	if rType == "" {
+		rType = common.DefaultRepoType
+	}
+	// remove secrets
+	item := appsv1.Repository{
+		Repo:                       repo.Repo,
+		Type:                       rType,
+		Name:                       repo.Name,
+		Username:                   repo.Username,
+		Insecure:                   repo.IsInsecure(),
+		EnableLFS:                  repo.EnableLFS,
+		GithubAppId:                repo.GithubAppId,
+		GithubAppInstallationId:    repo.GithubAppInstallationId,
+		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+		Proxy:                      repo.Proxy,
+		Project:                    repo.Project,
+		InheritedCreds:             repo.InheritedCreds,
+	}
+
+	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
+
+	return &item, nil
 }
 
 // ListRepositories returns a list of all configured repositories and the state of their connections

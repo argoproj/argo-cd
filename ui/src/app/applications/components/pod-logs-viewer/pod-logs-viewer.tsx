@@ -40,10 +40,6 @@ export interface PodLogsProps {
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
     fullscreen?: boolean;
-    viewPodNames?: boolean;
-    viewTimestamps?: boolean;
-    follow?: boolean;
-    showPreviousLogs?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -90,27 +86,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
 
-    const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
-        return (val => {
-            cb(val);
-            queryParams.set(key, val.toString());
-            history.replaceState(null, '', `${location.pathname}?${queryParams}`);
-        }) as T;
-    };
-
-    const setViewPodNamesWithQueryParams = setWithQueryParams('viewPodNames', setViewPodNames);
-    const setViewTimestampsWithQueryParams = setWithQueryParams('viewTimestamps', setViewTimestamps);
-    const setFollowWithQueryParams = setWithQueryParams('follow', setFollow);
-    const setPreviousLogsWithQueryParams = setWithQueryParams('showPreviousLogs', setPreviousLogs);
-    const setTailWithQueryParams = setWithQueryParams('tail', setTail);
-    const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
-
-    const onToggleViewPodNames = (val: boolean) => {
-        setViewPodNamesWithQueryParams(val);
-        if (val) {
-            setViewTimestampsWithQueryParams(false);
+    useEffect(() => {
+        if (viewPodNames) {
+            setViewTimestamps(false);
         }
-    };
+    }, [viewPodNames]);
 
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -185,32 +165,32 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                     <React.Fragment>
                         <div className='pod-logs-viewer__settings'>
                             <span>
-                                <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
+                                <FollowToggleButton follow={follow} setFollow={setFollow} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
-                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
+                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
                                     <>
                                         <SinceSecondsSelector sinceSeconds={sinceSeconds} setSinceSeconds={n => setSinceSeconds(n)} />
-                                        <TailSelector tail={tail} setTail={setTailWithQueryParams} />
+                                        <TailSelector tail={tail} setTail={setTail} />
                                     </>
                                 )}
-                                <LogMessageFilter filterText={filter} setFilterText={setFilterWithQueryParams} />
+                                <LogMessageFilter filterText={filter} setFilterText={setFilter} />
                             </span>
                             <Spacer />
                             <span>
                                 <WrapLinesButton prefs={prefs} />
-                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
-                                <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
+                                <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
                                 <DownloadLogsButton {...props} />
-                                <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
+                                <FullscreenButton {...props} />
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>

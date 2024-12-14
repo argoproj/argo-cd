@@ -461,8 +461,6 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
-	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
-	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
 	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
@@ -537,8 +535,8 @@ const (
 )
 
 const (
-	// default max webhook payload size is 50MB
-	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
@@ -921,7 +919,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return true, nil
+		return false, nil
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
@@ -1339,10 +1337,6 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
@@ -2345,28 +2339,6 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 		}
 	}
 	return labelKeys
-}
-
-func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
-	annotationKeys := make(map[string]bool)
-
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %w", err))
-		return annotationKeys
-	}
-
-	value, ok := argoCDCM.Data[resourceSensitiveAnnotationsKey]
-	if !ok || value == "" {
-		return annotationKeys
-	}
-
-	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
-		annotationKeys[k] = true
-	}
-	return annotationKeys
 }
 
 func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {

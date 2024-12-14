@@ -578,8 +578,8 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				},
 			},
 			expected: []map[string]interface{}{
-				{"path": "examples/git-generator-files-discovery/cluster-config/dev/config.json", "path.basename": "dev", "path.basenameNormalized": "dev", "name": "dev-01", "nameNormalized": "dev-01", "server": "https://dev-01.example.com", "metadata.labels.environment": "dev", "metadata.labels.argocd.argoproj.io/secret-type": "cluster", "project": ""},
-				{"path": "examples/git-generator-files-discovery/cluster-config/prod/config.json", "path.basename": "prod", "path.basenameNormalized": "prod", "name": "prod-01", "nameNormalized": "prod-01", "server": "https://prod-01.example.com", "metadata.labels.environment": "prod", "metadata.labels.argocd.argoproj.io/secret-type": "cluster", "project": ""},
+				{"path": "examples/git-generator-files-discovery/cluster-config/dev/config.json", "path.basename": "dev", "path.basenameNormalized": "dev", "name": "dev-01", "nameNormalized": "dev-01", "server": "https://dev-01.example.com", "metadata.labels.environment": "dev", "metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
+				{"path": "examples/git-generator-files-discovery/cluster-config/prod/config.json", "path.basename": "prod", "path.basenameNormalized": "prod", "name": "prod-01", "nameNormalized": "prod-01", "server": "https://prod-01.example.com", "metadata.labels.environment": "prod", "metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
 			},
 			clientError: false,
 		},
@@ -734,7 +734,6 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					"name":           "dev-01",
 					"nameNormalized": "dev-01",
 					"server":         "https://dev-01.example.com",
-					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"environment":                    "dev",
@@ -751,7 +750,6 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					"name":           "prod-01",
 					"nameNormalized": "prod-01",
 					"server":         "https://prod-01.example.com",
-					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"environment":                    "prod",

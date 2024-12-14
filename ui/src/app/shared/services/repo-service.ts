@@ -224,7 +224,7 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource, appName: string, appProject: string, sourceIndex: number, versionId: number | null): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string, appProject: string, sourceIndex: number, versionId: number): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
             .send({source, appName, appProject, sourceIndex, versionId})
