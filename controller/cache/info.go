@@ -66,8 +66,6 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
-		case "ServiceEntry":
-			populateIstioServiceEntryInfo(un, res)
 		}
 	}
 }
@@ -280,22 +278,6 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
 }
 
-func populateIstioServiceEntryInfo(un *unstructured.Unstructured, res *ResourceInfo) {
-	targetLabels, ok, err := unstructured.NestedStringMap(un.Object, "spec", "workloadSelector", "labels")
-	if err != nil {
-		return
-	}
-	if !ok {
-		return
-	}
-	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
-		TargetLabels: targetLabels,
-		TargetRefs: []v1alpha1.ResourceRef{{
-			Kind: kube.PodKind,
-		}},
-	}
-}
-
 func isPodInitializedConditionTrue(status *v1.PodStatus) bool {
 	for _, condition := range status.Conditions {
 		if condition.Type != v1.PodInitialized {
@@ -451,7 +433,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	if restarts > 0 {
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
 	}
 
 	var urls []string

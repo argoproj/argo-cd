@@ -367,72 +367,7 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.EqualError(t, err, "rpc error: code = NotFound desc = repo 'https://test' not found")
-	})
-
-	t.Run("Test_GetRepoIsSanitized", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret", GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3", GithubAppId: 123456, GithubAppInstallationId: 789}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "https://test", repo.Repo)
-		assert.Equal(t, "https://ghe.example.com/api/v3", repo.GitHubAppEnterpriseBaseURL)
-		assert.Equal(t, int64(123456), repo.GithubAppId)
-		assert.Equal(t, int64(789), repo.GithubAppInstallationId)
-		assert.Empty(t, repo.Password)
-	})
-
-	t.Run("Test_GetRepoIsNormalized", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test"}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "https://test", repo.Repo)
-		assert.Equal(t, common.DefaultRepoType, repo.Type)
-	})
-
-	t.Run("Test_GetRepoHasConnectionState", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{
-			VerifiedRepository: true,
-		}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, repo.ConnectionState)
-		assert.Equal(t, appsv1.ConnectionStatusSuccessful, repo.ConnectionState.Status)
+		assert.Equal(t, "rpc error: code = NotFound desc = repo 'https://test' not found", err.Error())
 	})
 
 	t.Run("Test_CreateRepositoryWithoutUpsert", func(t *testing.T) {

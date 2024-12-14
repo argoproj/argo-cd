@@ -9,18 +9,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/argoproj/pkg/rand"
-	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
-	argoexec "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -76,7 +76,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	argsToLog := argoexec.GetCommandArgsToLog(cmd)
+	argsToLog := getCommandArgsToLog(cmd)
 	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer
@@ -133,6 +133,28 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
+}
+
+// getCommandArgsToLog represents the given command in a way that we can copy-and-paste into a terminal
+func getCommandArgsToLog(cmd *exec.Cmd) string {
+	var argsToLog []string
+	for _, arg := range cmd.Args {
+		containsSpace := false
+		for _, r := range arg {
+			if unicode.IsSpace(r) {
+				containsSpace = true
+				break
+			}
+		}
+		if containsSpace {
+			// add quotes and escape any internal quotes
+			argsToLog = append(argsToLog, strconv.Quote(arg))
+		} else {
+			argsToLog = append(argsToLog, arg)
+		}
+	}
+	args := strings.Join(argsToLog, " ")
+	return args
 }
 
 type CmdError struct {
@@ -218,9 +240,6 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
-
-	log.Tracef("Generated manifests result: %s", response.Manifests)
-
 	err = stream.SendAndClose(response)
 	if err != nil {
 		return fmt.Errorf("error sending manifest response: %w", err)
@@ -423,16 +442,4 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 		ParameterAnnouncements: augmentedAnnouncements,
 	}
 	return repoResponse, nil
-}
-
-func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
-	isDiscoveryConfigured := s.isDiscoveryConfigured()
-	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
-
-	return response, nil
-}
-
-func (s *Service) isDiscoveryConfigured() (isDiscoveryConfigured bool) {
-	config := s.initConstants.PluginConfig
-	return config.Spec.Discover.FileName != "" || config.Spec.Discover.Find.Glob != "" || len(config.Spec.Discover.Find.Command.Command) > 0
 }

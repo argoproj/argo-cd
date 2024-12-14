@@ -65,10 +65,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
-func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
-	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
-		return nil
-	}
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue {
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
@@ -83,7 +80,7 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) string {
 	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un, instanceID)
+		value := rt.getAppInstanceValue(un, key, trackingMethod, instanceID)
 		if value != nil {
 			return value.ApplicationName
 		}
@@ -115,7 +112,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
-		return rt.getAppInstanceValue(un, instanceID)
+		return rt.getAppInstanceValue(un, key, trackingMethod, instanceID)
 	default:
 		return nil
 	}
@@ -222,7 +219,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
-// Normalize updates live resource and removes diff caused by missing annotation or extra tracking label.
+// Normalize updates live resource and removes diff caused but missing annotation or extra tracking label.
 // The normalization is required to ensure smooth transition to new tracking method.
 func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {

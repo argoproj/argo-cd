@@ -21,6 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=RepoServerServiceClient
+
 // MaxGRPCMessageSize contains max grpc message size
 var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
@@ -82,7 +84,6 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	// nolint:staticcheck
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", address)
