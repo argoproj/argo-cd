@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,9 @@ foo:
 		useGoTemplate     bool
 		goTemplateOptions []string
 		pathParamPrefix   string
+		noRevisionCache   bool
+		verifyCommit      bool
+		extraParamFiles   map[string]interface{}
 	}
 	tests := []struct {
 		name    string
@@ -165,13 +169,250 @@ foo:
 				},
 			},
 		},
+		{
+			// Extra param files should be merged in the order : firstConfig.json, secondConfig.json (alphabetical sorted in the same glob), override.yaml
+			name: "extra params with go template",
+			args: args{
+				filePath:        "path/dir/file_name.yaml",
+				fileContent:     defaultContent,
+				values:          map[string]string{},
+				useGoTemplate:   true,
+				pathParamPrefix: "myRepo",
+				extraParamFiles: map[string]interface{}{
+					"path/dir/**/*.json": map[string][]byte{
+						"path/dir/mypath/other/firstConfig.json": []byte(`{
+	"firstKey": {
+		"foo":  "bar",
+		"foo2": "bar2",
+		"foo3": true,
+		"foo4": {
+			"foo4foo":  "barbar1",
+			"foo4foo2": "barbar2",
+		},
+	},
+	"secondKey": false,
+	"thirdKey":  "thirdValue",
+}`),
+						"path/dir/mypath/other/secondConfig.json": []byte(`{
+	"firstKey": {
+		"foo":  "barbarbar",
+	},
+	"thirdKey":  "thirdValueOverriden",
+}`),
+					},
+					"path/otherdir/override.yaml": map[string][]byte{
+						"path/otherdir/override.yaml": []byte(`
+firstKey:
+  foo2: bar2Override
+  foo4:
+    foo4foo2: barbar2Override
+    foo5foo3: barbar3Override
+secondKey: true
+otherKey:  otherValue
+`),
+					},
+				},
+			},
+			want: []map[string]interface{}{
+				{
+					"foo": map[string]interface{}{
+						"bar": "baz",
+					},
+					"myRepo": map[string]interface{}{
+						"path": map[string]interface{}{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "barbarbar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValueOverriden",
+						"otherKey":  "otherValue",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
+			argoCDServiceMock := mocks.Repos{}
+
+			var extraParamFiles []string
+			if len(tt.args.extraParamFiles) != 0 {
+				keys := make([]string, 0, len(tt.args.extraParamFiles))
+				for k := range tt.args.extraParamFiles {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				extraParamFiles = make([]string, 0)
+				for _, key := range keys {
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, key, mock.Anything, mock.Anything).
+						Return(tt.args.extraParamFiles[key], nil)
+					extraParamFiles = append(extraParamFiles, key)
+				}
+			}
+
+			git := argoprojiov1alpha1.GitGenerator{
+				Values:              tt.args.values,
+				PathParamPrefix:     tt.args.pathParamPrefix,
+				ExtraParameterFiles: extraParamFiles,
+			}
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "").(*GitGenerator)
+			params, err := gitGenerator.generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, &git, tt.args.goTemplateOptions, tt.args.useGoTemplate, tt.args.noRevisionCache, tt.args.verifyCommit)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GitGenerator.generateParamsFromGitFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			assert.Equal(t, tt.want, params)
+		})
+	}
+}
+
+func TestGenerateParamsFromGitFileWithExtraParamsAndTemplatizedPath(t *testing.T) {
+	defaultContent := []byte(`
+foo:
+  bar: baz
+`)
+	type args struct {
+		filePath          string
+		fileContent       []byte
+		values            map[string]string
+		useGoTemplate     bool
+		goTemplateOptions []string
+		pathParamPrefix   string
+		noRevisionCache   bool
+		verifyCommit      bool
+		templatizedPath   string
+		extraParamFiles   map[string]interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []map[string]interface{}
+		wantErr string
+	}{
+		{
+			name: "extra params with templatized path",
+			args: args{
+				filePath:          "path/dir/file_name.yaml",
+				fileContent:       defaultContent,
+				values:            map[string]string{},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{"missingkey=error"},
+				pathParamPrefix:   "myRepo",
+				templatizedPath:   "path/dir/{{.foo.bar}}.json",
+				extraParamFiles: map[string]interface{}{
+					"path/dir/baz.json": map[string][]byte{
+						"path/dir/baz.json": []byte(`{
+	"firstKey": {
+		"foo":  "bar",
+		"foo2": "bar2",
+		"foo3": true,
+		"foo4": {
+			"foo4foo":  "barbar1",
+			"foo4foo2": "barbar2",
+		},
+	},
+	"secondKey": false,
+	"thirdKey":  "thirdValue",
+}`),
+					},
+				},
+			},
+			want: []map[string]interface{}{
+				{
+					"foo": map[string]interface{}{
+						"bar": "baz",
+					},
+					"myRepo": map[string]interface{}{
+						"path": map[string]interface{}{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2",
+							},
+						},
+						"secondKey": false,
+						"thirdKey":  "thirdValue",
+					},
+				},
+			},
+		},
+		{
+			name: "extra params with templatized path, value not found",
+			args: args{
+				filePath:          "path/dir/file_name.yaml",
+				fileContent:       defaultContent,
+				values:            map[string]string{},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{"missingkey=error"},
+				pathParamPrefix:   "myRepo",
+				templatizedPath:   "path/dir/{{.foo.barNotFound}}.json",
+				extraParamFiles:   map[string]interface{}{},
+			},
+			wantErr: "failed to append extra parameters from files: failed to replace templated string with rendered values: failed to execute go template path/dir/{{.foo.barNotFound}}.json: template: :1:15: executing \"\" at <.foo.barNotFound>: map has no entry for key \"barNotFound\"",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			argoCDServiceMock := mocks.Repos{}
+
+			if len(tt.args.extraParamFiles) != 0 {
+				for fileName, extraParamFileContent := range tt.args.extraParamFiles {
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, fileName, mock.Anything, mock.Anything).
+						Return(extraParamFileContent, nil)
+				}
+			}
+
+			git := argoprojiov1alpha1.GitGenerator{
+				Values:          tt.args.values,
+				PathParamPrefix: tt.args.pathParamPrefix,
+			}
+			if tt.args.templatizedPath != "" {
+				git.ExtraParameterFiles = []string{tt.args.templatizedPath}
+			}
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "").(*GitGenerator)
+			params, err := gitGenerator.generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, &git, tt.args.goTemplateOptions, tt.args.useGoTemplate, tt.args.noRevisionCache, tt.args.verifyCommit)
+			if err != nil {
+				if tt.wantErr == "" {
+					t.Errorf("GitGenerator.generateParamsFromGitFile() error = %v, wantErr %v", err, tt.wantErr)
+					return
+				}
+				require.EqualError(t, err, tt.wantErr)
 			}
 			assert.Equal(t, tt.want, params)
 		})
@@ -186,6 +427,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		repoApps        []string
 		repoError       error
 		values          map[string]string
+		extraParamFiles map[string][]byte
 		expected        []map[string]interface{}
 		expectedError   error
 	}{
@@ -311,6 +553,88 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			expected:      []map[string]interface{}{},
 			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
+		{
+			name:        "With extra params",
+			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
+			},
+			repoError: nil,
+			extraParamFiles: map[string][]byte{
+				"path/dir/**/*/json": []byte(`{
+"firstKey": {
+	"foo":  "bar",
+	"foo2": "bar2",
+	"foo3": true,
+	"foo4": {
+		"foo4foo":  "barbar1",
+		"foo4foo2": "barbar2",
+	},
+},
+"secondKey": false,
+"thirdKey":  "thirdValue",
+}`),
+				"path/otherdir/override.yaml": []byte(`
+firstKey: 
+  foo2: bar2Override
+  foo4:
+    foo4foo2: barbar2Override
+    foo5foo3: barbar3Override
+secondKey: true
+otherKey:  otherValue
+`),
+			},
+			expected: []map[string]interface{}{
+				{
+					"path":                               "app1",
+					"path.basename":                      "app1",
+					"path.basenameNormalized":            "app1",
+					"path[0]":                            "app1",
+					"extraParams.firstKey.foo":           "bar",
+					"extraParams.firstKey.foo2":          "bar2Override",
+					"extraParams.firstKey.foo3":          "true",
+					"extraParams.firstKey.foo4.foo4foo":  "barbar1",
+					"extraParams.firstKey.foo4.foo4foo2": "barbar2Override",
+					"extraParams.firstKey.foo4.foo5foo3": "barbar3Override",
+					"extraParams.secondKey":              "true",
+					"extraParams.thirdKey":               "thirdValue",
+					"extraParams.otherKey":               "otherValue",
+				},
+				{
+					"path":                               "app2",
+					"path.basename":                      "app2",
+					"path.basenameNormalized":            "app2",
+					"path[0]":                            "app2",
+					"extraParams.firstKey.foo":           "bar",
+					"extraParams.firstKey.foo2":          "bar2Override",
+					"extraParams.firstKey.foo3":          "true",
+					"extraParams.firstKey.foo4.foo4foo":  "barbar1",
+					"extraParams.firstKey.foo4.foo4foo2": "barbar2Override",
+					"extraParams.firstKey.foo4.foo5foo3": "barbar3Override",
+					"extraParams.secondKey":              "true",
+					"extraParams.thirdKey":               "thirdValue",
+					"extraParams.otherKey":               "otherValue",
+				},
+				{
+					"path":                               "app_3",
+					"path.basename":                      "app_3",
+					"path.basenameNormalized":            "app-3",
+					"path[0]":                            "app_3",
+					"extraParams.firstKey.foo":           "bar",
+					"extraParams.firstKey.foo2":          "bar2Override",
+					"extraParams.firstKey.foo3":          "true",
+					"extraParams.firstKey.foo4.foo4foo":  "barbar1",
+					"extraParams.firstKey.foo4.foo4foo2": "barbar2Override",
+					"extraParams.firstKey.foo4.foo5foo3": "barbar3Override",
+					"extraParams.secondKey":              "true",
+					"extraParams.thirdKey":               "thirdValue",
+					"extraParams.otherKey":               "otherValue",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {
@@ -323,6 +647,24 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
+			var extraParamFiles []string
+			if len(testCaseCopy.extraParamFiles) != 0 {
+				keys := make([]string, 0, len(testCaseCopy.extraParamFiles))
+				for k := range testCaseCopy.extraParamFiles {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				extraParamFiles = make([]string, 0)
+				for _, key := range keys {
+					extraParamFiles = append(extraParamFiles, key)
+
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, key, mock.Anything, mock.Anything).
+						Return(map[string][]byte{
+							key: testCaseCopy.extraParamFiles[key],
+						}, nil)
+				}
+			}
+
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -331,11 +673,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:         "RepoURL",
-							Revision:        "Revision",
-							Directories:     testCaseCopy.directories,
-							PathParamPrefix: testCaseCopy.pathParamPrefix,
-							Values:          testCaseCopy.values,
+							RepoURL:             "RepoURL",
+							Revision:            "Revision",
+							Directories:         testCaseCopy.directories,
+							PathParamPrefix:     testCaseCopy.pathParamPrefix,
+							Values:              testCaseCopy.values,
+							ExtraParameterFiles: extraParamFiles,
 						},
 					}},
 				},
@@ -369,6 +712,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		pathParamPrefix string
 		repoApps        []string
 		repoError       error
+		extraParamFiles map[string][]byte
 		expected        []map[string]interface{}
 		expectedError   error
 	}{
@@ -612,6 +956,119 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			expected:      []map[string]interface{}{},
 			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
 		},
+		{
+			name:        "With extra params",
+			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
+			},
+			extraParamFiles: map[string][]byte{
+				"path/dir/**/*/json": []byte(`{
+"firstKey": {
+	"foo":  "bar",
+	"foo2": "bar2",
+	"foo3": true,
+	"foo4": {
+		"foo4foo":  "barbar1",
+		"foo4foo2": "barbar2",
+	},
+},
+"secondKey": false,
+"thirdKey":  "thirdValue",
+}`),
+				"path/otherdir/override.yaml": []byte(`
+firstKey: 
+  foo2: bar2Override
+  foo4:
+    foo4foo2: barbar2Override
+    foo5foo3: barbar3Override
+secondKey: true
+otherKey:  otherValue
+`),
+			},
+			repoError: nil,
+			expected: []map[string]interface{}{
+				{
+					"path": map[string]interface{}{
+						"path":               "app1",
+						"basename":           "app1",
+						"basenameNormalized": "app1",
+						"segments": []string{
+							"app1",
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValue",
+						"otherKey":  "otherValue",
+					},
+				},
+				{
+					"path": map[string]interface{}{
+						"path":               "app2",
+						"basename":           "app2",
+						"basenameNormalized": "app2",
+						"segments": []string{
+							"app2",
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValue",
+						"otherKey":  "otherValue",
+					},
+				},
+				{
+					"path": map[string]interface{}{
+						"path":               "app_3",
+						"basename":           "app_3",
+						"basenameNormalized": "app-3",
+						"segments": []string{
+							"app_3",
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValue",
+						"otherKey":  "otherValue",
+					},
+				},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -623,6 +1080,25 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			argoCDServiceMock := mocks.Repos{}
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			var extraParamFiles []string
+
+			if len(testCaseCopy.extraParamFiles) != 0 {
+				// Make sure we process the extra files in the same order
+				keys := make([]string, 0, len(testCaseCopy.extraParamFiles))
+				for k := range testCaseCopy.extraParamFiles {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				extraParamFiles = make([]string, 0)
+				for _, key := range keys {
+					extraParamFiles = append(extraParamFiles, key)
+
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, key, mock.Anything, mock.Anything).
+						Return(map[string][]byte{
+							key: testCaseCopy.extraParamFiles[key],
+						}, nil)
+				}
+			}
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -633,10 +1109,11 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					GoTemplate: true,
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:         "RepoURL",
-							Revision:        "Revision",
-							Directories:     testCaseCopy.directories,
-							PathParamPrefix: testCaseCopy.pathParamPrefix,
+							RepoURL:             "RepoURL",
+							Revision:            "Revision",
+							Directories:         testCaseCopy.directories,
+							PathParamPrefix:     testCaseCopy.pathParamPrefix,
+							ExtraParameterFiles: extraParamFiles,
 						},
 					}},
 				},
@@ -671,10 +1148,11 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
-		repoPathsError error
-		values         map[string]string
-		expected       []map[string]interface{}
-		expectedError  error
+		repoPathsError  error
+		values          map[string]string
+		extraParamFiles map[string][]byte
+		expected        []map[string]interface{}
+		expectedError   error
 	}{
 		{
 			name:  "happy flow: create params from git files",
@@ -977,6 +1455,108 @@ cluster:
 			},
 			expectedError: nil,
 		},
+		{
+			name:  "with extra params",
+			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+   "cluster": {
+       "owner": "john.doe@example.com",
+       "name": "production",
+       "address": "https://kubernetes.default.svc"
+   },
+   "key1": "val1",
+   "key2": {
+       "key2_1": "val2_1",
+       "key2_2": {
+           "key2_2_1": "val2_2_1"
+       }
+   },
+   "key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+   "cluster": {
+       "owner": "foo.bar@example.com",
+       "name": "staging",
+       "address": "https://kubernetes.default.svc"
+   }
+}`),
+			},
+			extraParamFiles: map[string][]byte{
+				"path/dir/**/*/json": []byte(`{
+"firstKey": {
+	"foo":  "bar",
+	"foo2": "bar2",
+	"foo3": true,
+	"foo4": {
+		"foo4foo":  "barbar1",
+		"foo4foo2": "barbar2",
+	},
+},
+"secondKey": false,
+"thirdKey":  "thirdValue",
+}`),
+				"path/otherdir/override.yaml": []byte(`
+firstKey: 
+  foo2: bar2Override
+  foo4:
+    foo4foo2: barbar2Override
+    foo5foo3: barbar3Override
+secondKey: true
+otherKey:  otherValue
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]interface{}{
+				{
+					"cluster.owner":                      "john.doe@example.com",
+					"cluster.name":                       "production",
+					"cluster.address":                    "https://kubernetes.default.svc",
+					"key1":                               "val1",
+					"key2.key2_1":                        "val2_1",
+					"key2.key2_2.key2_2_1":               "val2_2_1",
+					"key3":                               "123",
+					"path":                               "cluster-config/production",
+					"path.basename":                      "production",
+					"path[0]":                            "cluster-config",
+					"path[1]":                            "production",
+					"path.basenameNormalized":            "production",
+					"path.filename":                      "config.json",
+					"path.filenameNormalized":            "config.json",
+					"extraParams.firstKey.foo":           "bar",
+					"extraParams.firstKey.foo2":          "bar2Override",
+					"extraParams.firstKey.foo3":          "true",
+					"extraParams.firstKey.foo4.foo4foo":  "barbar1",
+					"extraParams.firstKey.foo4.foo4foo2": "barbar2Override",
+					"extraParams.firstKey.foo4.foo5foo3": "barbar3Override",
+					"extraParams.secondKey":              "true",
+					"extraParams.thirdKey":               "thirdValue",
+					"extraParams.otherKey":               "otherValue",
+				},
+				{
+					"cluster.owner":                      "foo.bar@example.com",
+					"cluster.name":                       "staging",
+					"cluster.address":                    "https://kubernetes.default.svc",
+					"path":                               "cluster-config/staging",
+					"path.basename":                      "staging",
+					"path[0]":                            "cluster-config",
+					"path[1]":                            "staging",
+					"path.basenameNormalized":            "staging",
+					"path.filename":                      "config.json",
+					"path.filenameNormalized":            "config.json",
+					"extraParams.firstKey.foo":           "bar",
+					"extraParams.firstKey.foo2":          "bar2Override",
+					"extraParams.firstKey.foo3":          "true",
+					"extraParams.firstKey.foo4.foo4foo":  "barbar1",
+					"extraParams.firstKey.foo4.foo4foo2": "barbar2Override",
+					"extraParams.firstKey.foo4.foo5foo3": "barbar3Override",
+					"extraParams.secondKey":              "true",
+					"extraParams.thirdKey":               "thirdValue",
+					"extraParams.otherKey":               "otherValue",
+				},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -986,8 +1566,25 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, testCaseCopy.files[0].Path, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+			var extraParamFiles []string
+			if len(testCaseCopy.extraParamFiles) != 0 {
+				keys := make([]string, 0, len(testCaseCopy.extraParamFiles))
+				for k := range testCaseCopy.extraParamFiles {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				extraParamFiles = make([]string, 0)
+				for _, key := range keys {
+					extraParamFiles = append(extraParamFiles, key)
+
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, key, mock.Anything, mock.Anything).
+						Return(map[string][]byte{
+							key: testCaseCopy.extraParamFiles[key],
+						}, nil)
+				}
+			}
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -997,10 +1594,11 @@ cluster:
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:  "RepoURL",
-							Revision: "Revision",
-							Files:    testCaseCopy.files,
-							Values:   testCaseCopy.values,
+							RepoURL:             "RepoURL",
+							Revision:            "Revision",
+							Files:               testCaseCopy.files,
+							Values:              testCaseCopy.values,
+							ExtraParameterFiles: extraParamFiles,
 						},
 					}},
 				},
@@ -1036,9 +1634,10 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
-		repoPathsError error
-		expected       []map[string]interface{}
-		expectedError  error
+		repoPathsError  error
+		extraParamFiles map[string][]byte
+		expected        []map[string]interface{}
+		expectedError   error
 	}{
 		{
 			name:  "happy flow: create params from git files",
@@ -1333,6 +1932,136 @@ cluster:
 			},
 			expectedError: nil,
 		},
+		{
+			name:  "with extra params",
+			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+   "cluster": {
+       "owner": "john.doe@example.com",
+       "name": "production",
+       "address": "https://kubernetes.default.svc"
+   },
+   "key1": "val1",
+   "key2": {
+       "key2_1": "val2_1",
+       "key2_2": {
+           "key2_2_1": "val2_2_1"
+       }
+   },
+   "key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+   "cluster": {
+       "owner": "foo.bar@example.com",
+       "name": "staging",
+       "address": "https://kubernetes.default.svc"
+   }
+}`),
+			},
+			extraParamFiles: map[string][]byte{
+				"path/dir/**/*/json": []byte(`{
+"firstKey": {
+	"foo":  "bar",
+	"foo2": "bar2",
+	"foo3": true,
+	"foo4": {
+		"foo4foo":  "barbar1",
+		"foo4foo2": "barbar2",
+	},
+},
+"secondKey": false,
+"thirdKey":  "thirdValue",
+}`),
+				"path/otherdir/override.yaml": []byte(`
+firstKey: 
+  foo2: bar2Override
+  foo4:
+    foo4foo2: barbar2Override
+    foo5foo3: barbar3Override
+secondKey: true
+otherKey:  otherValue
+`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]interface{}{
+				{
+					"cluster": map[string]interface{}{
+						"owner":   "john.doe@example.com",
+						"name":    "production",
+						"address": "https://kubernetes.default.svc",
+					},
+					"key1": "val1",
+					"key2": map[string]interface{}{
+						"key2_1": "val2_1",
+						"key2_2": map[string]interface{}{
+							"key2_2_1": "val2_2_1",
+						},
+					},
+					"key3": float64(123),
+					"path": map[string]interface{}{
+						"path":               "cluster-config/production",
+						"basename":           "production",
+						"filename":           "config.json",
+						"basenameNormalized": "production",
+						"filenameNormalized": "config.json",
+						"segments": []string{
+							"cluster-config",
+							"production",
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValue",
+						"otherKey":  "otherValue",
+					},
+				},
+				{
+					"cluster": map[string]interface{}{
+						"owner":   "foo.bar@example.com",
+						"name":    "staging",
+						"address": "https://kubernetes.default.svc",
+					},
+					"path": map[string]interface{}{
+						"path":               "cluster-config/staging",
+						"basename":           "staging",
+						"filename":           "config.json",
+						"basenameNormalized": "staging",
+						"filenameNormalized": "config.json",
+						"segments": []string{
+							"cluster-config",
+							"staging",
+						},
+					},
+					"extraParams": map[string]interface{}{
+						"firstKey": map[string]interface{}{
+							"foo":  "bar",
+							"foo2": "bar2Override",
+							"foo3": true,
+							"foo4": map[string]interface{}{
+								"foo4foo":  "barbar1",
+								"foo4foo2": "barbar2Override",
+								"foo5foo3": "barbar3Override",
+							},
+						},
+						"secondKey": true,
+						"thirdKey":  "thirdValue",
+						"otherKey":  "otherValue",
+					},
+				},
+			},
+			expectedError: nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -1342,8 +2071,26 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, testCaseCopy.files[0].Path, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+
+			var extraParamFiles []string
+			if len(testCaseCopy.extraParamFiles) != 0 {
+				keys := make([]string, 0, len(testCaseCopy.extraParamFiles))
+				for k := range testCaseCopy.extraParamFiles {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				extraParamFiles = make([]string, 0)
+				for _, key := range keys {
+					extraParamFiles = append(extraParamFiles, key)
+
+					argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, key, mock.Anything, mock.Anything).
+						Return(map[string][]byte{
+							key: testCaseCopy.extraParamFiles[key],
+						}, nil)
+				}
+			}
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -1354,9 +2101,10 @@ cluster:
 					GoTemplate: true,
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						Git: &argoprojiov1alpha1.GitGenerator{
-							RepoURL:  "RepoURL",
-							Revision: "Revision",
-							Files:    testCaseCopy.files,
+							RepoURL:             "RepoURL",
+							Revision:            "Revision",
+							Files:               testCaseCopy.files,
+							ExtraParameterFiles: extraParamFiles,
 						},
 					}},
 				},
