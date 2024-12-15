@@ -485,16 +485,18 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 	return refSources, nil
 }
 
-// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// ValidateDestination sets the 'Server' or the `Name` value of the ApplicationDestination, if it is not set.
 // NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
-//
 // If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
 // ValidationDestination will look up the cluster by name (to get the server URL), and
-// set the corresponding Server field value.
+// set the corresponding Server field value. Same goes for the opposite case.
 //
 // It also checks:
 // - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.IsServerInferred() && dest.IsNameInferred() {
+		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
+	}
 	if dest.Name != "" {
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
@@ -505,8 +507,19 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() {
+		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
 			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
+		}
+	} else if dest.Server != "" {
+		if dest.Name == "" {
+			serverName, err := getDestinationServerName(ctx, db, dest.Server)
+			if err != nil {
+				return fmt.Errorf("unable to find destination server: %w", err)
+			}
+			if serverName == "" {
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
+			}
+			dest.SetInferredName(serverName)
 		}
 	}
 	return nil
@@ -959,6 +972,22 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
+func getDestinationServerName(ctx context.Context, db db.ArgoDB, server string) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("there are no clusters registered in the database")
+	}
+
+	cluster, err := db.GetCluster(ctx, server)
+	if err != nil {
+		return "", fmt.Errorf("error getting cluster name by server %q: %w", server, err)
+	}
+
+	if cluster.Name == "" {
+		return "", fmt.Errorf("there are no clusters with this URL: %s", server)
+	}
+	return cluster.Name, nil
+}
+
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
 	globalProjects := make([]*argoappv1.AppProject, 0)
@@ -1038,7 +1067,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
+	return fmt.Sprintf("%s; difference in keys %q", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
