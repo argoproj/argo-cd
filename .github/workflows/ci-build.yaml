@@ -429,6 +429,13 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
