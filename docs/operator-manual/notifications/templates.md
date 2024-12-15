@@ -57,7 +57,7 @@ kind: Secret
 metadata:
   name: argocd-notifications-secret
 stringData:
-  sampleWebhookToken: secret-token 
+  sampleWebhookToken: secret-token
 type: Opaque
 ```
 
@@ -112,7 +112,7 @@ You can change the timezone to show in notifications as follows.
 
 ## Functions
 
-Templates have access to the set of built-in functions:
+Templates have access to the set of built-in functions, plus the functions of the [Spring](https://masterminds.github.io/sprig/) package
 
 ```yaml
 apiVersion: v1
