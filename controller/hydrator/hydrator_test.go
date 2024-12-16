@@ -20,7 +20,6 @@ func Test_appNeedsHydration(t *testing.T) {
 		name                   string
 		app                    *v1alpha1.Application
 		timeout                time.Duration
-		latestRevision         string
 		expectedNeedsHydration bool
 		expectedMessage        string
 	}{
@@ -37,7 +36,6 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 			},
 			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
 			expectedNeedsHydration: true,
 			expectedMessage:        "hydrate requested",
 		},
@@ -47,7 +45,6 @@ func Test_appNeedsHydration(t *testing.T) {
 				Spec: v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 			},
 			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
 			expectedNeedsHydration: true,
 			expectedMessage:        "no previous hydrate operation",
 		},
@@ -60,20 +57,8 @@ func Test_appNeedsHydration(t *testing.T) {
 				}}},
 			},
 			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
 			expectedNeedsHydration: true,
 			expectedMessage:        "spec.sourceHydrator differs",
-		},
-		{
-			name: "dry SHA has changed",
-			app: &v1alpha1.Application{
-				Spec:   v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
-				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "xyz123"}}},
-			},
-			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
-			expectedNeedsHydration: true,
-			expectedMessage:        "revision differs",
 		},
 		{
 			name: "hydration failed more than two minutes ago",
@@ -82,7 +67,6 @@ func Test_appNeedsHydration(t *testing.T) {
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "abc123", FinishedAt: &oneHourAgo, Phase: v1alpha1.HydrateOperationPhaseFailed}}},
 			},
 			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
 			expectedNeedsHydration: true,
 			expectedMessage:        "previous hydrate operation failed more than 2 minutes ago",
 		},
@@ -93,7 +77,6 @@ func Test_appNeedsHydration(t *testing.T) {
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{StartedAt: oneHourAgo}}},
 			},
 			timeout:                1 * time.Minute,
-			latestRevision:         "",
 			expectedNeedsHydration: true,
 			expectedMessage:        "hydration expired",
 		},
@@ -104,7 +87,6 @@ func Test_appNeedsHydration(t *testing.T) {
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{DrySHA: "abc123", StartedAt: now, FinishedAt: &now, Phase: v1alpha1.HydrateOperationPhaseFailed}}},
 			},
 			timeout:                1 * time.Hour,
-			latestRevision:         "abc123",
 			expectedNeedsHydration: false,
 			expectedMessage:        "",
 		},
@@ -113,7 +95,7 @@ func Test_appNeedsHydration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			needsHydration, message := appNeedsHydration(tc.app, tc.timeout, tc.latestRevision)
+			needsHydration, message := appNeedsHydration(tc.app, tc.timeout)
 			assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
 			assert.Equal(t, tc.expectedMessage, message)
 		})
