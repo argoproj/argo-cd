@@ -35,10 +35,10 @@ func GetDefaultAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 
 // NewCustomAppControllerRateLimiter is a constructor for the rate limiter for a workqueue used by app controller.  It has
 // both overall and per-item rate limiting.  The overall is a token bucket and the per-item is exponential(with auto resets)
-func NewCustomAppControllerRateLimiter(cfg *AppControllerRateLimiterConfig) workqueue.TypedRateLimiter[string] {
-	return workqueue.NewTypedMaxOfRateLimiter[string](
-		NewItemExponentialRateLimiterWithAutoReset(cfg.BaseDelay, cfg.MaxDelay, cfg.FailureCoolDown, cfg.BackoffFactor),
-		&workqueue.TypedBucketRateLimiter[string]{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), int(cfg.BucketSize))},
+func NewCustomAppControllerRateLimiter[T comparable](cfg *AppControllerRateLimiterConfig) workqueue.TypedRateLimiter[T] {
+	return workqueue.NewTypedMaxOfRateLimiter[T](
+		NewItemExponentialRateLimiterWithAutoReset[T](cfg.BaseDelay, cfg.MaxDelay, cfg.FailureCoolDown, cfg.BackoffFactor),
+		&workqueue.TypedBucketRateLimiter[T]{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), int(cfg.BucketSize))},
 	)
 }
 
@@ -49,7 +49,7 @@ type failureData struct {
 
 // ItemExponentialRateLimiterWithAutoReset does a simple baseDelay*2^<num-failures> limit
 // dealing with max failures and expiration/resets are up dependent on the cooldown period
-type ItemExponentialRateLimiterWithAutoReset struct {
+type ItemExponentialRateLimiterWithAutoReset[T comparable] struct {
 	failuresLock sync.Mutex
 	failures     map[interface{}]failureData
 
@@ -59,10 +59,10 @@ type ItemExponentialRateLimiterWithAutoReset struct {
 	backoffFactor float64
 }
 
-var _ workqueue.TypedRateLimiter[string] = &ItemExponentialRateLimiterWithAutoReset{}
+var _ workqueue.TypedRateLimiter[string] = &ItemExponentialRateLimiterWithAutoReset[string]{}
 
-func NewItemExponentialRateLimiterWithAutoReset(baseDelay, maxDelay, failureCoolDown time.Duration, backoffFactor float64) workqueue.TypedRateLimiter[string] {
-	return &ItemExponentialRateLimiterWithAutoReset{
+func NewItemExponentialRateLimiterWithAutoReset[T comparable](baseDelay, maxDelay, failureCoolDown time.Duration, backoffFactor float64) workqueue.TypedRateLimiter[T] {
+	return &ItemExponentialRateLimiterWithAutoReset[T]{
 		failures:      map[interface{}]failureData{},
 		baseDelay:     baseDelay,
 		maxDelay:      maxDelay,
@@ -71,7 +71,7 @@ func NewItemExponentialRateLimiterWithAutoReset(baseDelay, maxDelay, failureCool
 	}
 }
 
-func (r *ItemExponentialRateLimiterWithAutoReset) When(item string) time.Duration {
+func (r *ItemExponentialRateLimiterWithAutoReset[T]) When(item T) time.Duration {
 	r.failuresLock.Lock()
 	defer r.failuresLock.Unlock()
 
@@ -109,14 +109,14 @@ func (r *ItemExponentialRateLimiterWithAutoReset) When(item string) time.Duratio
 	return calculated
 }
 
-func (r *ItemExponentialRateLimiterWithAutoReset) NumRequeues(item string) int {
+func (r *ItemExponentialRateLimiterWithAutoReset[T]) NumRequeues(item T) int {
 	r.failuresLock.Lock()
 	defer r.failuresLock.Unlock()
 
 	return r.failures[item].failures
 }
 
-func (r *ItemExponentialRateLimiterWithAutoReset) Forget(item string) {
+func (r *ItemExponentialRateLimiterWithAutoReset[T]) Forget(item T) {
 	r.failuresLock.Lock()
 	defer r.failuresLock.Unlock()
 
