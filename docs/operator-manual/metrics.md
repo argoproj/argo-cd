@@ -24,6 +24,8 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_kubectl_exec_total` | counter | Number of kubectl executions |
 | `argocd_redis_request_duration` | histogram | Redis requests duration. |
 | `argocd_redis_request_total` | counter | Number of redis requests executed during application reconciliation |
+| `argocd_resource_events_processing` | histogram | Time to process resource events in batch in seconds |
+| `argocd_resource_events_processed_in_batch` | gauge | Number of resource events processed in batch |
 
 If you use Argo CD with many application and project creation and deletion,
 the metrics page will keep in cache your application and project's history.
