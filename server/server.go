@@ -335,7 +335,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	ag := extension.NewDefaultApplicationGetter(appLister)
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
-	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
+	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, dbInstance, enf, ug)
 	noopShutdown := func() {
 		log.Error("API Server Shutdown function called but server is not started yet.")
 	}

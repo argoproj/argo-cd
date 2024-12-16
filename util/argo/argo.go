@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -33,7 +34,7 @@ import (
 )
 
 const (
-	errDestinationMissing = "Destination server missing from app spec"
+	ErrDestinationMissing = "Destination server missing from app spec"
 )
 
 var ErrAnotherOperationInProgress = status.Errorf(codes.FailedPrecondition, "another operation is already in progress")
@@ -321,7 +322,7 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
 	}
 
-	cluster, err := db.GetCluster(context.Background(), spec.Destination.Server)
+	cluster, err := GetDestinationCluster(context.Background(), spec.Destination, db)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -485,46 +486,6 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 	return refSources, nil
 }
 
-// ValidateDestination sets the 'Server' or the `Name` value of the ApplicationDestination, if it is not set.
-// NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
-// If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
-// ValidationDestination will look up the cluster by name (to get the server URL), and
-// set the corresponding Server field value. Same goes for the opposite case.
-//
-// It also checks:
-// - If we used both name and server then we return an invalid spec error
-func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
-	if dest.IsServerInferred() && dest.IsNameInferred() {
-		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
-	}
-	if dest.Name != "" {
-		if dest.Server == "" {
-			server, err := getDestinationServer(ctx, db, dest.Name)
-			if err != nil {
-				return fmt.Errorf("unable to find destination server: %w", err)
-			}
-			if server == "" {
-				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
-			}
-			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
-			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
-		}
-	} else if dest.Server != "" {
-		if dest.Name == "" {
-			serverName, err := getDestinationServerName(ctx, db, dest.Server)
-			if err != nil {
-				return fmt.Errorf("unable to find destination server: %w", err)
-			}
-			if serverName == "" {
-				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
-			}
-			dest.SetInferredName(serverName)
-		}
-	}
-	return nil
-}
-
 func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {
@@ -588,8 +549,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		}
 	}
 
-	// ValidateDestination will resolve the destination's server address from its name for us, if possible
-	if err := ValidateDestination(ctx, &spec.Destination, db); err != nil {
+	destCluster, err := GetDestinationCluster(ctx, spec.Destination, db)
+	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: err.Error(),
@@ -597,8 +558,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		return conditions, nil
 	}
 
-	if spec.Destination.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(spec.Destination, func(project string) ([]*argoappv1.Cluster, error) {
+	if destCluster.Server != "" {
+		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
 			return db.GetProjectClusters(ctx, project)
 		})
 		if err != nil {
@@ -610,20 +571,8 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
 			})
 		}
-		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err = db.GetCluster(ctx, spec.Destination.Server)
-		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
-				})
-			} else {
-				return nil, fmt.Errorf("error getting cluster: %w", err)
-			}
-		}
-	} else if spec.Destination.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
+	} else if destCluster.Server == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: ErrDestinationMissing})
 	}
 	return conditions, nil
 }
@@ -732,12 +681,6 @@ func verifyGenerateManifests(
 	refSources argoappv1.RefTargetRevisionMapping,
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if app.Spec.Destination.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: errDestinationMissing,
-		})
-	}
 	// If source is Kustomize add build options
 	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
 	if err != nil {
@@ -959,33 +902,39 @@ func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository
 	return permittedRepos, nil
 }
 
-func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string) (string, error) {
-	servers, err := db.GetClusterServersByName(ctx, clusterName)
-	if err != nil {
-		return "", fmt.Errorf("error getting cluster server by name %q: %w", clusterName, err)
-	}
-	if len(servers) > 1 {
-		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
-	} else if len(servers) == 0 {
-		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
-	}
-	return servers[0], nil
+type ClusterGetter interface {
+	GetCluster(ctx context.Context, name string) (*argoappv1.Cluster, error)
+	GetClusterServersByName(ctx context.Context, server string) ([]string, error)
 }
 
-func getDestinationServerName(ctx context.Context, db db.ArgoDB, server string) (string, error) {
-	if db == nil {
-		return "", fmt.Errorf("there are no clusters registered in the database")
+func GetDestinationCluster(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (*argoappv1.Cluster, error) {
+	if destination.Name != "" && destination.Server != "" {
+		return nil, fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
 	}
-
-	cluster, err := db.GetCluster(ctx, server)
-	if err != nil {
-		return "", fmt.Errorf("error getting cluster name by server %q: %w", server, err)
+	if destination.Server != "" {
+		cluster, err := db.GetCluster(ctx, destination.Server)
+		if err != nil {
+			return cluster, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
+		}
+		return cluster, nil
+	} else if destination.Name != "" {
+		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
+		}
+		if len(clusterURLs) == 0 {
+			return nil, fmt.Errorf("there are no clusters with this name: %s", destination.Name)
+		}
+		if len(clusterURLs) > 1 {
+			return nil, fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
+		}
+		cluster, err := db.GetCluster(ctx, clusterURLs[0])
+		if err != nil {
+			return nil, fmt.Errorf("error getting cluster by URL: %w", err)
+		}
+		return cluster, nil
 	}
-
-	if cluster.Name == "" {
-		return "", fmt.Errorf("there are no clusters with this URL: %s", server)
-	}
-	return cluster.Name, nil
+	return nil, errors.New(ErrDestinationMissing)
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {

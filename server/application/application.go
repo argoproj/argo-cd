@@ -370,11 +370,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
 
-	if err := argo.ValidateDestination(ctx, &existing.Spec.Destination, s.db); err != nil {
+	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
 	}
 
-	equalSpecs := existing.Spec.Destination.Equals(a.Spec.Destination) &&
+	equalSpecs := reflect.DeepEqual(existing.Spec.Destination, a.Spec.Destination) &&
 		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
@@ -1269,7 +1269,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 		}
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+	if _, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db); err != nil {
 		return status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", app.Name, err.Error())
 	}
 
@@ -1300,14 +1300,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 }
 
 func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+	if err != nil {
 		return nil, fmt.Errorf("error validating destination: %w", err)
 	}
-	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-	config, err := clst.RESTConfig()
+	config, err := cluster.RESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
@@ -2162,7 +2159,8 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db)
+	if err != nil {
 		log.WithFields(map[string]interface{}{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
@@ -2171,7 +2169,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return nil, nil, nil
 	}
 
-	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, getProjectClusters)
+	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, getProjectClusters)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2471,6 +2469,11 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, s.db)
+	if err != nil {
+		return nil, err
+	}
+
 	// First, make sure all the returned resources are permitted, for each operation.
 	// Also perform create with dry-runs for all create-operation resources.
 	// This is performed separately to reduce the risk of only some of the resources being successfully created later.
@@ -2478,7 +2481,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(app, proj, newObj)
+		err := s.verifyResourcePermitted(destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2571,8 +2574,8 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(app *appv1.Application, proj *appv1.AppProject, obj *unstructured.Unstructured) error {
-	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+func (s *Server) verifyResourcePermitted(destCluster *appv1.Cluster, proj *appv1.AppProject, obj *unstructured.Unstructured) error {
+	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), destCluster, func(project string) ([]*appv1.Cluster, error) {
 		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
@@ -2583,7 +2586,7 @@ func (s *Server) verifyResourcePermitted(app *appv1.Application, proj *appv1.App
 		return fmt.Errorf("error checking resource permissions: %w", err)
 	}
 	if !permitted {
-		return fmt.Errorf("application %s is not permitted to manage %s/%s/%s in %s", app.RBACName(s.ns), obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace())
+		return fmt.Errorf("application is not permitted to manage %s/%s/%s in %s", obj.GroupVersionKind().Group, obj.GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace())
 	}
 
 	return nil

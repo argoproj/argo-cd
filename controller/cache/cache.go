@@ -719,11 +719,12 @@ func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Clu
 		if !ok {
 			continue
 		}
-		err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, c.db)
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
 		if err != nil {
+			log.Warnf("Failed to get destination cluster: %v", err)
 			continue
 		}
-		if app.Spec.Destination.Server == cluster.Server {
+		if destCluster.Server == cluster.Server {
 			return true
 		}
 	}

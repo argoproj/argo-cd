@@ -810,7 +810,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -839,7 +839,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&argoappv1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
@@ -893,7 +893,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&argoappv1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -1568,10 +1568,6 @@ func TestUseDiffCache(t *testing.T) {
 				t.Fatalf("error merging app: %s", err)
 			}
 		}
-		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
-			// Simulate the controller's process for populating both of these fields.
-			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
-		}
 		return app
 	}
 
@@ -1736,44 +1732,6 @@ func TestUseDiffCache(t *testing.T) {
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
-		},
-		{
-			// There are code paths that modify the ApplicationSpec and augment the destination field with both the
-			// destination server and name. Since both fields are populated in the app spec but not in the comparedTo,
-			// we need to make sure we correctly compare the fields and don't miss the cache.
-			testName:      "will return true if the app spec destination contains both server and name, but otherwise matches comparedTo",
-			noCache:       false,
-			manifestInfos: manifestInfos("rev1"),
-			sources:       sources(),
-			app: app("httpbin", "rev1", false, &argoappv1.Application{
-				Spec: argoappv1.ApplicationSpec{
-					Destination: argoappv1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Name:      "httpbin",
-						Namespace: "httpbin",
-					},
-				},
-				Status: argoappv1.ApplicationStatus{
-					Resources: []argoappv1.ResourceStatus{},
-					Sync: argoappv1.SyncStatus{
-						Status: argoappv1.SyncStatusCodeSynced,
-						ComparedTo: argoappv1.ComparedTo{
-							Destination: argoappv1.ApplicationDestination{
-								Server:    "https://kubernetes.default.svc",
-								Namespace: "httpbin",
-							},
-						},
-						Revision: "rev1",
-					},
-					ReconciledAt: &metav1.Time{
-						Time: time.Now().Add(-time.Hour),
-					},
-				},
-			}),
-			manifestRevisions:    []string{"rev1"},
-			statusRefreshTimeout: time.Hour * 24,
-			expectedUseCache:     true,
-			serverSideDiff:       true,
 		},
 	}
 

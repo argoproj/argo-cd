@@ -1283,7 +1283,7 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 			kube.NewResourceKey("apps", "Deployment", "default", "deploy2"):          {ResourceNode: orphanedDeploy2},
 		},
 	}, nil)
-	tree, err := ctrl.getResourceTree(app, []*v1alpha1.ResourceDiff{{
+	tree, err := ctrl.getResourceTree(&v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"}, app, []*v1alpha1.ResourceDiff{{
 		Namespace:   "default",
 		Name:        "nginx-deployment",
 		Kind:        "Deployment",

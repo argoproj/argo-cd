@@ -575,9 +575,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	logCtx.Debugf("Retrieved live manifests")
 
+	destCluster, err := argo.GetDestinationCluster(context.TODO(), app.Spec.Destination, m.db)
+	if err != nil {
+		msg := fmt.Sprintf("Failed to get destination cluster %q: %s", app.Spec.Destination.Server, err.Error())
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
+		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
 			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
@@ -956,20 +961,6 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 	// Make a copy to be sure we don't mutate the original.
 	specCopy := spec.DeepCopy()
 	currentSpec := specCopy.BuildComparedToStatus()
-
-	// The spec might have been augmented to include both server and name, so change it to match the comparedTo before
-	// comparing.
-	if comparedTo.Destination.Server == "" {
-		currentSpec.Destination.Server = ""
-	}
-	if comparedTo.Destination.Name == "" {
-		currentSpec.Destination.Name = ""
-	}
-
-	// Set IsServerInferred to false on both, because that field is not important for comparison.
-	comparedTo.Destination.SetIsServerInferred(false)
-	currentSpec.Destination.SetIsServerInferred(false)
-
 	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 

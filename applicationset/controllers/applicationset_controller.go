@@ -496,7 +496,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			return nil, err
 		}
 
-		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+		if _, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
@@ -783,21 +783,19 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	var validDestination bool
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
-	if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+	if destCluster, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
-
 		matchingCluster := false
 		for _, cluster := range clusterList.Items {
-			// Server fields must match. Note that ValidateDestination ensures that the server field is set, if applicable.
-			if app.Spec.Destination.Server != cluster.Server {
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 
 			// The name must match, if it is not empty
-			if app.Spec.Destination.Name != "" && cluster.Name != app.Spec.Destination.Name {
+			if destCluster.Name != "" && cluster.Name != destCluster.Name {
 				continue
 			}
 

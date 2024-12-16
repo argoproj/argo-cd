@@ -350,7 +350,7 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
-	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
+	_, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
 	}

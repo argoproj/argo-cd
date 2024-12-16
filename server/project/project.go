@@ -398,43 +398,39 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 
-	var srcValidatedApps []v1alpha1.Application
-	var dstValidatedApps []v1alpha1.Application
 	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
-	}
-
-	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
-			srcValidatedApps = append(srcValidatedApps, a)
-		}
-
-		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
-		if err != nil {
-			return nil, err
-		}
-
-		if dstPermitted {
-			dstValidatedApps = append(dstValidatedApps, a)
-		}
 	}
 
 	invalidSrcCount := 0
 	invalidDstCount := 0
 
-	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
+	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
 			invalidSrcCount++
 		}
-	}
-	for _, a := range dstValidatedApps {
-		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+
+		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+		if err != nil {
+			if err.Error() == argo.ErrDestinationMissing {
+				invalidDstCount++
+			} else {
+				return nil, err
+			}
+		}
+		dstPermitted, err := oldProj.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
 		if err != nil {
 			return nil, err
 		}
 
-		if !dstPermitted {
-			invalidDstCount++
+		if dstPermitted {
+			dstPermitted, err = q.Project.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
+			if err != nil {
+				return nil, err
+			}
+			if !dstPermitted {
+				invalidDstCount++
+			}
 		}
 	}
 

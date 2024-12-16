@@ -221,21 +221,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
+	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
 
-	clusterRESTConfig, err := clst.RESTConfig()
+	clusterRESTConfig, err := cluster.RESTConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -285,7 +285,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	openAPISchema, err := m.getOpenAPISchema(cluster.Server)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -349,7 +349,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
+				permitted, err := proj.IsDestinationPermitted(cluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
