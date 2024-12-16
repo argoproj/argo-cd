@@ -5946,6 +5946,41 @@ spec:
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
+                                  scmManager:
+                                    properties:
+                                      api:
+                                        type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - api
+                                    - name
+                                    - namespace
+                                    type: object
                                   template:
                                     properties:
                                       metadata:
@@ -6783,6 +6818,37 @@ spec:
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
+                                  scmManager:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - api
+                                    type: object
                                   template:
                                     properties:
                                       metadata:
@@ -11408,6 +11474,41 @@ spec:
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
+                                  scmManager:
+                                    properties:
+                                      api:
+                                        type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - api
+                                    - name
+                                    - namespace
+                                    type: object
                                   template:
                                     properties:
                                       metadata:
@@ -12245,6 +12346,37 @@ spec:
                                   requeueAfterSeconds:
                                     format: int64
                                     type: integer
+                                  scmManager:
+                                    properties:
+                                      allBranches:
+                                        type: boolean
+                                      api:
+                                        type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
+                                      tokenRef:
+                                        properties:
+                                          key:
+                                            type: string
+                                          secretName:
+                                            type: string
+                                        required:
+                                        - key
+                                        - secretName
+                                        type: object
+                                    required:
+                                    - api
+                                    type: object
                                   template:
                                     properties:
                                       metadata:
@@ -14345,6 +14477,41 @@ spec:
                         requeueAfterSeconds:
                           format: int64
                           type: integer
+                        scmManager:
+                          properties:
+                            api:
+                              type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - api
+                          - name
+                          - namespace
+                          type: object
                         template:
                           properties:
                             metadata:
@@ -15182,6 +15349,37 @@ spec:
                         requeueAfterSeconds:
                           format: int64
                           type: integer
+                        scmManager:
+                          properties:
+                            allBranches:
+                              type: boolean
+                            api:
+                              type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
+                            tokenRef:
+                              properties:
+                                key:
+                                  type: string
+                                secretName:
+                                  type: string
+                              required:
+                              - key
+                              - secretName
+                              type: object
+                          required:
+                          - api
+                          type: object
                         template:
                           properties:
                             metadata:
