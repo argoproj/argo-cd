@@ -17,11 +17,9 @@ on:
       platforms:
         required: true
         type: string
-        default: linux/amd64
       push:
         required: true
         type: boolean
-        default: false
       target:
         required: false
         type: string
