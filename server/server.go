@@ -26,6 +26,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+
+	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 	"k8s.io/apimachinery/pkg/labels"
@@ -237,6 +243,7 @@ type ArgoCDServerOpts struct {
 	EnableProxyExtension    bool
 	WebhookParallelism      int
 	EnableK8sEvent          []string
+	AppsRefreshTimeout      time.Duration
 }
 
 type ApplicationSetOpts struct {
@@ -298,9 +305,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
 
-	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
-	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
-
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
@@ -331,11 +335,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
 	logger := log.NewEntry(log.StandardLogger())
 
-	sg := extension.NewDefaultSettingsGetter(settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(appLister)
-	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
-	ug := extension.NewDefaultUserGetter(policyEnf)
-	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
 	noopShutdown := func() {
 		log.Error("API Server Shutdown function called but server is not started yet.")
 	}
@@ -350,8 +349,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		enf:                enf,
 		projInformer:       projInformer,
 		projLister:         projLister,
-		appInformer:        appInformer,
-		appLister:          appLister,
 		appsetInformer:     appsetInformer,
 		appsetLister:       appsetLister,
 		policyEnforcer:     policyEnf,
@@ -361,10 +358,21 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		apiFactory:         apiFactory,
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
-		extensionManager:   em,
 		shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
 	}
+
+	appInformer, appLister := a.newApplicationInformerAndLister()
+	a.appInformer = appInformer
+	a.appLister = appLister
+
+	sg := extension.NewDefaultSettingsGetter(settingsMgr)
+	ag := extension.NewDefaultApplicationGetter(appLister)
+	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
+	ug := extension.NewDefaultUserGetter(policyEnf)
+	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
+
+	a.extensionManager = em
 
 	err = a.logInClusterWarnings()
 	if err != nil {
@@ -373,6 +381,64 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	}
 
 	return a
+}
+
+// isAppNamespaceAllowed returns whether the application is allowed in the
+// namespace it's residing in.
+func (a *ArgoCDServer) isAppNamespaceAllowed(app *v1alpha1.Application) bool {
+	return app.Namespace == a.Namespace || glob.MatchStringInList(a.ApplicationNamespaces, app.Namespace, glob.REGEXP)
+}
+
+func (a *ArgoCDServer) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+	watchNamespace := a.Namespace
+	// If we have at least one additional namespace configured, we need to
+	// watch on them all.
+	if len(a.ApplicationNamespaces) > 0 {
+		watchNamespace = ""
+	}
+
+	informer := cache.NewSharedIndexInformer(
+		&cache.ListWatch{
+			ListFunc: func(options metav1.ListOptions) (apiruntime.Object, error) {
+				// We are only interested in apps that exist in namespaces the
+				// user wants to be enabled.
+				appList, err := a.AppClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
+				if err != nil {
+					return nil, err
+				}
+				newItems := []v1alpha1.Application{}
+				for _, app := range appList.Items {
+					if a.isAppNamespaceAllowed(&app) {
+						newItems = append(newItems, app)
+					}
+				}
+				appList.Items = newItems
+				return appList, nil
+			},
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				return a.AppClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(context.TODO(), options)
+			},
+		},
+		&v1alpha1.Application{},
+		a.AppsRefreshTimeout,
+		cache.Indexers{
+			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				app, ok := obj.(*v1alpha1.Application)
+				if ok {
+					if a.isAppNamespaceAllowed(app) {
+						if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db); err != nil {
+							log.Errorf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+						}
+					}
+				}
+				return cache.MetaNamespaceIndexFunc(obj)
+			},
+		},
+	)
+
+	lister := applisters.NewApplicationLister(informer.GetIndexer())
+
+	return informer, lister
 }
 
 const (

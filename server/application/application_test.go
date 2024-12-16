@@ -10,6 +10,10 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -214,6 +218,24 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	_ = appInformer.AddIndexers(
+		k8scache.Indexers{
+			k8scache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				app, ok := obj.(*appv1.Application)
+				if ok {
+					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, db); err != nil {
+						log.Errorf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+					}
+				}
+				return k8scache.MetaNamespaceIndexFunc(obj)
+			},
+		},
+	)
+
+	errors.CheckError(err)
+
+	appLister := applisters.NewApplicationLister(appInformer.GetIndexer())
+
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
 	// ctx, cancel := context.WithCancel(context.Background())
 	go appInformer.Run(ctx.Done())
@@ -298,7 +320,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister(),
+		appLister,
 		appInformer,
 		broadcaster,
 		mockRepoClient,
@@ -398,6 +420,23 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
+	err = appInformer.AddIndexers(
+		k8scache.Indexers{
+			k8scache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				app, ok := obj.(*appv1.Application)
+				if ok {
+					if err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, db); err != nil {
+						log.Errorf("application destination spec for %s is invalid: %s", app.Name, err.Error())
+					}
+				}
+				return k8scache.MetaNamespaceIndexFunc(obj)
+			},
+		},
+	)
+
+	require.NoError(b, err)
+
+	appLister := applisters.NewApplicationLister(appInformer.GetIndexer())
 
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
@@ -481,7 +520,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		testNamespace,
 		kubeclientset,
 		fakeAppsClientset,
-		factory.Argoproj().V1alpha1().Applications().Lister(),
+		appLister,
 		appInformer,
 		broadcaster,
 		mockRepoClient,
@@ -2188,7 +2227,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
 	podNumber := int(defaultMaxPodLogsToRender - 1)
-	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber, false)
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
@@ -2198,7 +2237,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 	// Case: number of pods higher than defaultMaxPodLogsToRender
 	podNumber = int(defaultMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, false)
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
@@ -2211,7 +2250,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	// Case: number of pods to view logs is less than customMaxPodLogsToRender
 	customMaxPodLogsToRender := int64(15)
 	podNumber = int(customMaxPodLogsToRender - 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, true, customMaxPodLogsToRender)
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
@@ -2222,7 +2261,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 	// Case: number of pods higher than customMaxPodLogsToRender
 	customMaxPodLogsToRender = int64(15)
 	podNumber = int(customMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
+	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, true, customMaxPodLogsToRender)
 
 	t.Run("PodLogs", func(t *testing.T) {
 		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
@@ -2234,7 +2273,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 }
 
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
-func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
+func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, useDestName bool, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]appsv1.ResourceStatus, podNumber)
@@ -2261,10 +2300,19 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		runtimeObjects[i] = kube.MustToUnstructured(&pod)
 	}
 
-	testApp := newTestApp(func(app *appsv1.Application) {
-		app.Name = "test"
-		app.Status.Resources = resources
-	})
+	var testApp *appsv1.Application
+	if useDestName {
+		testApp = newTestAppWithDestName(func(app *appsv1.Application) {
+			app.Name = "test"
+			app.Status.Resources = resources
+		})
+	} else {
+		testApp = newTestApp(func(app *appsv1.Application) {
+			app.Name = "test"
+			app.Status.Resources = resources
+		})
+	}
+
 	runtimeObjects[podNumber] = testApp
 
 	noRoleCtx := context.Background()
