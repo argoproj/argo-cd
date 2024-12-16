@@ -490,7 +490,6 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE=true \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
-	# Enable the hydrator for e2e tests, even though it's not enabled by default.
 	ARGOCD_HYDRATOR_ENABLED=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
