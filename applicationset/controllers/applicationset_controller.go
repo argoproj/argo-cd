@@ -794,8 +794,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 				continue
 			}
 
-			// The name must match, if it is not empty
-			if destCluster.Name != "" && cluster.Name != destCluster.Name {
+			if destCluster.Name != cluster.Name {
 				continue
 			}
 

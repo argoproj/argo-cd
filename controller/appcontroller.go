@@ -1144,13 +1144,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
-	isValid := true
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		logCtx.Warnf("Unable to get destination cluster: %v", err)
-		isValid = false
-	}
-	if !isValid {
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizer()
 		if err := ctrl.updateFinalizers(app); err != nil {
