@@ -9288,15 +9288,6 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
-        "changeRevision": {
-          "type": "string"
-        },
-        "changeRevisions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
