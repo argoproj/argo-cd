@@ -7,10 +7,9 @@ import (
 	"os"
 	pathpkg "path"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
-
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -24,7 +23,7 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -32,7 +31,7 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 	var client *gitlab.Client
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
@@ -58,7 +57,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -87,7 +86,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing projects for %s: %w", g.organization, err)
+			return nil, fmt.Errorf("error listing projects for %s: %v", g.organization, err)
 		}
 		for _, gitlabRepo := range gitlabRepos {
 			var url string

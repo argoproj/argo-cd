@@ -1,8 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {RouteComponentProps} from 'react-router';
 import {services} from '../../shared/services';
-import {PKCECodeVerifier, PKCEState, PKCELoginError, getPKCERedirectURI, pkceCallback} from './utils';
-import requests from '../../shared/services/requests';
+import {PKCECodeVerifier, PKCELoginError, getPKCERedirectURI, pkceCallback} from './utils';
 
 import './pkce-verify.scss';
 
@@ -19,7 +18,6 @@ export const PKCEVerification = (props: RouteComponentProps<any>) => {
             .finally(() => {
                 setLoading(false);
                 PKCECodeVerifier.unset();
-                PKCEState.unset();
             });
     }, [props.location]);
 
@@ -33,7 +31,7 @@ export const PKCEVerification = (props: RouteComponentProps<any>) => {
                 <div>
                     <h3>Error occurred: </h3>
                     <p>{error?.message || JSON.stringify(error)}</p>
-                    <a href={requests.toAbsURL('/login')}>Try to Login again</a>
+                    <a href='/login'>Try to Login again</a>
                 </div>
             </div>
         );

@@ -40,4 +40,14 @@
     &__content {
         width: 100%;
     }
+
+    &--extension {
+        .cd-layout__content--sb-expanded {
+            padding-left: $sidebar-width;
+        }
+
+        .cd-layout__content--sb-collapsed {
+            padding-left: $collapsed-sidebar-width;
+        }
+    }
 }

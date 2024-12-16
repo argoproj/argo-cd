@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
@@ -31,7 +30,7 @@ import (
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "account",
 		Short: "Manage account settings",
 		Example: templates.Examples(`
@@ -69,7 +68,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		currentPassword string
 		newPassword     string
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "update-password",
 		Short: "Update an account's password",
 		Long: `
@@ -152,8 +151,10 @@ has appropriate RBAC permissions to change other accounts.
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	command := &cobra.Command{
+	var (
+		output string
+	)
+	var command = &cobra.Command{
 		Use:   "get-user-info",
 		Short: "Get user info",
 		Example: templates.Examples(`
@@ -257,7 +258,9 @@ func printAccountsTable(items []*accountpkg.Account) {
 }
 
 func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
+	var (
+		output string
+	)
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List accounts",
@@ -409,7 +412,9 @@ argocd account generate-token --account <account-name>`,
 }
 
 func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var account string
+	var (
+		account string
+	)
 	cmd := &cobra.Command{
 		Use:   "delete-token",
 		Short: "Deletes account token",
@@ -433,14 +438,8 @@ argocd account delete-token --account <account-name> ID`,
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' token? [y/n]", id))
-			if canDelete {
-				_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
-				errors.CheckError(err)
-			} else {
-				fmt.Printf("The command to delete '%s' was cancelled.\n", id)
-			}
+			_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
+			errors.CheckError(err)
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")

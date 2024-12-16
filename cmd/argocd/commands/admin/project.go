@@ -23,7 +23,7 @@ import (
 )
 
 func NewProjectsCommand() *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects configuration",
 		Run: func(c *cobra.Command, args []string) {
@@ -45,18 +45,18 @@ func NewGenProjectSpecCommand() *cobra.Command {
 		outputFormat string
 		inline       bool
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
 		Example: templates.Examples(`  
   # Generate a YAML configuration for a project named "myproject"
-  argocd admin proj generate-spec myproject
+  argocd admin projects generate-spec myproject
 	  
   # Generate a JSON configuration for a project named "anotherproject" and specify an output file
-  argocd admin proj generate-spec anotherproject --output json --file config.json
+  argocd admin projects generate-spec anotherproject --output json --file config.json
 	  
   # Generate a YAML configuration for a project named "someproject" and write it back to the input file
-  argocd admin proj generate-spec someproject --inline  
+  argocd admin projects generate-spec someproject --inline  
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
@@ -151,14 +151,14 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		permission   string
 		dryRun       bool
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
 		Example: `  # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
-  argocd admin proj update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
+  argocd admin projects update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
 
   # Remove policy that which manages running (action/*) from all roles which name matches *deployer* in all projects
-  argocd admin proj update-role-policy '*' remove override --role '*deployer*'
+  argocd admin projects update-role-policy '*' remove override --role '*deployer*'
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
