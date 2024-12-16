@@ -2482,8 +2482,8 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
 	operational := !watch.operation || operationStatus == nil
-	hydration := !watch.hydrated || hydrationFinished
-	return synced && healthCheckPassed && operational && hydration
+	hydrated := !watch.hydrated || hydrationFinished
+	return synced && healthCheckPassed && operational && hydrated
 }
 
 // resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
