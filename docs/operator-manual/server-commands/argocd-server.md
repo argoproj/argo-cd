@@ -29,6 +29,7 @@ argocd-server [flags]
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                  List of additional namespaces where application resources can be managed in
+      --apps-refresh-timeout int                        Specifies the timeout after which an apps sync would be terminated. 0 means no timeout (default 60). (default 60)
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
