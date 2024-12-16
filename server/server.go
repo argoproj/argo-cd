@@ -237,6 +237,7 @@ type ArgoCDServerOpts struct {
 	EnableProxyExtension    bool
 	WebhookParallelism      int
 	EnableK8sEvent          []string
+	HydratorEnabled         bool
 }
 
 type ApplicationSetOpts struct {
@@ -892,19 +893,24 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		),
 	}
 	sensitiveMethods := map[string]bool{
-		"/cluster.ClusterService/Create":                          true,
-		"/cluster.ClusterService/Update":                          true,
-		"/session.SessionService/Create":                          true,
-		"/account.AccountService/UpdatePassword":                  true,
-		"/gpgkey.GPGKeyService/CreateGnuPGPublicKey":              true,
-		"/repository.RepositoryService/Create":                    true,
-		"/repository.RepositoryService/Update":                    true,
-		"/repository.RepositoryService/CreateRepository":          true,
-		"/repository.RepositoryService/UpdateRepository":          true,
-		"/repository.RepositoryService/ValidateAccess":            true,
-		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
-		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
-		"/application.ApplicationService/PatchResource":           true,
+		"/cluster.ClusterService/Create":                               true,
+		"/cluster.ClusterService/Update":                               true,
+		"/session.SessionService/Create":                               true,
+		"/account.AccountService/UpdatePassword":                       true,
+		"/gpgkey.GPGKeyService/CreateGnuPGPublicKey":                   true,
+		"/repository.RepositoryService/Create":                         true,
+		"/repository.RepositoryService/Update":                         true,
+		"/repository.RepositoryService/CreateRepository":               true,
+		"/repository.RepositoryService/UpdateRepository":               true,
+		"/repository.RepositoryService/ValidateAccess":                 true,
+		"/repocreds.RepoCredsService/CreateRepositoryCredentials":      true,
+		"/repocreds.RepoCredsService/UpdateRepositoryCredentials":      true,
+		"/repository.RepositoryService/CreateWriteRepository":          true,
+		"/repository.RepositoryService/UpdateWriteRepository":          true,
+		"/repository.RepositoryService/ValidateWriteAccess":            true,
+		"/repocreds.RepoCredsService/CreateWriteRepositoryCredentials": true,
+		"/repocreds.RepoCredsService/UpdateWriteRepositoryCredentials": true,
+		"/application.ApplicationService/PatchResource":                true,
 		// Remove from logs both because the contents are sensitive and because they may be very large.
 		"/application.ApplicationService/GetManifestsWithFiles": true,
 	}
@@ -979,7 +985,7 @@ type ArgoCDServiceSet struct {
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -1031,7 +1037,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
