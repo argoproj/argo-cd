@@ -78,7 +78,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
-	kubeClient := fake.NewSimpleClientset(&cm)
+	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
@@ -446,7 +446,7 @@ func TestValidateRepo(t *testing.T) {
 		},
 	}
 
-	kubeClient := fake.NewSimpleClientset(&cm)
+	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
 	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
