@@ -80,7 +80,7 @@ func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool 
 		gotLabelNamesMap[gotLabels[i].Name] = true
 	}
 	for _, expected := range expectedLabels {
-		var v, ok = gotLabelNamesMap[expected]
+		v, ok := gotLabelNamesMap[expected]
 		if !v || !ok {
 			return false
 		}
