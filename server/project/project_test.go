@@ -196,6 +196,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications destination became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
@@ -232,6 +233,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceUsedByAppSuccessfulIfPermittedByAnotherSrc", func(t *testing.T) {
@@ -318,6 +320,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "project is referenced by 1 applications", statusCode.Message())
 	})
 
 	// configure a user named "admin" which is denied by default
