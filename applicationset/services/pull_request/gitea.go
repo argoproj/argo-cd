@@ -75,18 +75,13 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 
 // containLabels returns true if gotLabels contains expectedLabels
 func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
+	gotLabelNamesMap := make(map[string]bool)
+	for i := 0; i < len(gotLabels); i += 1 {
+		gotLabelNamesMap[gotLabels[i].Name] = true
+	}
 	for _, expected := range expectedLabels {
-		found := false
-		for _, got := range gotLabels {
-			if got.Name == "" {
-				continue
-			}
-			if expected == got.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		var v, ok = gotLabelNamesMap[expected]
+		if !v || !ok {
 			return false
 		}
 	}
