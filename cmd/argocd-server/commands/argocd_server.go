@@ -87,6 +87,7 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		enableProxyExtension     bool
 		webhookParallelism       int
+		appsRefreshTimeout       int
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -213,6 +214,13 @@ func NewCommand() *cobra.Command {
 				contentTypesList = strings.Split(contentTypes, ";")
 			}
 
+			var resyncDuration time.Duration
+			if appsRefreshTimeout == 0 {
+				resyncDuration = time.Hour * 24 * 365 * 100
+			} else {
+				resyncDuration = time.Duration(appsRefreshTimeout) * time.Second
+			}
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:                insecure,
 				ListenPort:              listenPort,
@@ -243,6 +251,7 @@ func NewCommand() *cobra.Command {
 				EnableProxyExtension:    enableProxyExtension,
 				WebhookParallelism:      webhookParallelism,
 				EnableK8sEvent:          enableK8sEvent,
+				AppsRefreshTimeout:      resyncDuration,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -321,6 +330,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
+	command.Flags().IntVar(&appsRefreshTimeout, "apps-refresh-timeout", env.ParseNumFromEnv("ARGOCD_SERVER_APPS_SYNC_TIMEOUT", 60, 0, math.MaxInt32), "Specifies the timeout after which an apps sync would be terminated. 0 means no timeout (default 60).")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
