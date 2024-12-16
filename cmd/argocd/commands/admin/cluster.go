@@ -617,7 +617,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			clientConfig := clientcmd.NewDefaultClientConfig(*cfgAccess, &overrides)
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			kubeClientset := fake.NewSimpleClientset()
+			kubeClientset := fake.NewClientset()
 
 			var awsAuthConf *v1alpha1.AWSAuthConfig
 			var execProviderConf *v1alpha1.ExecProviderConfig

@@ -148,7 +148,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 	}
 	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
-	kubeClient := fake.NewSimpleClientset(runtimeObjs...)
+	kubeClient := fake.NewClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
