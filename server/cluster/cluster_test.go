@@ -120,13 +120,13 @@ func newServerInMemoryCache() *servercache.Cache {
 }
 
 func newNoopEnforcer() *rbac.Enforcer {
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
 }
 
 func newEnforcer() *rbac.Enforcer {
-	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
 	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
@@ -229,7 +229,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
@@ -606,7 +606,7 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		},
 		Data: config,
 	}
-	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+	return fake.NewClientset(append(objects, &cm, &secret)...)
 }
 
 func TestListCluster(t *testing.T) {

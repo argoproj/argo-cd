@@ -46,7 +46,7 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
@@ -101,7 +101,7 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){

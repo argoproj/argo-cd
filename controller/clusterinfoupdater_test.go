@@ -67,7 +67,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
 	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)

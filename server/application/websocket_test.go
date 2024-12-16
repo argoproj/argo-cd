@@ -34,7 +34,7 @@ func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSess
 
 func newEnforcer() *rbac.Enforcer {
 	additionalConfig := make(map[string]string, 0)
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",

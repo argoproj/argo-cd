@@ -47,7 +47,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 		},
 		Data: config,
 	}
-	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+	return fake.NewClientset(append(objects, &cm, &secret)...)
 }
 
 func TestCreateRepository(t *testing.T) {

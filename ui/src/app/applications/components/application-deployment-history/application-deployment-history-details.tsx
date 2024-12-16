@@ -120,6 +120,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                                 spec: {...app.spec, source: recentDeployments[index].source}
                                             }}
                                             details={details}
+                                            tempSource={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
                                         />
                                     </div>
                                 )}
@@ -188,6 +189,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                                         spec: {...app.spec, source}
                                                     }}
                                                     details={details}
+                                                    tempSource={{...source, targetRevision: recentDeployments[index].revisions[i]}}
                                                 />
                                             </React.Fragment>
                                         )}

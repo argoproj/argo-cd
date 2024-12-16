@@ -51,9 +51,12 @@ const (
 // if we used destination name we infer the server url
 // if we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination, clientset kubernetes.Interface, argoCDNamespace string) error {
+	if dest.IsServerInferred() && dest.IsNameInferred() {
+		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
+	}
 	if dest.Name != "" {
 		if dest.Server == "" {
-			server, err := getDestinationServer(ctx, dest.Name, clientset, argoCDNamespace)
+			server, err := getDestinationBy(ctx, dest.Name, clientset, argoCDNamespace, true)
 			if err != nil {
 				return fmt.Errorf("unable to find destination server: %w", err)
 			}
@@ -61,14 +64,25 @@ func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() {
+		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
 			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
+		}
+	} else if dest.Server != "" {
+		if dest.Name == "" {
+			serverName, err := getDestinationBy(ctx, dest.Server, clientset, argoCDNamespace, false)
+			if err != nil {
+				return fmt.Errorf("unable to find destination server: %w", err)
+			}
+			if serverName == "" {
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
+			}
+			dest.SetInferredName(serverName)
 		}
 	}
 	return nil
 }
 
-func getDestinationServer(ctx context.Context, clusterName string, clientset kubernetes.Interface, argoCDNamespace string) (string, error) {
+func getDestinationBy(ctx context.Context, cluster string, clientset kubernetes.Interface, argoCDNamespace string, byName bool) (string, error) {
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
 	// argoDB := db.NewDB(namespace, settingsMgr, clientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
@@ -78,14 +92,17 @@ func getDestinationServer(ctx context.Context, clusterName string, clientset kub
 	}
 	var servers []string
 	for _, c := range clusterList.Items {
-		if c.Name == clusterName {
+		if byName && c.Name == cluster {
 			servers = append(servers, c.Server)
+		}
+		if !byName && c.Server == cluster {
+			servers = append(servers, c.Name)
 		}
 	}
 	if len(servers) > 1 {
 		return "", fmt.Errorf("there are %d clusters with the same name: %v", len(servers), servers)
 	} else if len(servers) == 0 {
-		return "", fmt.Errorf("there are no clusters with this name: %s", clusterName)
+		return "", fmt.Errorf("there are no clusters with this name: %s", cluster)
 	}
 	return servers[0], nil
 }
