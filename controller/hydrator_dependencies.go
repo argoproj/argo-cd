@@ -56,10 +56,6 @@ func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repo
 	return ctrl.db.GetWriteRepository(ctx, repoURL, project)
 }
 
-func (ctrl *ApplicationController) ResolveGitRevision(repoURL, targetRevision string) (string, error) {
-	return ctrl.appStateManager.ResolveGitRevision(repoURL, targetRevision)
-}
-
 func (ctrl *ApplicationController) RequestAppRefresh(appName string) {
 	ctrl.requestAppRefresh(appName, CompareWithLatest.Pointer(), nil)
 }
