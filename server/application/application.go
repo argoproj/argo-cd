@@ -2176,17 +2176,8 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 	if !permitted {
 		return nil, nil, fmt.Errorf("error getting destination cluster")
 	}
-	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
-	if err != nil {
-		log.WithFields(map[string]interface{}{
-			"application": app.GetName(),
-			"ns":          app.GetNamespace(),
-			"destination": app.Spec.Destination,
-		}).Warnf("cannot get cluster from db, error=%v", err.Error())
-		return nil, nil, nil
-	}
 	// sanitize cluster, remove cluster config creds and other unwanted fields
-	cluster, err = deeplinks.SanitizeCluster(clst)
+	cluster, err = deeplinks.SanitizeCluster(destCluster)
 	return cluster, project, err
 }
 

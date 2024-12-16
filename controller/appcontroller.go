@@ -540,7 +540,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(a.Spec.Destination.Server, a.Spec.Destination.Namespace)
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(destCluster.Server, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get namespace top-level resources: %w", err)
 		}
