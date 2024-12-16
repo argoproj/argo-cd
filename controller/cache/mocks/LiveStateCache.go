@@ -75,9 +75,9 @@ func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	return r0
 }
 
-// GetManagedLiveObjs provides a mock function with given fields: a, targetObjs
+// GetManagedLiveObjs provides a mock function with given fields: destCluster, a, targetObjs
 func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	ret := _m.Called(a, targetObjs)
+	ret := _m.Called(destCluster, a, targetObjs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetManagedLiveObjs")
@@ -85,19 +85,19 @@ func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v
 
 	var r0 map[kube.ResourceKey]*unstructured.Unstructured
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Application, []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
-		return rf(a, targetObjs)
+	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
+		return rf(destCluster, a, targetObjs)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
-		r0 = rf(a, targetObjs)
+	if rf, ok := ret.Get(0).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured); ok {
+		r0 = rf(destCluster, a, targetObjs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[kube.ResourceKey]*unstructured.Unstructured)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.Application, []*unstructured.Unstructured) error); ok {
-		r1 = rf(a, targetObjs)
+	if rf, ok := ret.Get(1).(func(*v1alpha1.Cluster, *v1alpha1.Application, []*unstructured.Unstructured) error); ok {
+		r1 = rf(destCluster, a, targetObjs)
 	} else {
 		r1 = ret.Error(1)
 	}
