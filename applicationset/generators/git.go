@@ -99,7 +99,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	// Directories, not files
-	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, appSetGenerator.Git.Project, noRevisionCache, verifyCommit)
+	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, "", noRevisionCache, verifyCommit)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from repo: %w", err)
 	}
@@ -126,7 +126,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, appSetGenerator.Git.Project, requestedPath.Path, noRevisionCache, verifyCommit)
+		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, "", requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}
