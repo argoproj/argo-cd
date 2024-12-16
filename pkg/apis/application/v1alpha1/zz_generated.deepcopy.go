@@ -2138,6 +2138,10 @@ func (in *HealthStatus) DeepCopyInto(out *HealthStatus) {
 		in, out := &in.LastTransitionTime, &out.LastTransitionTime
 		*out = (*in).DeepCopy()
 	}
+	if in.ObservedAt != nil {
+		in, out := &in.ObservedAt, &out.ObservedAt
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 

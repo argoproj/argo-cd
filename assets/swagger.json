@@ -7518,6 +7518,9 @@
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
         },
+        "observedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
         "status": {
           "type": "string",
           "title": "Status holds the status code of the application or resource"

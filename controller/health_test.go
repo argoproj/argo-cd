@@ -26,6 +26,7 @@ var (
 		Status: appv1.ApplicationStatus{
 			Health: appv1.HealthStatus{
 				LastTransitionTime: &metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)},
+				ObservedAt:         &metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)},
 			},
 		},
 	}
@@ -69,10 +70,12 @@ func TestSetApplicationHealth(t *testing.T) {
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
-	// Health.LastTransitionTime is set only for app health and not at individual resource level
+	// Health.LastTransitionTime & Health.ObservedAt are  set only for app health and not at individual resource level
 	assert.NotNil(t, healthStatus.LastTransitionTime)
 	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
 	assert.Nil(t, resourceStatuses[1].Health.LastTransitionTime)
+	assert.Nil(t, resourceStatuses[0].Health.ObservedAt)
+	assert.Nil(t, resourceStatuses[1].Health.ObservedAt)
 	previousLastTransitionTime := healthStatus.LastTransitionTime
 	app.Status.Health = *healthStatus
 
@@ -125,6 +128,7 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
 	assert.False(t, healthStatus.LastTransitionTime.IsZero())
+	assert.False(t, healthStatus.ObservedAt.IsZero())
 }
 
 func TestSetApplicationHealth_HealthImproves(t *testing.T) {
@@ -157,6 +161,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus.Status)
 			assert.NotEqual(t, testTimestamp, *healthStatus.LastTransitionTime)
+			assert.NotEqual(t, testTimestamp, *healthStatus.ObservedAt)
 		})
 	}
 }

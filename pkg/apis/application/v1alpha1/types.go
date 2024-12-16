@@ -1623,6 +1623,8 @@ type HealthStatus struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the HealthStatus was set or updated
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	// ObservedAt is a timestamp that is periodically updated to reflect the freshness of the observed state.
+	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,4,opt,name=observedAt"`
 }
 
 // InfoItem contains arbitrary, human readable information about an application
