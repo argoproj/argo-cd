@@ -914,7 +914,7 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 	if destination.Server != "" {
 		cluster, err := db.GetCluster(ctx, destination.Server)
 		if err != nil {
-			return cluster, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
+			return nil, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
 		}
 		return cluster, nil
 	} else if destination.Name != "" {

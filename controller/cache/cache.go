@@ -128,7 +128,7 @@ type LiveStateCache interface {
 	// Executes give callback against resources specified by the keys and all its children
 	IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
-	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
 	IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error
 	// Returns all top level resources (resources without owner references) of a specified namespace
@@ -695,8 +695,8 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 	return res, nil
 }
 
-func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
+func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	clusterInfo, err := c.getSyncedCluster(destCluster.Server)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", a.Spec.Destination.Server, err)
 	}

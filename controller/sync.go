@@ -92,7 +92,7 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	return ops, cleanup, nil
 }
 
-func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
+func (m *appStateManager) SyncAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
 	// concrete git commit SHA, the SHA is remembered in the status.operationState.syncResult field.
@@ -199,7 +199,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
+	compareResult, err := m.CompareAppState(destCluster, app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
 	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -221,7 +221,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	cluster, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	cluster, err := m.db.GetCluster(context.Background(), destCluster.Server)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -422,9 +422,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster.Server)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
 				}
 			}
 			return apiVersion, nil

@@ -473,7 +473,7 @@ func (ctrl *ApplicationController) setAppManagedResources(destCluster *appv1.Clu
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished setting app managed resources")
 	}()
-	managedResources, err := ctrl.hideSecretData(a, comparisonResult)
+	managedResources, err := ctrl.hideSecretData(destCluster, a, comparisonResult)
 	ts.AddCheckpoint("hide_secret_data_ms")
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %w", err)
@@ -576,7 +576,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
-	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
+	err = ctrl.stateCache.IterateHierarchyV2(destCluster.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
 		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
@@ -642,7 +642,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	})
 	ts.AddCheckpoint("process_orphaned_resources_ms")
 
-	hosts, err := ctrl.getAppHosts(a, nodes)
+	hosts, err := ctrl.getAppHosts(destCluster, a, nodes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app hosts: %w", err)
 	}
@@ -650,7 +650,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
 }
 
-func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
+func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
 	ts := stats.NewTimingStats()
 	defer func() {
 		logCtx := getAppLog(a)
@@ -675,7 +675,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(a.Spec.Destination.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+	err := ctrl.stateCache.IterateResources(destCluster.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
 
 		switch {
@@ -749,7 +749,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 	return hosts, nil
 }
 
-func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
+func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
 	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
@@ -788,7 +788,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(app.Spec.Destination.Server)
+			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster.Server)
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
@@ -1112,7 +1112,7 @@ func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *
 }
 
 func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1.Cluster, app *appv1.Application, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+	objsMap, err := ctrl.stateCache.GetManagedLiveObjs(destCluster, app, []*unstructured.Unstructured{})
 	if err != nil {
 		return nil, err
 	}
@@ -1229,7 +1229,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(destCluster, app, proj, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1382,16 +1382,17 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
-	if _, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
 		state.Phase = synccommon.OperationFailed
 		state.Message = err.Error()
 	} else {
-		ctrl.appStateManager.SyncAppState(app, state)
+		ctrl.appStateManager.SyncAppState(destCluster, app, state)
 	}
 	ts.AddCheckpoint("validate_and_sync_app_state_ms")
 
 	// Check whether application is allowed to use project
-	_, err := ctrl.getAppProj(app)
+	_, err = ctrl.getAppProj(app)
 	ts.AddCheckpoint("get_app_proj_ms")
 	if err != nil {
 		state.Phase = synccommon.OperationError
@@ -1683,9 +1684,16 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.Errorf("Failed to get destination cluster: %v", err)
+		return
+	}
+
+	compareResult, err := ctrl.appStateManager.CompareAppState(destCluster, app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, false)
+
 	ts.AddCheckpoint("compare_app_state_ms")
 
 	if goerrors.Is(err, CompareStateRepoError) {
@@ -1699,12 +1707,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 	ts.AddCheckpoint("normalize_application_ms")
-
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-	if err != nil {
-		logCtx.Errorf("Failed to get destination cluster: %v", err)
-		return
-	}
 	tree, err := ctrl.setAppManagedResources(destCluster, app, compareResult)
 	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {
@@ -2181,11 +2183,11 @@ func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
 		}
 	}
 
-	cluster, err := ctrl.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
 		return ctrl.clusterSharding.IsManagedCluster(nil)
 	}
-	return ctrl.clusterSharding.IsManagedCluster(cluster)
+	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {

@@ -936,7 +936,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.True(t, patched)
-		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
+		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []*unstructured.Unstructured{})
 		if err != nil {
 			require.NoError(t, err)
 		}
@@ -2185,7 +2185,7 @@ func TestGetAppHosts(t *testing.T) {
 	})).Return(nil)
 	ctrl.stateCache = mockStateCache
 
-	hosts, err := ctrl.getAppHosts(app, []v1alpha1.ResourceNode{{
+	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
 		ResourceRef: v1alpha1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
 		Info: []v1alpha1.InfoItem{{
 			Name:  "Host",

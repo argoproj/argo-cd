@@ -76,7 +76,7 @@ func (_m *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 }
 
 // GetManagedLiveObjs provides a mock function with given fields: a, targetObjs
-func (_m *LiveStateCache) GetManagedLiveObjs(a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+func (_m *LiveStateCache) GetManagedLiveObjs(destCluster *v1alpha1.Cluster, a *v1alpha1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	ret := _m.Called(a, targetObjs)
 
 	if len(ret) == 0 {
