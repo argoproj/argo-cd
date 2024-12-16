@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
 	if err != nil {
 		return false, err
 	}
