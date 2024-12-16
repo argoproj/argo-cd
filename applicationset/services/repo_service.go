@@ -46,13 +46,9 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		return nil, fmt.Errorf("error in ListRepositories: %w", err)
 	}
 
-	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
+	repo, err := getRepo(repos, repoURL, project)
 	if err != nil {
-		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
-			repo = &v1alpha1.Repository{Repo: repoURL}
-		} else {
-			return nil, fmt.Errorf("error retrieving Git files: %w", err)
-		}
+		return nil, fmt.Errorf("error retrieving Git files: %w", err)
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
@@ -83,13 +79,9 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		return nil, fmt.Errorf("error in ListRepositories: %w", err)
 	}
 
-	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
+	repo, err := getRepo(repos, repoURL, project)
 	if err != nil {
-		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
-			repo = &v1alpha1.Repository{Repo: repoURL}
-		} else {
-			return nil, fmt.Errorf("error retrieving Git files: %w", err)
-		}
+		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
 
 	dirRequest := &apiclient.GitDirectoriesRequest{
@@ -111,4 +103,24 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
 	return dirResponse.GetPaths(), nil
+}
+
+func getRepo(repos []*v1alpha1.Repository, repoURL string, project string) (*v1alpha1.Repository, error) {
+	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
+	if err != nil {
+		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
+			// No repo found with a matching URL - attempt fallback without any actual credentials
+			repo = &v1alpha1.Repository{Repo: repoURL}
+		} else {
+			// This is the final fallback - ensure that at least one repo cred with an unset project is present.
+			for _, repo = range repos {
+				if git.SameURL(repo.Repo, repoURL) && repo.Project == "" {
+					return repo, nil
+				}
+			}
+
+			return nil, fmt.Errorf("no matching repository found for url %s, ensure that you have a repo credential with an unset project", repoURL)
+		}
+	}
+	return repo, nil
 }
