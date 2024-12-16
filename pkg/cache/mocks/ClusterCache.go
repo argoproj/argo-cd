@@ -262,6 +262,26 @@ func (_m *ClusterCache) OnEvent(handler cache.OnEventHandler) cache.Unsubscribe 
 	return r0
 }
 
+// OnProcessEventsHandler provides a mock function with given fields: handler
+func (_m *ClusterCache) OnProcessEventsHandler(handler cache.OnProcessEventsHandler) cache.Unsubscribe {
+	ret := _m.Called(handler)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OnProcessEventsHandler")
+	}
+
+	var r0 cache.Unsubscribe
+	if rf, ok := ret.Get(0).(func(cache.OnProcessEventsHandler) cache.Unsubscribe); ok {
+		r0 = rf(handler)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(cache.Unsubscribe)
+		}
+	}
+
+	return r0
+}
+
 // OnResourceUpdated provides a mock function with given fields: handler
 func (_m *ClusterCache) OnResourceUpdated(handler cache.OnResourceUpdatedHandler) cache.Unsubscribe {
 	ret := _m.Called(handler)

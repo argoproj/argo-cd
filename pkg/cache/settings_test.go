@@ -55,3 +55,20 @@ func TestSetWatchResyncTimeout(t *testing.T) {
 	cache = NewClusterCache(&rest.Config{}, SetWatchResyncTimeout(timeout))
 	assert.Equal(t, timeout, cache.watchResyncTimeout)
 }
+
+func TestSetBatchEventsProcessing(t *testing.T) {
+	cache := NewClusterCache(&rest.Config{})
+	assert.False(t, cache.batchEventsProcessing)
+
+	cache.Invalidate(SetBatchEventsProcessing(true))
+	assert.True(t, cache.batchEventsProcessing)
+}
+
+func TestSetEventsProcessingInterval(t *testing.T) {
+	cache := NewClusterCache(&rest.Config{})
+	assert.Equal(t, defaultEventProcessingInterval, cache.eventProcessingInterval)
+
+	interval := 1 * time.Second
+	cache.Invalidate(SetEventProcessingInterval(interval))
+	assert.Equal(t, interval, cache.eventProcessingInterval)
+}

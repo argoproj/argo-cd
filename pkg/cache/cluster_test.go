@@ -184,6 +184,12 @@ func TestEnsureSynced(t *testing.T) {
 }
 
 func TestStatefulSetOwnershipInferred(t *testing.T) {
+	var opts []UpdateSettingsFunc
+	opts = append(opts, func(c *clusterCache) {
+		c.batchEventsProcessing = true
+		c.eventProcessingInterval = 1 * time.Millisecond
+	})
+
 	sts := &appsv1.StatefulSet{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
 		ObjectMeta: metav1.ObjectMeta{UID: "123", Name: "web", Namespace: "default"},
@@ -196,63 +202,71 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		},
 	}
 
-	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
-		cluster := newCluster(t, sts)
-		err := cluster.EnsureSynced()
-		require.NoError(t, err)
+	tests := []struct {
+		name          string
+		cluster       *clusterCache
+		pvc           *v1.PersistentVolumeClaim
+		expectedRefs  []metav1.OwnerReference
+		expectNoOwner bool
+	}{
+		{
+			name:    "STSTemplateNameNotMatching",
+			cluster: newCluster(t, sts),
+			pvc: &v1.PersistentVolumeClaim{
+				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
+			},
+			expectNoOwner: true,
+		},
+		{
+			name:    "MatchingSTSExists",
+			cluster: newCluster(t, sts),
+			pvc: &v1.PersistentVolumeClaim{
+				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
+			},
+			expectedRefs: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: kube.StatefulSetKind, Name: "web", UID: "123"}},
+		},
+		{
+			name:    "STSTemplateNameNotMatchingWithBatchProcessing",
+			cluster: newClusterWithOptions(t, opts, sts),
+			pvc: &v1.PersistentVolumeClaim{
+				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
+			},
+			expectNoOwner: true,
+		},
+		{
+			name:    "MatchingSTSExistsWithBatchProcessing",
+			cluster: newClusterWithOptions(t, opts, sts),
+			pvc: &v1.PersistentVolumeClaim{
+				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
+				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
+			},
+			expectedRefs: []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: kube.StatefulSetKind, Name: "web", UID: "123"}},
+		},
+	}
 
-		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
-			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
-			ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cluster.EnsureSynced()
+			require.NoError(t, err)
+
+			pvc := mustToUnstructured(tc.pvc)
+			tc.cluster.recordEvent(watch.Added, pvc)
+
+			require.Eventually(t, func() bool {
+				tc.cluster.lock.Lock()
+				defer tc.cluster.lock.Unlock()
+
+				refs := tc.cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
+				if tc.expectNoOwner {
+					return len(refs) == 0
+				}
+				return assert.ElementsMatch(t, refs, tc.expectedRefs)
+			}, 5*time.Second, 10*time.Millisecond, "Expected PVC to have correct owner reference")
 		})
-
-		cluster.processEvent(watch.Added, pvc)
-
-		cluster.lock.Lock()
-		defer cluster.lock.Unlock()
-
-		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
-
-		assert.Len(t, refs, 0)
-	})
-
-	t.Run("STSTemplateNameNotMatching", func(t *testing.T) {
-		cluster := newCluster(t, sts)
-		err := cluster.EnsureSynced()
-		require.NoError(t, err)
-
-		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
-			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
-			ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
-		})
-		cluster.processEvent(watch.Added, pvc)
-
-		cluster.lock.Lock()
-		defer cluster.lock.Unlock()
-
-		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
-
-		assert.Len(t, refs, 0)
-	})
-
-	t.Run("MatchingSTSExists", func(t *testing.T) {
-		cluster := newCluster(t, sts)
-		err := cluster.EnsureSynced()
-		require.NoError(t, err)
-
-		pvc := mustToUnstructured(&v1.PersistentVolumeClaim{
-			TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
-			ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
-		})
-		cluster.processEvent(watch.Added, pvc)
-
-		cluster.lock.Lock()
-		defer cluster.lock.Unlock()
-
-		refs := cluster.resources[kube.GetResourceKey(pvc)].OwnerRefs
-
-		assert.ElementsMatch(t, refs, []metav1.OwnerReference{{APIVersion: "apps/v1", Kind: kube.StatefulSetKind, Name: "web", UID: "123"}})
-	})
+	}
 }
 
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
@@ -596,7 +610,7 @@ func TestChildDeletedEvent(t *testing.T) {
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
-	cluster.processEvent(watch.Deleted, mustToUnstructured(testPod1()))
+	cluster.recordEvent(watch.Deleted, mustToUnstructured(testPod1()))
 
 	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	assert.Equal(t, []*Resource{}, rsChildren)
@@ -620,7 +634,7 @@ func TestProcessNewChildEvent(t *testing.T) {
       uid: "2"
     resourceVersion: "123"`)
 
-	cluster.processEvent(watch.Added, newPod)
+	cluster.recordEvent(watch.Added, newPod)
 
 	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	sort.Slice(rsChildren, func(i, j int) bool {
