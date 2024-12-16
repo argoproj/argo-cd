@@ -112,7 +112,7 @@ You can change the timezone to show in notifications as follows.
 
 ## Functions
 
-Templates have access to the set of built-in functions, plus the functions of the [Spring](https://masterminds.github.io/sprig/) package
+Templates have access to the set of built-in functions such as the functions of the [Sprig](https://masterminds.github.io/sprig/) package
 
 ```yaml
 apiVersion: v1
