@@ -59,7 +59,7 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 		}
 		result[i] = repo
 	}
-	repos, err := db.listRepositories(ctx, ptr.To("helm"))
+	repos, err := db.listRepositories(ctx, ptr.To("helm"), false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}

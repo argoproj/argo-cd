@@ -2,22 +2,15 @@ package utils
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 	"sync"
-	"time"
-
-	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/db"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/ptr"
 )
 
 // The contents of this file are from
@@ -126,10 +119,14 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets {
 		// This line has changed from the original Argo CD code: now receives an error, and handles it
-		cluster, err := secretToCluster(&clusterSecret)
+		cluster, err := db.SecretToCluster(&clusterSecret)
 		if err != nil || cluster == nil {
 			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %w", clusterSecret.Name, err)
 		}
+
+		// db.SecretToCluster populates these, but they're not meant to be available to the caller.
+		cluster.Labels = nil
+		cluster.Annotations = nil
 
 		clusterList.Items[i] = *cluster
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -166,49 +163,4 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	// nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
-}
-
-// secretToCluster converts a secret into a Cluster object
-func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
-	var config appv1.ClusterConfig
-	if len(s.Data["config"]) > 0 {
-		if err := json.Unmarshal(s.Data["config"], &config); err != nil {
-			// This line has changed from the original Argo CD: now returns an error rather than panicing.
-			return nil, err
-		}
-	}
-
-	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
-		if ns = strings.TrimSpace(ns); ns != "" {
-			namespaces = append(namespaces, ns)
-		}
-	}
-	var refreshRequestedAt *metav1.Time
-	if v, found := s.Annotations[appv1.AnnotationKeyRefresh]; found {
-		requestedAt, err := time.Parse(time.RFC3339, v)
-		if err != nil {
-			log.Warnf("Error while parsing date in cluster secret '%s': %v", s.Name, err)
-		} else {
-			refreshRequestedAt = &metav1.Time{Time: requestedAt}
-		}
-	}
-	var shard *int64
-	if shardStr := s.Data["shard"]; shardStr != nil {
-		if val, err := strconv.Atoi(string(shardStr)); err != nil {
-			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
-		} else {
-			shard = ptr.To(int64(val))
-		}
-	}
-	cluster := appv1.Cluster{
-		ID:                 string(s.UID),
-		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
-		Name:               string(s.Data["name"]),
-		Namespaces:         namespaces,
-		Config:             config,
-		RefreshRequestedAt: refreshRequestedAt,
-		Shard:              shard,
-	}
-	return &cluster, nil
 }
