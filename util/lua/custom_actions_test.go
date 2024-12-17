@@ -110,8 +110,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		// TODO: Change to path
-		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
+		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
 		require.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
@@ -209,6 +208,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 // Handling backward compatibility.
 // The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
+	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	unstructuredList := &unstructured.UnstructuredList{}

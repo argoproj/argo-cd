@@ -16,10 +16,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	secutil "github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -137,6 +139,7 @@ func NewImportCommand() *cobra.Command {
 		verbose                  bool
 		stopOperation            bool
 		ignoreTracking           bool
+		promptsEnabled           bool
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
@@ -308,6 +311,8 @@ func NewImportCommand() *cobra.Command {
 				}
 			}
 
+			promptUtil := utils.NewPrompt(promptsEnabled)
+
 			// Delete objects not in backup
 			for key, liveObj := range pruneObjects {
 				if prune {
@@ -335,13 +340,19 @@ func NewImportCommand() *cobra.Command {
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
 					isForbidden := false
+
 					if !dryRun {
-						err = dynClient.Delete(ctx, key.Name, v1.DeleteOptions{})
-						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
-							isForbidden = true
-							log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+						canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
+						if canPrune {
+							err = dynClient.Delete(ctx, key.Name, v1.DeleteOptions{})
+							if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+								isForbidden = true
+								log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
+							} else {
+								errors.CheckError(err)
+							}
 						} else {
-							errors.CheckError(err)
+							fmt.Printf("The command to prune %s/%s %s was cancelled.\n", key.Group, key.Kind, key.Name)
 						}
 					}
 					if !isForbidden {
@@ -362,6 +373,7 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
 
 	return &command
 }

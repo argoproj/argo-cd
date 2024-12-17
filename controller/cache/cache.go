@@ -69,6 +69,12 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
+	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
+	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
+
+	// EnvClusterCacheEventProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
+	EnvClusterCacheEventProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENT_PROCESSING_INTERVAL"
+
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -103,6 +109,12 @@ var (
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff bool = false
+
+	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
+	clusterCacheBatchEventsProcessing bool = false
+
+	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+	clusterCacheEventProcessingInterval = 100 * time.Millisecond
 )
 
 func init() {
@@ -114,6 +126,8 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
+	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
+	clusterCacheEventProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventProcessingInterval, clusterCacheEventProcessingInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -197,6 +211,7 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
+	installationID      string
 	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
 	resourceOverrides map[string]appv1.ResourceOverride
 
@@ -225,6 +240,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	installationID, err := c.settingsMgr.GetInstallationID()
+	if err != nil {
+		return nil, err
+	}
 	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
 	if err != nil {
 		return nil, err
@@ -246,7 +265,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -490,7 +509,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig := cluster.RESTConfig()
+	clusterCacheConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
+	}
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
 	// This causes log flooding when managing a large number of clusters.
@@ -523,7 +545,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod, cacheSettings.installationID)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
@@ -546,6 +568,8 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
+		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
+		clustercache.SetEventProcessingInterval(clusterCacheEventProcessingInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -598,6 +622,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
 		gvk := un.GroupVersionKind()
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
+	})
+
+	_ = clusterCache.OnProcessEventsHandler(func(duration time.Duration, processedEventsNumber int) {
+		c.metricsServer.ObserveResourceEventsProcessingDuration(cluster.Server, duration, processedEventsNumber)
 	})
 
 	c.clusters[server] = clusterCache
@@ -821,7 +849,12 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
+			newClusterRESTConfig, err := newCluster.RESTConfig()
+			if err == nil {
+				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
+			} else {
+				log.Errorf("error getting cluster REST config: %v", err)
+			}
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))

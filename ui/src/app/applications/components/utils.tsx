@@ -13,6 +13,7 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -221,6 +222,29 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             break;
     }
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+};
+
+export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: appModels.HydrateOperation}) => {
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
+    let className = '';
+    let color = '';
+    switch (operationState.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            className = 'fa fa-check-circle';
+            color = COLORS.operation.success;
+            break;
+        case appModels.HydrateOperationPhases.Failed:
+            className = 'fa fa-times-circle';
+            color = COLORS.operation.failed;
+            break;
+        default:
+            className = 'fa fa-circle-notch fa-spin';
+            color = COLORS.operation.running;
+            break;
+    }
+    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({
@@ -496,7 +520,7 @@ export const deletePopup = async (
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -683,30 +707,24 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
-
+export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
     return (
-        <DataLoader load={() => menuItems}>
-            {items => (
-                <ul>
-                    {items.map((item, i) => (
-                        <li
-                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                            key={i}
-                            onClick={e => {
-                                e.stopPropagation();
-                                if (!item.disabled) {
-                                    item.action();
-                                    document.body.click();
-                                }
-                            }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </DataLoader>
+        <ul>
+            {menuItems.map((item, i) => (
+                <li
+                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                    key={i}
+                    onClick={e => {
+                        e.stopPropagation();
+                        if (!item.disabled) {
+                            item.action();
+                            document.body.click();
+                        }
+                    }}>
+                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -746,10 +764,10 @@ export function renderResourceButtons(
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
-    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
-    let message = source.targetRevision || 'HEAD';
+    const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
+    let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
 
-    if (revision) {
+    if (revision && source) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
@@ -780,6 +798,65 @@ export function syncStatusMessage(app: appModels.Application) {
             );
         default:
             return <span>{message}</span>;
+    }
+}
+
+export function hydrationStatusMessage(app: appModels.Application) {
+    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
+    const syncSource: ApplicationSource = {
+        repoURL: drySource.repoURL,
+        targetRevision:
+            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
+        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
+    };
+    const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
+
+    switch (app.status.sourceHydrator.currentOperation.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
+                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Hydrating:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Failed:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        default:
+            return <span>{}</span>;
     }
 }
 
@@ -874,7 +951,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.ResultCodes.Pruned:
                 color = COLORS.sync_result.pruned;
-                icon = 'fa-heart';
+                icon = 'fa-trash';
                 break;
             case appModels.ResultCodes.SyncFailed:
                 color = COLORS.sync_result.failed;
@@ -993,20 +1070,62 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
+function isPodInitializedConditionTrue(status: any): boolean {
+    if (!status?.conditions) {
+        return false;
+    }
+
+    for (const condition of status.conditions) {
+        if (condition.type !== 'Initialized') {
+            continue;
+        }
+        return condition.status === 'True';
+    }
+
+    return false;
+}
+
+// isPodPhaseTerminal returns true if the pod's phase is terminal.
+function isPodPhaseTerminal(phase: appModels.PodPhase): boolean {
+    return phase === appModels.PodPhase.PodFailed || phase === appModels.PodPhase.PodSucceeded;
+}
+
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
-    let reason = pod.status.phase;
+    if (!pod.status) {
+        return {reason: 'Unknown', message: '', netContainerStatuses: []};
+    }
+
+    const podPhase = pod.status.phase;
+    let reason = podPhase;
     let message = '';
     if (pod.status.reason) {
         reason = pod.status.reason;
     }
 
-    let initializing = false;
-
     let netContainerStatuses = pod.status.initContainerStatuses || [];
     netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
 
-    for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
+    for (const condition of pod.status.conditions || []) {
+        if (condition.type === 'PodScheduled' && condition.reason === 'SchedulingGated') {
+            reason = 'SchedulingGated';
+        }
+    }
+
+    const initContainers: Record<string, any> = {};
+
+    for (const container of pod.spec.initContainers ?? []) {
+        initContainers[container.name] = container;
+    }
+
+    let initializing = false;
+    const initContainerStatuses = pod.status.initContainerStatuses || [];
+    for (let i = 0; i < initContainerStatuses.length; i++) {
+        const container = initContainerStatuses[i];
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
+            continue;
+        }
+
+        if (container.started && initContainers[container.name].restartPolicy === 'Always') {
             continue;
         }
 
@@ -1021,13 +1140,13 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             reason = `Init:${container.state.waiting.reason}`;
             message = `Init:${container.state.waiting.message}`;
         } else {
-            reason = `Init: ${(pod.spec.initContainers || []).length})`;
+            reason = `Init:${i}/${(pod.spec.initContainers || []).length}`;
         }
         initializing = true;
         break;
     }
 
-    if (!initializing) {
+    if (!initializing || isPodInitializedConditionTrue(pod.status)) {
         let hasRunning = false;
         for (const container of pod.status.containerStatuses || []) {
             if (container.state.waiting && container.state.waiting.reason) {
@@ -1059,7 +1178,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     if ((pod as any).metadata.deletionTimestamp && pod.status.reason === 'NodeLost') {
         reason = 'Unknown';
         message = '';
-    } else if ((pod as any).metadata.deletionTimestamp) {
+    } else if ((pod as any).metadata.deletionTimestamp && !isPodPhaseTerminal(podPhase)) {
         reason = 'Terminating';
         message = '';
     }
@@ -1084,7 +1203,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     for (const condition of podStatusConditions) {
         existingConditions.set(condition.type, true);
         // priority order of conditions
-        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        // e.g. if there are multiple conditions set with same name then the one which comes first is evaluated
         if (podConditions.has(condition.type)) {
             continue;
         }
@@ -1131,10 +1250,10 @@ export function isAppNode(node: appModels.ResourceNode) {
 
 export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
-    if (source.kustomize && source.kustomize.images) {
+    if (source?.kustomize?.images) {
         return source.kustomize.images.length;
     }
-    if (source.helm && source.helm.parameters) {
+    if (source?.helm?.parameters) {
         return source.helm.parameters.length;
     }
     return 0;
@@ -1146,7 +1265,7 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+    return getAppSpecDefaultSource(app.spec);
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1205,6 +1324,13 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    if (spec.sourceHydrator) {
+        return {
+            repoURL: spec.sourceHydrator.drySource.repoURL,
+            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
+            path: spec.sourceHydrator.syncSource.path
+        };
+    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
@@ -1435,3 +1561,10 @@ export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
+
+export function getAppUrl(app: appModels.Application): string {
+    if (typeof app.metadata.namespace === 'undefined') {
+        return `/applications/${app.metadata.name}`;
+    }
+    return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
+}

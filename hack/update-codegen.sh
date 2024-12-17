@@ -27,7 +27,7 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
 GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 
-TARGET_SCRIPT=/tmp/kube_codegen.sh
+TARGET_SCRIPT=kube_codegen.sh
 
 # codegen utilities are installed outside of kube_codegen.sh so remove the `go install` step in the script.
 sed -e '/go install/d' ${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codegen.sh >${TARGET_SCRIPT}
@@ -39,11 +39,18 @@ sed -i.bak -e 's#${gobin}/##g' ${TARGET_SCRIPT}
 [ -e ./v2 ] || ln -s . v2
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")
 
-bash -x ${TARGET_SCRIPT} "deepcopy,client,informer,lister" \
-  github.com/argoproj/argo-cd/v2/pkg/client github.com/argoproj/argo-cd/v2/pkg/apis \
-  "application:v1alpha1" \
-  --go-header-file "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
-  --output-base "${GOPATH}/src"
+# shellcheck source=pkg/apis/application/v1alpha1/kube_codegen.sh
+. ${TARGET_SCRIPT}
+
+kube::codegen::gen_helpers pkg/apis/application/v1alpha1
+kube::codegen::gen_client pkg/apis \
+  --output-dir pkg/client \
+  --output-pkg github.com/argoproj/argo-cd/v2/pkg/client \
+  --boilerplate "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
+  --with-watch
+
+rm ${TARGET_SCRIPT}
+rm ${TARGET_SCRIPT}.bak
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v2 ] && rm -rf v2

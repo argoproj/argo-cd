@@ -47,7 +47,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 		},
 		Data: config,
 	}
-	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+	return fake.NewClientset(append(objects, &cm, &secret)...)
 }
 
 func TestCreateRepository(t *testing.T) {
@@ -628,13 +628,13 @@ func TestFuzzyEquivalence(t *testing.T) {
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps.git",
 	})
-	assert.Contains(t, err.Error(), "already exists")
+	require.ErrorContains(t, err, "already exists")
 	assert.Nil(t, repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-APPS",
 	})
-	assert.Contains(t, err.Error(), "already exists")
+	require.ErrorContains(t, err, "already exists")
 	assert.Nil(t, repo)
 
 	repo, err = db.GetRepository(ctx, "https://github.com/argoproj/argocd-example-APPS", "")

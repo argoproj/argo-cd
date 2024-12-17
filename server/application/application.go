@@ -112,6 +112,7 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
+	enableK8sEvent []string,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -133,7 +134,7 @@ func NewServer(
 		kubectl:           kubectl,
 		enf:               enf,
 		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		settingsMgr:       settingsMgr,
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
@@ -368,7 +369,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	equalSpecs := reflect.DeepEqual(existing.Spec, a.Spec) &&
+
+	if err := argo.ValidateDestination(ctx, &existing.Spec.Destination, s.db); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
+	}
+
+	equalSpecs := existing.Spec.Destination.Equals(a.Spec.Destination) &&
+		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
@@ -509,26 +516,32 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
+			installationID, err := s.settingsMgr.GetInstallationID()
+			if err != nil {
+				return fmt.Errorf("error getting installation ID: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-				Repo:               repo,
-				Revision:           source.TargetRevision,
-				AppLabelKey:        appInstanceLabelKey,
-				AppName:            a.InstanceName(s.ns),
-				Namespace:          a.Spec.Destination.Namespace,
-				ApplicationSource:  &source,
-				Repos:              helmRepos,
-				KustomizeOptions:   kustomizeOptions,
-				KubeVersion:        serverVersion,
-				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-				HelmRepoCreds:      helmCreds,
-				HelmOptions:        helmOptions,
-				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
-				EnabledSourceTypes: enableGenerateManifests,
-				ProjectName:        proj.Name,
-				ProjectSourceRepos: proj.Spec.SourceRepos,
-				HasMultipleSources: a.Spec.HasMultipleSources(),
-				RefSources:         refSources,
+				Repo:                            repo,
+				Revision:                        source.TargetRevision,
+				AppLabelKey:                     appInstanceLabelKey,
+				AppName:                         a.InstanceName(s.ns),
+				Namespace:                       a.Spec.Destination.Namespace,
+				ApplicationSource:               &source,
+				Repos:                           helmRepos,
+				KustomizeOptions:                kustomizeOptions,
+				KubeVersion:                     serverVersion,
+				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:                   helmCreds,
+				HelmOptions:                     helmOptions,
+				TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes:              enableGenerateManifests,
+				ProjectName:                     proj.Name,
+				ProjectSourceRepos:              proj.Spec.SourceRepos,
+				HasMultipleSources:              a.Spec.HasMultipleSources(),
+				RefSources:                      refSources,
+				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				InstallationID:                  installationID,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
@@ -550,7 +563,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
 			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-				obj, _, err = diff.HideSecretData(obj, nil)
+				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
 				}
@@ -629,22 +642,23 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		req := &apiclient.ManifestRequest{
-			Repo:               repo,
-			Revision:           source.TargetRevision,
-			AppLabelKey:        appInstanceLabelKey,
-			AppName:            a.Name,
-			Namespace:          a.Spec.Destination.Namespace,
-			ApplicationSource:  &source,
-			Repos:              helmRepos,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:      helmCreds,
-			HelmOptions:        helmOptions,
-			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
+			Repo:                            repo,
+			Revision:                        source.TargetRevision,
+			AppLabelKey:                     appInstanceLabelKey,
+			AppName:                         a.Name,
+			Namespace:                       a.Spec.Destination.Namespace,
+			ApplicationSource:               &source,
+			Repos:                           helmRepos,
+			KustomizeOptions:                kustomizeOptions,
+			KubeVersion:                     serverVersion,
+			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:                   helmCreds,
+			HelmOptions:                     helmOptions,
+			TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes:              enableGenerateManifests,
+			ProjectName:                     proj.Name,
+			ProjectSourceRepos:              proj.Spec.SourceRepos,
+			AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
@@ -676,7 +690,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
 		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil)
+			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -923,8 +937,8 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
-			app.Labels = collections.MergeStringMaps(app.Labels, newApp.Labels)
-			app.Annotations = collections.MergeStringMaps(app.Annotations, newApp.Annotations)
+			app.Labels = collections.Merge(app.Labels, newApp.Labels)
+			app.Annotations = collections.Merge(app.Annotations, newApp.Annotations)
 		} else {
 			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
@@ -1221,6 +1235,18 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	if app.GetName() == "" {
 		return fmt.Errorf("resource name may not be empty")
 	}
+
+	// ensure sources names are unique
+	if app.Spec.HasMultipleSources() {
+		sourceNames := make(map[string]bool)
+		for _, source := range app.Spec.Sources {
+			if len(source.Name) > 0 && sourceNames[source.Name] {
+				return fmt.Errorf("application %s has duplicate source name: %s", app.Name, source.Name)
+			}
+			sourceNames[source.Name] = true
+		}
+	}
+
 	appNs := s.appNamespaceOrDefault(app.Namespace)
 	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1281,7 +1307,11 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-	config := clst.RESTConfig()
+	config, err := clst.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+
 	return config, err
 }
 
@@ -1361,7 +1391,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
-	obj, err = replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1373,9 +1403,9 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
 }
 
-func replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (s *Server) replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		_, obj, err := diff.HideSecretData(nil, obj)
+		_, obj, err := diff.HideSecretData(nil, obj, s.settingsMgr.GetSensitiveAnnotations())
 		if err != nil {
 			return nil, err
 		}
@@ -1412,7 +1442,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if manifest == nil {
 		return nil, fmt.Errorf("failed to patch resource: manifest was nil")
 	}
-	manifest, err = replaceSecretValues(manifest)
+	manifest, err = s.replaceSecretValues(manifest)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1886,7 +1916,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	if err != nil {
+		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
+	}
+	if !canSync {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: blocked by sync window")
 	}
 
@@ -2168,7 +2202,7 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	obj, err = replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -2201,7 +2235,7 @@ func getAmbiguousRevision(app *appv1.Application, syncReq *application.Applicati
 	ambiguousRevision := ""
 	if app.Spec.HasMultipleSources() {
 		for i, pos := range syncReq.SourcePositions {
-			if pos == int64(sourceIndex) {
+			if pos == int64(sourceIndex+1) {
 				ambiguousRevision = syncReq.Revisions[i]
 			}
 		}
@@ -2603,10 +2637,17 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync := windows.CanSync(true)
+	sync, err := windows.CanSync(true)
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 
+	activeWindows, err := windows.Active()
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	res := &application.ApplicationSyncWindowsResponse{
-		ActiveWindows:   convertSyncWindows(windows.Active()),
+		ActiveWindows:   convertSyncWindows(activeWindows),
 		AssignedWindows: convertSyncWindows(windows),
 		CanSync:         &sync,
 	}

@@ -12,13 +12,13 @@ argocd admin proj generate-spec PROJECT [flags]
 
 ```
   # Generate a YAML configuration for a project named "myproject"
-  argocd admin projects generate-spec myproject
+  argocd admin proj generate-spec myproject
   
   # Generate a JSON configuration for a project named "anotherproject" and specify an output file
-  argocd admin projects generate-spec anotherproject --output json --file config.json
+  argocd admin proj generate-spec anotherproject --output json --file config.json
   
   # Generate a YAML configuration for a project named "someproject" and write it back to the input file
-  argocd admin projects generate-spec someproject --inline
+  argocd admin proj generate-spec someproject --inline
 ```
 
 ### Options
@@ -30,6 +30,7 @@ argocd admin proj generate-spec PROJECT [flags]
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
   -f, --file string                             Filename or URL to Kubernetes manifests for the project
   -h, --help                                    help for generate-spec
   -i, --inline                                  If set then generated resource is written back to the file specified in --file flag
@@ -62,6 +63,7 @@ argocd admin proj generate-spec PROJECT [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

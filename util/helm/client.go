@@ -25,6 +25,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -447,13 +448,23 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}}
 
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
+		credential := auth.StaticCredential(repoHost, auth.Credential{
+			Username: c.creds.Username,
+			Password: c.creds.Password,
+		})
+
+		// Try to fallback to the environment config, but we shouldn't error if the file is not set
+		if c.creds.Username == "" && c.creds.Password == "" {
+			store, _ := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+			if store != nil {
+				credential = credentials.Credential(store)
+			}
+		}
+
 		repo.Client = &auth.Client{
-			Client: client,
-			Cache:  nil,
-			Credential: auth.StaticCredential(repoHost, auth.Credential{
-				Username: c.creds.Username,
-				Password: c.creds.Password,
-			}),
+			Client:     client,
+			Cache:      nil,
+			Credential: credential,
 		}
 
 		ctx := context.Background()

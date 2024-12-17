@@ -338,22 +338,41 @@ type TemplateOpts struct {
 	Values      []pathutil.ResolvedFilePath
 	// ExtraValues is the randomly-generated path to the temporary values file holding the contents of
 	// spec.source.helm.values/valuesObject.
-	ExtraValues pathutil.ResolvedFilePath
-	SkipCrds    bool
+	ExtraValues          pathutil.ResolvedFilePath
+	SkipCrds             bool
+	SkipSchemaValidation bool
+	SkipTests            bool
 }
-
-var (
-	re                 = regexp.MustCompile(`([^\\]),`)
-	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
-)
 
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
 		return val
 	}
-	return re.ReplaceAllString(val, `$1\,`)
+
+	val = replaceAllWithLookbehind(val, ',', `\,`, '\\')
+	return val
 }
+
+func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
+	var result strings.Builder
+	var prevR rune
+	for _, r := range val {
+		if r == old {
+			if prevR != lookbehind {
+				result.WriteString(new)
+			} else {
+				result.WriteRune(old)
+			}
+		} else {
+			result.WriteRune(r)
+		}
+		prevR = r
+	}
+	return result.String()
+}
+
+var apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, error) {
 	if callback, err := cleanupChartLockFile(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
@@ -390,6 +409,12 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	}
 	if !opts.SkipCrds {
 		args = append(args, "--include-crds")
+	}
+	if opts.SkipSchemaValidation {
+		args = append(args, "--skip-schema-validation")
+	}
+	if opts.SkipTests {
+		args = append(args, "--skip-tests")
 	}
 
 	out, command, err := c.run(args...)

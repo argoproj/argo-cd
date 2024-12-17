@@ -58,9 +58,9 @@ type Server struct {
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
+	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
@@ -398,15 +398,16 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 
-	var srcValidatedApps []v1alpha1.Application
-	var dstValidatedApps []v1alpha1.Application
 	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
+	invalidSrcCount := 0
+	invalidDstCount := 0
+
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
-			srcValidatedApps = append(srcValidatedApps, a)
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
+			invalidSrcCount++
 		}
 
 		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
@@ -415,26 +416,13 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 
 		if dstPermitted {
-			dstValidatedApps = append(dstValidatedApps, a)
-		}
-	}
-
-	invalidSrcCount := 0
-	invalidDstCount := 0
-
-	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
-			invalidSrcCount++
-		}
-	}
-	for _, a := range dstValidatedApps {
-		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
-		if err != nil {
-			return nil, err
-		}
-
-		if !dstPermitted {
-			invalidDstCount++
+			dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+			if err != nil {
+				return nil, err
+			}
+			if !dstPermitted {
+				invalidDstCount++
+			}
 		}
 	}
 
@@ -525,7 +513,10 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 
 	res := &project.SyncWindowsResponse{}
 
-	windows := proj.Spec.SyncWindows.Active()
+	windows, err := proj.Spec.SyncWindows.Active()
+	if err != nil {
+		return nil, err
+	}
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {

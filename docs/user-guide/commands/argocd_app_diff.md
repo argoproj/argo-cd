@@ -19,7 +19,8 @@ argocd app diff APPNAME [flags]
 
 ```
   -N, --app-namespace string                              Only render the difference in namespace
-      --exit-code                                         Return non-zero exit code when there is a diff (default true)
+      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20. (default 1)
+      --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
       --hard-refresh                                      Refresh application data as well as target manifests cache
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
@@ -30,6 +31,7 @@ argocd app diff APPNAME [flags]
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
+      --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
 
@@ -54,6 +56,7 @@ argocd app diff APPNAME [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

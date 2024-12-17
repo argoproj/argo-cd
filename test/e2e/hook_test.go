@@ -36,6 +36,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
+	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -334,7 +335,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}).
 		When().
 		Sync().

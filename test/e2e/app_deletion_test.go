@@ -9,6 +9,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // when a app gets stuck in sync, and we try to delete it, it won't delete, instead we must then terminate it
@@ -16,11 +17,11 @@ import (
 func TestDeletingAppStuckInSync(t *testing.T) {
 	Given(t).
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-custom-health").
@@ -58,7 +59,7 @@ func TestDeletingAppByLabel(t *testing.T) {
 		// delete is unsuccessful since no selector match
 		AndCLIOutput(
 			func(output string, err error) {
-				assert.Contains(t, err.Error(), "no apps match selector foo=baz")
+				assert.ErrorContains(t, err, "no apps match selector foo=baz")
 			},
 		).
 		When().

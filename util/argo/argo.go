@@ -231,6 +231,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
+				argoappv1.AnnotationKeyHydrate: "normal",
 			},
 		},
 	}
@@ -329,7 +330,10 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	config := cluster.RESTConfig()
+	config, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
 	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
@@ -414,6 +418,12 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
+	// If using the source hydrator, check the dry source instead of the sync source, since the sync source branch may
+	// not exist yet.
+	if app.Spec.SourceHydrator != nil {
+		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
+	}
+
 	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{}, false)
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
@@ -423,8 +433,7 @@ func validateRepo(ctx context.Context,
 		db,
 		permittedHelmRepos,
 		helmOptions,
-		app.Name,
-		app.Spec.Destination,
+		app,
 		proj,
 		sources,
 		repoClient,
@@ -434,7 +443,6 @@ func validateRepo(ctx context.Context,
 		permittedHelmCredentials,
 		enabledSourceTypes,
 		settingsMgr,
-		app.Spec.HasMultipleSources(),
 		refSources)...)
 
 	return conditions, nil
@@ -484,16 +492,18 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 	return refSources, nil
 }
 
-// ValidateDestination sets the 'Server' value of the ApplicationDestination, if it is not set.
+// ValidateDestination sets the 'Server' or the `Name` value of the ApplicationDestination, if it is not set.
 // NOTE: this function WILL write to the object pointed to by the 'dest' parameter.
-//
 // If an ApplicationDestination has a Name field, but has an empty Server (URL) field,
 // ValidationDestination will look up the cluster by name (to get the server URL), and
-// set the corresponding Server field value.
+// set the corresponding Server field value. Same goes for the opposite case.
 //
 // It also checks:
 // - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.IsServerInferred() && dest.IsNameInferred() {
+		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
+	}
 	if dest.Name != "" {
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
@@ -504,8 +514,19 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() {
+		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
 			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
+		}
+	} else if dest.Server != "" {
+		if dest.Name == "" {
+			serverName, err := getDestinationServerName(ctx, db, dest.Server)
+			if err != nil {
+				return fmt.Errorf("unable to find destination server: %w", err)
+			}
+			if serverName == "" {
+				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
+			}
+			dest.SetInferredName(serverName)
 		}
 	}
 	return nil
@@ -541,11 +562,46 @@ func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSo
 	return conditions
 }
 
+func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.ApplicationCondition {
+	var conditions []argoappv1.ApplicationCondition
+	if hydrator.DrySource.RepoURL == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.sourceHydrator.drySource.repoURL is required",
+		})
+	}
+	if hydrator.SyncSource.TargetBranch == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "spec.sourceHydrator.syncSource.targetBranch is required",
+		})
+	}
+	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+		})
+	}
+	return conditions
+}
+
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
-	if spec.HasMultipleSources() {
+	if spec.SourceHydrator != nil {
+		condition := validateSourceHydrator(spec.SourceHydrator)
+		if len(condition) > 0 {
+			conditions = append(conditions, condition...)
+			return conditions, nil
+		}
+		if !proj.IsSourcePermitted(spec.SourceHydrator.GetDrySource()) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+			})
+		}
+	} else if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
 			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
@@ -706,8 +762,7 @@ func verifyGenerateManifests(
 	db db.ArgoDB,
 	helmRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
-	name string,
-	dest argoappv1.ApplicationDestination,
+	app *argoappv1.Application,
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
@@ -716,11 +771,10 @@ func verifyGenerateManifests(
 	repositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
-	hasMultipleSources bool,
 	refSources argoappv1.RefTargetRevisionMapping,
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if dest.Server == "" {
+	if app.Spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,
@@ -753,6 +807,14 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		installationID, err := settingsMgr.GetInstallationID()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting installation ID: %v", err),
+			})
+			continue
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -761,23 +823,25 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			Repos:              helmRepos,
-			Revision:           source.TargetRevision,
-			AppName:            name,
-			Namespace:          dest.Namespace,
-			ApplicationSource:  &source,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        kubeVersion,
-			ApiVersions:        apiVersions,
-			HelmOptions:        helmOptions,
-			HelmRepoCreds:      repositoryCredentials,
-			TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			NoRevisionCache:    true,
-			HasMultipleSources: hasMultipleSources,
-			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
+			Repos:                           helmRepos,
+			Revision:                        source.TargetRevision,
+			AppName:                         app.Name,
+			Namespace:                       app.Spec.Destination.Namespace,
+			ApplicationSource:               &source,
+			KustomizeOptions:                kustomizeOptions,
+			KubeVersion:                     kubeVersion,
+			ApiVersions:                     apiVersions,
+			HelmOptions:                     helmOptions,
+			HelmRepoCreds:                   repositoryCredentials,
+			TrackingMethod:                  string(GetTrackingMethod(settingsMgr)),
+			EnabledSourceTypes:              enableGenerateManifests,
+			NoRevisionCache:                 true,
+			HasMultipleSources:              app.Spec.HasMultipleSources(),
+			RefSources:                      refSources,
+			ProjectName:                     proj.Name,
+			ProjectSourceRepos:              proj.Spec.SourceRepos,
+			AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
+			InstallationID:                  installationID,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
@@ -950,6 +1014,22 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 	return servers[0], nil
 }
 
+func getDestinationServerName(ctx context.Context, db db.ArgoDB, server string) (string, error) {
+	if db == nil {
+		return "", fmt.Errorf("there are no clusters registered in the database")
+	}
+
+	cluster, err := db.GetCluster(ctx, server)
+	if err != nil {
+		return "", fmt.Errorf("error getting cluster name by server %q: %w", server, err)
+	}
+
+	if cluster.Name == "" {
+		return "", fmt.Errorf("there are no clusters with this URL: %s", server)
+	}
+	return cluster.Name, nil
+}
+
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
 	globalProjects := make([]*argoappv1.AppProject, 0)
@@ -1029,7 +1109,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
+	return fmt.Sprintf("%s; difference in keys %q", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {

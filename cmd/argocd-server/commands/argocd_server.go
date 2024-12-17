@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
@@ -85,12 +87,16 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		enableProxyExtension     bool
 		webhookParallelism       int
+		hydratorEnabled          bool
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
 		scmRootCAPath            string
 		allowedScmProviders      []string
 		enableScmProviders       bool
+
+		// argocd k8s event logging flag
+		enableK8sEvent []string
 	)
 	command := &cobra.Command{
 		Use:               cliName,
@@ -114,6 +120,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
+
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -151,6 +164,7 @@ func NewCommand() *cobra.Command {
 			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
 			errors.CheckError(err)
 			controllerClient = client.NewDryRunClient(controllerClient)
+			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
@@ -229,6 +243,8 @@ func NewCommand() *cobra.Command {
 				ApplicationNamespaces:   applicationNamespaces,
 				EnableProxyExtension:    enableProxyExtension,
 				WebhookParallelism:      webhookParallelism,
+				EnableK8sEvent:          enableK8sEvent,
+				HydratorEnabled:         hydratorEnabled,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -244,21 +260,24 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
 			argocd.Init(ctx)
-			lns, err := argocd.Listen()
-			errors.CheckError(err)
 			for {
 				var closer func()
-				ctx, cancel := context.WithCancel(ctx)
+				serverCtx, cancel := context.WithCancel(ctx)
+				lns, err := argocd.Listen()
+				errors.CheckError(err)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
 				}
-				argocd.Run(ctx, lns)
-				cancel()
+				argocd.Run(serverCtx, lns)
 				if closer != nil {
 					closer()
+				}
+				cancel()
+				if argocd.TerminateRequested() {
+					break
 				}
 			}
 		},
@@ -303,6 +322,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
+	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

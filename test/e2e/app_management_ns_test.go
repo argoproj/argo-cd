@@ -91,8 +91,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			_, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "permission denied")
+			assert.ErrorContains(t, err, "permission denied")
 		})
 }
 
@@ -347,7 +346,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
@@ -667,8 +666,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 			_, err = RunCli("app", "patch-resource", ctx.AppQualifiedName(), "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
 			assert.NotContains(t, err.Error(), "username")
 			assert.NotContains(t, err.Error(), "password")
 
@@ -854,14 +852,14 @@ func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
-			})
+			}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -878,6 +876,7 @@ func TestNamespacedConfigMap(t *testing.T) {
 }
 
 func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
+	t.Helper()
 	ctx := Given(t)
 	expect := ctx.
 		Path(appPath).
@@ -973,8 +972,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "this-label=does-not-exist")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "level=fatal")
+			assert.ErrorContains(t, err, "level=fatal")
 		})
 }
 
@@ -1045,8 +1043,7 @@ func TestNamespacedNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = RunCli("app", "sync", app.QualifiedName(), "--local", guestbookPathLocal)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Cannot use local sync")
+			assert.ErrorContains(t, err, "Cannot use local sync")
 		})
 }
 
@@ -1089,12 +1086,12 @@ func TestNamespacedSyncAsync(t *testing.T) {
 
 // assertResourceActions verifies if view/modify resource actions are successful/failing for given application
 func assertNSResourceActions(t *testing.T, appName string, successful bool) {
+	t.Helper()
 	assertError := func(err error, message string) {
 		if successful {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), message)
+			assert.ErrorContains(t, err, message)
 		}
 	}
 
@@ -1254,7 +1251,7 @@ func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).
@@ -1294,7 +1291,7 @@ func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Create()
@@ -1699,7 +1696,6 @@ func TestNamespacedCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		CreateWithNoNameSpace().
 		Then().
 		And(func(app *Application) {
-			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Empty(t, app.Status.Conditions)
@@ -2236,14 +2232,14 @@ definitions:
 		SetTrackingMethod("annotation").
 		Path("crd-subresource").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
 				"argoproj.io/NonStatusSubResource": {
 					Actions: actions,
 				},
-			})
+			}))
 		}).
 		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -2324,14 +2320,14 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
 				"apps/Deployment": {
 					HealthLua: `return { status = 'Suspended' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-and-deployment").
@@ -2442,14 +2438,14 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			time.Sleep(3 * time.Second)
-			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			CheckError(SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
-			})
+			}))
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
 		And(func(app *Application) {
+			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {

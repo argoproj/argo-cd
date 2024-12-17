@@ -233,13 +233,8 @@ func TestLsRemote(t *testing.T) {
 			expectedCommit: "ff87d8cb9e669d3738434733ecba3c6dd2c64d70",
 		},
 		{
-			name:           "should resolve a pined tag with semantic versioning",
+			name:           "should resolve a pinned tag with semantic versioning",
 			revision:       "v0.8.0",
-			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
-		},
-		{
-			name:           "should resolve a pined tag with semantic versioning without the 'v' prefix",
-			revision:       "0.8.0",
 			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
 		},
 		{
@@ -299,7 +294,7 @@ func TestLsRemote(t *testing.T) {
 
 		for _, revision := range xfail {
 			_, err := clnt.LsRemote(revision)
-			assert.ErrorContains(t, err, "Unable to resolve")
+			assert.ErrorContains(t, err, "unable to resolve")
 		}
 	})
 }
@@ -325,7 +320,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -363,7 +358,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -420,7 +415,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("")
 		require.NoError(t, err)
 
-		err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)

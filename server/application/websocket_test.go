@@ -34,7 +34,7 @@ func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSess
 
 func newEnforcer() *rbac.Enforcer {
 	additionalConfig := make(map[string]string, 0)
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -86,6 +86,7 @@ func TestReconnect(t *testing.T) {
 }
 
 func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *http.Request), expectPermissionDenied bool) {
+	t.Helper()
 	s := httptest.NewServer(http.HandlerFunc(testFunc))
 	defer s.Close()
 
@@ -159,7 +160,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
 		_, err := ts.validatePermissions([]byte{})
 		require.Error(t, err)
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error())
+		assert.EqualError(t, err, permissionDeniedErr.Error())
 	}
 
 	testServerConnection(t, validate, true)

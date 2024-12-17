@@ -4,9 +4,12 @@ import {FormApi, Text} from 'react-form';
 import {EditablePanel, EditablePanelItem} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';
+import {AuthSettingsCtx} from '../../../shared/context';
 
 export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>}) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const {repo, save} = props;
+    const write = false;
     const FormItems = (repository: models.Repository): EditablePanelItem[] => {
         const items: EditablePanelItem[] = [
             {
@@ -16,6 +19,11 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             {
                 title: 'Repository URL',
                 view: repository.repo
+            },
+            {
+                title: 'Name',
+                view: repository.name || '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='name' component={Text} />
             },
             {
                 title: 'Username (optional)',
@@ -29,11 +37,14 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             }
         ];
 
-        if (repository.name) {
-            items.splice(1, 0, {
-                title: 'NAME',
-                view: repository.name
-            });
+        if (useAuthSettingsCtx?.hydratorEnabled) {
+            // Insert this item at index 1.
+            const item = {
+                title: 'Write',
+                view: write,
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='write' component={Text} componentProps={{type: 'checkbox'}} />
+            };
+            items.splice(1, 0, item);
         }
 
         if (repository.project) {
@@ -85,7 +96,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 password: !input.password && input.username && 'Password is required if username is given.'
             })}
             save={async input => {
-                const params: NewHTTPSRepoParams = {...newRepo};
+                const params: NewHTTPSRepoParams = {...newRepo, write};
+                params.name = input.name || '';
                 params.username = input.username || '';
                 params.password = input.password || '';
                 save(params);

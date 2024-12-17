@@ -266,7 +266,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
-	assert.True(t, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
@@ -283,7 +283,8 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	require.NoError(t, err)
+	var expectedErr *ScriptDoesNotExistError
+	require.ErrorAs(t, err, &expectedErr)
 	assert.Empty(t, action.ActionLua)
 }
 
@@ -684,8 +685,7 @@ func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported operation")
+	assert.ErrorContains(t, err, "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
@@ -789,6 +789,11 @@ return hs`
  hs.status = "Healthy"
  return hs`
 
+	const healthWildcardOverrideScriptUnhealthy = `
+ hs = {}
+ hs.status = "UnHealthy"
+ return hs`
+
 	getHealthOverride := func(openLibs bool) ResourceHealthOverrides {
 		return ResourceHealthOverrides{
 			"ServiceAccount": appv1.ResourceOverride{
@@ -801,6 +806,21 @@ return hs`
 	getWildcardHealthOverride := ResourceHealthOverrides{
 		"*.aws.crossplane.io/*": appv1.ResourceOverride{
 			HealthLua: healthWildcardOverrideScript,
+		},
+	}
+
+	getMultipleWildcardHealthOverrides := ResourceHealthOverrides{
+		"*.aws.crossplane.io/*": appv1.ResourceOverride{
+			HealthLua: "",
+		},
+		"*.aws*": appv1.ResourceOverride{
+			HealthLua: healthWildcardOverrideScriptUnhealthy,
+		},
+	}
+
+	getBaseWildcardHealthOverrides := ResourceHealthOverrides{
+		"*/*": appv1.ResourceOverride{
+			HealthLua: "",
 		},
 	}
 
@@ -835,6 +855,23 @@ return hs`
 			Status: health.HealthStatusHealthy,
 		}
 		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Get resource health for wildcard override with non-empty health.lua", func(t *testing.T) {
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		overrides := getMultipleWildcardHealthOverrides
+		status, err := overrides.GetResourceHealth(testObj)
+		require.NoError(t, err)
+		expectedStatus := &health.HealthStatus{Status: "Unknown", Message: "Lua returned an invalid health status"}
+		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		overrides := getBaseWildcardHealthOverrides
+		status, err := overrides.GetResourceHealth(testObj)
+		require.NoError(t, err)
+		assert.Nil(t, status)
 	})
 
 	t.Run("Resource health for wildcard override not found", func(t *testing.T) {

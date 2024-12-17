@@ -22,6 +22,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -33,6 +34,8 @@ const (
 	testNamespace = "default"
 	fakeRepoURL   = "https://git.com/repo.git"
 )
+
+var testEnableEventList []string = argo.DefaultEnableEventList()
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -69,7 +72,7 @@ func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
 }
 
 func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -162,6 +165,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		"",
 		[]string{},
 		true,
+		testEnableEventList,
 	)
 	return server.(*Server)
 }
@@ -186,6 +190,7 @@ func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.Applicat
 }
 
 func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.ApplicationSetListQuery, appServer *Server) {
+	t.Helper()
 	validTests := []struct {
 		testName       string
 		label          string
@@ -353,7 +358,7 @@ func TestCreateAppSetTemplatedProject(t *testing.T) {
 		Applicationset: testAppSet,
 	}
 	_, err := appServer.Create(context.Background(), &createReq)
-	assert.Equal(t, "error validating ApplicationSets: the Argo CD API does not currently support creating ApplicationSets with templated `project` fields", err.Error())
+	assert.EqualError(t, err, "error validating ApplicationSets: the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
 }
 
 func TestCreateAppSetWrongNamespace(t *testing.T) {
@@ -365,7 +370,7 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 	}
 	_, err := appServer.Create(context.Background(), &createReq)
 
-	assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+	assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
 }
 
 func TestCreateAppSetDryRun(t *testing.T) {
@@ -461,7 +466,7 @@ func TestGetAppSet(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 
 		_, err := appSetServer.Get(context.Background(), &appsetQuery)
-		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
 	})
 }
 
@@ -631,6 +636,6 @@ func TestResourceTree(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 
 		_, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
-		assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
+		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
 	})
 }

@@ -107,12 +107,16 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 }
 
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
+	t.Parallel()
+
 	testData := []struct {
+		name        string
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
 	}{
 		{
+			name: "server an namespace match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -120,6 +124,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "namespace does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -127,6 +132,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "server does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://my-cluster", Namespace: "default",
 			}},
@@ -134,6 +140,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "*",
 			}},
@@ -141,6 +148,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server",
 			projDest: []ApplicationDestination{{
 				Server: "https://*.default.svc", Namespace: "default",
 			}},
@@ -148,6 +156,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://team1-*", Namespace: "default",
 			}},
@@ -155,6 +164,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard namespace with prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -162,6 +172,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard namespace without prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -169,6 +180,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "*", Namespace: "*",
 			}},
@@ -176,6 +188,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace with name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
@@ -183,24 +196,51 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace with different name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
 		},
+		/**
+		  - name: host-cluster
+		    namespace: '!{kube-system,argocd}'
+		    server: 'https://kubernetes.default.svc'
+		  - name: destination-cluster-01
+		    namespace: '*'
+		    server: 'https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com'
+
+		  destination:
+		    server: https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com
+		    namespace: karpenter
+		*/
+		{
+			name: "negated namespace with multiple values",
+			projDest: []ApplicationDestination{
+				{Name: "host-cluster", Server: "https://kubernetes.default.svc", Namespace: "!{kube-system,argocd}"},
+				{Name: "destination-cluster-01", Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "*"},
+			},
+			appDest:     ApplicationDestination{Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "kube-system"},
+			isPermitted: true,
+		},
 	}
 
 	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				Destinations: data.projDest,
-			},
-		}
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
-			return []*Cluster{}, nil
+		data := data
+		t.Run(data.name, func(t *testing.T) {
+			t.Parallel()
+
+			proj := AppProject{
+				Spec: AppProjectSpec{
+					Destinations: data.projDest,
+				},
+			}
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+				return []*Cluster{}, nil
+			})
+			assert.Equal(t, data.isPermitted, permitted)
 		})
-		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
@@ -320,7 +360,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "*", Namespace: "!kube-system",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
+		isPermitted: true,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
@@ -339,6 +379,22 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "test",
+		}, {
+			Server: "!https://test-server", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "https://test-server", Namespace: "!other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
+		isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -350,7 +406,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
-		assert.Equal(t, data.isPermitted, permitted)
+		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
 	}
 }
 
@@ -438,8 +494,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not retrieve project clusters")
+	assert.ErrorContains(t, err, "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -801,8 +856,7 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), bad.errmsg)
+		assert.ErrorContains(t, err, bad.errmsg)
 	}
 }
 
@@ -1778,7 +1832,9 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		assert.Len(t, *proj.Spec.SyncWindows.Active(), 1)
+		activeWindows, err := proj.Spec.SyncWindows.Active()
+		require.NoError(t, err)
+		assert.Len(t, *activeWindows, 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1805,6 +1861,7 @@ func TestSyncWindows_Active(t *testing.T) {
 		currentTime    time.Time
 		matchingIndex  int
 		expectedLength int
+		isErr          bool
 	}{
 		{
 			name: "MatchFirst",
@@ -1912,11 +1969,36 @@ func TestSyncWindows_Active(t *testing.T) {
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "3h", ""),
+				syncWindow("allow", "* 11 * * 7", "3h", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "3a", ""),
+				syncWindow("allow", "* 11 * * *", "3a", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.syncWindow.active(tt.currentTime)
+			result, err := tt.syncWindow.active(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			if result == nil {
 				result = &SyncWindows{}
 			}
@@ -1933,7 +2015,9 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-		assert.Len(t, *proj.Spec.SyncWindows.InactiveAllows(), 1)
+		inactiveAllowWindows, err := proj.Spec.SyncWindows.InactiveAllows()
+		require.NoError(t, err)
+		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1960,6 +2044,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		currentTime    time.Time
 		matchingIndex  int
 		expectedLength int
+		isErr          bool
 	}{
 		{
 			name: "MatchFirst",
@@ -2085,11 +2170,34 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "2h", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2a", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.syncWindow.inactiveAllows(tt.currentTime)
+			result, err := tt.syncWindow.inactiveAllows(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			if result == nil {
 				result = &SyncWindows{}
 			}
@@ -2200,9 +2308,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
@@ -2211,9 +2320,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
@@ -2225,9 +2335,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
@@ -2238,9 +2349,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
@@ -2251,9 +2363,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
@@ -2264,9 +2377,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2278,9 +2392,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2292,9 +2407,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
@@ -2305,9 +2421,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
@@ -2318,9 +2435,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2331,9 +2449,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2344,9 +2463,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2358,9 +2478,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2372,9 +2493,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
@@ -2386,9 +2508,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
@@ -2399,9 +2522,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
@@ -2412,9 +2536,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2425,9 +2550,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2438,9 +2564,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2454,9 +2581,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2470,9 +2598,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
@@ -2484,9 +2613,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2498,9 +2628,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2512,9 +2643,24 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+	t.Run("will deny and return error with invalid windows", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInvalidWindows().
+			build()
+
+		// when
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		require.Error(t, err)
 		assert.False(t, canSync)
 	})
 }
@@ -2564,8 +2710,9 @@ func TestSyncWindows_hasAllow(t *testing.T) {
 func TestSyncWindow_Active(t *testing.T) {
 	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
 	t.Run("ActiveWindow", func(t *testing.T) {
-		window.Active()
-		assert.True(t, window.Active())
+		isActive, err := window.Active()
+		require.NoError(t, err)
+		assert.True(t, isActive)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
@@ -2590,6 +2737,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		syncWindow     SyncWindow
 		currentTime    time.Time
 		expectedResult bool
+		isErr          bool
 	}{
 		{
 			name:           "Allow-active",
@@ -2639,11 +2787,44 @@ func TestSyncWindow_Active(t *testing.T) {
 			currentTime:    timeWithHour(13-4, utcM4Zone),
 			expectedResult: false,
 		},
+		{
+			name:           "Allow-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("allow", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Deny-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("deny", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Allow-inactive-InvalidDuration",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Deny-inactive-InvalidDuration",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.syncWindow.active(tt.currentTime)
+			result, err := tt.syncWindow.active(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
@@ -2755,6 +2936,16 @@ func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilde
 	return b
 }
 
+func (b *projectBuilder) withInvalidWindows() *projectBuilder {
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows,
+		newSyncWindow("allow", "* 10 * * 7", false),
+		newSyncWindow("deny", "* 10 * * 7", false),
+		newSyncWindow("allow", "* 10 * * 7", true),
+		newSyncWindow("deny", "* 10 * * 7", true),
+	)
+	return b
+}
+
 func inactiveCronSchedule() string {
 	hourPlus10, _, _ := time.Now().Add(10 * time.Hour).Clock()
 	return fmt.Sprintf("0 %d * * *", hourPlus10)
@@ -2831,6 +3022,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
 				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
 			},
@@ -2851,6 +3043,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				// SetConditions should add timestamps for new conditions.
 				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
 				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
@@ -2873,6 +3066,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -2908,6 +3102,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -2931,6 +3126,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, fiveMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -2949,6 +3145,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -2970,6 +3167,7 @@ func TestSetConditions(t *testing.T) {
 // difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
+	t.Helper()
 	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
@@ -3765,6 +3963,7 @@ func TestOptionalArrayEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalArray
+	// nolint:testifylint
 	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
@@ -3808,6 +4007,7 @@ func TestOptionalMapEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalMap
+	// nolint:testifylint
 	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's
@@ -3958,4 +4158,191 @@ func TestApplicationTree_Merge(t *testing.T) {
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
 		},
 	}, tree)
+}
+
+func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
+	testData := []struct {
+		server                string
+		namespace             string
+		defaultServiceAccount string
+		expectedErrMsg        string
+	}{
+		{
+			// Given, a project
+			// When, a default destination service account with all valid fields is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!abc",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with empty namespace is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!abc",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with empty service account is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, ''",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having just white spaces is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "   ",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '   '",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having backwards slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test\\sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test\\sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having forward slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test/sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test/sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having square braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "[test-sa]",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '[test-sa]'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "{test-sa}",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '{test-sa}'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "[[ech*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '[[ech*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "[[ech*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '[[ech*'",
+		},
+	}
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				DestinationServiceAccounts: []ApplicationDestinationServiceAccount{
+					{
+						Server:                data.server,
+						Namespace:             data.namespace,
+						DefaultServiceAccount: data.defaultServiceAccount,
+					},
+				},
+			},
+		}
+		err := proj.ValidateProject()
+		if data.expectedErrMsg == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, data.expectedErrMsg)
+		}
+	}
+}
+
+func TestCluster_ParseProxyUrl(t *testing.T) {
+	testData := []struct {
+		url            string
+		expectedErrMsg string
+	}{
+		{
+			url:            "https://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+		{
+			url:            "test://!abc",
+			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
+		},
+		{
+			url:            "http://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+		{
+			url:            "socks5://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+	}
+	for _, data := range testData {
+		_, err := ParseProxyUrl(data.url)
+		if data.expectedErrMsg == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, data.expectedErrMsg)
+		}
+	}
 }

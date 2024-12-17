@@ -67,7 +67,7 @@ func TestGetSecretRef(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			token, err := GetSecretRef(ctx, client, c.ref, c.namespace)
+			token, err := GetSecretRef(ctx, client, c.ref, c.namespace, false)
 			if c.hasError {
 				require.Error(t, err)
 			} else {

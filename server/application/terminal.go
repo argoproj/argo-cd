@@ -70,7 +70,11 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	if err != nil {
 		return nil, err
 	}
-	return clst.RawRestConfig(), nil
+	rawConfig, err := clst.RawRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	return rawConfig, nil
 }
 
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)

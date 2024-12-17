@@ -14,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -106,39 +107,55 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 
 // EnsureCleanSlate ensures that the Kubernetes resources on the cluster are in a 'clean' state, before a test is run.
 func EnsureCleanState(t *testing.T) {
+	t.Helper()
 	start := time.Now()
 
 	fixtureClient := GetE2EFixtureK8sClient()
 
 	policy := v1.DeletePropagationForeground
 
-	// Delete the applicationset-e2e namespace, if it exists
-	err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
-	if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
-		CheckError(err)
-	}
-
-	// Delete the argocd-e2e-external namespace, if it exists
-	err2 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
-	if err2 != nil && !strings.Contains(err2.Error(), "not found") { // 'not found' error is expected
-		CheckError(err2)
-	}
-
-	// Delete the argocd-e2e-external namespace, if it exists
-	err3 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
-	if err3 != nil && !strings.Contains(err3.Error(), "not found") { // 'not found' error is expected
-		CheckError(err3)
-	}
-
-	// delete resources
-	// kubectl delete applicationsets --all
-	CheckError(fixtureClient.AppSetClientset.DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	// kubectl delete apps --all
-	CheckError(fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-
-	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
+	fixture.RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			// Delete the applicationset-e2e namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		func() error {
+			// Delete the argocd-e2e-external namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		func() error {
+			// Delete the argocd-e2e-external namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		// delete resources
+		func() error {
+			// kubectl delete applicationsets --all
+			return fixtureClient.AppSetClientset.DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete apps --all
+			return fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete secrets -l e2e.argoproj.io=true
+			return fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
+	})
 
 	// First we wait up to 30 seconds for all the ApplicationSets to delete, but we don't fail if they don't.
 	// Why? We want to give Argo CD time to delete the Application's child resources, before we remove the finalizers below.
@@ -156,7 +173,7 @@ func EnsureCleanState(t *testing.T) {
 	}, time.Now().Add(30*time.Second))
 
 	// Remove finalizers from Argo CD Application resources in the namespace
-	err = waitForSuccess(func() error {
+	err := waitForSuccess(func() error {
 		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			return err
@@ -182,7 +199,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	fixture.LoginAs("admin")
+	CheckError(fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -259,7 +276,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
 	}
 
-	if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+	if msg == "" && err != nil && apierr.IsNotFound(err) {
 		// Success is an error containing 'applicationset-e2e' not found.
 		return nil
 	}
@@ -277,6 +294,18 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 func waitForSuccess(condition func() error, expireTime time.Time) error {
 	var mostRecentError error
 
+	sleepIntervals := []time.Duration{
+		10 * time.Millisecond,
+		20 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		200 * time.Millisecond,
+		300 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+	}
+	sleepIntervalsIdx := -1
+
 	for {
 		if time.Now().After(expireTime) {
 			break
@@ -292,8 +321,11 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 			break
 		}
 
-		// Wait 0.5 seconds on fail
-		time.Sleep(500 * time.Millisecond)
+		// Wait on fail
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
+		time.Sleep(sleepIntervals[sleepIntervalsIdx])
 	}
 	return mostRecentError
 }
@@ -366,6 +398,7 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 //
 // Note: This only applies to tests that use the GitHub API (different from GitHub's Git service)
 func IsGitHubAPISkippedTest(t *testing.T) bool {
+	t.Helper()
 	if strings.TrimSpace(os.Getenv("GITHUB_TOKEN")) == "" {
 		t.Skip("Skipping this test, as the GITHUB_TOKEN is not set. Please ensure this test passes locally, with your own GITHUB_TOKEN.")
 		return true
