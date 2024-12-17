@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/reposerver/askpass";
+option go_package = "github.com/argoproj/argo-cd/v2/util/askpass";
 
 package askpass;
 
