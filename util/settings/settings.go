@@ -657,11 +657,11 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 		}
 		createSecret = true
 	}
-	if argoCDSecret.Data == nil {
-		argoCDSecret.Data = make(map[string][]byte)
-	}
 
 	updatedSecret := argoCDSecret.DeepCopy()
+	if updatedSecret.Data == nil {
+		updatedSecret.Data = make(map[string][]byte)
+	}
 	err = callback(updatedSecret)
 	if err != nil {
 		return err
@@ -694,8 +694,8 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
+			Data: make(map[string]string),
 		}
-		argoCDCM.Data = make(map[string]string)
 		createCM = true
 	}
 
@@ -704,7 +704,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	if err != nil {
 		return err
 	}
-	if reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
+	if !createCM && reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
 		return nil
 	}
 
