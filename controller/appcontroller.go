@@ -42,8 +42,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
+	"github.com/argoproj/argo-cd/v2/controller/hydrator"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -121,6 +123,8 @@ type ApplicationController struct {
 	appComparisonTypeRefreshQueue workqueue.TypedRateLimitingInterface[string]
 	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
 	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
+	appHydrateQueue               workqueue.TypedRateLimitingInterface[string]
+	hydrationQueue                workqueue.TypedRateLimitingInterface[hydrator.HydrationQueueKey]
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
@@ -146,6 +150,8 @@ type ApplicationController struct {
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
 	deploymentInformer                informerv1.DeploymentInformer
+
+	hydrator *hydrator.Hydrator
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -155,6 +161,7 @@ func NewApplicationController(
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
+	commitClientset commitclient.Clientset,
 	argoCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
@@ -177,6 +184,7 @@ func NewApplicationController(
 	dynamicClusterDistributionEnabled bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
+	hydratorEnabled bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -190,10 +198,12 @@ func NewApplicationController(
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
-		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
-		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
-		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
-		appComparisonTypeRefreshQueue:     workqueue.NewTypedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
+		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
+		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
+		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
+		appComparisonTypeRefreshQueue:     workqueue.NewTypedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig)),
+		appHydrateQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_hydration_queue"}),
+		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydrator.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydrator.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
@@ -210,6 +220,9 @@ func NewApplicationController(
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
+	}
+	if hydratorEnabled {
+		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset)
 	}
 	if kubectlParallelismLimit > 0 {
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
@@ -845,6 +858,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
 	defer ctrl.appOperationQueue.ShutDown()
 	defer ctrl.projectRefreshQueue.ShutDown()
+	defer ctrl.appHydrateQueue.ShutDown()
+	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
 	ctrl.RegisterClusterSecretUpdater(ctx)
@@ -903,6 +918,19 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		for ctrl.processProjectQueueItem() {
 		}
 	}, time.Second, ctx.Done())
+
+	if ctrl.hydrator != nil {
+		go wait.Until(func() {
+			for ctrl.processAppHydrateQueueItem() {
+			}
+		}, time.Second, ctx.Done())
+
+		go wait.Until(func() {
+			for ctrl.processHydrationQueueItem() {
+			}
+		}, time.Second, ctx.Done())
+	}
+
 	<-ctx.Done()
 }
 
@@ -1769,6 +1797,68 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	return
 }
 
+func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext bool) {
+	appKey, shutdown := ctrl.appHydrateQueue.Get()
+	if shutdown {
+		processNext = false
+		return
+	}
+	processNext = true
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.appHydrateQueue.Done(appKey)
+	}()
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
+	if err != nil {
+		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
+		return
+	}
+	if !exists {
+		// This happens after app was deleted, but the work queue still had an entry for it.
+		return
+	}
+	origApp, ok := obj.(*appv1.Application)
+	if !ok {
+		log.Warnf("Key '%s' in index is not an application", appKey)
+		return
+	}
+
+	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp)
+
+	getAppLog(origApp).Debug("Successfully processed app hydrate queue item")
+	return
+}
+
+func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
+	hydrationKey, shutdown := ctrl.hydrationQueue.Get()
+	if shutdown {
+		processNext = false
+		return
+	}
+	processNext = true
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+		}
+		ctrl.hydrationQueue.Done(hydrationKey)
+	}()
+
+	logCtx := log.WithFields(log.Fields{
+		"sourceRepoURL":        hydrationKey.SourceRepoURL,
+		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
+		"destinationBranch":    hydrationKey.DestinationBranch,
+	})
+
+	logCtx.Debug("Processing hydration queue item")
+
+	ctrl.hydrator.ProcessHydrationQueueItem(hydrationKey)
+
+	logCtx.Debug("Successfully processed hydration queue item")
+	return
+}
+
 func resourceStatusKey(res appv1.ResourceStatus) string {
 	return strings.Join([]string{res.Group, res.Kind, res.Namespace, res.Name}, "/")
 }
@@ -1777,7 +1867,8 @@ func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
 	if app.Spec.HasMultipleSources() {
 		return app.Spec.Sources.Equals(app.Status.Sync.ComparedTo.Sources)
 	}
-	return app.Spec.Source.Equals(&app.Status.Sync.ComparedTo.Source)
+	source := app.Spec.GetSource()
+	return source.Equals(&app.Status.Sync.ComparedTo.Source)
 }
 
 // needRefreshAppStatus answers if application status needs to be refreshed.
@@ -1913,6 +2004,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 			newAnnotations[k] = v
 		}
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
+		delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
@@ -2314,6 +2406,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 				if !newOK || (delay != nil && *delay != time.Duration(0)) {
 					ctrl.appOperationQueue.AddRateLimited(key)
+				}
+				if ctrl.hydrator != nil {
+					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},

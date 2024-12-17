@@ -38,10 +38,10 @@ import (
 
 const testNamespace = "default"
 
-var testEnableEventList []string = argo.DefaultEnableEventList()
+var testEnableEventList = argo.DefaultEnableEventList()
 
 func TestProjectServer(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -130,7 +130,7 @@ func TestProjectServer(t *testing.T) {
 		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		err := projectServer.NormalizeProjs()
 		require.NoError(t, err)
 
@@ -232,6 +232,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications destination became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
@@ -254,7 +255,7 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: "server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -268,6 +269,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equalf(t, codes.InvalidArgument, statusCode.Code(), "Got unexpected error code with error: %v", err)
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceUsedByAppSuccessfulIfPermittedByAnotherSrc", func(t *testing.T) {
@@ -354,6 +356,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "project is referenced by 1 applications", statusCode.Message())
 	})
 
 	// configure a user named "admin" which is denied by default

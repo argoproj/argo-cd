@@ -136,8 +136,8 @@ func TestRedisMetrics(t *testing.T) {
 	ms := NewMockMetricsServer()
 	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	faultyRedisClient := redis.NewClient(&redis.Options{Addr: "invalidredishost.invalid:12345"})
-	CollectMetrics(redisClient, ms, nil)
-	CollectMetrics(faultyRedisClient, ms, nil)
+	CollectMetrics(redisClient, ms)
+	CollectMetrics(faultyRedisClient, ms)
 
 	client := NewRedisCache(redisClient, 60*time.Second, RedisCompressionNone)
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)

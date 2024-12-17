@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(destCluster *v1alpha1.
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(destCluster, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(destCluster, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
 	if err != nil {
 		return false, err
 	}

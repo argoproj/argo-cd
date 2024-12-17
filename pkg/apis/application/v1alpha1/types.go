@@ -86,6 +86,9 @@ type ApplicationSpec struct {
 
 	// Sources is a reference to the location of the application's manifests or chart
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+
+	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
+	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -216,6 +219,9 @@ func (a ApplicationSources) IsZero() bool {
 }
 
 func (a *ApplicationSpec) GetSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		return a.SourceHydrator.GetSyncSource()
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		return a.Sources[0]
@@ -226,7 +232,26 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
+// GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		targetRevision := a.SourceHydrator.SyncSource.TargetBranch
+		if a.SourceHydrator.HydrateTo != nil {
+			targetRevision = a.SourceHydrator.HydrateTo.TargetBranch
+		}
+		return ApplicationSource{
+			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
+			Path:           a.SourceHydrator.SyncSource.Path,
+			TargetRevision: targetRevision,
+		}
+	}
+	return ApplicationSource{}
+}
+
 func (a *ApplicationSpec) GetSources() ApplicationSources {
+	if a.SourceHydrator != nil {
+		return ApplicationSources{a.SourceHydrator.GetSyncSource()}
+	}
 	if a.HasMultipleSources() {
 		return a.Sources
 	}
@@ -237,7 +262,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return len(a.Sources) > 0
+	return a.SourceHydrator == nil && len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -246,6 +271,10 @@ func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *Applicatio
 }
 
 func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
+	if a.SourceHydrator != nil {
+		source := a.SourceHydrator.GetSyncSource()
+		return &source
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		if sourceIndex > 0 {
@@ -350,6 +379,82 @@ const (
 	ApplicationSourceTypeDirectory ApplicationSourceType = "Directory"
 	ApplicationSourceTypePlugin    ApplicationSourceType = "Plugin"
 )
+
+// SourceHydrator specifies a dry "don't repeat yourself" source for manifests, a sync source from which to sync
+// hydrated manifests, and an optional hydrateTo location to act as a "staging" aread for hydrated manifests.
+type SourceHydrator struct {
+	// DrySource specifies where the dry "don't repeat yourself" manifest source lives.
+	DrySource DrySource `json:"drySource" protobuf:"bytes,1,name=drySource"`
+	// SyncSource specifies where to sync hydrated manifests from.
+	SyncSource SyncSource `json:"syncSource" protobuf:"bytes,2,name=syncSource"`
+	// HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+	// have to move manifests to the SyncSource, e.g. by pull request.
+	HydrateTo *HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
+}
+
+// GetSyncSource gets the source from which we should sync when a source hydrator is configured.
+func (s SourceHydrator) GetSyncSource() ApplicationSource {
+	return ApplicationSource{
+		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.SyncSource.Path,
+		TargetRevision: s.SyncSource.TargetBranch,
+	}
+}
+
+// GetDrySource gets the dry source when a source hydrator is configured.
+func (s SourceHydrator) GetDrySource() ApplicationSource {
+	return ApplicationSource{
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.DrySource.Path,
+		TargetRevision: s.DrySource.TargetRevision,
+	}
+}
+
+// DeepEquals returns true if the SourceHydrator is deeply equal to the given SourceHydrator.
+func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
+	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
+}
+
+// DrySource specifies a location for dry "don't repeat yourself" manifest source information.
+type DrySource struct {
+	// RepoURL is the URL to the git repository that contains the application manifests
+	RepoURL string `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	// TargetRevision defines the revision of the source to hydrate
+	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
+	// Path is a directory path within the Git repository where the manifests are located
+	Path string `json:"path" protobuf:"bytes,3,name=path"`
+}
+
+// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
+// associated DrySource config in the SourceHydrator.
+type SyncSource struct {
+	// TargetBranch is the branch to which hydrated manifests should be committed
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+	// from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+	Path string `json:"path" protobuf:"bytes,2,name=path"`
+}
+
+// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+type HydrateTo struct {
+	// TargetBranch is the branch to which hydrated manifests should be committed
+	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+}
+
+// DeepEquals returns true if the HydrateTo is deeply equal to the given HydrateTo.
+func (in *HydrateTo) DeepEquals(to *HydrateTo) bool {
+	if in == nil {
+		return to == nil
+	}
+	if to == nil {
+		// We already know in is not nil.
+		return false
+	}
+	// Compare de-referenced structs.
+	return *in == *to
+}
 
 // RefreshType specifies how to refresh the sources of a given application
 type RefreshType string
@@ -1040,6 +1145,16 @@ type ApplicationStatus struct {
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
 	// ControllerNamespace indicates the namespace in which the application controller is located
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
+	// SourceHydrator stores information about the current state of source hydration
+	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
+}
+
+// SourceHydratorStatus contains information about the current state of source hydration
+type SourceHydratorStatus struct {
+	// LastSuccessfulOperation holds info about the most recent successful hydration
+	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
+	// CurrentOperation holds the status of the hydrate operation
+	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
 }
 
 func (a *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1051,6 +1166,44 @@ func (a *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus,
 	}
 	return nil, false
 }
+
+// HydrateOperation contains information about the most recent hydrate operation
+type HydrateOperation struct {
+	// StartedAt indicates when the hydrate operation started
+	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`
+	// FinishedAt indicates when the hydrate operation finished
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,2,opt,name=finishedAt"`
+	// Phase indicates the status of the hydrate operation
+	Phase HydrateOperationPhase `json:"phase" protobuf:"bytes,3,opt,name=phase"`
+	// Message contains a message describing the current status of the hydrate operation
+	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
+	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
+	// SourceHydrator holds the hydrator config used for the hydrate operation
+	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+}
+
+// SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
+type SuccessfulHydrateOperation struct {
+	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
+	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
+	// SourceHydrator holds the hydrator config used for the hydrate operation
+	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+}
+
+// HydrateOperationPhase indicates the status of a hydrate operation
+// +kubebuilder:validation:Enum=Hydrating;Failed;Hydrated
+type HydrateOperationPhase string
+
+const (
+	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
+	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
+	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
+)
 
 // GetRevisions will return the current revision associated with the Application.
 // If app has multisources, it will return all corresponding revisions preserving
@@ -2850,6 +3003,22 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+// IsHydrateRequested returns whether hydration has been requested for an application
+func (app *Application) IsHydrateRequested() bool {
+	annotations := app.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	typeStr, ok := annotations[AnnotationKeyHydrate]
+	if !ok {
+		return false
+	}
+	if typeStr == "normal" {
+		return true
+	}
+	return false
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
