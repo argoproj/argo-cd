@@ -740,13 +740,13 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 }
 
 func (mgr *SettingsManager) getSecret() (*apiv1.Secret, error) {
-	return mgr.getSecretByName(common.ArgoCDSecretName)
+	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
 // Returns the Secret with the given name from the cluster.
 // The Secret must be labeled with "app.kubernetes.io/part-of: argocd" in
 // order to be retrievable.
-func (mgr *SettingsManager) getSecretByName(secretName string) (*apiv1.Secret, error) {
+func (mgr *SettingsManager) GetSecretByName(secretName string) (*apiv1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
