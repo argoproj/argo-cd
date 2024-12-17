@@ -172,6 +172,7 @@ func fakeReporter(customAppServiceClient appclient.ApplicationClient) *applicati
 		customAppServiceClient,
 		metricsServ,
 		fakeArgoDb(),
+		"0.0.1",
 	}
 }
 

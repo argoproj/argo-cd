@@ -68,7 +68,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			app:               &app,
 			appTree:           &appTree,
 			revisionsMetadata: &revisionMetadata,
-		}, getMockedArgoTrackingMetadata())
+		}, getMockedArgoTrackingMetadata(), "0.0.1")
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -110,7 +110,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 			app:               &app,
 			appTree:           &appTree,
 			revisionsMetadata: &revisionMetadata,
-		}, getMockedArgoTrackingMetadata())
+		}, getMockedArgoTrackingMetadata(), "0.0.1")
 		require.NoError(t, err)
 
 		var eventPayload events.EventPayload
@@ -146,6 +146,6 @@ func TestGetResourceEventPayloadWithoutRevision(t *testing.T) {
 	}, &ReportedEntityParentApp{
 		app:     &app,
 		appTree: &appTree,
-	}, getMockedArgoTrackingMetadata())
+	}, getMockedArgoTrackingMetadata(), "0.0.1")
 	assert.NoError(t, err)
 }
