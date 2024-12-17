@@ -644,7 +644,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
 		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
 		require.NoError(t, err)
-		assert.Len(t, servers, 0)
+		assert.Empty(t, servers)
 	})
 	t.Run("returns in-cluster when configured", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretInClusterConfigured, argoCDSecret)
@@ -658,7 +658,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
 		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
 		require.NoError(t, err)
-		assert.Len(t, servers, 0)
+		assert.Empty(t, servers)
 	})
 }
 
