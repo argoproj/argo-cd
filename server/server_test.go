@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	gosync "sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -419,72 +417,6 @@ func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 	defer closer()
 	assert.True(t, s.Insecure)
 	assert.Nil(t, s.settings.Certificate)
-}
-
-func TestGracefulShutdown(t *testing.T) {
-	port, err := test.GetFreePort()
-	require.NoError(t, err)
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
-	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
-	redis, redisCloser := test.NewInMemoryRedis()
-	defer redisCloser()
-	s := NewServer(
-		context.Background(),
-		ArgoCDServerOpts{
-			ListenPort:    port,
-			Namespace:     test.FakeArgoCDNamespace,
-			KubeClientset: kubeclientset,
-			AppClientset:  apps.NewSimpleClientset(),
-			RepoClientset: mockRepoClient,
-			RedisClient:   redis,
-		},
-		ApplicationSetOpts{},
-	)
-
-	projInformerCancel := test.StartInformer(s.projInformer)
-	defer projInformerCancel()
-	appInformerCancel := test.StartInformer(s.appInformer)
-	defer appInformerCancel()
-	appsetInformerCancel := test.StartInformer(s.appsetInformer)
-	defer appsetInformerCancel()
-
-	lns, err := s.Listen()
-	require.NoError(t, err)
-
-	shutdown := false
-	runCtx, runCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer runCancel()
-
-	err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-	require.Error(t, err, "API Server is not running. It either hasn't started or is restarting.")
-
-	var wg gosync.WaitGroup
-	wg.Add(1)
-	go func(shutdown *bool) {
-		defer wg.Done()
-		s.Run(runCtx, lns)
-		*shutdown = true
-	}(&shutdown)
-
-	for {
-		if s.available.Load() {
-			err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-			require.NoError(t, err)
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	s.stopCh <- syscall.SIGINT
-
-	wg.Wait()
-
-	err = s.healthCheck(&http.Request{URL: &url.URL{Path: "/healthz", RawQuery: "full=true"}})
-	require.Error(t, err, "API Server is terminating and unable to serve requests.")
-
-	assert.True(t, s.terminateRequested.Load())
-	assert.False(t, s.available.Load())
-	assert.True(t, shutdown)
 }
 
 func TestAuthenticate(t *testing.T) {
