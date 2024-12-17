@@ -217,13 +217,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
-	urlObj, err := url.Parse(webURL)
-	if err != nil {
-		log.Errorf("Failed to parse repoURL '%s'", webURL)
-		return nil
-	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?$"
-	repoRegexp, err := regexp.Compile(regexpStr)
+	repoRegexp, err := webhook.GetWebUrlRegex(webURL)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
 		return nil
@@ -245,13 +239,7 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 		}
 
 		apiURL := payload.Repository.URL
-		urlObj, err := url.Parse(apiURL)
-		if err != nil {
-			log.Errorf("Failed to parse repoURL '%s'", apiURL)
-			return nil
-		}
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]"
-		apiRegexp, err := regexp.Compile(regexpStr)
+		apiRegexp, err := webhook.GetApiUrlRegex(apiURL)
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
 			return nil

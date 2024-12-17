@@ -300,7 +300,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := getWebUrlRegex(webURL)
+		repoRegexp, err := GetWebUrlRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -329,21 +329,42 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 }
 
-// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// GetWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
 // webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
-func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
-	urlObj, err := url.Parse(webURL)
+func GetWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+	// 1. Optional: protocol (`http`, `https`, or `ssh`) followed by `://`
+	// 2. Optional: username followed by `@`
+	// 3. Optional: `ssh` or `altssh` subdomain
+	// 4. Required: hostname parsed from `webURL`
+	// 5. Optional: `:` followed by port number
+	// 6. Required: `:` or `/`
+	// 7. Required: path parsed from `webURL`
+	// 8. Optional: `.git` extension
+	return getUrlRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:[0-9]+)?[:/]%[3]s(\.git)?$`)
+}
+
+// GetApiUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given apiURL.
+func GetApiUrlRegex(apiURL string) (*regexp.Regexp, error) {
+	// 1. Optional: protocol (`http` or `https`) followed by `://`
+	// 2. Optional: username followed by `@`
+	// 3. Required: hostname parsed from `webURL`
+	// 4. Optional: `:` followed by port number
+	// 5. Optional: `/`
+	return getUrlRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:[0-9]+)?/?$`)
+}
+
+func getUrlRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
+	urlObj, err := url.Parse(originalURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
+		return nil, fmt.Errorf("failed to parse URL '%s'", originalURL)
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
-		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
+		return nil, fmt.Errorf("failed to compile regexp for URL '%s'", originalURL)
 	}
 
 	return repoRegexp, nil
