@@ -1658,7 +1658,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
 	var cert tls.Certificate
-	secret, err := mgr.getSecretByName(externalServerTLSSecretName)
+	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return nil, nil
