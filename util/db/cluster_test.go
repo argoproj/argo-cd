@@ -653,7 +653,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
 	})
-	t.Run("does not return in-cluster when configured and disabeld", func(t *testing.T) {
+	t.Run("does not return in-cluster when configured and disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecretInClusterConfigured, argoCDSecret)
 		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
 		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
