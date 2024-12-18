@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -897,12 +896,6 @@ func (t *ApplicationSetTree) Normalize() {
 // func init() {
 // 	SchemeBuilder.Register(&ApplicationSet{}, &ApplicationSetList{})
 // }
-
-// RefreshRequired checks if the ApplicationSet needs to be refreshed
-func (a *ApplicationSet) RefreshRequired() bool {
-	_, found := a.Annotations[common.AnnotationApplicationSetRefresh]
-	return found
-}
 
 // SetConditions updates the applicationset status conditions for a subset of evaluated types.
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,

@@ -60,8 +60,6 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		return nil, EmptyAppSetGeneratorError
 	}
 
-	noRevisionCache := appSet.RefreshRequired()
-
 	verifyCommit := false
 
 	// When the project field is templated, the contents of the git repo are required to run the git generator and get the templated value,
@@ -84,9 +82,9 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	var err error
 	var res []map[string]interface{}
 	if len(appSetGenerator.Git.Directories) != 0 {
-		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitDirectories(appSetGenerator, true, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else if len(appSetGenerator.Git.Files) != 0 {
-		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitFiles(appSetGenerator, true, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else {
 		return nil, EmptyAppSetGeneratorError
 	}
