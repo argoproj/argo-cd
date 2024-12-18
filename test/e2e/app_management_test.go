@@ -2191,7 +2191,8 @@ func TestCreateAppWithInClusterDisabled(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
+		// RPC error messages are quoted: time="2024-12-18T04:13:58Z" level=fatal msg="<Quoted value>"
+		Expect(Error("", fmt.Sprintf(`cluster \"%s\" is disabled`, KubernetesInternalAPIServerAddr)))
 }
 
 func TestListResource(t *testing.T) {
