@@ -1636,16 +1636,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}).Info("Reconciliation completed")
 	}()
 
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.Errorf("Failed to get destination cluster: %v", err)
+		return
+	}
+
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
 		if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err != nil {
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		} else {
-			destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-			if err != nil {
-				logCtx.Errorf("Failed to get destination cluster: %v", err)
-				return
-			}
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
 				app.Status.Summary = tree.GetSummary(app)
@@ -1710,12 +1711,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 		revisions = append(revisions, revision)
 		sources = append(sources, app.Spec.GetSource())
-	}
-
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-	if err != nil {
-		logCtx.Errorf("Failed to get destination cluster: %v", err)
-		return
 	}
 
 	compareResult, err := ctrl.appStateManager.CompareAppState(destCluster, app, project, revisions, sources,
