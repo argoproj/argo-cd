@@ -371,7 +371,7 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
-		if !match(c.actions.lastError.Error(), err) {
+		if !match(c.actions.getLastErrorMessage(), err) {
 			return failed, fmt.Sprintf("error does not contain '%s'", err)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)

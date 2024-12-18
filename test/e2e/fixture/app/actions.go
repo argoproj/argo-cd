@@ -2,11 +2,13 @@ package app
 
 import (
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"slices"
 	"strconv"
 
+	argoexec "github.com/argoproj/pkg/exec"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,6 +38,16 @@ func (a *Actions) IgnoreErrors() *Actions {
 func (a *Actions) DoNotIgnoreErrors() *Actions {
 	a.ignoreErrors = false
 	return a
+}
+
+func (a *Actions) getLastErrorMessage() string {
+	if cmdErr, ok := a.lastError.(*argoexec.CmdError); ok || goerrors.As(a.lastError, &cmdErr) {
+		if unquoted, err := strconv.Unquote(cmdErr.Stderr); err != nil {
+			return unquoted
+		}
+		return cmdErr.Stderr
+	}
+	return a.lastError.Error()
 }
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
