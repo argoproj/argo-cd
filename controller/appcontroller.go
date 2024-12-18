@@ -349,6 +349,68 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 		gvk.Kind == application.ApplicationKind
 }
 
+// JAY-KULKARNI-FUNCTION
+func (ctrl *ApplicationController) isAppProjectWithExistingApplications(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	//gvk := ref.GroupVersionKind()
+
+	origJSON, err := json.Marshal(obj)
+	if err != nil {
+		return false
+	}
+
+	origProj := &appv1.AppProject{}
+	if err = json.Unmarshal(origJSON, &origProj); err != nil {
+		return false
+	}
+
+	//return &clone, nil\
+	if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
+		log.Warnf("Failed to finalize project deletion: %v", err)
+	}
+	//if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
+	//	if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
+	//		log.Warnf("Failed to finalize project deletion: %v", err)
+	//	}
+	//}
+
+	return true
+	//*appv1.AppProject
+
+	//proj *appv1.AppProject := appv1.AppProject{}
+	//newRef := ref.DeepCopyInto(proj)
+	//resourceNamespace := ref.Namespace
+	//ctrl.getAppProj()
+	//ctrl.finalizeProjectDeletion()
+	//localAppProject := GetAppProject
+	//*appv1.AppProject.
+	//p, err := server.ArgoCDServer{}.AppClientset.ArgoprojV1alpha1().AppProjects(resourceNamespace).Get(context.TODO())
+
+	//	s.projectLock.Lock(q.Name)
+	//	defer s.projectLock.Unlock(q.Name)
+	//
+	//	p, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	apps := argo.FilterByProjects(appsList.Items, []string{q.Name})
+	//	if len(apps) > 0 {
+	//		return nil, status.Errorf(codes.InvalidArgument, "project is referenced by %d applications", len(apps))
+	//	}
+	//	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
+	//	if err == nil {
+	//		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
+	//	}
+	//	return &project.EmptyResponse{}, err
+	//}
+	//appProjectName :=
+	//if argo.FilterByProjects(appsList.Items, []string{q.Name})
+}
+
 func (ctrl *ApplicationController) newAppProjCache(name string) *appProjCache {
 	return &appProjCache{name: name, ctrl: ctrl}
 }
@@ -1106,7 +1168,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) && !ctrl.isAppProjectWithExistingApplications(app, obj) &&
 		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
 		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
 }
