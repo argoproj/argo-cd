@@ -168,7 +168,7 @@ func (m *appStateManager) GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alph
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(destCluster.Server)
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(destCluster)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 	}
@@ -575,7 +575,7 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
-	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster.Server)
+	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster)
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
@@ -728,7 +728,7 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
-	gvkParser, err := m.getGVKParser(destCluster.Server)
+	gvkParser, err := m.getGVKParser(destCluster)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -738,7 +738,7 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		resourceOps, cleanup, err := m.getResourceOperations(destCluster.Server)
+		resourceOps, cleanup, err := m.getResourceOperations(destCluster)
 		if err != nil {
 			log.Errorf("CompareAppState error getting resource operations: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
@@ -832,7 +832,7 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster.Server, gvk.GroupKind())
+		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}

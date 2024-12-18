@@ -50,7 +50,7 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -70,15 +70,10 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 // interface that provides functionality to manage kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getResourceOperations(cluster *v1alpha1.Cluster) (kube.ResourceOperations, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
-	cluster, err := m.db.GetCluster(context.Background(), server)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	rawConfig, err := cluster.RawRestConfig()
@@ -278,7 +273,7 @@ func (m *appStateManager) SyncAppState(destCluster *v1alpha1.Cluster, app *v1alp
 		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster.Server)
+	openAPISchema, err := m.getOpenAPISchema(destCluster)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -415,7 +410,7 @@ func (m *appStateManager) SyncAppState(destCluster *v1alpha1.Cluster, app *v1alp
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster.Server)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
 				}

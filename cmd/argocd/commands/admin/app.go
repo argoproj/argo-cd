@@ -416,14 +416,19 @@ func reconcileApplications(
 	var items []appReconcileResult
 	prevServer := ""
 	for _, app := range appsList.Items {
-		if prevServer != app.Spec.Destination.Server {
+		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+		if err != nil {
+			return nil, fmt.Errorf("error getting destination cluster: %w", err)
+		}
+
+		if prevServer != destCluster.Server {
 			if prevServer != "" {
-				if clusterCache, err := stateCache.GetClusterCache(prevServer); err == nil {
+				if clusterCache, err := stateCache.GetClusterCache(destCluster); err == nil {
 					clusterCache.Invalidate()
 				}
 			}
-			printLine("Reconciling apps of %s", app.Spec.Destination.Server)
-			prevServer = app.Spec.Destination.Server
+			printLine("Reconciling apps of %s", destCluster.Server)
+			prevServer = destCluster.Server
 		}
 		printLine(app.Name)
 
@@ -437,10 +442,6 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
-		if err != nil {
-			return nil, fmt.Errorf("error getting destination cluster: %w", err)
-		}
 		res, err := appStateManager.CompareAppState(destCluster, &app, proj, revisions, sources, false, false, nil, false, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)

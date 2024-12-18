@@ -553,7 +553,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	orphanedNodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	warnOrphaned := true
 	if proj.Spec.OrphanedResources != nil {
-		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(destCluster.Server, a.Spec.Destination.Namespace)
+		orphanedNodesMap, err = ctrl.stateCache.GetNamespaceTopLevelResources(destCluster, a.Spec.Destination.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get namespace top-level resources: %w", err)
 		}
@@ -589,7 +589,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
-	err = ctrl.stateCache.IterateHierarchyV2(destCluster.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
+	err = ctrl.stateCache.IterateHierarchyV2(destCluster, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
 		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, destCluster, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
@@ -614,7 +614,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}
-	err = ctrl.stateCache.IterateHierarchyV2(destCluster.Server, orphanedNodesKeys, func(child appv1.ResourceNode, appName string) bool {
+	err = ctrl.stateCache.IterateHierarchyV2(destCluster, orphanedNodesKeys, func(child appv1.ResourceNode, appName string) bool {
 		belongToAnotherApp := false
 		if appName != "" {
 			appKey := ctrl.toAppKey(appName)
@@ -688,7 +688,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster.Server, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
 
 		switch {
@@ -801,7 +801,7 @@ func (ctrl *ApplicationController) hideSecretData(destCluster *appv1.Cluster, ap
 				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster.Server)
+			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
