@@ -20,6 +20,7 @@ type ClusterShardingCache interface {
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
+	UpdateShard(shard int) bool
 }
 
 type ClusterSharding struct {
@@ -262,4 +263,15 @@ func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 		appDistribution[a.Spec.Destination.Server]++
 	}
 	return appDistribution
+}
+
+// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	if shard != sharding.Shard {
+		sharding.lock.RLock()
+		sharding.Shard = shard
+		sharding.lock.RUnlock()
+		return true
+	}
+	return false
 }
