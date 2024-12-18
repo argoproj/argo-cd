@@ -496,7 +496,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			return nil, err
 		}
 
-		if _, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
+		if _, err = argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}

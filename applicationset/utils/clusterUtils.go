@@ -13,19 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// The contents of this file are from
-// github.com/argoproj/argo-cd/util/db/cluster.go
-//
-// The main difference is that ListClusters(...) calls the kubeclient directly,
-// via `g.clientset.CoreV1().Secrets`, rather than using the `db.listClusterSecrets()``
-// which appears to have a race condition on when it is called.
-//
-// I was reminded of this issue that I opened, which might be related:
-// https://github.com/argoproj/argo-cd/issues/4755
-//
-// I hope to upstream this change in some form, so that we do not need to worry about
-// Argo CD changing the logic on us.
-
 var (
 	localCluster = appv1.Cluster{
 		Name:            "in-cluster",

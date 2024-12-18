@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
-	github.com/alicebob/miniredis/v2 v2.33.0
+	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/antonmedv/expr v1.15.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20241216155226-54992bf42431
 	github.com/argoproj/notifications-engine v0.4.1-0.20241007194503-2fef5c9049fd
@@ -22,7 +22,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.11.0
-	github.com/cyphar/filepath-securejoin v0.3.5
+	github.com/cyphar/filepath-securejoin v0.3.6
 	github.com/dustin/go-humanize v1.0.1
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/expr-lang/expr v1.16.9
@@ -178,7 +178,7 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.7.0 // indirect
 	github.com/ProtonMail/go-crypto v1.0.0 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20210112200207-10ab4d695d60 // indirect
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
+	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect

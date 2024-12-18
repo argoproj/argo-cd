@@ -214,7 +214,7 @@ func NewCommand() *cobra.Command {
 				hydratorEnabled,
 			)
 			errors.CheckError(err)
-			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
+			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)

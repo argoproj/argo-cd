@@ -1164,8 +1164,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
-			settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			argoDB := db.NewDB("namespace", settingsMgr, kubeclientset)
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1173,7 +1172,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
-				ArgoDB:        argoDB,
+				ArgoDB:        argodb,
 			}
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
@@ -1321,8 +1320,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
-			settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
-			argoDB := db.NewDB("argocd", settingsMgr, kubeclientset)
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1330,9 +1328,9 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
-				ArgoDB:        argoDB,
+				ArgoDB:        argodb,
 			}
-			// clusterList, err := argoDB.ListClusters(context.Background())
+
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "argocd")
 			require.NoError(t, err)
 
@@ -2045,7 +2043,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: "namespace",
+					Namespace: "argocd",
 					Labels: map[string]string{
 						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
@@ -2060,7 +2058,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-			argodb := db.NewDB("namespace", settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace"), kubeclientset)
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:          client,
