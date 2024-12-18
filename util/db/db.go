@@ -140,22 +140,14 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 }
 
 func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
-	secret, ok := cache[name]
-	if !ok {
-		secretsLister, err := db.settingsMgr.GetSecretsLister()
+	if _, ok := cache[name]; !ok {
+		secret, err := db.settingsMgr.GetSecretByName(name)
 		if err != nil {
 			return nil, err
-		}
-		secret, err = secretsLister.Secrets(db.ns).Get(name)
-		if err != nil {
-			return nil, err
-		}
-		if secret.Data == nil {
-			secret.Data = make(map[string][]byte)
 		}
 		cache[name] = secret
 	}
-	return secret, nil
+	return cache[name], nil
 }
 
 func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
