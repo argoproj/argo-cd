@@ -87,7 +87,7 @@ func TestConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerConstructLogoutURL(t *testing.T) {
-	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -119,7 +119,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoURL := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfigButNoURL := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -151,7 +151,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewSimpleClientset(
+	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -182,7 +182,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCAndMultipleURLs := fake.NewSimpleClientset(
+	kubeClientWithoutOIDCAndMultipleURLs := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -210,7 +210,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCConfig := fake.NewSimpleClientset(
+	kubeClientWithoutOIDCConfig := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,

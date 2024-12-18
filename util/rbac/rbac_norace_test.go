@@ -26,7 +26,7 @@ func TestPolicyInformer(t *testing.T) {
 
 	cm := fakeConfigMap()
 	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
-	kubeclientset := fake.NewSimpleClientset(cm)
+	kubeclientset := fake.NewClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 
 	ctx := context.Background()
@@ -58,7 +58,7 @@ func TestResourceActionWildcards(t *testing.T) {
 	// !race:
 	// Same as TestPolicyInformer
 
-	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	kubeclientset := fake.NewClientset(fakeConfigMap())
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	policy := `
 p, alice, *, get, foo/obj, allow

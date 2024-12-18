@@ -92,7 +92,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			t.Parallel()
 			var (
 				ctx          = context.TODO()
-				kubeClient   = kubefake.NewSimpleClientset()
+				kubeClient   = kubefake.NewClientset()
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {
