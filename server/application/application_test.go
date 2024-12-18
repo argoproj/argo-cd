@@ -109,7 +109,7 @@ func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 
 func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
+	mockRepoServiceClient.On("GetProcessableApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
@@ -141,7 +141,7 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 
 func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	t.Helper()
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -327,7 +327,7 @@ func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Ser
 
 func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	b.Helper()
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -2946,7 +2946,7 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 		},
 	}
 	syncReq := &application.ApplicationSyncRequest{
-		SourcePositions: []int64{0, 1},
+		SourcePositions: []int64{1, 2},
 		Revisions:       []string{"rev1", "rev2"},
 	}
 

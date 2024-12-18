@@ -172,7 +172,7 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 }
 
 func TestUpdateCluster(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+	kubeclientset := fake.NewClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -202,7 +202,7 @@ func TestUpdateCluster(t *testing.T) {
 }
 
 func TestDeleteUnknownCluster(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(&v1.Secret{
+	kubeclientset := fake.NewClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -244,7 +244,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
+	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	_, err := db.CreateCluster(context.Background(), &appv1.Cluster{
@@ -371,7 +371,7 @@ func TestListClusters(t *testing.T) {
 	}
 
 	t.Run("Valid clusters", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
+		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
@@ -381,7 +381,7 @@ func TestListClusters(t *testing.T) {
 	})
 
 	t.Run("Cluster list with invalid cluster", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, invalidSecret, emptyArgoCDConfigMap, argoCDSecret)
+		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, invalidSecret, emptyArgoCDConfigMap, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
@@ -391,7 +391,7 @@ func TestListClusters(t *testing.T) {
 	})
 
 	t.Run("Implicit in-cluster secret", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
+		kubeclientset := fake.NewClientset(secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
@@ -402,7 +402,7 @@ func TestListClusters(t *testing.T) {
 	})
 
 	t.Run("ListClusters() should not add the cluster with in-cluster server address since in-cluster is disabled", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithInClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
+		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
@@ -412,7 +412,7 @@ func TestListClusters(t *testing.T) {
 	})
 
 	t.Run("ListClusters() should add this cluster since it does not contain in-cluster server address even though in-cluster is disabled", func(t *testing.T) {
-		kubeclientset := fake.NewSimpleClientset(secretForServerWithExternalClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
+		kubeclientset := fake.NewClientset(secretForServerWithExternalClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
@@ -420,4 +420,67 @@ func TestListClusters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 1)
 	})
+}
+
+// TestClusterRaceConditionClusterSecrets reproduces a race condition
+// on the cluster secrets. The test isn't asserting anything because
+// before the fix it would cause a panic from concurrent map iteration and map write
+func TestClusterRaceConditionClusterSecrets(t *testing.T) {
+	clusterSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+		clusterSecret,
+	)
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, "default")
+	db := NewDB("default", settingsManager, kubeClient)
+	cluster, _ := SecretToCluster(clusterSecret)
+	go func() {
+		for {
+			// create a copy so we dont act on the same argo cluster
+			clusterCopy := cluster.DeepCopy()
+			_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+		}
+	}()
+	// yes, we will take 15 seconds to run this test
+	// but it reliably triggered the race condition
+	for i := 0; i < 30; i++ {
+		// create a copy so we dont act on the same argo cluster
+		clusterCopy := cluster.DeepCopy()
+		_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+		time.Sleep(time.Millisecond * 500)
+	}
 }

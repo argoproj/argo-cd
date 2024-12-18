@@ -89,7 +89,7 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 
 func TestUpsertExistingRepo(t *testing.T) {
 	app.Given(t).And(func() {
-		fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)})
+		CheckError(fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)}))
 		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl)
 		require.NoError(t, err)

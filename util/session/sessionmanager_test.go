@@ -52,7 +52,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -101,7 +101,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
-		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
 	}
 }
 
@@ -577,7 +577,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 		mergedSecretConfig[key] = value
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",

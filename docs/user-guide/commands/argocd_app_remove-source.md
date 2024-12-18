@@ -2,7 +2,7 @@
 
 ## argocd app remove-source
 
-Remove a source from multiple sources application. Counting starts with 1. Default value is -1.
+Remove a source from multiple sources application.
 
 ```
 argocd app remove-source APPNAME [flags]
@@ -13,6 +13,9 @@ argocd app remove-source APPNAME [flags]
 ```
   # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
+  
+  # Remove the source named "test" from application's sources.
+  argocd app remove-source myapplication --source-name test
 ```
 
 ### Options
@@ -20,6 +23,7 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
+      --source-name string     Name of the source from the list of sources of the app.
       --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 

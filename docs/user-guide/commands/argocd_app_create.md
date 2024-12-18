@@ -47,6 +47,9 @@ argocd app create APPNAME [flags]
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
+      --dry-source-path string                     Path in repository to the app directory for the dry source
+      --dry-source-repo string                     Repository URL of the app dry source
+      --dry-source-revision string                 Revision of the app dry source
       --env string                                 Application environment to monitor
   -f, --file string                                Filename or URL to Kubernetes manifests for the app
       --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
@@ -58,9 +61,11 @@ argocd app create APPNAME [flags]
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
       --helm-skip-crds                             Skip helm crd installation step
+      --helm-skip-schema-validation                Skip helm schema validation step
       --helm-skip-tests                            Skip helm test manifests installation step
       --helm-version string                        Helm version
   -h, --help                                       help for create
+      --hydrate-to-branch string                   The branch to hydrate the app to
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
@@ -93,12 +98,15 @@ argocd app create APPNAME [flags]
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
+      --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
+      --sync-source-branch string                  The branch from which the app will sync
+      --sync-source-path string                    The path in the repository from which the app will sync
       --upsert                                     Allows to override application with the same name even if supplied application spec is different from existing spec
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use

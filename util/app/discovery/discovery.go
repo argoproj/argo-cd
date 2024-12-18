@@ -170,6 +170,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
 	if err != nil {
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
+		io.Close(conn)
 		return nil, nil, false
 	}
 
@@ -178,6 +179,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		if namedPlugin {
 			return conn, cmpClient, true
 		}
+		io.Close(conn)
 		return nil, nil, false
 	}
 

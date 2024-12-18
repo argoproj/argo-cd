@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -223,16 +224,41 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.AppQualifiedName(),
-		"--repo", fixture.RepoURL(a.context.repoURLType),
 	}, args...)
 
-	if a.context.destName != "" {
+	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.hydrateToBranch != "" {
+		args = append(args, "--dry-source-repo", fixture.RepoURL(a.context.repoURLType))
+	} else {
+		args = append(args, "--repo", fixture.RepoURL(a.context.repoURLType))
+	}
+
+	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {
 		args = append(args, "--dest-name", a.context.destName)
 	} else {
 		args = append(args, "--dest-server", a.context.destServer)
 	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
+	}
+
+	if a.context.drySourceRevision != "" {
+		args = append(args, "--dry-source-revision", a.context.drySourceRevision)
+	}
+
+	if a.context.drySourcePath != "" {
+		args = append(args, "--dry-source-path", a.context.drySourcePath)
+	}
+
+	if a.context.syncSourceBranch != "" {
+		args = append(args, "--sync-source-branch", a.context.syncSourceBranch)
+	}
+
+	if a.context.syncSourcePath != "" {
+		args = append(args, "--sync-source-path", a.context.syncSourcePath)
+	}
+
+	if a.context.hydrateToBranch != "" {
+		args = append(args, "--hydrate-to-branch", a.context.hydrateToBranch)
 	}
 
 	if a.context.chart != "" {
@@ -269,6 +295,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	}
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
+	}
+	if a.context.helmSkipSchemaValidation {
+		args = append(args, "--helm-skip-schema-validation")
 	}
 	if a.context.helmSkipTests {
 		args = append(args, "--helm-skip-tests")
@@ -448,7 +477,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -477,16 +506,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	fixture.SetInstallationID(installationID)
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	fixture.SetTrackingLabel(trackingLabel)
+	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
 	return a
 }
