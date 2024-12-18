@@ -19,8 +19,9 @@ type argoCDService struct {
 	listRepositories       func(ctx context.Context) ([]*v1alpha1.Repository, error)
 	storecreds             git.CredsStore
 	submoduleEnabled       bool
-	repoServerClientSet    apiclient.Clientset
 	newFileGlobbingEnabled bool
+	getGitFiles            func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
+	getGitDirectories      func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
 
 type Repos interface {
@@ -35,8 +36,23 @@ func NewArgoCDService(listRepositories func(ctx context.Context) ([]*v1alpha1.Re
 	return &argoCDService{
 		listRepositories:       listRepositories,
 		submoduleEnabled:       submoduleEnabled,
-		repoServerClientSet:    repoClientset,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
+		getGitFiles: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			closer, client, err := repoClientset.NewRepoServerClient()
+			if err != nil {
+				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
+			}
+			defer io.Close(closer)
+			return client.GetGitFiles(ctx, fileRequest)
+		},
+		getGitDirectories: func(ctx context.Context, dirRequest *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			closer, client, err := repoClientset.NewRepoServerClient()
+			if err != nil {
+				return nil, fmt.Errorf("error initialising new repo server client: %w", err)
+			}
+			defer io.Close(closer)
+			return client.GetGitDirectories(ctx, dirRequest)
+		},
 	}, nil
 }
 
@@ -60,13 +76,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		NoRevisionCache:           noRevisionCache,
 		VerifyCommit:              verifyCommit,
 	}
-	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
-	if err != nil {
-		return nil, fmt.Errorf("error initialising new repo server client: %w", err)
-	}
-	defer io.Close(closer)
-
-	fileResponse, err := client.GetGitFiles(ctx, fileRequest)
+	fileResponse, err := a.getGitFiles(ctx, fileRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git files: %w", err)
 	}
@@ -92,13 +102,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		VerifyCommit:     verifyCommit,
 	}
 
-	closer, client, err := a.repoServerClientSet.NewRepoServerClient()
-	if err != nil {
-		return nil, fmt.Errorf("error initialising new repo server client: %w", err)
-	}
-	defer io.Close(closer)
-
-	dirResponse, err := client.GetGitDirectories(ctx, dirRequest)
+	dirResponse, err := a.getGitDirectories(ctx, dirRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
@@ -110,17 +114,29 @@ func getRepo(repos []*v1alpha1.Repository, repoURL string, project string) (*v1a
 	if err != nil {
 		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
 			// No repo found with a matching URL - attempt fallback without any actual credentials
-			repo = &v1alpha1.Repository{Repo: repoURL}
-		} else {
-			// This is the final fallback - ensure that at least one repo cred with an unset project is present.
-			for _, repo = range repos {
-				if git.SameURL(repo.Repo, repoURL) && repo.Project == "" {
-					return repo, nil
+			return &v1alpha1.Repository{Repo: repoURL}, nil
+		} else if project == "" {
+			for _, r := range repos {
+				if git.SameURL(r.Repo, repoURL) {
+					// Prioritize using a repository with an unset project.
+					if r.Project == "" {
+						return r, nil
+					}
+
+					if repo == nil {
+						repo = r
+					}
 				}
 			}
 
-			return nil, fmt.Errorf("no matching repository found for url %s, ensure that you have a repo credential with an unset project", repoURL)
+			// Try any repo matching the same repoURL
+			if repo != nil {
+				return repo, nil
+			}
+
+			// No repo found with a matching URL - attempt fallback without any actual credentials
+			return &v1alpha1.Repository{Repo: repoURL}, nil
 		}
 	}
-	return repo, nil
+	return repo, err
 }
