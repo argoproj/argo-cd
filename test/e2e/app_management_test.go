@@ -710,6 +710,7 @@ func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
 		When().
 		CreateApp().
 		Refresh(RefreshTypeNormal).
+		Sync().
 		Then().
 		Expect(Success("")).
 		Expect(HealthIs(health.HealthStatusHealthy)).
@@ -721,7 +722,7 @@ func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
 		Expect(Success("")).
 		Expect(HealthIs(health.HealthStatusUnknown)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster \"%s\" is disabled", KubernetesInternalAPIServerAddr)))
+		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
 }
 
 func TestCannotSetInvalidPath(t *testing.T) {
@@ -2190,7 +2191,7 @@ func TestCreateAppWithInClusterDisabled(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", fmt.Sprintf("cluster \"%s\" is disabled", KubernetesInternalAPIServerAddr)))
+		Expect(Error("", fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
 }
 
 func TestListResource(t *testing.T) {
