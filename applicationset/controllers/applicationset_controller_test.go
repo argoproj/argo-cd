@@ -4,9 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -1176,9 +1174,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Metrics:       metrics,
 				ArgoDB:        argodb,
 			}
-			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
-			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
@@ -1971,7 +1966,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application destination can't have both name and server defined"},
+			expectedErrors:   []string{"application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server"},
 			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
@@ -2040,8 +2035,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"there are no clusters with this name: nonexistent-cluster"},
-			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
+			expectedErrors:   []string{"application destination spec is invalid: there are no clusters with this name: nonexistent-cluster"},
+			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -2087,25 +2082,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			if len(errorMessages) == 0 {
 				assert.Empty(t, cc.expectedErrors, "Expected errors but none were seen")
 			} else {
-				// An error was returned: it should be expected
-				matched := false
-				for _, expectedErr := range cc.expectedErrors {
-					foundMatch := strings.Contains(strings.Join(errorMessages, ";"), expectedErr)
-					assert.True(t, foundMatch, "Unble to locate expected error: %s", cc.expectedErrors)
-					matched = matched || foundMatch
-				}
-				assert.True(t, matched, "An unexpected error occurrred: %v", err)
-				// validation message was returned: it should be expected
-				matched = false
-				foundMatch := reflect.DeepEqual(validationErrors, cc.validationErrors)
-				var message string
-				for _, v := range validationErrors {
-					message = v.Error()
-					break
-				}
-				assert.True(t, foundMatch, "Unble to locate validation message: %s", message)
-				matched = matched || foundMatch
-				assert.True(t, matched, "An unexpected error occurrred: %v", err)
+				assert.Equal(t, cc.expectedErrors, errorMessages)
+				assert.Equal(t, cc.validationErrors, validationErrors)
 			}
 		})
 	}
@@ -2471,7 +2449,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
-	require.NoError(t, err)
+	require.NoErrorf(t, err, "Reconcile failed with error: %v", err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application

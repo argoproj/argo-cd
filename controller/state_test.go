@@ -34,6 +34,8 @@ import (
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
+	t.Parallel()
+
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
@@ -49,7 +51,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -67,18 +69,18 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	// expect to still get compare state error to as inside grace period
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.NotNil(t, compRes)
 	require.NoError(t, err)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -113,7 +115,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -162,7 +164,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -220,7 +222,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -279,7 +281,7 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -307,7 +309,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -339,7 +341,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -370,7 +372,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -402,7 +404,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -433,7 +435,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -466,7 +468,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -495,7 +497,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	app := newFakeApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -535,7 +537,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	app := newFakeMultiSourceApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -584,7 +586,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -621,7 +623,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 		},
 	}
 	ctrl := newFakeController(&data, nil)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -675,7 +677,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	ctrl := newFakeController(&data, nil)
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -711,7 +713,7 @@ func TestSetHealth(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
@@ -748,7 +750,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
@@ -786,7 +788,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
@@ -810,7 +812,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -839,7 +841,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&argoappv1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
@@ -862,7 +864,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
@@ -893,7 +895,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&argoappv1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -1004,7 +1006,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1031,7 +1033,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1063,7 +1065,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1090,7 +1092,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1117,7 +1119,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1144,7 +1146,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1174,7 +1176,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &testProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1204,7 +1206,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, localManifests, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1234,7 +1236,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, nil, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1264,7 +1266,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &signedProj, revisions, sources, false, false, localManifests, false, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1568,10 +1570,6 @@ func TestUseDiffCache(t *testing.T) {
 				t.Fatalf("error merging app: %s", err)
 			}
 		}
-		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
-			// Simulate the controller's process for populating both of these fields.
-			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
-		}
 		return app
 	}
 
@@ -1737,44 +1735,6 @@ func TestUseDiffCache(t *testing.T) {
 			expectedUseCache:     false,
 			serverSideDiff:       false,
 		},
-		{
-			// There are code paths that modify the ApplicationSpec and augment the destination field with both the
-			// destination server and name. Since both fields are populated in the app spec but not in the comparedTo,
-			// we need to make sure we correctly compare the fields and don't miss the cache.
-			testName:      "will return true if the app spec destination contains both server and name, but otherwise matches comparedTo",
-			noCache:       false,
-			manifestInfos: manifestInfos("rev1"),
-			sources:       sources(),
-			app: app("httpbin", "rev1", false, &argoappv1.Application{
-				Spec: argoappv1.ApplicationSpec{
-					Destination: argoappv1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Name:      "httpbin",
-						Namespace: "httpbin",
-					},
-				},
-				Status: argoappv1.ApplicationStatus{
-					Resources: []argoappv1.ResourceStatus{},
-					Sync: argoappv1.SyncStatus{
-						Status: argoappv1.SyncStatusCodeSynced,
-						ComparedTo: argoappv1.ComparedTo{
-							Destination: argoappv1.ApplicationDestination{
-								Server:    "https://kubernetes.default.svc",
-								Namespace: "httpbin",
-							},
-						},
-						Revision: "rev1",
-					},
-					ReconciledAt: &metav1.Time{
-						Time: time.Now().Add(-time.Hour),
-					},
-				},
-			}),
-			manifestRevisions:    []string{"rev1"},
-			statusRefreshTimeout: time.Hour * 24,
-			expectedUseCache:     true,
-			serverSideDiff:       true,
-		},
 	}
 
 	for _, tc := range cases {
@@ -1810,7 +1770,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -1833,7 +1793,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(&v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test"}, app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)

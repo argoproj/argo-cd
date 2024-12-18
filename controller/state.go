@@ -69,9 +69,9 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
-	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	CompareAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
+	SyncAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -125,7 +125,7 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -168,9 +168,9 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(destCluster)
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -470,7 +470,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, installationID, err := m.getComparisonSettings()
 
@@ -511,7 +511,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
 	logCtx := log.WithField("application", app.QualifiedName())
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
@@ -531,7 +531,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
+		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(destCluster, app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -575,7 +575,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
-	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server)
+	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster)
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
@@ -588,7 +588,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	for i := len(targetObjs) - 1; i >= 0; i-- {
 		targetObj := targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
-		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
@@ -606,7 +606,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
@@ -615,10 +615,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
-
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
+		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
 			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
@@ -729,7 +728,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
-	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
+	gvkParser, err := m.getGVKParser(destCluster)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -739,7 +738,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		resourceOps, cleanup, err := m.getResourceOperations(app.Spec.Destination.Server)
+		resourceOps, cleanup, err := m.getResourceOperations(destCluster)
 		if err != nil {
 			log.Errorf("CompareAppState error getting resource operations: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
@@ -833,7 +832,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
+		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
@@ -997,20 +996,6 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 	// Make a copy to be sure we don't mutate the original.
 	specCopy := spec.DeepCopy()
 	currentSpec := specCopy.BuildComparedToStatus()
-
-	// The spec might have been augmented to include both server and name, so change it to match the comparedTo before
-	// comparing.
-	if comparedTo.Destination.Server == "" {
-		currentSpec.Destination.Server = ""
-	}
-	if comparedTo.Destination.Name == "" {
-		currentSpec.Destination.Name = ""
-	}
-
-	// Set IsServerInferred to false on both, because that field is not important for comparison.
-	comparedTo.Destination.SetIsServerInferred(false)
-	currentSpec.Destination.SetIsServerInferred(false)
-
 	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 
