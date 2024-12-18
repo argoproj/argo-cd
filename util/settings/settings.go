@@ -261,9 +261,10 @@ var (
 		}
 		return nil, nil
 	}
-	ByProjectClusterIndexer = "byProjectCluster"
-	ByProjectRepoIndexer    = "byProjectRepo"
-	byProjectIndexerFunc    = func(secretType string) func(obj interface{}) ([]string, error) {
+	ByProjectClusterIndexer   = "byProjectCluster"
+	ByProjectRepoIndexer      = "byProjectRepo"
+	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
+	byProjectIndexerFunc      = func(secretType string) func(obj interface{}) ([]string, error) {
 		return func(obj interface{}) ([]string, error) {
 			s, ok := obj.(*apiv1.Secret)
 			if !ok {
@@ -638,11 +639,7 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
+	argoCDSecret, err := mgr.getSecret()
 	createSecret := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
@@ -656,24 +653,21 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 		}
 		createSecret = true
 	}
-	if argoCDSecret.Data == nil {
-		argoCDSecret.Data = make(map[string][]byte)
-	}
 
-	updatedSecret := argoCDSecret.DeepCopy()
-	err = callback(updatedSecret)
+	beforeUpdate := argoCDSecret.DeepCopy()
+	err = callback(argoCDSecret)
 	if err != nil {
 		return err
 	}
 
-	if !createSecret && reflect.DeepEqual(argoCDSecret.Data, updatedSecret.Data) {
+	if !createSecret && reflect.DeepEqual(beforeUpdate.Data, argoCDSecret.Data) {
 		return nil
 	}
 
 	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), updatedSecret, metav1.CreateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), argoCDSecret, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), updatedSecret, metav1.UpdateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), argoCDSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -693,18 +687,17 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
+			Data: make(map[string]string),
 		}
 		createCM = true
 	}
-	if argoCDCM.Data == nil {
-		argoCDCM.Data = make(map[string]string)
-	}
+
 	beforeUpdate := argoCDCM.DeepCopy()
 	err = callback(argoCDCM)
 	if err != nil {
 		return err
 	}
-	if reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
+	if !createCM && reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
 		return nil
 	}
 
@@ -724,18 +717,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 }
 
 func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return nil, err
-	}
-	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
-	if err != nil {
-		return nil, err
-	}
-	if argoCDCM.Data == nil {
-		argoCDCM.Data = make(map[string]string)
-	}
-	return argoCDCM, err
+	return mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
 }
 
 // Returns the ConfigMap with the given name from the cluster.
@@ -750,7 +732,53 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 	if err != nil {
 		return nil, err
 	}
-	return configMap, err
+	cmCopy := configMap.DeepCopy()
+	if cmCopy.Data == nil {
+		cmCopy.Data = make(map[string]string)
+	}
+	return cmCopy, err
+}
+
+func (mgr *SettingsManager) getSecret() (*apiv1.Secret, error) {
+	return mgr.GetSecretByName(common.ArgoCDSecretName)
+}
+
+// Returns the Secret with the given name from the cluster.
+func (mgr *SettingsManager) GetSecretByName(secretName string) (*apiv1.Secret, error) {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(secretName)
+	if err != nil {
+		return nil, err
+	}
+	secretCopy := secret.DeepCopy()
+	if secretCopy.Data == nil {
+		secretCopy.Data = make(map[string][]byte)
+	}
+	return secretCopy, err
+}
+
+func (mgr *SettingsManager) getSecrets() ([]*apiv1.Secret, error) {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+
+	selector, err := labels.Parse(partOfArgoCDSelector)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
+	}
+	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
+	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
+	secrets = util.SecretCopy(secrets)
+	return secrets, nil
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
@@ -1319,30 +1347,19 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return nil, err
-	}
-	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
+	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
+	argoCDSecret, err := mgr.getSecret()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-secret: %w", err)
 	}
-	selector, err := labels.Parse(partOfArgoCDSelector)
+	secrets, err := mgr.getSecrets()
 	if err != nil {
-		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
+		return nil, fmt.Errorf("error retrieving argocd secrets: %w", err)
 	}
-	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
-	if err != nil {
-		return nil, err
-	}
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
@@ -1384,11 +1401,12 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		},
 	}
 	indexers := cache.Indexers{
-		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:     byClusterURLIndexerFunc,
-		ByClusterNameIndexer:    byClusterNameIndexerFunc,
-		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
-		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
+		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
+		ByClusterURLIndexer:       byClusterURLIndexerFunc,
+		ByClusterNameIndexer:      byClusterNameIndexerFunc,
+		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
+		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
+		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
@@ -1638,7 +1656,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
 	var cert tls.Certificate
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(externalServerTLSSecretName)
+	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
 		if apierr.IsNotFound(err) {
 			return nil, nil
@@ -1731,18 +1749,9 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 
 // Save the SSH known host data into the corresponding ConfigMap
 func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
 		return err
-	}
-
-	if certCM.Data == nil {
-		certCM.Data = make(map[string]string)
 	}
 
 	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
@@ -1756,11 +1765,6 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 }
 
 func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
 	if err != nil {
 		return err
@@ -1776,11 +1780,6 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 }
 
 func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicKeys map[string]string) error {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return err
-	}
-
 	keysCM, err := mgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return err

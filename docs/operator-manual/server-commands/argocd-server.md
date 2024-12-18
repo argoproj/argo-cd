@@ -55,6 +55,7 @@ argocd-server [flags]
       --enable-proxy-extension                          Enable Proxy Extension feature
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
+      --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")
       --insecure                                        Run server without TLS
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
