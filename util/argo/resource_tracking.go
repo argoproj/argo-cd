@@ -31,7 +31,9 @@ var (
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) string
 	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue
+	GetAppInstanceID(un *unstructured.Unstructured) string
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod, instanceID string) error
+	SetAppInstanceID(un *unstructured.Unstructured, url string) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
@@ -80,6 +82,14 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 	return value
 }
 
+func (rt *resourceTracking) getAppInstanceIdValue(un *unstructured.Unstructured) string {
+	appInstanceIdValue, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstanceID)
+	if err != nil {
+		return ""
+	}
+	return appInstanceIdValue
+}
+
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) string {
 	retrieveAppInstanceValue := func() string {
@@ -121,6 +131,11 @@ func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key st
 	}
 }
 
+// GetAppInstanceID retrieve instance ID of the resource.
+func (rt *resourceTracking) GetAppInstanceID(un *unstructured.Unstructured) string {
+	return rt.getAppInstanceIdValue(un)
+}
+
 // UnstructuredToAppInstanceValue will build the AppInstanceValue based
 // on the provided unstructured. The given namespace works as a default
 // value if the resource's namespace is not defined. It should be the
@@ -138,6 +153,18 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 		Namespace:       ns,
 		Name:            un.GetName(),
 	}
+}
+
+// SetAppInstanceID sets the app instance ID annotation if the URL is not empty.
+func (rt *resourceTracking) SetAppInstanceID(un *unstructured.Unstructured, url string) error {
+	if url == "" {
+		return fmt.Errorf("ArgoCD URL is missing")
+	}
+	err := argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstanceID, url)
+	if err != nil {
+		return fmt.Errorf("failed to set app instance ID annotation: %w", err)
+	}
+	return nil
 }
 
 // SetAppInstance set label/annotation base on tracking method
