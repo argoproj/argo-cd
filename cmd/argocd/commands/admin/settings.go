@@ -244,19 +244,6 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		return summary, err
 	},
-	"repositories": joinValidators(func(manager *settings.SettingsManager) (string, error) {
-		repos, err := manager.GetRepositories()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d repositories", len(repos)), nil
-	}, func(manager *settings.SettingsManager) (string, error) {
-		creds, err := manager.GetRepositoryCredentials()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d repository credentials", len(creds)), nil
-	}),
 	"accounts": func(manager *settings.SettingsManager) (string, error) {
 		accounts, err := manager.GetAccounts()
 		if err != nil {

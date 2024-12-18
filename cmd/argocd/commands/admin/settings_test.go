@@ -158,15 +158,6 @@ clientSecret: aaaabbbbccccddddeee`,
 			},
 			containsSummary: "updated-options",
 		},
-		"Repositories": {
-			validator: "repositories",
-			data: map[string]string{
-				"repositories": `
-- url: https://github.com/argoproj/my-private-repository1
-- url: https://github.com/argoproj/my-private-repository2`,
-			},
-			containsSummary: "2 repositories",
-		},
 		"Accounts": {
 			validator: "accounts",
 			data: map[string]string{

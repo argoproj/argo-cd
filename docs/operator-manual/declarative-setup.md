@@ -493,43 +493,6 @@ stringData:
 
 A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
-### Legacy behaviour
-
-In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
-backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
-configuration is deprecated and support for it will be removed in a future version.
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-data:
-  repositories: |
-    - url: https://github.com/argoproj/my-private-repository
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
-  repository.credentials: |
-    - url: https://github.com/argoproj
-      passwordSecret:
-        name: my-secret
-        key: password
-      usernameSecret:
-        name: my-secret
-        key: username
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-secret
-  namespace: argocd
-stringData:
-  password: my-password
-  username: my-username
-```
-
 ## Clusters
 
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label

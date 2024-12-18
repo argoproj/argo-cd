@@ -150,23 +150,6 @@ func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, e
 	return cache[name], nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
-	for dst, src := range secrets {
-		if src != nil {
-			secret, err := db.getSecret(src.Name, cache)
-			if err != nil {
-				return err
-			}
-			if dst.Transform != nil {
-				*dst.Dest = dst.Transform(string(secret.Data[src.Key]))
-			} else {
-				*dst.Dest = string(secret.Data[src.Key])
-			}
-		}
-	}
-	return nil
-}
-
 // StripCRLFCharacter strips the trailing CRLF characters
 func StripCRLFCharacter(input string) string {
 	return strings.TrimSpace(input)
