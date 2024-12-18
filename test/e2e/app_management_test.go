@@ -703,6 +703,27 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
+func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster \"%s\" is disabled", KubernetesInternalAPIServerAddr)))
+}
+
 func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1117,15 +1138,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1133,18 +1154,18 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource = {}
     impactedResource.operation = "create"
     impactedResource.resource = job
     result = {}
     result[1] = impactedResource
-  
+
     return result`
 
 func TestNewStyleResourceActionPermitted(t *testing.T) {
@@ -1221,15 +1242,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1237,12 +1258,12 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource1 = {}
     impactedResource1.operation = "create"
     impactedResource1.resource = job
@@ -1255,7 +1276,7 @@ definitions:
     impactedResource2.resource = obj
 
     result[2] = impactedResource2
-  
+
     return result`
 
 func TestNewStyleResourceActionMixedOk(t *testing.T) {
@@ -2158,6 +2179,18 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[1].Type)
 		})
+}
+
+func TestCreateAppWithInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", fmt.Sprintf("cluster \"%s\" is disabled", KubernetesInternalAPIServerAddr)))
 }
 
 func TestListResource(t *testing.T) {
