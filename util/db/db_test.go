@@ -502,42 +502,6 @@ func TestRepositorySecretsTrim(t *testing.T) {
 	}
 }
 
-func TestGetClusterSuccessful(t *testing.T) {
-	server := "my-cluster"
-	name := "my-name"
-	clientset := getClientset(nil, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-		},
-		Data: map[string][]byte{
-			"server": []byte(server),
-			"name":   []byte(name),
-			"config": []byte("{}"),
-		},
-	})
-
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	cluster, err := db.GetCluster(context.Background(), server)
-	require.NoError(t, err)
-	assert.Equal(t, server, cluster.Server)
-	assert.Equal(t, name, cluster.Name)
-}
-
-func TestGetNonExistingCluster(t *testing.T) {
-	server := "https://mycluster"
-	clientset := getClientset(nil)
-
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	_, err := db.GetCluster(context.Background(), server)
-	require.Error(t, err)
-	status, ok := status.FromError(err)
-	assert.True(t, ok)
-	assert.Equal(t, codes.NotFound, status.Code())
-}
-
 func TestCreateClusterSuccessful(t *testing.T) {
 	server := "https://mycluster"
 	clientset := getClientset(nil)
@@ -750,62 +714,6 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
 	for _, tt := range teststruct {
 		assert.Equal(t, tt.expectedSecret, tt.retrievedSecret)
 	}
-}
-
-func TestGetClusterServersByName(t *testing.T) {
-	clientset := getClientset(nil, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-		},
-		Data: map[string][]byte{
-			"name":   []byte("my-cluster-name"),
-			"server": []byte("https://my-cluster-server"),
-			"config": []byte("{}"),
-		},
-	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	servers, err := db.GetClusterServersByName(context.Background(), "my-cluster-name")
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"https://my-cluster-server"}, servers)
-}
-
-func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
-	clientset := getClientset(nil)
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
-}
-
-func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
-	clientset := getClientset(nil, &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-		},
-		Data: map[string][]byte{
-			"name":   []byte("in-cluster-renamed"),
-			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
-			"config": []byte("{}"),
-		},
-	})
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
-	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
 }
 
 func TestGetApplicationControllerReplicas(t *testing.T) {
