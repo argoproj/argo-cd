@@ -75,40 +75,6 @@ function podColor(podName: string, isDarkMode: boolean, isSelected: boolean) {
     return isDarkMode ? colors[1] : colors[0];
 }
 
-const PodLegend: React.FC<{logs: LogEntry[]; darkMode?: boolean; selectedPod: string | null; onPodSelect: (podName: string) => void}> = ({
-    logs,
-    darkMode,
-    selectedPod,
-    onPodSelect
-}) => {
-    const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
-    const handlePodClick = (podName: string) => {
-        // If clicking the already selected pod, unselect it
-        if (selectedPod === podName) {
-            onPodSelect(null);
-        } else {
-            onPodSelect(podName);
-        }
-    };
-    return (
-        <div className='pod-logs-viewer__legend'>
-            {uniquePods.map(podName => {
-                const isSelected = selectedPod === podName;
-                const bgColor = isSelected ? getPodBackgroundColor(podName, darkMode) : 'transparent';
-                const textColor = isSelected ? (darkMode ? '#FF00FF' : '#0000FF') : '#000000';
-                return (
-                    <div key={podName} className='pod-logs-viewer__legend-item' onClick={() => handlePodClick(podName)} style={{cursor: 'pointer'}}>
-                        <span className='color-box' style={{backgroundColor: bgColor}} />
-                        <span className='pod-name' style={{color: textColor}}>
-                            {podName}
-                        </span>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
 // https://2ality.com/2012/09/empty-regexp.html
 const matchNothing = /.^/;
 
@@ -199,17 +165,22 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         if (event.deltaY < 0) setScrollToBottom(false);
     };
 
-    const renderLog = (log: LogEntry, lineNum: number, darkMode: boolean) =>
-        // show the pod name if there are multiple pods, pad with spaces to align
-        (viewPodNames
+    const renderLog = (log: LogEntry, lineNum: number, darkMode: boolean) => {
+        const podNameContent = viewPodNames
             ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
-                  ? podColor(log.podName, darkMode, selectedPod === log.podName) + log.podName + reset
+                  ? `${podColor(log.podName, darkMode, selectedPod === log.podName)}${log.podName}${reset}`
                   : ' '.repeat(log.podName.length)) + ' '
-            : '') +
+            : '';
+
         // show the timestamp if requested, pad with spaces to align
-        (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
+        const timestampContent = viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '';
+
         // show the log content without colors, only highlight search terms
-        log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
+        const logContent = log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
+
+        return {podNameContent, timestampContent, logContent};
+    };
+
     const logsContent = (width: number, height: number, isWrapped: boolean, prefs: ViewPreferences) => (
         <div
             ref={logsContainerRef}
@@ -218,29 +189,42 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 width,
                 height,
                 overflow: 'scroll',
-                minWidth: '100%' // Ensure container takes full width
+                minWidth: '100%'
             }}>
             <div
                 style={{
                     width: '100%',
-                    minWidth: 'fit-content' // Ensure content doesn't shrink
+                    minWidth: 'fit-content'
                 }}>
-                {logs.map((log, lineNum) => (
-                    <div
-                        key={lineNum}
-                        style={{
-                            whiteSpace: isWrapped ? 'normal' : 'pre',
-                            lineHeight: '16px',
-                            backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
-                            padding: '1px 8px',
-                            width: '100vw', // Use viewport width
-                            marginLeft: '-8px', // Offset the padding
-                            marginRight: '-8px'
-                        }}
-                        className='noscroll'>
-                        <Ansi>{renderLog(log, lineNum, prefs.appDetails.darkMode)}</Ansi>
-                    </div>
-                ))}
+                {logs.map((log, lineNum) => {
+                    const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
+                    return (
+                        <div
+                            key={lineNum}
+                            style={{
+                                whiteSpace: isWrapped ? 'normal' : 'pre',
+                                lineHeight: '16px',
+                                backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
+                                padding: '1px 8px',
+                                width: '100vw',
+                                marginLeft: '-8px',
+                                marginRight: '-8px'
+                            }}
+                            className='noscroll'>
+                            {viewPodNames && (lineNum === 0 || logs[lineNum - 1].podName !== log.podName) && (
+                                <span onClick={() => setSelectedPod(selectedPod === log.podName ? null : log.podName)} style={{cursor: 'pointer'}} className='pod-name-link'>
+                                    <Ansi>{podNameContent}</Ansi>
+                                </span>
+                            )}
+                            {viewPodNames && !(lineNum === 0 || logs[lineNum - 1].podName !== log.podName) && (
+                                <span>
+                                    <Ansi>{podNameContent}</Ansi>
+                                </span>
+                            )}
+                            <Ansi>{timestampContent + logContent}</Ansi>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -249,7 +233,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             {(prefs: ViewPreferences) => {
                 return (
                     <React.Fragment>
-                        {viewPodNames && <PodLegend logs={logs} darkMode={prefs.appDetails.darkMode} selectedPod={selectedPod} onPodSelect={setSelectedPod} />}
                         <div className='pod-logs-viewer__settings'>
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
