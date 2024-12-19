@@ -164,7 +164,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
