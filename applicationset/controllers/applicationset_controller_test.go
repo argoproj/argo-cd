@@ -36,7 +36,6 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -6710,7 +6709,7 @@ func TestIgnoreNotAllowedNamespaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			predicate := ignoreNotAllowedNamespaces(tt.namespaces)
-			object := &argov1alpha1.ApplicationSet{
+			object := &v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: tt.objectNS,
 				},
