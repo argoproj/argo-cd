@@ -59,7 +59,7 @@ $pod-age-icon-clr: #ffce25;
             }
         }
         &__info {
-            margin-top: 1em;
+            margin-top: 3em;
             display: flex;
             justify-content: end;
             div {
@@ -68,6 +68,22 @@ $pod-age-icon-clr: #ffce25;
                 color: $argo-color-gray-7;
                 margin-right: 5px;
                 padding: 3px 5px;
+            }
+            #cost {
+                background-color: $argo-color-gray-7; 
+                color: whitesmoke;            
+                padding: 5px 8px;                   
+                font-weight: bold;                 
+                margin-right: auto;      
+                transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+                border: 1px solid lighten($argo-color-gray-7, 10%);
+                
+            
+                &:hover {
+                    background-color: darken($argo-color-gray-7, 10%); 
+                    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2); 
+                }
             }
         }
         &__info--large {
