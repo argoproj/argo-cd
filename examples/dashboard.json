@@ -1,50 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "panel",
-      "id": "gauge",
-      "name": "Gauge",
-      "version": ""
-    },
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.0.3"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph (old)",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "heatmap",
-      "name": "Heatmap",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -113,7 +67,7 @@
         "content": "![argoimage](https://avatars1.githubusercontent.com/u/30269780?s=110&v=4)",
         "mode": "markdown"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -158,7 +112,8 @@
               }
             ]
           },
-          "unit": "dtdurations"
+          "unit": "dtdurations",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -187,7 +142,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -236,7 +191,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -265,7 +221,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -315,7 +271,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -344,7 +301,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "repeatDirection": "h",
       "targets": [
         {
@@ -395,7 +352,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -424,7 +382,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
@@ -473,7 +431,8 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "none",
+          "unitScale": true
         },
         "overrides": []
       },
@@ -500,7 +459,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "repeatDirection": "h",
       "targets": [
         {
@@ -528,7 +487,8 @@
       },
       "fieldConfig": {
         "defaults": {
-          "links": []
+          "links": [],
+          "unitScale": true
         },
         "overrides": []
       },
@@ -566,7 +526,7 @@
       },
       "paceLength": 10,
       "percentage": false,
-      "pluginVersion": "10.0.3",
+      "pluginVersion": "10.3.1",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -648,7 +608,8 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": []
+              "links": [],
+              "unitScale": true
             },
             "overrides": []
           },
@@ -687,7 +648,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -757,7 +718,8 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": []
+              "links": [],
+              "unitScale": true
             },
             "overrides": []
           },
@@ -796,7 +758,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -921,7 +883,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -1024,7 +986,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1093,6 +1055,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$datasource"
       },
       "gridPos": {
@@ -1150,7 +1113,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1283,7 +1246,7 @@
               "unit": "short"
             }
           },
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "reverseYBuckets": false,
           "targets": [
             {
@@ -1363,7 +1326,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1458,7 +1421,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1553,7 +1516,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1681,7 +1644,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -1782,7 +1745,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -1884,7 +1847,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2008,7 +1971,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2109,7 +2072,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2211,7 +2174,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2334,7 +2297,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2433,7 +2396,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2531,7 +2494,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2649,7 +2612,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2740,7 +2703,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2871,7 +2834,7 @@
               "unit": "short"
             }
           },
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "reverseYBuckets": false,
           "targets": [
             {
@@ -2981,7 +2944,7 @@
               "unit": "short"
             }
           },
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "reverseYBuckets": false,
           "targets": [
             {
@@ -3054,7 +3017,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3149,7 +3112,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3263,7 +3226,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3353,7 +3316,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3441,7 +3404,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3555,7 +3518,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3645,7 +3608,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3735,7 +3698,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3824,7 +3787,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3921,7 +3884,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4010,7 +3973,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4099,7 +4062,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4188,7 +4151,7 @@
           },
           "paceLength": 10,
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -4297,7 +4260,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "10.0.3",
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
