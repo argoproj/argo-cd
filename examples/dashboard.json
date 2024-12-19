@@ -1055,7 +1055,6 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
         "uid": "$datasource"
       },
       "gridPos": {
@@ -1072,7 +1071,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -1603,7 +1601,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -1702,7 +1699,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -1804,7 +1800,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -1930,7 +1925,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2029,7 +2023,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2131,7 +2124,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2257,7 +2249,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2355,7 +2346,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2454,7 +2444,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -2980,7 +2969,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -3075,7 +3063,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -3195,7 +3182,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fill": 1,
@@ -3285,7 +3271,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fill": 1,
@@ -4208,7 +4193,6 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
         "uid": "$datasource"
       },
       "gridPos": {
@@ -4225,7 +4209,6 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
@@ -4271,7 +4254,6 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
                 "uid": "$datasource"
               },
               "expr": "sum(increase(argocd_redis_request_total{namespace=~\"$namespace\"}[$interval])) by (failed)",
@@ -4312,7 +4294,6 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "refId": "A"
@@ -4350,7 +4331,6 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
-          "type": "prometheus",
           "uid": "$datasource"
         },
         "definition": "label_values(kube_pod_info, namespace)",
@@ -4474,7 +4454,6 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
-          "type": "prometheus",
           "uid": "$datasource"
         },
         "definition": "label_values(argocd_cluster_info, server)",
