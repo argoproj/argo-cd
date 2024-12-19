@@ -674,7 +674,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -6652,6 +6652,69 @@ func TestMigrateStatus(t *testing.T) {
 			err := r.migrateStatus(context.Background(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
+		})
+	}
+}
+
+func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
+	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		oldAppSet         *v1alpha1.ApplicationSet
+		newAppSet         *v1alpha1.ApplicationSet
+		reconcileExpected bool
+	}{
+		{
+			name: "annotation removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name: "annotation not removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+		{
+			name:              "annotation never existed",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: true,
+		},
+		{
+			name:      "annotation added",
+			oldAppSet: buildAppSet(map[string]string{}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+	}
+
+	predicate := ignoreWhenAnnotationApplicationSetRefreshIsRemoved()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := event.UpdateEvent{
+				ObjectOld: tt.oldAppSet,
+				ObjectNew: tt.newAppSet,
+			}
+			result := predicate.Update(e)
+			assert.Equal(t, tt.reconcileExpected, result)
 		})
 	}
 }
