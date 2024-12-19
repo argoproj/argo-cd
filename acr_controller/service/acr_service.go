@@ -93,7 +93,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	revisions := []string{*revision}
 
 	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		c.logger.Infof("Patch operation sync result for application %s", app.Name)
+		c.logger.Infof("Patch operation status for application %s", app.Name)
 		return c.patchOperationSyncResultWithChangeRevision(ctx, app, revisions)
 	}
 
