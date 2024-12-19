@@ -637,6 +637,7 @@ func Test_GetWebUrlRegex(t *testing.T) {
 		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
 		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
 	}
+
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
@@ -648,6 +649,48 @@ func Test_GetWebUrlRegex(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("bad URL should error", func(t *testing.T) {
+		_, err := GetWebUrlRegex("%%")
+		require.Error(t, err)
+	})
+}
+
+func Test_GetApiUrlRegex(t *testing.T) {
+	tests := []struct {
+		shouldMatch bool
+		apiURL      string
+		repo        string
+		name        string
+	}{
+		// Ensure input is regex-escaped.
+		{false, "https://an.example.com/", "https://an-example.com/", "dots in domain names should not be treated as wildcards"},
+
+		// Standard cases.
+		{true, "https://example.com/", "https://example.com/", "exact match should match"},
+		{false, "https://example.com/", "ssh://example.com/", "should not match ssh"},
+		{true, "https://user@example.com/", "http://example.com/", "https+username should match http"},
+		{true, "https://user@example.com/", "https://example.com/", "https+username should match https"},
+		{true, "http://example.com/", "https://user@example.com/", "http should match https+username"},
+		{true, "https://example.com/", "https://user@example.com/", "https should match https+username"},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			regexp, err := GetApiUrlRegex(testCopy.apiURL)
+			require.NoError(t, err)
+			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
+				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+			}
+		})
+	}
+
+	t.Run("bad URL should error", func(t *testing.T) {
+		_, err := GetApiUrlRegex("%%")
+		require.Error(t, err)
+	})
 }
 
 func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
