@@ -108,7 +108,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "System Hook",
 			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
+			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
