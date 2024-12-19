@@ -729,7 +729,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 		if segments[0] != "extensions" {
-			http.Error(w, fmt.Sprintf("Invalid URL: first segment must be %s", URLPrefix), http.StatusBadRequest)
+			http.Error(w, "Invalid URL: first segment must be "+URLPrefix, http.StatusBadRequest)
 			return
 		}
 		extName := segments[1]

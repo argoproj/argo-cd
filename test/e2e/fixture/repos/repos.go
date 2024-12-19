@@ -160,7 +160,7 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 	errors.CheckError(err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
+	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
 	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -172,6 +172,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
+		"oci://"+fixture.HelmOCIRegistryURL,
 	))
 }

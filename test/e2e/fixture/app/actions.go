@@ -455,13 +455,13 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	a.runCli("app", "delete", "--selector="+selector, "--yes")
 	return a
 }
 
 func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
+	a.runCli("app", "delete", "--selector="+selector, "--yes", "--wait")
 	return a
 }
 

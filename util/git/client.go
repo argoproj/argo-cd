@@ -943,7 +943,7 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
@@ -965,8 +965,8 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	// If a basic auth header is explicitly set, tell Git to send it to the
 	// server to force use of basic auth instead of negotiating the auth scheme
 	for _, e := range environ {
-		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
-			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
+		if strings.HasPrefix(e, forceBasicAuthHeaderEnv+"=") {
+			args = append([]string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv}, args...)
 		}
 	}
 
@@ -1002,7 +1002,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			} else {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 				if err == nil && caPath != "" {
-					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+					cmd.Env = append(cmd.Env, "GIT_SSL_CAINFO="+caPath)
 				}
 			}
 		}
