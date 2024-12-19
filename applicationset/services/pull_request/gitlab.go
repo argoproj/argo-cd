@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
-	gitlab "github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )

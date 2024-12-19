@@ -268,6 +268,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [PITS Globale Datenrettungsdienste](https://www.pitsdatenrettung.de/)
 1. [Platform9 Systems](https://platform9.com/)
 1. [Polarpoint.io](https://polarpoint.io)
+1. [Pollinate](https://www.pollinate.global)
 1. [PostFinance](https://github.com/postfinance)
 1. [Preferred Networks](https://preferred.jp/en/)
 1. [Previder BV](https://previder.nl)

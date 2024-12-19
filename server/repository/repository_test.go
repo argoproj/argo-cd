@@ -267,7 +267,7 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
-		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr, false)
 		url := "https://test"
 		repo, _ := s.getRepo(context.TODO(), url, "")
 		assert.Equal(t, repo.Repo, url)
@@ -278,7 +278,7 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
-		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, argoDB, enforcer, nil, appLister, projInformer, testNamespace, settingsMgr, false)
 		url := "https://test"
 		_, err := s.ValidateAccess(context.TODO(), &repository.RepoAccessQuery{
 			Repo: url,
@@ -297,7 +297,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -322,7 +322,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(testRepo, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -343,7 +343,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(nil, errors.New("some error"))
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -362,7 +362,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(false, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -381,7 +381,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -404,7 +404,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test"}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -426,7 +426,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
@@ -447,7 +447,7 @@ func TestRepositoryServer(t *testing.T) {
 			Project: "proj",
 		}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
 			Repo: &appsv1.Repository{
 				Repo:     "test",
@@ -463,24 +463,27 @@ func TestRepositoryServer(t *testing.T) {
 		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
 		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 
+		r := &appsv1.Repository{
+			Repo:     "test",
+			Username: "test",
+		}
+
 		db := &dbmocks.ArgoDB{}
 		db.On("GetRepository", context.TODO(), "test", "").Return(&appsv1.Repository{
 			Repo:     "test",
 			Username: "test",
 		}, nil)
 		db.On("CreateRepository", context.TODO(), mock.Anything).Return(nil, status.Errorf(codes.AlreadyExists, "repository already exists"))
-		db.On("UpdateRepository", context.TODO(), mock.Anything).Return(nil, nil)
+		db.On("UpdateRepository", context.TODO(), mock.Anything).Return(r, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		repo, err := s.CreateRepository(context.TODO(), &repository.RepoCreateRequest{
-			Repo: &appsv1.Repository{
-				Repo:     "test",
-				Username: "test",
-			},
+			Repo:   r,
 			Upsert: true,
 		})
 
 		require.NoError(t, err)
+		require.NotNil(t, repo)
 		assert.Equal(t, "test", repo.Repo)
 	})
 
@@ -496,7 +499,7 @@ func TestRepositoryServer(t *testing.T) {
 		db.On("ListHelmRepositories", context.TODO(), mock.Anything).Return(nil, nil)
 		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
 		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
 		require.NoError(t, err)
 		assert.Len(t, resp.Items, 2)
@@ -518,7 +521,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
 			Repo:       "https://test",
 			Revision:   "HEAD",
@@ -547,7 +550,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			},
 		}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
 			Repo:       "https://test",
 			Revision:   "HEAD",
@@ -555,7 +558,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Len(t, resp.Items, 1)
+		require.Len(t, resp.Items, 1)
 		assert.Equal(t, "path/to/dir", resp.Items[0].Path)
 		assert.Equal(t, "Kustomize", resp.Items[0].Type)
 	})
@@ -578,7 +581,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			},
 		}, nil)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.ListApps(context.TODO(), &repository.RepoAppsQuery{
 			Repo:       "https://test",
 			Revision:   "HEAD",
@@ -605,7 +608,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source: &appsv1.ApplicationSource{
 				RepoURL: url,
@@ -628,7 +631,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source: &appsv1.ApplicationSource{
 				RepoURL: url,
@@ -650,7 +653,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "default").Return(&appsv1.Repository{Repo: url}, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source: &appsv1.ApplicationSource{
 				RepoURL: url,
@@ -676,7 +679,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source: &appsv1.ApplicationSource{
 				RepoURL: url,
@@ -701,7 +704,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
 		appLister, projLister := newAppAndProjLister(defaultProjNoSources)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source: &appsv1.ApplicationSource{
 				RepoURL: url,
@@ -727,7 +730,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj, guestbookApp)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     guestbookApp.Spec.GetSourcePtrByIndex(0),
 			AppName:    "guestbook",
@@ -752,7 +755,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient.On("GetAppDetails", context.TODO(), mock.Anything).Return(&expectedResp, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp001)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		sources := multiSourceApp001.Spec.GetSources()
 		assert.Len(t, sources, 2)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
@@ -793,7 +796,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		repoServerClient.On("GetAppDetails", context.TODO(), mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url1 })).Return(&expectedResp1, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp002)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		sources := multiSourceApp002.Spec.GetSources()
 		assert.Len(t, sources, 2)
 
@@ -825,7 +828,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.On("GetRepository", context.TODO(), url, "mismatch").Return(&appsv1.Repository{Repo: url}, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj, guestbookApp)
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     guestbookApp.Spec.GetSourcePtrByIndex(0),
 			AppName:    "guestbook",
@@ -846,7 +849,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		differentSource := guestbookApp.Spec.Source.DeepCopy()
 		differentSource.Helm.ValueFiles = []string{"/etc/passwd"}
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     differentSource,
 			AppName:    "guestbook",
@@ -872,7 +875,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		previousSource := guestbookApp.Status.History[0].Source.DeepCopy()
 		previousSource.TargetRevision = guestbookApp.Status.History[0].Revision
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:     previousSource,
 			AppName:    "guestbook",
@@ -901,7 +904,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		differentSource := multiSourceApp001.Spec.Sources[0].DeepCopy()
 		differentSource.Helm.ValueFiles = []string{"/etc/passwd"}
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:      differentSource,
 			AppName:     multiSourceApp001AppName,
@@ -929,7 +932,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		previousSource := multiSourceApp001.Status.History[0].Sources[0].DeepCopy()
 		previousSource.TargetRevision = multiSourceApp001.Status.History[0].Revisions[0]
 
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 		resp, err := s.GetAppDetails(context.TODO(), &repository.RepoAppDetailsQuery{
 			Source:      previousSource,
 			AppName:     multiSourceApp001AppName,
@@ -1148,7 +1151,7 @@ func TestDeleteRepository(t *testing.T) {
 			db.On("GetRepository", context.TODO(), repo, "default").Return(&appsv1.Repository{Repo: repo, Project: "default"}, nil)
 			appLister, projLister := newAppAndProjLister(defaultProj)
 
-			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
+			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 			resp, err := s.DeleteRepository(context.TODO(), &repository.RepoQuery{Repo: repo, AppProject: "default"})
 			require.NoError(t, err)
 			assert.Equal(t, repositorypkg.RepoResponse{}, *resp)

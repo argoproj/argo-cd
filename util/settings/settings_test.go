@@ -66,6 +66,42 @@ func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
 	updateSettingsFromConfigMap(&settings, argocdCM)
 }
 
+func TestGetConfigMapByName(t *testing.T) {
+	t.Run("data is never nil", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		cm, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		assert.NotNil(t, cm.Data)
+	})
+	t.Run("cannot update informer value", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		cm1, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		cm1.Data["test"] = "invalid"
+		cm2, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		assert.NotContains(t, cm2.Data, "test")
+	})
+}
+
+func TestGetSecretByName(t *testing.T) {
+	t.Run("data is never nil", func(t *testing.T) {
+		_, settingsManager := fixtures(nil, func(secret *v1.Secret) { secret.Data = nil })
+		secret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		assert.NotNil(t, secret.Data)
+	})
+	t.Run("cannot update informer value", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		s1, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		s1.Data["test"] = []byte("invalid")
+		s2, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		assert.NotContains(t, s2.Data, "test")
+	})
+}
+
 func TestGetRepositories(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"repositories": "\n  - url: http://foo\n",

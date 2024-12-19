@@ -104,6 +104,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a System Hook via Commit",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "System Hook",
+			payloadFile:        "gitlab-event.json",
+			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook with an unknown event",
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",

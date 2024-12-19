@@ -45,6 +45,7 @@ message Settings {
     bool impersonationEnabled = 25;
     string installationID = 26;
     repeated string additionalUrls = 27 [(gogoproto.customname) = "AdditionalURLs"];
+    bool hydratorEnabled = 28;
 }
 
 message GoogleAnalyticsConfig {
