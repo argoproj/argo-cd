@@ -11,6 +11,7 @@ type RepoOptions struct {
 	Repo                           appsv1.Repository
 	Upsert                         bool
 	SshPrivateKeyPath              string
+	InsecureOCIForceHttp           bool
 	InsecureIgnoreHostKey          bool
 	InsecureSkipServerVerification bool
 	TlsClientCertPath              string

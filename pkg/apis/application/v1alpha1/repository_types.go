@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/util/oci"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -99,11 +101,13 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,24,opt,name=insecureOCIForceHttp"`
 }
 
-// IsInsecure returns true if the repository has been configured to skip server verification
+// IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
 func (repo *Repository) IsInsecure() bool {
-	return repo.InsecureIgnoreHostKey || repo.Insecure
+	return repo.InsecureIgnoreHostKey || repo.Insecure || repo.InsecureOCIForceHttp
 }
 
 // IsLFSEnabled returns true if LFS support is enabled on repository
@@ -149,6 +153,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
+		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
@@ -216,7 +221,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	return git.NopCreds{}
 }
 
-// GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
+// GetHelmCreds returns the credentials from a repository configuration used to authenticate a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{
 		Username:           repo.Username,
@@ -225,6 +230,19 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
+	}
+}
+
+// GetOCICreds returns the credentials from a repository configuration used to authenticate an OCI repository
+func (repo *Repository) GetOCICreds() oci.Creds {
+	return oci.Creds{
+		Username:           repo.Username,
+		Password:           repo.Password,
+		CAPath:             getCAPath(repo.Repo),
+		CertData:           []byte(repo.TLSClientCertData),
+		KeyData:            []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify: repo.Insecure,
+		InsecureHttpOnly:   repo.InsecureOCIForceHttp,
 	}
 }
 
@@ -370,7 +388,7 @@ type GnuPGPublicKey struct {
 	Owner string `json:"owner,omitempty" protobuf:"bytes,3,opt,name=owner"`
 	// Trust holds the level of trust assigned to this key
 	Trust string `json:"trust,omitempty" protobuf:"bytes,4,opt,name=trust"`
-	// SubType holds the key's sub type (e.g. rsa4096)
+	// SubType holds the key's subtype (e.g. rsa4096)
 	SubType string `json:"subType,omitempty" protobuf:"bytes,5,opt,name=subType"`
 	// KeyData holds the raw key data, in base64 encoded format
 	KeyData string `json:"keyData,omitempty" protobuf:"bytes,6,opt,name=keyData"`
