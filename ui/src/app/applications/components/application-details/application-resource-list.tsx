@@ -82,7 +82,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     <div className='row'>
                                         <div className='columns small-1 xxxlarge-1'>
                                             <div className='application-details__resource-icon'>
-                                                <ResourceIcon kind={res.kind} />
+                                                <ResourceIcon group={res.group} kind={res.kind} />
                                                 <br />
                                                 <div>{ResourceLabel({kind: res.kind})}</div>
                                             </div>
