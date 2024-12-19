@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
@@ -255,8 +256,12 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				if err != nil {
 					break
 				}
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
+				if argoClaims := (&utils.ArgoClaims{
+					RegisteredClaims: jwt.RegisteredClaims{
+						Subject: jwtutil.StringField(claims, "sub"),
+					},
+				}); utils.GetUserIdentifier(argoClaims) != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", utils.GetUserIdentifier(argoClaims)))
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", issuedAtTime.Format(time.RFC3339)))
