@@ -16,6 +16,7 @@ linters:
     - goimports
     - gosimple
     - govet
+    - importas
     - ineffassign
     - misspell
     - perfsprint
@@ -40,6 +41,11 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  importas:
+    alias:
+      - alias: apierrors 
+        pkg: k8s.io/apimachinery/pkg/api/errors
+
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
