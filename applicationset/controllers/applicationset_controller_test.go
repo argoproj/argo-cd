@@ -1888,6 +1888,8 @@ func TestRequeueGeneratorFails(t *testing.T) {
 }
 
 func TestValidateGeneratedApplications(t *testing.T) {
+	t.Parallel()
+
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -1919,7 +1921,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	for _, cc := range []struct {
 		name             string
 		apps             []v1alpha1.Application
-		expectedErrors   []string
 		validationErrors map[int]error
 	}{
 		{
@@ -1942,7 +1943,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -1966,7 +1966,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server"},
 			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
@@ -1989,7 +1988,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application references project DOES-NOT-EXIST which does not exist"},
 			validationErrors: map[int]error{0: fmt.Errorf("application references project DOES-NOT-EXIST which does not exist")},
 		},
 		{
@@ -2012,7 +2010,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -2035,11 +2032,12 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application destination spec is invalid: there are no clusters with this name: nonexistent-cluster"},
 			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
@@ -2072,19 +2070,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
-
 			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo)
-			var errorMessages []string
-			for _, v := range validationErrors {
-				errorMessages = append(errorMessages, v.Error())
-			}
-
-			if len(errorMessages) == 0 {
-				assert.Empty(t, cc.expectedErrors, "Expected errors but none were seen")
-			} else {
-				assert.Equal(t, cc.expectedErrors, errorMessages)
-				assert.Equal(t, cc.validationErrors, validationErrors)
-			}
+			assert.Equal(t, cc.validationErrors, validationErrors)
 		})
 	}
 }

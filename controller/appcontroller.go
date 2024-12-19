@@ -2226,7 +2226,8 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 		backOff := *ctrl.selfHealBackOff
 		backOff.Steps = int(app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
 		var delay time.Duration
-		for backOff.Steps > 0 {
+		steps := backOff.Steps
+		for i := 0; i < steps; i++ {
 			delay = backOff.Step()
 		}
 		if app.Status.OperationState.FinishedAt == nil {
