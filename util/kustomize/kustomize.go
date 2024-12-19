@@ -130,7 +130,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
 			} else {
 				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
 		}
 	}

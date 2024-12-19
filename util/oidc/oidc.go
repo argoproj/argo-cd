@@ -383,7 +383,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
 	}
-	cookiePath := fmt.Sprintf("path=/%s", path)
+	cookiePath := "path=/" + path
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")

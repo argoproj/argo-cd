@@ -1077,7 +1077,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projData, err = yaml.JSONToYAML(projData)
 			errors.CheckError(err)
 
-			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
+			cli.InteractiveEdit(projName+"-*-edit.yaml", projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
 					return fmt.Errorf("error converting YAML to JSON: %w", err)

@@ -2246,10 +2246,10 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
-		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_PATH=%s", q.Source.Path),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
+		"ARGOCD_APP_NAME=" + q.AppName,
+		"ARGOCD_APP_SOURCE_REPO_URL=" + q.Repo.Repo,
+		"ARGOCD_APP_SOURCE_PATH=" + q.Source.Path,
+		"ARGOCD_APP_SOURCE_TARGET_REVISION=" + q.Source.TargetRevision,
 	}
 
 	env, err := getPluginParamEnvs(envVars, q.Source.Plugin)
@@ -2351,7 +2351,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		if cs != "" {
 			vr := gpg.ParseGitCommitVerification(cs)
 			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
+				signatureInfo = "UNKNOWN signature: " + vr.Message
 			} else {
 				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}

@@ -116,5 +116,5 @@ func getNewNamespace(t *testing.T) string {
 	require.NoError(t, err)
 	postFix := "-" + strings.ToLower(randStr)
 	name := fixture.DnsFriendly(t.Name(), "")
-	return fixture.DnsFriendly(fmt.Sprintf("argocd-e2e-%s", name), postFix)
+	return fixture.DnsFriendly("argocd-e2e-"+name, postFix)
 }

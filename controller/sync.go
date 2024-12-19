@@ -117,7 +117,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
+		state.Message = "Shared resource found: " + sharedResourceMessage
 		return
 	}
 
@@ -625,7 +625,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
-				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
+				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
 			} else {
 				// service account needs to be prefixed with a namespace
 				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
