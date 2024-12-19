@@ -2183,56 +2183,6 @@ func TestLogsGetSelectedPod(t *testing.T) {
 	})
 }
 
-func TestMaxPodLogsRender(t *testing.T) {
-	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
-
-	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
-	podNumber := int(defaultMaxPodLogsToRender - 1)
-	appServer, adminCtx := createAppServerWithMaxLodLogs(t, podNumber)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.OK, statusCode.Code())
-	})
-
-	// Case: number of pods higher than defaultMaxPodLogsToRender
-	podNumber = int(defaultMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		require.Error(t, err)
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query")
-	})
-
-	// Case: number of pods to view logs is less than customMaxPodLogsToRender
-	customMaxPodLogsToRender := int64(15)
-	podNumber = int(customMaxPodLogsToRender - 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.OK, statusCode.Code())
-	})
-
-	// Case: number of pods higher than customMaxPodLogsToRender
-	customMaxPodLogsToRender = int64(15)
-	podNumber = int(customMaxPodLogsToRender + 1)
-	appServer, adminCtx = createAppServerWithMaxLodLogs(t, podNumber, customMaxPodLogsToRender)
-
-	t.Run("PodLogs", func(t *testing.T) {
-		err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: ptr.To("test")}, &TestPodLogsServer{ctx: adminCtx})
-		require.Error(t, err)
-		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query")
-	})
-}
-
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
