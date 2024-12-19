@@ -14,15 +14,12 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 const (
@@ -93,64 +90,6 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
 		applicationSets: dynamicIf.Resource(appplicationSetResource),
 	}
-}
-
-// getReferencedSecrets examines the argocd-cm config for any referenced repo secrets and returns a
-// map of all referenced secrets.
-func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
-	var cm apiv1.ConfigMap
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
-	errors.CheckError(err)
-	referencedSecrets := make(map[string]bool)
-
-	// Referenced repository secrets
-	if reposRAW, ok := cm.Data["repositories"]; ok {
-		repos := make([]settings.Repository, 0)
-		err := yaml.Unmarshal([]byte(reposRAW), &repos)
-		errors.CheckError(err)
-		for _, cred := range repos {
-			if cred.PasswordSecret != nil {
-				referencedSecrets[cred.PasswordSecret.Name] = true
-			}
-			if cred.SSHPrivateKeySecret != nil {
-				referencedSecrets[cred.SSHPrivateKeySecret.Name] = true
-			}
-			if cred.UsernameSecret != nil {
-				referencedSecrets[cred.UsernameSecret.Name] = true
-			}
-			if cred.TLSClientCertDataSecret != nil {
-				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
-			}
-			if cred.TLSClientCertKeySecret != nil {
-				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
-			}
-		}
-	}
-
-	// Referenced repository credentials secrets
-	if reposRAW, ok := cm.Data["repository.credentials"]; ok {
-		creds := make([]settings.RepositoryCredentials, 0)
-		err := yaml.Unmarshal([]byte(reposRAW), &creds)
-		errors.CheckError(err)
-		for _, cred := range creds {
-			if cred.PasswordSecret != nil {
-				referencedSecrets[cred.PasswordSecret.Name] = true
-			}
-			if cred.SSHPrivateKeySecret != nil {
-				referencedSecrets[cred.SSHPrivateKeySecret.Name] = true
-			}
-			if cred.UsernameSecret != nil {
-				referencedSecrets[cred.UsernameSecret.Name] = true
-			}
-			if cred.TLSClientCertDataSecret != nil {
-				referencedSecrets[cred.TLSClientCertDataSecret.Name] = true
-			}
-			if cred.TLSClientCertKeySecret != nil {
-				referencedSecrets[cred.TLSClientCertKeySecret.Name] = true
-			}
-		}
-	}
-	return referencedSecrets
 }
 
 // isArgoCDSecret returns whether or not the given secret is a part of Argo CD configuration
