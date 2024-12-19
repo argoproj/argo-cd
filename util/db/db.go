@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -176,7 +176,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 	if err != nil {
 		appControllerDeployment = nil
-		if !kubeerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
 		}
 	}

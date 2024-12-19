@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	v1 "k8s.io/client-go/informers/core/v1"
@@ -348,7 +348,7 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) error {
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 	} else {

@@ -14,7 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -239,15 +239,15 @@ func TestIsRetryableError(t *testing.T) {
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewConflict(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
+		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
+		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
-		assert.True(t, isRetryableError(apierr.NewTooManyRequests("", 0)))
+		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
 		assert.True(t, isRetryableError(&net.DNSError{}))
