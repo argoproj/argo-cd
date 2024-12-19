@@ -101,7 +101,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	}, nil)
 	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
 	liveStateCache := cachemocks.LiveStateCache{}
-	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
+	liveStateCache.On("GetManagedLiveObjs", mock.Anything, mock.Anything, mock.Anything).Return(map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.GetResourceKey(deployment): deployment,
 	}, nil)
 	liveStateCache.On("GetVersionsInfo", mock.Anything).Return("v1.2.3", nil, nil)
