@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
@@ -137,8 +136,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
+		if !assert.Containsf(t, w.Body.String(), "certificate signed by unknown authority", "did not receive expected certificate verification failure error") {
+			require.Containsf(t, w.Body.String(), "certificate is not trusted", "did not receive expected certificate verification failure error")
 		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
@@ -177,8 +176,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
+		if !assert.Containsf(t, w.Body.String(), "certificate signed by unknown authority", "did not receive expected certificate verification failure error") {
+			require.Containsf(t, w.Body.String(), "certificate is not trusted", "did not receive expected certificate verification failure error")
 		}
 
 		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
@@ -363,8 +362,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleCallback(w, req)
 
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
+		if !assert.Containsf(t, w.Body.String(), "certificate signed by unknown authority", "did not receive expected certificate verification failure error") {
+			require.Containsf(t, w.Body.String(), "certificate is not trusted", "did not receive expected certificate verification failure error")
 		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
@@ -403,8 +402,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleCallback(w, req)
 
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
+		if !assert.Containsf(t, w.Body.String(), "certificate signed by unknown authority", "did not receive expected certificate verification failure error") {
+			require.Containsf(t, w.Body.String(), "certificate is not trusted", "did not receive expected certificate verification failure error")
 		}
 
 		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
