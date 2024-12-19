@@ -1547,6 +1547,36 @@ export function formatCreationTimestamp(creationTimestamp: string) {
     );
 }
 
+export function formatOperationMessage(message: string): string {
+    if (!message) {
+        return message;
+    }
+
+    let cleanMessage = message;
+
+    // Format immutable fields error message
+    if (cleanMessage.includes('attempting to change immutable fields:')) {
+        const [header, ...details] = cleanMessage.split('\n');
+        const formattedDetails = details
+            .filter(line => line.trim())
+            .map(line => {
+                if (line.startsWith('-')) {
+                    const [field, changes] = line.substring(2).split(':');
+                    if (changes) {
+                        const [from, to] = changes.split('to:').map(s => s.trim());
+                        return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+                    }
+                }
+                return line;
+            })
+            .join('\n');
+
+        return `${header}\n${formattedDetails}`;
+    }
+
+    return cleanMessage;
+}
+
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
 
 export function getUsrMsgKeyToDisplay(appName: string, msgKey: string, usrMessages: appModels.UserMessages[]) {
