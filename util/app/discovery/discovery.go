@@ -170,12 +170,17 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
 	if err != nil {
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
+		io.Close(conn)
 		return nil, nil, false
 	}
 
-	// if discovery is not configured, return the client without further checks
 	if !cfg.IsDiscoveryConfigured {
-		return conn, cmpClient, true
+		// If discovery isn't configured but the plugin is named, then the plugin supports the repo.
+		if namedPlugin {
+			return conn, cmpClient, true
+		}
+		io.Close(conn)
+		return nil, nil, false
 	}
 
 	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)

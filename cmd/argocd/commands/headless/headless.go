@@ -14,8 +14,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
+	corev1 "k8s.io/api/core/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
@@ -127,7 +129,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metaV1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return
@@ -202,7 +204,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 
 	// get rid of logging error handler
-	runtime.ErrorHandlers = runtime.ErrorHandlers[1:]
+	runtimeUtil.ErrorHandlers = runtimeUtil.ErrorHandlers[1:]
 	cli.SetLogLevel(log.ErrorLevel.String())
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
@@ -237,7 +239,18 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error creating kubernetes dynamic clientset: %w", err)
 	}
 
-	controllerClientset, err := client.New(restConfig, client.Options{})
+	scheme := runtime.NewScheme()
+	err = v1alpha1.AddToScheme(scheme)
+	if err != nil {
+		return fmt.Errorf("error adding argo resources to scheme: %w", err)
+	}
+	err = corev1.AddToScheme(scheme)
+	if err != nil {
+		return fmt.Errorf("error adding corev1 resources to scheme: %w", err)
+	}
+	controllerClientset, err := client.New(restConfig, client.Options{
+		Scheme: scheme,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating kubernetes controller clientset: %w", err)
 	}

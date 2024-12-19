@@ -403,6 +403,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	SetResourceOverridesSplitKeys(overrides)
 }
 
+func SetInstallationID(installationID string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["installationID"] = installationID
+		return nil
+	})
+}
+
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod

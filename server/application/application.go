@@ -369,7 +369,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	equalSpecs := reflect.DeepEqual(existing.Spec, a.Spec) &&
+
+	if err := argo.ValidateDestination(ctx, &existing.Spec.Destination, s.db); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
+	}
+
+	equalSpecs := existing.Spec.Destination.Equals(a.Spec.Destination) &&
+		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
@@ -510,27 +516,31 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
+			installationID, err := s.settingsMgr.GetInstallationID()
+			if err != nil {
+				return fmt.Errorf("error getting installation ID: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-				Repo:                            repo,
-				Revision:                        source.TargetRevision,
-				AppLabelKey:                     appInstanceLabelKey,
-				AppName:                         a.InstanceName(s.ns),
-				Namespace:                       a.Spec.Destination.Namespace,
-				ApplicationSource:               &source,
-				Repos:                           helmRepos,
-				KustomizeOptions:                kustomizeOptions,
-				KubeVersion:                     serverVersion,
-				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-				HelmRepoCreds:                   helmCreds,
-				HelmOptions:                     helmOptions,
-				TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
-				EnabledSourceTypes:              enableGenerateManifests,
-				ProjectName:                     proj.Name,
-				ProjectSourceRepos:              proj.Spec.SourceRepos,
-				HasMultipleSources:              a.Spec.HasMultipleSources(),
-				RefSources:                      refSources,
-				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				Repo:               repo,
+				Revision:           source.TargetRevision,
+				AppLabelKey:        appInstanceLabelKey,
+				AppName:            a.InstanceName(s.ns),
+				Namespace:          a.Spec.Destination.Namespace,
+				ApplicationSource:  &source,
+				Repos:              helmRepos,
+				KustomizeOptions:   kustomizeOptions,
+				KubeVersion:        serverVersion,
+				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:      helmCreds,
+				HelmOptions:        helmOptions,
+				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes: enableGenerateManifests,
+				ProjectName:        proj.Name,
+				ProjectSourceRepos: proj.Spec.SourceRepos,
+				HasMultipleSources: a.Spec.HasMultipleSources(),
+				RefSources:         refSources,
+				InstallationID:     installationID,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
@@ -631,23 +641,22 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		req := &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Revision:                        source.TargetRevision,
-			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
-			Namespace:                       a.Spec.Destination.Namespace,
-			ApplicationSource:               &source,
-			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeOptions,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:                   helmCreds,
-			HelmOptions:                     helmOptions,
-			TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes:              enableGenerateManifests,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+			Repo:               repo,
+			Revision:           source.TargetRevision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.Name,
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			Repos:              helmRepos,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
@@ -1889,7 +1898,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	if err != nil {
+		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
+	}
+	if !canSync {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: blocked by sync window")
 	}
 
@@ -2204,7 +2217,7 @@ func getAmbiguousRevision(app *appv1.Application, syncReq *application.Applicati
 	ambiguousRevision := ""
 	if app.Spec.HasMultipleSources() {
 		for i, pos := range syncReq.SourcePositions {
-			if pos == int64(sourceIndex) {
+			if pos == int64(sourceIndex+1) {
 				ambiguousRevision = syncReq.Revisions[i]
 			}
 		}
@@ -2606,10 +2619,17 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync := windows.CanSync(true)
+	sync, err := windows.CanSync(true)
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 
+	activeWindows, err := windows.Active()
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	res := &application.ApplicationSyncWindowsResponse{
-		ActiveWindows:   convertSyncWindows(windows.Active()),
+		ActiveWindows:   convertSyncWindows(activeWindows),
 		AssignedWindows: convertSyncWindows(windows),
 		CanSync:         &sync,
 	}
