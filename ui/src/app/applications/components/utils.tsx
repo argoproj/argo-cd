@@ -1552,7 +1552,7 @@ export function formatOperationMessage(message: string): string {
         return message;
     }
 
-    let cleanMessage = message;
+    const cleanMessage = message;
 
     // Format immutable fields error message
     if (cleanMessage.includes('attempting to change immutable fields:')) {
