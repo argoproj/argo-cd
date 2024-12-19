@@ -17,6 +17,7 @@ linters:
     - gomodguard
     - gosimple
     - govet
+    - importas
     - ineffassign
     - misspell
     - perfsprint
@@ -47,6 +48,11 @@ linters-settings:
         - github.com/pkg/errors:
             recommendations:
               - errors
+  importas:
+    alias:
+      - alias: apierrors 
+        pkg: k8s.io/apimachinery/pkg/api/errors
+
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
