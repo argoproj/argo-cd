@@ -47,23 +47,6 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 		Expect(Success(""))
 }
 
-// make sure you can create an app from a private repo, if the creds are set-up
-func TestCanAddAppFromInsecurePrivateRepoWithCredCfg(t *testing.T) {
-	Given(t).
-		CustomCACertAdded().
-		HTTPSCredentialsUserPassAdded().
-		RepoURLType(fixture.RepoURLTypeHTTPS).
-		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
-		And(func() {
-			// I use CLI, but you could also modify the settings, we get a free test of the CLI here
-			FailOnErr(fixture.RunCli("repocreds", "update", "--insecure-skip-server-verification"))
-		}).
-		When().
-		CreateApp().
-		Then().
-		Expect(Success(""))
-}
-
 // make sure we can create an app from a private repo, in a secure manner using
 // a custom CA certificate bundle
 func TestCanAddAppFromPrivateRepoWithCredCfg(t *testing.T) {

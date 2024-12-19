@@ -431,7 +431,21 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 
 func TestHelmWithDependencies(t *testing.T) {
 	SkipOnEnv(t, "HELM")
-	testHelmWithDependencies(t, "helm-with-dependencies")
+
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30).
+		HelmPassCredentials()
+
+	ctx = ctx.HelmRepoAdded("custom-repo")
+
+	ctx.Path("helm-with-dependencies").
+		When().
+		CreateApp("--helm-version", "").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmWithMultipleDependencies(t *testing.T) {
@@ -487,24 +501,6 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(Error("", expectedErr))
-}
-
-func testHelmWithDependencies(t *testing.T, chartPath string) {
-	t.Helper()
-	ctx := Given(t).
-		CustomCACertAdded().
-		// these are slow tests
-		Timeout(30).
-		HelmPassCredentials()
-
-	helmVer := ""
-
-	ctx.Path(chartPath).
-		When().
-		CreateApp("--helm-version", helmVer).
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelm3CRD(t *testing.T) {

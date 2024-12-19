@@ -180,6 +180,13 @@ func NewImportCommand() *cobra.Command {
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
+			configMaps, err := acdClients.configMaps.List(ctx, v1.ListOptions{})
+			errors.CheckError(err)
+			for _, cm := range configMaps.Items {
+				if isArgoCDConfigMap(cm.GetName()) {
+					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
+				}
+			}
 			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {

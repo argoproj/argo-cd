@@ -92,6 +92,40 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 	}
 }
 
+// isArgoCDSecret returns whether or not the given secret is a part of Argo CD configuration
+// (e.g. argocd-secret, repo credentials, or cluster credentials)
+func isArgoCDSecret(repoSecretRefs map[string]bool, un unstructured.Unstructured) bool {
+	secretName := un.GetName()
+	if secretName == common.ArgoCDSecretName {
+		return true
+	}
+	if repoSecretRefs != nil {
+		if _, ok := repoSecretRefs[secretName]; ok {
+			return true
+		}
+	}
+	if labels := un.GetLabels(); labels != nil {
+		if _, ok := labels[common.LabelKeySecretType]; ok {
+			return true
+		}
+	}
+	if annotations := un.GetAnnotations(); annotations != nil {
+		if annotations[common.AnnotationKeyManagedBy] == common.AnnotationValueManagedByArgoCD {
+			return true
+		}
+	}
+	return false
+}
+
+// isArgoCDConfigMap returns true if the configmap name is one of argo cd's well known configmaps
+func isArgoCDConfigMap(name string) bool {
+	switch name {
+	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName:
+		return true
+	}
+	return false
+}
+
 // specsEqual returns if the spec, data, labels, annotations, and finalizers of the two
 // supplied objects are equal, indicating that no update is necessary during importing
 func specsEqual(left, right unstructured.Unstructured) bool {
