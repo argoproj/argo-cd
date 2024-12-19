@@ -16,26 +16,26 @@
       "id": 1,
       "name": "project",
       "description": "",
-      "web_url": "https://gitlab/group/name",
+      "web_url": "https://gitlab.com/group/name",
       "avatar_url": null,
-      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
-      "git_http_url": "https://gitlab/group/name.git",
+      "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
+      "git_http_url": "https://gitlab.com/group/name.git",
       "namespace": "group",
       "visibility_level": 1,
       "path_with_namespace": "group/name",
       "default_branch": "master",
       "ci_config_path": null,
-      "homepage": "https://gitlab/group/name",
-      "url": "ssh://git@gitlab:2222/group/name.git",
-      "ssh_url": "ssh://git@gitlab:2222/group/name.git",
-      "http_url": "https://gitlab/group/name.git"
+      "homepage": "https://gitlab.com/group/name",
+      "url": "ssh://git@gitlab.com:2222/group/name.git",
+      "ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
+      "http_url": "https://gitlab.com/group/name.git"
     },
     "commits": [
       {
         "id": "bb0748feaa336d841c251017e4e374c22d0c8a98",
         "message": "Test commit message\n",
         "timestamp": "2020-01-06T03:47:55Z",
-        "url": "https://gitlab/group/name/commit/bb0748feaa336d841c251017e4e374c22d0c8a98",
+        "url": "https://gitlab.com/group/name/commit/bb0748feaa336d841c251017e4e374c22d0c8a98",
         "author": {
           "name": "User",
           "email": "user@example.com"
@@ -55,11 +55,11 @@
     },
     "repository": {
       "name": "name",
-      "url": "ssh://git@gitlab:2222/group/name.git",
+      "url": "ssh://git@gitlab.com:2222/group/name.git",
       "description": "",
-      "homepage": "https://gitlab/group/name",
-      "git_http_url": "https://gitlab/group/name.git",
-      "git_ssh_url": "ssh://git@gitlab:2222/group/name.git",
+      "homepage": "https://gitlab.com/group/name",
+      "git_http_url": "https://gitlab.com/group/name.git",
+      "git_ssh_url": "ssh://git@gitlab.com:2222/group/name.git",
       "visibility_level": 10
     }
   }
