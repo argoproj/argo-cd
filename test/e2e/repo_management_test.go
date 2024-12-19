@@ -14,7 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
@@ -89,7 +88,6 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 
 func TestUpsertExistingRepo(t *testing.T) {
 	app.Given(t).And(func() {
-		CheckError(fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)}))
 		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl)
 		require.NoError(t, err)
