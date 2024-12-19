@@ -140,7 +140,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	}
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
-	fakeClient := fake.NewSimpleClientset()
+	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
