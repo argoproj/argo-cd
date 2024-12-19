@@ -2456,28 +2456,21 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	if watch.delete {
 		return false
 	}
-	healthCheckPassed := true
 
-	if watch.suspended && watch.health && watch.degraded {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended) ||
-			healthStatus == string(health.HealthStatusDegraded)
-	} else if watch.suspended && watch.degraded {
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.degraded && watch.health {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusDegraded)
-		// below are good
-	} else if watch.suspended && watch.health {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
-			healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.suspended {
-		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.health {
-		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	} else if watch.degraded {
-		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
+	healthBeingChecked := watch.suspended || watch.health || watch.degraded
+	var healthCheckPassed bool 
+	if healthBeingChecked {
+		if watch.health {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
+		}
+		if watch.suspended {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusSuspended)
+		}
+		if watch.degraded {
+			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusDegraded)
+		}
+	} else {
+		healthCheckPassed = true
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
