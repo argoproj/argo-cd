@@ -72,7 +72,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("failed to get secret default/%s", RedisInitialCredentials),
+			expectedErr:      "failed to get secret default/" + RedisInitialCredentials,
 			secret:           nil,
 		},
 		{

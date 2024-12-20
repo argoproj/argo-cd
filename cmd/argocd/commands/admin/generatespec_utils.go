@@ -23,7 +23,7 @@ func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
 		return nil, nil, errors.New("The file path must be specified using flag '--file'")
 	}
 
-	err := os.Rename(filePath, fmt.Sprintf("%s.back", filePath))
+	err := os.Rename(filePath, filePath+".back")
 	if err != nil {
 		return nil, nil, err
 	}
