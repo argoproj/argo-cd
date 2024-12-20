@@ -67,6 +67,9 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
                             </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Description (e.g. "Ticket 123456")' field='window.description' component={Text} />
+                            </div>
                         </div>
                         <div className='white-box'>
                             <ProjectSyncWindowApplicationsEdit projName={api.values.projName} window={api.values.window} formApi={api} />
