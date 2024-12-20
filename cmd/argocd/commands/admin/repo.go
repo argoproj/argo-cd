@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"fmt"
+	stderrors "errors"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -92,7 +92,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -100,7 +100,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (repoOpts.TlsClientCertPath != "" && repoOpts.TlsClientCertKeyPath == "") || (repoOpts.TlsClientCertPath == "" && repoOpts.TlsClientCertKeyPath != "") {
-				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -114,7 +114,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -128,7 +128,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.CheckError(fmt.Errorf("must specify --name for repos of type 'helm'"))
+				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))
 			}
 
 			// If the user set a username, but didn't supply password via --password,

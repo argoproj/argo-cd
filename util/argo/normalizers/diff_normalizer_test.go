@@ -2,7 +2,7 @@ package normalizers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -250,7 +250,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 	_, err = jqPatch.Apply(deploymentData)
 	assert.False(t, shouldLogError(err))
 
-	assert.True(t, shouldLogError(fmt.Errorf("An error that should not be ignored")))
+	assert.True(t, shouldLogError(errors.New("An error that should not be ignored")))
 }
 
 func TestJqPathExpressionFailWithTimeout(t *testing.T) {

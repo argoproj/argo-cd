@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
-	goerrors "errors"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -1728,7 +1728,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, false)
 	ts.AddCheckpoint("compare_app_state_ms")
 
-	if goerrors.Is(err, CompareStateRepoError) {
+	if stderrors.Is(err, CompareStateRepoError) {
 		logCtx.Warnf("Ignoring temporary failed attempt to compare app state against repo: %v", err)
 		return // short circuit if git error is encountered
 	}
@@ -2162,7 +2162,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ts.AddCheckpoint("set_app_operation_ms")
 	setOpTime := time.Since(start)
 	if err != nil {
-		if goerrors.Is(err, argo.ErrAnotherOperationInProgress) {
+		if stderrors.Is(err, argo.ErrAnotherOperationInProgress) {
 			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
 			// it is safe to skip auto-sync because it is already running
 			logCtx.Warnf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)

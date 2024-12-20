@@ -2,7 +2,7 @@ package cmp_test
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -30,7 +30,7 @@ func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, fmt.Errorf("timeout receiving message mock")
+		return nil, errors.New("timeout receiving message mock")
 	}
 }
 

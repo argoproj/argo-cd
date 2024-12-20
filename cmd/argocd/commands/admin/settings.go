@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -64,7 +65,7 @@ func setSettingsMeta(obj v1.Object) {
 func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
-		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
+		return nil, stderrors.New("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
 	} else if opts.argocdCMPath == "" {
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {

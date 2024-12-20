@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	stderrors "errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -47,7 +47,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 		RootCAs:            tlsConfig.RootCAs,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
-				return fmt.Errorf("dex server certificate does not match")
+				return stderrors.New("dex server certificate does not match")
 			}
 			return nil
 		},

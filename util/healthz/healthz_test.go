@@ -1,7 +1,7 @@
 package healthz
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"net/http"
 	"testing"
@@ -25,7 +25,7 @@ func TestHealthCheck(t *testing.T) {
 		mux := http.NewServeMux()
 		ServeHealthCheck(mux, func(r *http.Request) error {
 			if sentinel {
-				return fmt.Errorf("This is a dummy error")
+				return errors.New("This is a dummy error")
 			}
 			return nil
 		})

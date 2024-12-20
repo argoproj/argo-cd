@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -251,7 +252,7 @@ func isNillable(v reflect.Value) bool {
 
 func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error) {
 	if tmpl == nil {
-		return nil, fmt.Errorf("application template is empty")
+		return nil, errors.New("application template is empty")
 	}
 
 	if len(params) == 0 {
@@ -282,7 +283,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 
 func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
 	if gen == nil {
-		return nil, fmt.Errorf("generator is empty")
+		return nil, errors.New("generator is empty")
 	}
 
 	if len(params) == 0 {

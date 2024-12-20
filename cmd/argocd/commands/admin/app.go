@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -106,7 +107,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 			if len(apps) > 1 {
-				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
 			}
 			app := apps[0]
 			if app.Name == "" {
@@ -378,7 +379,7 @@ func reconcileApplications(
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
 	if !kubecache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced, projInformer.HasSynced) {
-		return nil, fmt.Errorf("failed to sync cache")
+		return nil, stderrors.New("failed to sync cache")
 	}
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
