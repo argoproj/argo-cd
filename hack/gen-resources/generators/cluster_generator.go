@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"

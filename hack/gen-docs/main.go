@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"github.com/argoproj/notifications-engine/pkg/docs"
 )

@@ -8,8 +8,8 @@ import (
 	"text/template"
 
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	yaml "sigs.k8s.io/yaml/goyaml.v3"
 
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"

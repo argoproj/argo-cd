@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
-	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"

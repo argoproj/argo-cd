@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )
