@@ -78,7 +78,7 @@ func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
-	return func() {
+	go func() {
 		for _, obj := range b.objects {
 			app, ok := obj.(*appsv1.Application)
 			if ok {
@@ -91,7 +91,8 @@ func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters
 				ch <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
 			}
 		}
-	}
+	}()
+	return func() {}
 }
 
 func (broadcasterMock) OnAdd(interface{}, bool)           {}
