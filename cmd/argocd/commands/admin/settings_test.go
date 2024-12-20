@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -261,7 +260,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 
 	require.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
+		assert.Contains(t, out, "✅ "+k)
 	}
 }
 
