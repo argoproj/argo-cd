@@ -44,6 +44,10 @@ linters-settings:
   gomodguard:
     blocked:
       modules:
+        - github.com/imdario/mergo:
+            recommendations:
+              - dario.cat/mergo
+            reason: "`github.com/imdario/mergo` has been renamed."
         - github.com/pkg/errors:
             recommendations:
               - errors

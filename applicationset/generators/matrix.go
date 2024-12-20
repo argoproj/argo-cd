@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
