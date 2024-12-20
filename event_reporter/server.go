@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
+
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 
@@ -95,6 +97,8 @@ type EventReporterServerOpts struct {
 	RootPath                 string
 	CodefreshConfig          *codefresh.CodefreshConfig
 	RateLimiterOpts          *reporter.RateLimiterOpts
+	UseSourcesServer         bool
+	SourcesServerConfig      *sources_server_client.SourcesServerConfig
 }
 
 type handlerSwitcher struct {
@@ -153,7 +157,7 @@ func (a *EventReporterServer) Init(ctx context.Context) {
 }
 
 func (a *EventReporterServer) RunController(ctx context.Context) {
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager, a.RateLimiterOpts, a.db)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager, a.RateLimiterOpts, a.db, a.UseSourcesServer, a.SourcesServerConfig)
 	go controller.Run(ctx)
 }
 

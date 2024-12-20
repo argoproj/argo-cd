@@ -6,6 +6,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
+
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
@@ -104,6 +106,8 @@ func NewCommand() *cobra.Command {
 		rateLimiterBucketSize   int
 		rateLimiterDuration     time.Duration
 		rateLimiterLearningMode bool
+		useSourcesServer        bool
+		sourcesServerBaseURL    string
 	)
 	command := &cobra.Command{
 		Use:               cliName,
@@ -192,6 +196,10 @@ func NewCommand() *cobra.Command {
 					Capacity:     rateLimiterBucketSize,
 					LearningMode: rateLimiterLearningMode,
 				},
+				UseSourcesServer: useSourcesServer,
+				SourcesServerConfig: &sources_server_client.SourcesServerConfig{
+					BaseURL: sourcesServerBaseURL,
+				},
 			}
 
 			log.Infof("Starting event reporter server with grpc transport %v", useGrpc)
@@ -245,6 +253,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&rateLimiterBucketSize, "rate-limiter-bucket-size", env.ParseNumFromEnv("RATE_LIMITER_BUCKET_SIZE", math.MaxInt, 0, math.MaxInt), "The maximum amount of requests allowed per window.")
 	command.Flags().DurationVar(&rateLimiterDuration, "rate-limiter-period", env.ParseDurationFromEnv("RATE_LIMITER_DURATION", 24*time.Hour, 0, math.MaxInt64), "The rate limit window size.")
 	command.Flags().BoolVar(&rateLimiterLearningMode, "rate-limiter-learning-mode", env.ParseBoolFromEnv("RATE_LIMITER_LEARNING_MODE_ENABLED", false), "The rate limit enabled in learning mode ( not blocking sending to queue but logging it )")
+	command.Flags().BoolVar(&useSourcesServer, "use-sources-server", env.ParseBoolFromEnv("SOURCES_SERVER_ENABLED", false), "Use sources-server instead of repo-server fork")
+	command.Flags().StringVar(&sourcesServerBaseURL, "sources-server-base-url", env.StringFromEnv("SOURCES_SERVER_BASE_URL", common.DefaultSourcesServerAddr), "Sources-server base URL")
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

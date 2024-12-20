@@ -1,2 +1,2 @@
 ### Features
--  feat(event-reporter): multisourced apps support improvements: reporting syncOperationRevisions, detecting correct resource sourceIdx, reporting correct git commit info 
+-  feat(event-reporter): using sources-server for getting application version 

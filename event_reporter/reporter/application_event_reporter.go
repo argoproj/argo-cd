@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/sources_server_client"
+
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
@@ -46,6 +48,8 @@ type applicationEventReporter struct {
 	metricsServer            *metrics.MetricsServer
 	db                       db.ArgoDB
 	runtimeVersion           string
+	useSourcesServer         bool
+	sourcesServerClient      sources_server_client.SourceServerClientInteface
 }
 
 type ApplicationEventReporter interface {
@@ -59,7 +63,7 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, db db.ArgoDB) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, db db.ArgoDB, useSourcesServer bool, sourcesServerConfig *sources_server_client.SourcesServerConfig) ApplicationEventReporter {
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
@@ -68,6 +72,8 @@ func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceCli
 		metricsServer:            metricsServer,
 		db:                       db,
 		runtimeVersion:           codefreshConfig.RuntimeVersion,
+		useSourcesServer:         useSourcesServer,
+		sourcesServerClient:      sources_server_client.NewSourceServerClient(sourcesServerConfig),
 	}
 }
 
@@ -265,7 +271,20 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 		}
 
 		syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, nil, &sourcePositions, syncResultRevisions)
-		return syncManifests.GetApplicationVersions()
+
+		var applicationVersions *apiclient.ApplicationVersions
+		if s.useSourcesServer {
+			log.Infof("cfGetAppVersion. Getting version from sourcesserver")
+			if len(*syncResultRevisions) == 0 {
+				return nil
+			}
+			appVers := s.sourcesServerClient.GetAppVersion(a, &(*syncResultRevisions)[0])
+			applicationVersions = utils.SourcesAppVersionsToRepo(appVers, logCtx)
+		} else {
+			applicationVersions = syncManifests.GetApplicationVersions()
+		}
+
+		return applicationVersions
 	}
 
 	syncResultRevision := utils.GetOperationSyncResultRevision(a)
@@ -275,7 +294,16 @@ func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Contex
 	}
 
 	syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, syncResultRevision, nil, nil)
-	return syncManifests.GetApplicationVersions()
+
+	var applicationVersions *apiclient.ApplicationVersions
+	if s.useSourcesServer {
+		log.Infof("cfGetAppVersion. Getting version from sourcesserver")
+		appVers := s.sourcesServerClient.GetAppVersion(a, syncResultRevision)
+		applicationVersions = utils.SourcesAppVersionsToRepo(appVers, logCtx)
+	} else {
+		applicationVersions = syncManifests.GetApplicationVersions()
+	}
+	return applicationVersions
 }
 
 func (s *applicationEventReporter) getAppForResourceReporting(
@@ -309,8 +337,8 @@ func (s *applicationEventReporter) processResource(
 	appEventProcessingStartedAt string,
 	desiredManifests *apiclient.ManifestResponse,
 	manifestGenErr bool,
-	originalApplication *appv1.Application, // passed onlu if resource is app
-	applicationVersions *apiclient.ApplicationVersions, // passed onlu if resource is app
+	originalApplication *appv1.Application, // passed only if resource is app
+	applicationVersions *apiclient.ApplicationVersions, // passed only if resource is app
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
 ) error {
