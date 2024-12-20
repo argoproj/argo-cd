@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -368,22 +368,16 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 }
 
 type ServiceAccountClaims struct {
-	Sub                string `json:"sub"`
-	Iss                string `json:"iss"`
 	Namespace          string `json:"kubernetes.io/serviceaccount/namespace"`
 	SecretName         string `json:"kubernetes.io/serviceaccount/secret.name"`
 	ServiceAccountName string `json:"kubernetes.io/serviceaccount/service-account.name"`
 	ServiceAccountUID  string `json:"kubernetes.io/serviceaccount/service-account.uid"`
-}
-
-// Valid satisfies the jwt.Claims interface to enable JWT parsing
-func (sac *ServiceAccountClaims) Valid() error {
-	return nil
+	jwtgo.RegisteredClaims
 }
 
 // ParseServiceAccountToken parses a Kubernetes service account token
 func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
-	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	parser := jwtgo.NewParser(jwtgo.WithoutClaimsValidation())
 	var claims ServiceAccountClaims
 	_, _, err := parser.ParseUnverified(token, &claims)
 	if err != nil {
