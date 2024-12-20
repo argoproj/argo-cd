@@ -151,7 +151,7 @@ func (c AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map
 	service := tokenParams["service"]
 
 	armTokenScope := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net")
-	armAccessToken, err := c.tokenProvider.GetToken(fmt.Sprintf("%s/.default", armTokenScope))
+	armAccessToken, err := c.tokenProvider.GetToken(armTokenScope + "/.default")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
