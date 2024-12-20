@@ -56,6 +56,14 @@ linters-settings:
         - github.com/pkg/errors:
             recommendations:
               - errors
+        - gopkg.in/yaml.v2:
+            recommendations:
+              - sigs.k8s.io/yaml
+            reason: "`sigs.k8s.io/yaml/goyaml.v2` can be used instead."
+        - gopkg.in/yaml.v3:
+            recommendations:
+              - sigs.k8s.io/yaml
+            reason: "`sigs.k8s.io/yaml/goyaml.v3` can be used instead."
   importas:
     alias:
       - alias: jwtgo 
