@@ -1032,8 +1032,9 @@ func Patch(path string, jsonPatch string) {
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
-
-	bytes, err = patch.Apply(bytes)
+	options := jsonpatch.NewApplyOptions()
+	options.EnsurePathExistsOnAdd = true
+	bytes, err = patch.ApplyWithOptions(bytes, options)
 	CheckError(err)
 
 	if isYaml {

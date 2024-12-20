@@ -56,7 +56,9 @@ type jsonPatchNormalizerPatch struct {
 }
 
 func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	patchedData, err := np.patch.Apply(data)
+	options := jsonpatch.NewApplyOptions()
+	options.EnsurePathExistsOnAdd = true
+	patchedData, err := np.patch.ApplyWithOptions(data, options)
 	if err != nil {
 		return nil, err
 	}

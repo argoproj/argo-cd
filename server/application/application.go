@@ -1028,7 +1028,9 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 		if err != nil {
 			return nil, fmt.Errorf("error decoding json patch: %w", err)
 		}
-		patchApp, err = patch.Apply(jsonApp)
+		options := jsonpatch.NewApplyOptions()
+		options.EnsurePathExistsOnAdd = true
+		patchApp, err = patch.ApplyWithOptions(jsonApp, options)
 		if err != nil {
 			return nil, fmt.Errorf("error applying patch: %w", err)
 		}
