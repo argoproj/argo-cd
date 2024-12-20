@@ -937,10 +937,10 @@ func TestGetDestinationCluster(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
 
-		cluster, err := GetDestinationCluster(context.Background(), dest, db)
+		destCluster, err := GetDestinationCluster(context.Background(), dest, db)
 		require.NoError(t, err)
 		require.NotNil(t, expectedCluster)
-		assert.Equal(t, expectedCluster, cluster)
+		assert.Equal(t, expectedCluster, destCluster)
 	})
 
 	t.Run("Validate destination with server name", func(t *testing.T) {

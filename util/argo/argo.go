@@ -323,7 +323,7 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
 	}
 
-	cluster, err := GetDestinationCluster(context.Background(), spec.Destination, db)
+	destCluster, err := GetDestinationCluster(context.Background(), spec.Destination, db)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -331,12 +331,12 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	config, err := cluster.RESTConfig()
+	config, err := destCluster.RESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
 	// nolint:staticcheck
-	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
+	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
@@ -357,7 +357,7 @@ func ValidateRepo(
 		repoClient,
 		permittedHelmRepos,
 		helmOptions,
-		cluster,
+		destCluster,
 		apiGroups,
 		proj,
 		permittedHelmCredentials,
@@ -949,6 +949,10 @@ type ClusterGetter interface {
 	GetClusterServersByName(ctx context.Context, server string) ([]string, error)
 }
 
+// GetDestinationCluster returns the cluster object based on the destination server or name. If both are provided or
+// both are empty, an error is returned. If the destination server is provided, the cluster is fetched by the server
+// URL. If the destination name is provided, the cluster is fetched by the name. If multiple clusters have the specified
+// name, an error is returned.
 func GetDestinationCluster(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (*argoappv1.Cluster, error) {
 	if destination.Name != "" && destination.Server != "" {
 		return nil, fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
