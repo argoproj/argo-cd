@@ -179,7 +179,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
+		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
 		return
 	}
 

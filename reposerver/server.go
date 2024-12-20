@@ -55,8 +55,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	// repository server.
 	if tlsConfCustomizer != nil {
 		var err error
-		certPath := fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
-		keyPath := fmt.Sprintf("%s/reposerver/tls/tls.key", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
+		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
+		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
 		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
 		if err != nil {
 			return nil, fmt.Errorf("error creating server TLS config: %w", err)
