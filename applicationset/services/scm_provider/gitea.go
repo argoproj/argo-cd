@@ -131,10 +131,10 @@ func (g *GiteaProvider) RepoHasPath(ctx context.Context, repo *Repository, path 
 	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	if fmt.Sprint(err) == "expect file, got directory" {
-		return true, nil
-	}
 	if err != nil {
+		if err.Error() == "expect file, got directory" {
+			return true, nil
+		}
 		return false, err
 	}
 	return true, nil

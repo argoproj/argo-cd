@@ -215,7 +215,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 			return NopCloser{}, nil, err
 		}
 		// GIT_SSL_CERT is the full path to a client certificate to be used
-		env = append(env, fmt.Sprintf("GIT_SSL_CERT=%s", certFile.Name()))
+		env = append(env, "GIT_SSL_CERT="+certFile.Name())
 
 		_, err = keyFile.WriteString(c.clientCertKey)
 		if err != nil {
@@ -223,7 +223,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 			return NopCloser{}, nil, err
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
-		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
+		env = append(env, "GIT_SSL_KEY="+keyFile.Name())
 	}
 	// If at least password is set, we will set ARGOCD_BASIC_AUTH_HEADER to
 	// hold the HTTP authorization header, so auth mechanism negotiation is
@@ -323,7 +323,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	args := []string{"ssh", "-i", file.Name()}
 	var env []string
 	if c.caPath != "" {
-		env = append(env, fmt.Sprintf("GIT_SSL_CAINFO=%s", c.caPath))
+		env = append(env, "GIT_SSL_CAINFO="+c.caPath)
 	}
 	if c.insecure {
 		log.Warn("temporarily disabling strict host key checking (i.e. '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'), please don't use in production")
@@ -332,7 +332,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		args = append(args, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null")
 	} else {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
-		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
+		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile="+knownHostsFile)
 	}
 	// Handle SSH socks5 proxy settings
 	proxyEnv := []string{}
@@ -346,13 +346,13 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			parsedProxyURL.Hostname(),
 			parsedProxyURL.Port()))
 		if parsedProxyURL.User != nil {
-			proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_USER=%s", parsedProxyURL.User.Username()))
+			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
 			if socks5_passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
-				proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_PASSWD=%s", socks5_passwd))
+				proxyEnv = append(proxyEnv, "SOCKS5_PASSWD="+socks5_passwd)
 			}
 		}
 	}
-	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
+	env = append(env, []string{"GIT_SSH_COMMAND=" + strings.Join(args, " ")}...)
 	env = append(env, proxyEnv...)
 	return sshCloser, env, nil
 }
@@ -425,7 +425,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 			return NopCloser{}, nil, err
 		}
 		// GIT_SSL_CERT is the full path to a client certificate to be used
-		env = append(env, fmt.Sprintf("GIT_SSL_CERT=%s", certFile.Name()))
+		env = append(env, "GIT_SSL_CERT="+certFile.Name())
 
 		_, err = keyFile.WriteString(g.clientCertKey)
 		if err != nil {
@@ -433,7 +433,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 			return NopCloser{}, nil, err
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
-		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
+		env = append(env, "GIT_SSL_KEY="+keyFile.Name())
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
 	env = append(env, g.store.Environ(nonce)...)
@@ -464,7 +464,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 	httpClient := http.Client{Transport: appInstallTransport}
 	client := github.NewClient(&httpClient)
 
-	appLogin := fmt.Sprintf("%s[bot]", app.GetSlug())
+	appLogin := app.GetSlug() + "[bot]"
 	user, _, err := client.Users.Get(ctx, appLogin)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get app user info: %w", err)

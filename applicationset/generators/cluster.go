@@ -149,11 +149,11 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			params["metadata"] = meta
 		} else {
 			for key, value := range cluster.ObjectMeta.Annotations {
-				params[fmt.Sprintf("metadata.annotations.%s", key)] = value
+				params["metadata.annotations."+key] = value
 			}
 
 			for key, value := range cluster.ObjectMeta.Labels {
-				params[fmt.Sprintf("metadata.labels.%s", key)] = value
+				params["metadata.labels."+key] = value
 			}
 		}
 
