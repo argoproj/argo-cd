@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -2659,7 +2660,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
-		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
+		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
 	window := &SyncWindow{
@@ -2866,7 +2867,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
 
 	if len(s) > 0 {

@@ -3,6 +3,7 @@ package argo
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -464,7 +465,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 				}
 				refKey := "$" + source.Ref
 				if _, ok := refKeys[refKey]; ok {
-					return nil, fmt.Errorf("invalid sources: multiple sources had the same `ref` key")
+					return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
 				}
 				refKeys[refKey] = true
 			}
@@ -1016,7 +1017,7 @@ func getDestinationServer(ctx context.Context, db db.ArgoDB, clusterName string)
 
 func getDestinationServerName(ctx context.Context, db db.ArgoDB, server string) (string, error) {
 	if db == nil {
-		return "", fmt.Errorf("there are no clusters registered in the database")
+		return "", errors.New("there are no clusters registered in the database")
 	}
 
 	cluster, err := db.GetCluster(ctx, server)

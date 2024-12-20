@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -109,7 +110,7 @@ func TestClientDo(t *testing.T) {
 			clientOptionFns: nil,
 			expected:        []map[string]interface{}(nil),
 			expectedCode:    http.StatusUnauthorized,
-			expectedError:   fmt.Errorf("API error with status code 401: "),
+			expectedError:   errors.New("API error with status code 401: "),
 		},
 	} {
 		cc := c
