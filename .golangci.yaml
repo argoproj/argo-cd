@@ -14,8 +14,10 @@ linters:
     - gocritic
     - gofumpt
     - goimports
+    - gomodguard
     - gosimple
     - govet
+    - importas
     - ineffassign
     - misspell
     - perfsprint
@@ -40,6 +42,16 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/evanphx/json-patch:
+            recommendations:
+              - github.com/evanphx/json-patch/v5
+  importas:
+    alias:
+      - alias: jsonpatch 
+        pkg: github.com/evanphx/json-patch/v5
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true

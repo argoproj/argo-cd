@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
-	jsonpatch "github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/itchyny/gojq"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -225,7 +225,7 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 }
 
 func shouldLogError(e error) bool {
-	if strings.Contains(e.Error(), "Unable to remove nonexistent key") {
+	if strings.Contains(e.Error(), "unable to remove nonexistent key") {
 		return false
 	}
 	if strings.Contains(e.Error(), "remove operation does not apply: doc is missing path") {
