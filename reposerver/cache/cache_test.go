@@ -3,7 +3,6 @@ package cache
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -419,7 +418,7 @@ func TestTryLockGitRefCache_OwnershipFlows(t *testing.T) {
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	require.NoError(t, err)
 	var output [][2]string
-	key := fmt.Sprintf("git-refs|%s", "my-repo-url")
+	key := "git-refs|" + "my-repo-url"
 	err = utilCache.GetItem(key, &output)
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 2})
 	require.NoError(t, err)

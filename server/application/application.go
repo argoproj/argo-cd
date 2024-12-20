@@ -2520,10 +2520,10 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	} else {
 		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	}
 	return &application.ApplicationResponse{}, nil
 }
