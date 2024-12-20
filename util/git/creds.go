@@ -47,8 +47,9 @@ var (
 
 const (
 	// githubAccessTokenUsername is a username that is used to with the github access token
-	githubAccessTokenUsername = "x-access-token"
-	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
+	githubAccessTokenUsername  = "x-access-token"
+	forceBasicAuthHeaderEnv    = "ARGOCD_GIT_AUTH_HEADER"
+	azureDevopsEntraResourceId = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
 
 func init() {
@@ -708,7 +709,7 @@ func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
-		return NopCloser{}.Close()
+		return nil
 	}), env, nil
 }
 
@@ -734,6 +735,6 @@ func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error)
 }
 
 func (c AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
-	accessToken, err := c.getAccessToken("499b84ac-1321-427f-aa17-267ca6975798/.default") // wellknown resourceid of Azure DevOps
+	accessToken, err := c.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
 }
