@@ -16,8 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/util/repository"
-
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -28,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -630,7 +629,34 @@ func getRepository(ctx context.Context, listRepositories func(context.Context, *
 		return nil, err
 	}
 
-	return repository.FilterRepositoryByProjectAndURL(repositories.Items, q.Repo, q.GetAppProject())
+	var foundRepos []*v1alpha1.Repository
+	for _, repo := range repositories.Items {
+		if git.SameURL(repo.Repo, q.Repo) {
+			foundRepos = append(foundRepos, repo)
+		}
+	}
+
+	if len(foundRepos) == 0 {
+		return nil, errPermissionDenied
+	}
+
+	var foundRepo *v1alpha1.Repository
+	if len(foundRepos) == 1 && q.GetAppProject() == "" {
+		foundRepo = foundRepos[0]
+	} else if len(foundRepos) > 0 {
+		for _, repo := range foundRepos {
+			if repo.Project == q.GetAppProject() {
+				foundRepo = repo
+				break
+			}
+		}
+	}
+
+	if foundRepo == nil {
+		return nil, fmt.Errorf("repository not found for url %q and project %q", q.Repo, q.GetAppProject())
+	}
+
+	return foundRepo, nil
 }
 
 // ValidateAccess checks whether access to a repository is possible with the
