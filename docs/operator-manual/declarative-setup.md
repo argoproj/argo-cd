@@ -288,6 +288,42 @@ stringData:
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
+Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
+
+Before using this feature enable workload identity configuration for Argocd:
+- **Label the Pods:** Add the azure.workload.identity/use: "true" label to the argocd-repo-server pods.
+- **Create Federated Identity Credential:** Generate an Azure federated identity credential the argocd-repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+- **Add Annotation to Service Account:** Add "azure.workload.identity/client-id": "$CLIENT_ID" annotation to the argocd-repo-server service account using the details from the workload identity.
+- Setup the permissions for Azure Container Registry/Azure Repos for the workload identity.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo
+  useAzureWorkloadIdentity: "true"
+```
+
 ### Repository Credentials
 
 If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.

@@ -69,3 +69,18 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/argoproj/private-repo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aci-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+  
