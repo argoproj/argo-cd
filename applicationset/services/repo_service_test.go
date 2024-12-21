@@ -7,19 +7,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	repo_mocks "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestGetDirectories(t *testing.T) {
 	type fields struct {
-		storecreds        git.CredsStore
 		submoduleEnabled  bool
-		listRepositories  func(ctx context.Context) ([]*v1alpha1.Repository, error)
+		getRepository     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 		getGitDirectories func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 	}
 	type args struct {
@@ -37,23 +42,23 @@ func TestGetDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 				return nil, fmt.Errorf("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{}}, nil
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, fmt.Errorf("unable to get dirs")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
 					Repo: "foo",
-				}}, nil
+				}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return &apiclient.GitDirectoriesResponse{
@@ -64,8 +69,8 @@ func TestGetDirectories(t *testing.T) {
 			repoURL: "foo",
 		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{}}, nil
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, fmt.Errorf("revision HEAD is not signed")
@@ -75,8 +80,7 @@ func TestGetDirectories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &argoCDService{
-				listRepositories:  tt.fields.listRepositories,
-				storecreds:        tt.fields.storecreds,
+				getRepository:     tt.fields.getRepository,
 				submoduleEnabled:  tt.fields.submoduleEnabled,
 				getGitDirectories: tt.fields.getGitDirectories,
 			}
@@ -89,11 +93,313 @@ func TestGetDirectories(t *testing.T) {
 	}
 }
 
+func TestGetDirectoriesRepoFiltering(t *testing.T) {
+	testNamespace := "test"
+	type fields struct {
+		submoduleEnabled  bool
+		getRepository     func(ctx context.Context, url, project string)
+		getGitDirectories func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
+		repoSecrets       []*v1.Secret
+	}
+	type args struct {
+		ctx     context.Context
+		repoURL string
+		project string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "NonExistentRepoResolution", fields: fields{
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "does-not-exist"}, req.Repo)
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{},
+				}, nil
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "does-not-exist",
+		}, want: []string{}, wantErr: assert.NoError},
+		{name: "DefaultRepoResolution", fields: fields{
+			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: []string{}, wantErr: assert.NoError},
+		{name: "TemplatedRepoResolution", fields: fields{
+			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+			project: "{{ .some-proj }}",
+		}, want: []string{}, wantErr: assert.NoError},
+		{name: "ProjectRepoResolutionHappyPath", fields: fields{
+			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Project: "some-proj", Password: "123456"}, req.Repo)
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "some-proj", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			project: "some-proj",
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: []string{}, wantErr: assert.NoError},
+		{name: "NonExistingProjectRepoResolution", fields: fields{
+			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git"}, req.Repo)
+				return &apiclient.GitDirectoriesResponse{
+					Paths: []string{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "does-not-exist-proj", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-other-proj"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			project: "does-not-exist-proj",
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: []string{}, wantErr: assert.NoError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: nil,
+			}
+			var objs []runtime.Object
+			for _, secret := range tt.fields.repoSecrets {
+				objs = append(objs, secret)
+			}
+
+			clientset := fake.NewClientset(append(objs, &cm)...)
+			testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+			a := &argoCDService{
+				getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+					if tt.fields.getRepository != nil {
+						tt.fields.getRepository(ctx, url, project)
+					}
+					return testDB.GetRepository(ctx, url, project)
+				},
+				submoduleEnabled:  tt.fields.submoduleEnabled,
+				getGitDirectories: tt.fields.getGitDirectories,
+			}
+			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, "", tt.args.project, false, false)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)
+		})
+	}
+}
+
 func TestGetFiles(t *testing.T) {
 	type fields struct {
-		storecreds       git.CredsStore
 		submoduleEnabled bool
-		listRepositories func(ctx context.Context) ([]*v1alpha1.Repository, error)
+		getRepository    func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 		getGitFiles      func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
 	}
 	type args struct {
@@ -112,23 +418,23 @@ func TestGetFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 				return nil, fmt.Errorf("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{}}, nil
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, fmt.Errorf("unable to get files")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{
 					Repo: "foo",
-				}}, nil
+				}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return &apiclient.GitFilesResponse{
@@ -144,61 +450,9 @@ func TestGetFiles(t *testing.T) {
 			"foo.json": []byte("hello: world!"),
 			"bar.yaml": []byte("yay: appsets"),
 		}, wantErr: assert.NoError},
-		{name: "NoRepoFoundFallback", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{}, nil
-			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				require.Equal(t, &v1alpha1.Repository{Repo: "foo"}, req.Repo)
-				return &apiclient.GitFilesResponse{
-					Map: map[string][]byte{},
-				}, nil
-			},
-		}, args: args{
-			repoURL: "foo",
-		}, want: map[string][]byte{}, wantErr: assert.NoError},
-		{name: "RepoWithProjectFoundFallback", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{Repo: "foo", Project: "default"}}, nil
-			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				require.Equal(t, &v1alpha1.Repository{Repo: "foo", Project: "default"}, req.Repo)
-				return &apiclient.GitFilesResponse{
-					Map: map[string][]byte{},
-				}, nil
-			},
-		}, args: args{
-			repoURL: "foo",
-		}, want: map[string][]byte{}, wantErr: assert.NoError},
-		{name: "MultipleReposWithEmptyProjectFoundFallback", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{Repo: "foo", Project: "default"}, {Repo: "foo", Project: ""}}, nil
-			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				require.Equal(t, &v1alpha1.Repository{Repo: "foo", Project: ""}, req.Repo)
-				return &apiclient.GitFilesResponse{
-					Map: map[string][]byte{},
-				}, nil
-			},
-		}, args: args{
-			repoURL: "foo",
-		}, want: map[string][]byte{}, wantErr: assert.NoError},
-		{name: "MultipleReposFoundFallback", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{Repo: "foo", Project: "default"}, {Repo: "foo", Project: "bar"}}, nil
-			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				require.Equal(t, &v1alpha1.Repository{Repo: "foo", Project: "default"}, req.Repo)
-				return &apiclient.GitFilesResponse{
-					Map: map[string][]byte{},
-				}, nil
-			},
-		}, args: args{
-			repoURL: "foo",
-		}, want: map[string][]byte{}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			listRepositories: func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-				return []*v1alpha1.Repository{{}}, nil
+			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, fmt.Errorf("revision HEAD is not signed")
@@ -208,8 +462,7 @@ func TestGetFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &argoCDService{
-				listRepositories: tt.fields.listRepositories,
-				storecreds:       tt.fields.storecreds,
+				getRepository:    tt.fields.getRepository,
 				submoduleEnabled: tt.fields.submoduleEnabled,
 				getGitFiles:      tt.fields.getGitFiles,
 			}
@@ -222,10 +475,314 @@ func TestGetFiles(t *testing.T) {
 	}
 }
 
+func TestGetFilesRepoFiltering(t *testing.T) {
+	testNamespace := "test"
+	type fields struct {
+		submoduleEnabled bool
+		getRepository    func(ctx context.Context, url, project string)
+		getGitFiles      func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
+		repoSecrets      []*v1.Secret
+	}
+	type args struct {
+		ctx     context.Context
+		repoURL string
+		project string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    map[string][]byte
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{name: "NonExistentRepoResolution", fields: fields{
+			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "does-not-exist"}, req.Repo)
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "does-not-exist",
+		}, want: map[string][]byte{}, wantErr: assert.NoError},
+		{name: "DefaultRepoResolution", fields: fields{
+			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: map[string][]byte{}, wantErr: assert.NoError},
+		{name: "TemplatedRepoResolution", fields: fields{
+			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+			project: "{{ .some-proj }}",
+		}, want: map[string][]byte{}, wantErr: assert.NoError},
+		{name: "ProjectRepoResolutionHappyPath", fields: fields{
+			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Project: "some-proj", Password: "123456"}, req.Repo)
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "some-proj", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			project: "some-proj",
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: map[string][]byte{}, wantErr: assert.NoError},
+		{name: "NonExistingProjectRepoResolution", fields: fields{
+			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git"}, req.Repo)
+				return &apiclient.GitFilesResponse{
+					Map: map[string][]byte{},
+				}, nil
+			},
+			getRepository: func(ctx context.Context, url, project string) {
+				require.Equal(t, "does-not-exist-proj", project)
+			},
+			repoSecrets: []*v1.Secret{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred1",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-proj"),
+						"password": []byte("123456"),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: testNamespace,
+						Name:      "cred2",
+						Annotations: map[string]string{
+							common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+						},
+						Labels: map[string]string{
+							common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+						},
+					},
+					Data: map[string][]byte{
+						"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+						"project":  []byte("some-other-proj"),
+						"password": []byte("123456"),
+					},
+				},
+			},
+		}, args: args{
+			project: "does-not-exist-proj",
+			repoURL: "git@github.com:argoproj/argo-cd.git",
+		}, want: map[string][]byte{}, wantErr: assert.NoError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cm := v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: testNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: nil,
+			}
+			var objs []runtime.Object
+			for _, secret := range tt.fields.repoSecrets {
+				objs = append(objs, secret)
+			}
+
+			clientset := fake.NewClientset(append(objs, &cm)...)
+			testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+			a := &argoCDService{
+				getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+					if tt.fields.getRepository != nil {
+						tt.fields.getRepository(ctx, url, project)
+					}
+					return testDB.GetRepository(ctx, url, project)
+				},
+				submoduleEnabled: tt.fields.submoduleEnabled,
+				getGitFiles:      tt.fields.getGitFiles,
+			}
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, "", tt.args.project, "", false, false)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)
+		})
+	}
+}
+
 func TestNewArgoCDService(t *testing.T) {
-	service, err := NewArgoCDService(func(ctx context.Context) ([]*v1alpha1.Repository, error) {
-		return []*v1alpha1.Repository{{}}, nil
-	}, false, &repo_mocks.Clientset{}, false)
+	testNamespace := "test"
+	clientset := fake.NewClientset()
+	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	service, err := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	require.NoError(t, err)
 	assert.NotNil(t, service)
 }

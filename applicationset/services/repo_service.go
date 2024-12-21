@@ -2,22 +2,17 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/repository"
 )
 
 type argoCDService struct {
-	listRepositories       func(ctx context.Context) ([]*v1alpha1.Repository, error)
-	storecreds             git.CredsStore
+	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 	submoduleEnabled       bool
 	newFileGlobbingEnabled bool
 	getGitFiles            func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
@@ -32,9 +27,9 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
 }
 
-func NewArgoCDService(listRepositories func(ctx context.Context) ([]*v1alpha1.Repository, error), submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
 	return &argoCDService{
-		listRepositories:       listRepositories,
+		getRepository:          db.GetRepository,
 		submoduleEnabled:       submoduleEnabled,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
 		getGitFiles: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
@@ -57,14 +52,9 @@ func NewArgoCDService(listRepositories func(ctx context.Context) ([]*v1alpha1.Re
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
-	repos, err := a.listRepositories(ctx)
+	repo, err := a.getRepository(ctx, repoURL, resolveProjectName(project))
 	if err != nil {
-		return nil, fmt.Errorf("error in ListRepositories: %w", err)
-	}
-
-	repo, err := getRepo(repos, repoURL, project)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving Git files: %w", err)
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
@@ -84,14 +74,9 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error) {
-	repos, err := a.listRepositories(ctx)
+	repo, err := a.getRepository(ctx, repoURL, resolveProjectName(project))
 	if err != nil {
-		return nil, fmt.Errorf("error in ListRepositories: %w", err)
-	}
-
-	repo, err := getRepo(repos, repoURL, project)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	dirRequest := &apiclient.GitDirectoriesRequest{
@@ -109,34 +94,10 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 	return dirResponse.GetPaths(), nil
 }
 
-func getRepo(repos []*v1alpha1.Repository, repoURL string, project string) (*v1alpha1.Repository, error) {
-	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
-	if err != nil {
-		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
-			// No repo found with a matching URL - attempt fallback without any actual credentials
-			return &v1alpha1.Repository{Repo: repoURL}, nil
-		} else if project == "" {
-			for _, r := range repos {
-				if git.SameURL(r.Repo, repoURL) {
-					// Prioritize using a repository with an unset project.
-					if r.Project == "" {
-						return r, nil
-					}
-
-					if repo == nil {
-						repo = r
-					}
-				}
-			}
-
-			// Try any repo matching the same repoURL
-			if repo != nil {
-				return repo, nil
-			}
-
-			// No repo found with a matching URL - attempt fallback without any actual credentials
-			return &v1alpha1.Repository{Repo: repoURL}, nil
-		}
+func resolveProjectName(project string) string {
+	if strings.Contains(project, "{{") {
+		return ""
 	}
-	return repo, err
+
+	return project
 }
