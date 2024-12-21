@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -45,7 +44,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	clientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -270,7 +269,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 
 	require.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
+		assert.Contains(t, out, "✅ "+k)
 	}
 }
 

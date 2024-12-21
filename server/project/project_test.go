@@ -38,10 +38,10 @@ import (
 
 const testNamespace = "default"
 
-var testEnableEventList []string = argo.DefaultEnableEventList()
+var testEnableEventList = argo.DefaultEnableEventList()
 
 func TestProjectServer(t *testing.T) {
-	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -94,7 +94,7 @@ func TestProjectServer(t *testing.T) {
 		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		err := projectServer.NormalizeProjs()
 		require.NoError(t, err)
 
@@ -196,6 +196,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications destination became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
@@ -232,6 +233,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceUsedByAppSuccessfulIfPermittedByAnotherSrc", func(t *testing.T) {
@@ -318,6 +320,7 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "project is referenced by 1 applications", statusCode.Message())
 	})
 
 	// configure a user named "admin" which is denied by default

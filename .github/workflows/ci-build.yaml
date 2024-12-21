@@ -32,7 +32,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@4edd678ac3f81e2dc578756871e4d00c19191daf # v45.0.4
+      - uses: tj-actions/changed-files@bab30c2299617f6615ec02a68b9a40d10bd21366 # v45.0.5
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -57,7 +57,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -78,11 +78,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -105,7 +105,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
@@ -133,7 +133,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -153,7 +153,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -197,7 +197,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -217,7 +217,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -253,7 +253,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -311,7 +311,7 @@ jobs:
           node-version: '22.9.0'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -351,7 +351,7 @@ jobs:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -370,11 +370,11 @@ jobs:
           path: test-results
       - name: combine-go-coverage
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
-        # app-controller, and repo-server report contain coverage data. The other components currently don't shut down
-        # gracefully, so no coverage data is produced. Once those components are fixed, we can add references to their
-        # coverage output directories.
+        # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
+        # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
+        # references to their coverage output directories.
         run: |
-          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller -o test-results/full-coverage.out
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
@@ -393,7 +393,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@1b442ee39ac3fa7c2acdd410208dcb2bcfaae6c4 # v4.1.0
+        uses: SonarSource/sonarqube-scan-action@bfd4e558cda28cda6b5defafb9232d191be8c203 # v4.2.1
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
@@ -429,10 +429,17 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
@@ -451,7 +458,7 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}

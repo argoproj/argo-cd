@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -20,6 +21,7 @@ import (
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
+
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
@@ -80,6 +82,13 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+		// if the status didn't change, don't update the timestamp
+		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
+			appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
+		} else {
+			now := metav1.Now()
+			appHealth.LastTransitionTime = &now
+		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}

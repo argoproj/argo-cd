@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="41 known vulnerabilities found in 129 vulnerable dependency paths.">
+  <meta name="description" content="42 known vulnerabilities found in 130 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 24th 2024, 12:29:16 am (UTC+00:00)</p>
+                <p class="timestamp">December 15th 2024, 12:29:22 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -469,8 +469,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>41</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>129 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>42</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>130 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>829</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -479,6 +479,80 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v3@* and golang.org/x/crypto/ssh@v0.18.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.18.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Implementation of Authentication Algorithm when the key passed in the last call before a connection is established is assumed to be the key used for authentication. It is not necessarily the authentication key in use, and this allows attackers who can control the key cache by making their own carefully-timed connections to bypass authorization with subsequent legitimate <code>ServerConfig.PublicKeyCallback</code> callbacks.</p>
+        <p><strong>Note:</strong> The assumed caching behavior of this callback is not documented and is therefore considered human error, but the project maintainers have observed reliance on it for authorization decisions in production. In fact, the assumption is negated in the documentation, which states &quot;A call to this function does not guarantee that the key offered is in fact used to authenticate.&quot; The behavior after upgrading still allows the possibility of an attacker forcing their own key to be the one in the cache when the callback is invoked if the client is using a different authentication method such as <code>PasswordCallback</code>, <code>KeyboardInteractiveCallback</code>, or <code>NoClientAuth</code>. It is therefore recommended to rely on the return values of the connection itself, found in <code>ServerConn.Permissions</code> for further authorization steps.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/20094">GitHub Issue</a></li>
+        <li><a href="https://go.dev/cl/635315">go.dev Commit</a></li>
+        <li><a href="https://go.dev/issue/70779">go.dev Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ">Google Groups Forum</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2024-3321">Go Vulnerability Database</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8496611">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
@@ -777,15 +851,15 @@
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://www.openwall.com/lists/oss-security/2024/01/09/1">http://www.openwall.com/lists/oss-security/2024/01/09/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/03/11/1">http://www.openwall.com/lists/oss-security/2024/03/11/1</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240216-0009/">https://security.netapp.com/advisory/ntap-20240216-0009/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0008/">https://security.netapp.com/advisory/ntap-20240426-0008/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0013/">https://security.netapp.com/advisory/ntap-20240426-0013/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240503-0011/">https://security.netapp.com/advisory/ntap-20240503-0011/</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/050d26383d4e264966fb83428e72d5d48f402d35">https://github.com/openssl/openssl/commit/050d26383d4e264966fb83428e72d5d48f402d35</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/5b139f95c9a47a55a0c54100f3837b1eee942b04">https://github.com/openssl/openssl/commit/5b139f95c9a47a55a0c54100f3837b1eee942b04</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/f3fc5808fe9ff74042d639839610d03b8fdcc015">https://github.com/openssl/openssl/commit/f3fc5808fe9ff74042d639839610d03b8fdcc015</a></li>
         <li><a href="https://www.openssl.org/news/secadv/20240109.txt">https://www.openssl.org/news/secadv/20240109.txt</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240216-0009/">https://security.netapp.com/advisory/ntap-20240216-0009/</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0008/">https://security.netapp.com/advisory/ntap-20240426-0008/</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240426-0013/">https://security.netapp.com/advisory/ntap-20240426-0013/</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/03/11/1">http://www.openwall.com/lists/oss-security/2024/03/11/1</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20240503-0011/">https://security.netapp.com/advisory/ntap-20240503-0011/</a></li>
         </ul>
         
               <hr/>
@@ -2817,6 +2891,7 @@
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15874">https://bugs.busybox.net/show_bug.cgi?id=15874</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20241206-0007/">https://security.netapp.com/advisory/ntap-20241206-0007/</a></li>
         </ul>
         
               <hr/>

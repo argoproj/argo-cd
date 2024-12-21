@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="37 known vulnerabilities found in 209 vulnerable dependency paths.">
+  <meta name="description" content="38 known vulnerabilities found in 210 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 24th 2024, 12:29:44 am (UTC+00:00)</p>
+                <p class="timestamp">December 15th 2024, 12:29:45 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>37</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>209 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>38</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>210 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2280</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -480,6 +480,80 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.11.12/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@* and golang.org/x/crypto/ssh@v0.19.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Implementation of Authentication Algorithm when the key passed in the last call before a connection is established is assumed to be the key used for authentication. It is not necessarily the authentication key in use, and this allows attackers who can control the key cache by making their own carefully-timed connections to bypass authorization with subsequent legitimate <code>ServerConfig.PublicKeyCallback</code> callbacks.</p>
+        <p><strong>Note:</strong> The assumed caching behavior of this callback is not documented and is therefore considered human error, but the project maintainers have observed reliance on it for authorization decisions in production. In fact, the assumption is negated in the documentation, which states &quot;A call to this function does not guarantee that the key offered is in fact used to authenticate.&quot; The behavior after upgrading still allows the possibility of an attacker forcing their own key to be the one in the cache when the callback is invoked if the client is using a different authentication method such as <code>PasswordCallback</code>, <code>KeyboardInteractiveCallback</code>, or <code>NoClientAuth</code>. It is therefore recommended to rely on the return values of the connection itself, found in <code>ServerConn.Permissions</code> for further authorization steps.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/20094">GitHub Issue</a></li>
+        <li><a href="https://go.dev/cl/635315">go.dev Commit</a></li>
+        <li><a href="https://go.dev/issue/70779">go.dev Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ">Google Groups Forum</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2024-3321">Go Vulnerability Database</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8496611">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Denial of Service (DoS)</h2>
             <div class="card__section">
@@ -872,6 +946,8 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-10041">https://access.redhat.com/security/cve/CVE-2024-10041</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2319212">https://bugzilla.redhat.com/show_bug.cgi?id=2319212</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:9941">https://access.redhat.com/errata/RHSA-2024:9941</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
         </ul>
         
               <hr/>
@@ -1104,220 +1180,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-PAM-8352842">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Information Exposure</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v2.11.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:22.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            libgcrypt20
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@v2.11.12 and libgcrypt20@1.9.4-3ubuntu3
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0@2.4.13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg-utils@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v2.11.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.4.13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0@2.4.13
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@249.11-0ubuntu3.12
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.9.4-3ubuntu3
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libgcrypt20</code> package and not the <code>libgcrypt20</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>A timing-based side-channel flaw was found in libgcrypt&#39;s RSA implementation. This issue may allow a remote attacker to initiate a Bleichenbacher-style attack, which can lead to the decryption of RSA ciphertexts.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libgcrypt20</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:9404">https://access.redhat.com/errata/RHSA-2024:9404</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBGCRYPT20-6411451">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3633,6 +3495,220 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Information Exposure</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.11.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libgcrypt20
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.11.12 and libgcrypt20@1.9.4-3ubuntu3
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg-utils@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-client@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-wks-server@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gnupg@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgsm@2.2.27-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@249.11-0ubuntu3.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.9.4-3ubuntu3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libgcrypt20</code> package and not the <code>libgcrypt20</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p>A timing-based side-channel flaw was found in libgcrypt&#39;s RSA implementation. This issue may allow a remote attacker to initiate a Bleichenbacher-style attack, which can lead to the decryption of RSA ciphertexts.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>libgcrypt20</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:9404">https://access.redhat.com/errata/RHSA-2024:9404</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-LIBGCRYPT20-6411451">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Integer Overflow or Wraparound</h2>
             <div class="card__section">
         
@@ -5105,7 +5181,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2024-9681</h2>
+            <h2 class="card__title">Insufficient Comparison</h2>
             <div class="card__section">
         
                 <div class="label label--low">
@@ -5189,6 +5265,7 @@
         <li><a href="https://curl.se/docs/CVE-2024-9681.json">https://curl.se/docs/CVE-2024-9681.json</a></li>
         <li><a href="https://hackerone.com/reports/2764830">https://hackerone.com/reports/2764830</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2024/11/06/2">http://www.openwall.com/lists/oss-security/2024/11/06/2</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20241213-0006/">https://security.netapp.com/advisory/ntap-20241213-0006/</a></li>
         </ul>
         
               <hr/>
