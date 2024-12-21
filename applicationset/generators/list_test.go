@@ -14,14 +14,14 @@ import (
 func TestGenerateListParams(t *testing.T) {
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
 		},
 	}
 
@@ -49,14 +49,14 @@ func TestGenerateListParams(t *testing.T) {
 func TestGenerateListParamsGoTemplate(t *testing.T) {
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
-		expected []map[string]interface{}
+		expected []map[string]any
 	}{
 		{
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url"}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-			expected: []map[string]interface{}{{"cluster": "cluster", "url": "url", "values": map[string]interface{}{"foo": "bar"}}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
 		},
 	}
 

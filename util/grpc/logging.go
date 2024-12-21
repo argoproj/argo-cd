@@ -15,12 +15,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context.Context, logClaims bool) {
+func logRequest(entry *logrus.Entry, info string, pbMsg any, ctx context.Context, logClaims bool) {
 	if logClaims {
 		claims := ctx.Value("claims")
 		mapClaims, ok := claims.(jwt.MapClaims)
 		if ok {
-			copy := make(map[string]interface{})
+			copy := make(map[string]any)
 			for k, v := range mapClaims {
 				if k != "groups" || entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
 					copy[k] = v
@@ -58,11 +58,11 @@ type loggingServerStream struct {
 	info      string
 }
 
-func (l *loggingServerStream) SendMsg(m interface{}) error {
+func (l *loggingServerStream) SendMsg(m any) error {
 	return l.ServerStream.SendMsg(m)
 }
 
-func (l *loggingServerStream) RecvMsg(m interface{}) error {
+func (l *loggingServerStream) RecvMsg(m any) error {
 	err := l.ServerStream.RecvMsg(m)
 	if err == nil {
 		logRequest(l.entry, l.info, m, l.ServerStream.Context(), l.logClaims)
@@ -71,7 +71,7 @@ func (l *loggingServerStream) RecvMsg(m interface{}) error {
 }
 
 func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.StreamServerInterceptor {
-	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if !decider(stream.Context(), info.FullMethod, srv) {
 			return handler(srv, stream)
 		}
@@ -82,7 +82,7 @@ func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider
 }
 
 func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if !decider(ctx, info.FullMethod, info.Server) {
 			return handler(ctx, req)
 		}

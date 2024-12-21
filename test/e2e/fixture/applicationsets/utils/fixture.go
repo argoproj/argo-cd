@@ -349,7 +349,7 @@ func init() {
 }
 
 // PrettyPrintJson is a utility function for debugging purposes
-func PrettyPrintJson(obj interface{}) string {
+func PrettyPrintJson(obj any) string {
 	bytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
 		return err.Error()
@@ -372,7 +372,7 @@ func DnsFriendly(str string, postfix string) string {
 	return str + postfix
 }
 
-func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
+func MustToUnstructured(obj any) *unstructured.Unstructured {
 	uObj, err := ToUnstructured(obj)
 	if err != nil {
 		panic(err)
@@ -381,7 +381,7 @@ func MustToUnstructured(obj interface{}) *unstructured.Unstructured {
 }
 
 // ToUnstructured converts a concrete K8s API type to an unstructured object
-func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
+func ToUnstructured(obj any) (*unstructured.Unstructured, error) {
 	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
 	if err != nil {
 		return nil, err

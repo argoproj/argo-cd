@@ -20,6 +20,7 @@ linters:
     - ineffassign
     - misspell
     - perfsprint
+    - revive
     - staticcheck
     - testifylint
     - thelper
@@ -58,6 +59,9 @@ linters-settings:
     sprintf1: true
     # Optimizes into strings concatenation.
     strconcat: true
+  revive:
+    rules:
+      - name: use-any
   testifylint:
     enable-all: true
     disable:

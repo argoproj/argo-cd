@@ -333,14 +333,14 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 	}
 
 	placementDecision := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"metadata": map[string]interface{}{
+		Object: map[string]any{
+			"metadata": map[string]any{
 				"name":      placementDecisionName,
 				"namespace": fixture.TestNamespace(),
 			},
 			"kind":       "PlacementDecision",
 			"apiVersion": "cluster.open-cluster-management.io/v1alpha1",
-			"status":     map[string]interface{}{},
+			"status":     map[string]any{},
 		},
 	}
 
@@ -356,7 +356,7 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 	return a
 }
 
-func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, clusterList []interface{}) *Actions {
+func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, clusterList []any) *Actions {
 	a.context.t.Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient().DynamicClientset
@@ -365,7 +365,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 		placementDecisionName,
 		metav1.GetOptions{})
 
-	placementDecision.Object["status"] = map[string]interface{}{
+	placementDecision.Object["status"] = map[string]any{
 		"decisions": clusterList,
 	}
 
