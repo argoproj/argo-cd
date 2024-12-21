@@ -60,3 +60,23 @@ func CombineStringMapsAllowDuplicates(aSI map[string]interface{}, bSI map[string
 
 	return res, nil
 }
+
+func CombineMaps(firstMap map[string]interface{}, secondMap map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(firstMap))
+	for k, v := range firstMap {
+		out[k] = v
+	}
+	for k, v := range secondMap {
+		if v, ok := v.(map[string]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]interface{}); ok {
+					out[k] = CombineMaps(bv, v)
+
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
