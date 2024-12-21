@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	httputil "github.com/argoproj/notifications-engine/pkg/util/http"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -78,7 +78,7 @@ func NewController(
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	var notificationConfigNamespace string
 	if selfServiceNotificationEnabled {
-		notificationConfigNamespace = v1.NamespaceAll
+		notificationConfigNamespace = metav1.NamespaceAll
 	} else {
 		notificationConfigNamespace = namespace
 	}
@@ -93,7 +93,7 @@ func NewController(
 		appProjInformer:   appProjInformer,
 		apiFactory:        apiFactory,
 	}
-	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
+	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
 		if !ok {
 			return false, ""
@@ -125,7 +125,7 @@ func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace
 	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.REGEXP)
 }
 
-func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
+func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
 	app, ok := (obj).(*unstructured.Unstructured)
 	if !ok {
 		return destinations
@@ -141,7 +141,7 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
 				options.LabelSelector = selector
@@ -158,7 +158,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
 				return resClient.Watch(context.TODO(), options)
 			},
