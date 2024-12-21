@@ -1765,7 +1765,6 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var streams []chan logEntry
 
 	for _, pod := range pods {
-
 		if hasPodStopped(pod) {
 			continue
 		}
