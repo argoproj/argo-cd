@@ -1765,6 +1765,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var streams []chan logEntry
 
 	for _, pod := range pods {
+		if hasPodStopped(pod) {
+			continue
+		}
+
 		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
 			Container:    q.GetContainer(),
 			Follow:       q.GetFollow(),
@@ -1859,7 +1863,7 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
-			if !hasPodStopped(treeNode) && isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
+			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
 		}
