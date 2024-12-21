@@ -144,7 +144,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), permissionDeniedErr
+		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 
 	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
@@ -152,7 +152,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), permissionDeniedErr
+		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 	return 0, nil
 }

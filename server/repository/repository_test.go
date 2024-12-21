@@ -348,7 +348,7 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.Equal(t, err, errPermissionDenied)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 	})
 
 	t.Run("Test_GetWithNotExistRepoShouldReturn404", func(t *testing.T) {
@@ -529,7 +529,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Equal(t, err, errPermissionDenied)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 	})
 
 	t.Run("Test_WithAppCreateUpdatePrivileges", func(t *testing.T) {
@@ -834,7 +834,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "mismatch",
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppSourceNotInHistory", func(t *testing.T) {
@@ -855,7 +855,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppSourceInHistory", func(t *testing.T) {
@@ -912,7 +912,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			SourceIndex: 0,
 			VersionId:   1,
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppMultiSourceInHistory", func(t *testing.T) {
@@ -997,7 +997,7 @@ func TestGetRepository(t *testing.T) {
 				q: &repository.RepoQuery{},
 			},
 			want:  nil,
-			error: status.Error(codes.PermissionDenied, "permission denied"),
+			error: common.PermissionDeniedAPIError,
 		},
 		{
 			name: "empty project and no matching repos",
@@ -1011,7 +1011,7 @@ func TestGetRepository(t *testing.T) {
 				},
 			},
 			want:  nil,
-			error: status.Error(codes.PermissionDenied, "permission denied"),
+			error: common.PermissionDeniedAPIError,
 		},
 		{
 			name: "empty project + matching repo with an empty project",

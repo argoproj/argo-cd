@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -70,12 +71,10 @@ func NewServer(
 	}
 }
 
-var errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
-
 func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)
 	if err != nil {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 	return repo, nil
 }
@@ -83,7 +82,7 @@ func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repo
 func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetWriteRepository(ctx, url, project)
 	if err != nil {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 	return repo, nil
 }
@@ -281,7 +280,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
 	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACresource) &&
 		!s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACresource) {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 	// Also ensure the repo is actually allowed in the project in question
 	if err := s.isRepoPermittedInProject(ctx, q.Repo, q.AppProject); err != nil {
@@ -340,11 +339,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	} else {
 		// if we get here we are returning repo details of an existing app
 		if q.AppProject != app.Spec.Project {
-			return nil, errPermissionDenied
+			return nil, common.PermissionDeniedAPIError
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
 		if !isSourceInHistory(app, *q.Source, q.SourceIndex, q.VersionId) {
-			return nil, errPermissionDenied
+			return nil, common.PermissionDeniedAPIError
 		}
 	}
 	// Ensure the repo is actually allowed in the project in question
@@ -637,7 +636,7 @@ func getRepository(ctx context.Context, listRepositories func(context.Context, *
 	}
 
 	if len(foundRepos) == 0 {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 
 	var foundRepo *v1alpha1.Repository
