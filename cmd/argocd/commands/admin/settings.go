@@ -211,7 +211,7 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		var summary string
 		if ssoProvider != "" {
-			summary = fmt.Sprintf("%s is configured", ssoProvider)
+			summary = ssoProvider + " is configured"
 			if general.URL == "" {
 				summary = summary + " ('url' field is missing)"
 			}

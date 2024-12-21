@@ -82,7 +82,7 @@ func (t tokenVerificationError) Error() string {
 	for aud, err := range t.errorsByAudience {
 		errorStrings = append(errorStrings, fmt.Sprintf("error for aud %q: %v", aud, err))
 	}
-	return fmt.Sprintf("token verification failed for all audiences: %s", strings.Join(errorStrings, ", "))
+	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
 }
 
 func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {

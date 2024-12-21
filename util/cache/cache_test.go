@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -86,5 +85,5 @@ func TestGenerateCacheKey(t *testing.T) {
 	client := NewInMemoryCache(60 * time.Second)
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
-	assert.Equal(t, fmt.Sprintf("testkey|%s", common.CacheVersion), testKey)
+	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
 }

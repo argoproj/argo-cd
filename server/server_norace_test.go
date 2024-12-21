@@ -50,7 +50,7 @@ func TestUserAgent(t *testing.T) {
 	tests := []testData{
 		{
 			// Reject out-of-date user-agent
-			userAgent: fmt.Sprintf("%s/0.10.0", common.ArgoCDUserAgentName),
+			userAgent: common.ArgoCDUserAgentName + "/0.10.0",
 			errorMsg:  "unsatisfied client version constraint",
 		},
 		{

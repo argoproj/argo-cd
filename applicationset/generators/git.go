@@ -156,8 +156,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 
 				selector, err := metav1.LabelSelectorAsSelector(requestedPath.FileSelector)
 				if err != nil {
-					log.Printf("error parsing the label selector: %v", err)
-					continue
+					return nil, fmt.Errorf("error parsing the label selector: %w", err)
 				}
 
 				if selector.Matches(labelSet) {

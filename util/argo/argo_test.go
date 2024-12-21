@@ -366,7 +366,7 @@ func TestValidateRepo(t *testing.T) {
 	}}
 	kubeVersion := "v1.16"
 	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: ""}
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
 	cluster := &argoappv1.Cluster{Server: "sample server"}
 	app := &argoappv1.Application{
 		Spec: argoappv1.ApplicationSpec{
@@ -475,7 +475,7 @@ func TestFormatAppConditions(t *testing.T) {
 	t.Run("Single Condition", func(t *testing.T) {
 		res := FormatAppConditions(conditions[0:1])
 		assert.NotEmpty(t, res)
-		assert.Equal(t, fmt.Sprintf("%s: Foo", EventReasonOperationCompleted), res)
+		assert.Equal(t, EventReasonOperationCompleted+": Foo", res)
 	})
 
 	t.Run("Multiple Conditions", func(t *testing.T) {
@@ -1294,12 +1294,12 @@ func Test_GetRefSources(t *testing.T) {
 		}
 	}
 
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
 
 	t.Run("target ref exists", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
-			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source-1_2"},
-			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+			{RepoURL: "file://" + repoPath, Ref: "source-1_2"},
+			{RepoURL: "file://" + repoPath},
 		})
 
 		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
@@ -1319,7 +1319,7 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("target ref does not exist", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
-			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+			{RepoURL: "file://" + repoPath},
 		})
 
 		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
@@ -1333,7 +1333,7 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("invalid ref", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
-			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+			{RepoURL: "file://" + repoPath},
 		})
 
 		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
