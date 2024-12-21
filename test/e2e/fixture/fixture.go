@@ -17,7 +17,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -391,7 +391,7 @@ func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
 
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) error {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		return err
 	}
 	if !configMapsEquivalent(cm, oldCm) {
-		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -565,12 +565,12 @@ func SetRepos(repos ...settings.RepositoryCredentials) error {
 }
 
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
 	return err
 }
 
@@ -621,57 +621,57 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	})
 
 	start := time.Now()
-	policy := v1.DeletePropagationBackground
+	policy := metav1.DeletePropagationBackground
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete appprojects --field-selector metadata.name!=default
 			return AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{FieldSelector: "metadata.name!=default"})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{FieldSelector: "metadata.name!=default"})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
 		},
 		func() error {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				v1.DeleteOptions{PropagationPolicy: &policy},
-				v1.ListOptions{LabelSelector: TestingLabel + "=true"})
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
 	})
 
@@ -680,7 +680,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
-				v1.ListOptions{
+				metav1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
 					FieldSelector: "status.phase=Active",
 				},
@@ -699,7 +699,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -728,7 +728,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
 				context.Background(),
-				v1.ListOptions{
+				metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
 				},
 			)
@@ -746,7 +746,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -768,7 +768,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -827,7 +827,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -838,19 +838,19 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				context.Background(),
 				&v1alpha1.AppProject{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "gpg",
 					},
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},
-				v1.CreateOptions{},
+				metav1.CreateOptions{},
 			)
 			return err
 		},

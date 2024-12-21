@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
@@ -182,7 +182,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &v1.Time{Time: time.Now()},
+			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &v1.Time{Time: time.Now()},
+			ModifiedAt: &metav1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
@@ -458,7 +458,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
-				ModifiedAt: &v1.Time{Time: time.Now()},
+				ModifiedAt: &metav1.Time{Time: time.Now()},
 			},
 		})
 		if err != nil {
@@ -501,7 +501,7 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify access for cluster: %w", err)
 	}
-	now := v1.Now()
+	now := metav1.Now()
 	cls.RefreshRequestedAt = &now
 	cls, err = s.db.UpdateCluster(ctx, cls)
 	if err != nil {

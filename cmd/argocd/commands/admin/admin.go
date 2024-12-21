@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -242,7 +242,7 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
+	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
 	errors.CheckError(err)
 	var cm apiv1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
