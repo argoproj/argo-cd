@@ -237,7 +237,7 @@ func parseAccounts(secret *v1.Secret, cm *v1.ConfigMap) (map[string]Account, err
 	}
 
 	for key, v := range cm.Data {
-		if !strings.HasPrefix(key, fmt.Sprintf("%s.", accountsKeyPrefix)) {
+		if !strings.HasPrefix(key, accountsKeyPrefix+".") {
 			continue
 		}
 

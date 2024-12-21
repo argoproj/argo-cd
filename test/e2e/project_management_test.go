@@ -520,7 +520,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
+		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)
@@ -551,7 +551,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
+		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)

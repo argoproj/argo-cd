@@ -342,7 +342,7 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
-		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
+		return GetEnvWithDefault(EnvRepoURLDefault, "file://"+repoDirectory())
 	}
 }
 
@@ -356,7 +356,7 @@ func DeploymentNamespace() string {
 
 // creates a secret for the current test, this currently can only create a single secret
 func CreateSecret(username, password string) string {
-	secretName := fmt.Sprintf("argocd-e2e-%s", name)
+	secretName := "argocd-e2e-" + name
 	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
@@ -415,7 +415,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
-			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
+			cm.Data[strings.ToLower(string(k))+".enable"] = strconv.FormatBool(v)
 		}
 		return nil
 	})
@@ -505,7 +505,7 @@ func getResourceOverrideSplitKey(key string, customizeType string) string {
 func SetAccounts(accounts map[string][]string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range accounts {
-			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
+			cm.Data["accounts."+k] = strings.Join(v, ",")
 		}
 		return nil
 	})
@@ -962,7 +962,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			postFix := "-" + strings.ToLower(randString)
 			id = t.Name() + postFix
 			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
@@ -1087,7 +1087,7 @@ func AddSignedFile(path, contents string) {
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
@@ -1098,7 +1098,7 @@ func AddSignedTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
+	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
@@ -1269,7 +1269,7 @@ func RecordTestRun(t *testing.T) {
 			t.Fatalf("could not close record file %s: %v", rf, err)
 		}
 	}()
-	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
+	if _, err := f.WriteString(t.Name() + "\n"); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
 }

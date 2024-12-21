@@ -132,7 +132,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 		if err != nil {
 			return nil, err
 		}
-		if requestedPath.FileSelector != nil {
+		if requestedPath.FileLabelSelector != nil {
 			for filePath, content := range files {
 				objects := map[string]interface{}{}
 				err := yaml.Unmarshal(content, &objects)
@@ -154,10 +154,9 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 					}
 				}
 
-				selector, err := metav1.LabelSelectorAsSelector(requestedPath.FileSelector)
+				selector, err := metav1.LabelSelectorAsSelector(requestedPath.FileLabelSelector)
 				if err != nil {
-					log.Printf("error parsing the label selector: %v", err)
-					continue
+					return nil, fmt.Errorf("error parsing the label selector: %w", err)
 				}
 
 				if selector.Matches(labelSet) {

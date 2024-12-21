@@ -1397,7 +1397,7 @@ spec:
                         files:
                           items:
                             properties:
-                              fileSelector:
+                              fileLabelSelector:
                                 properties:
                                   matchExpressions:
                                     items:
@@ -4093,7 +4093,7 @@ spec:
                                   files:
                                     items:
                                       properties:
-                                        fileSelector:
+                                        fileLabelSelector:
                                           properties:
                                             matchExpressions:
                                               items:
@@ -9869,7 +9869,7 @@ spec:
                                   files:
                                     items:
                                       properties:
-                                        fileSelector:
+                                        fileLabelSelector:
                                           properties:
                                             matchExpressions:
                                               items:

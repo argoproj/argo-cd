@@ -56,7 +56,7 @@ func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, 
 }
 
 func appManagedResourcesKey(appName string) string {
-	return fmt.Sprintf("app|managed-resources|%s", appName)
+	return "app|managed-resources|" + appName
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
@@ -72,7 +72,7 @@ func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1
 }
 
 func appResourcesTreeKey(appName string, shard int64) string {
-	key := fmt.Sprintf("app|resources-tree|%s", appName)
+	key := "app|resources-tree|" + appName
 	if shard > 0 {
 		key = fmt.Sprintf("%s|%d", key, shard)
 	}
@@ -80,7 +80,7 @@ func appResourcesTreeKey(appName string, shard int64) string {
 }
 
 func clusterInfoKey(server string) string {
-	return fmt.Sprintf("cluster|info|%s", server)
+	return "cluster|info|" + server
 }
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
