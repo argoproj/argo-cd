@@ -7942,6 +7942,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "fileSelector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
         "path": {
           "type": "string"
         }
