@@ -419,7 +419,8 @@ type GitDirectoryGeneratorItem struct {
 }
 
 type GitFileGeneratorItem struct {
-	Path string `json:"path" protobuf:"bytes,1,name=path"`
+	Path              string                `json:"path" protobuf:"bytes,1,name=path"`
+	FileLabelSelector *metav1.LabelSelector `json:"fileLabelSelector,omitempty" protobuf:"bytes,2,name=fileLabelSelector"`
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.

@@ -382,6 +382,112 @@ spec:
 
 In `values` we can also interpolate all fields set by the git files generator as mentioned above.
 
+### File Label Selector
+
+The Git File generator supports the `fileLabelSelector` option, which allows you to filter files based on the labels(key-value pairs).
+This will be useful when you want to include only specific files from a Git repository based on their labels. The `matchLabels` and `matchExpressions` fields work similar to kubernetes label selectors(allowing you to use either or both).
+
+For example, consider the following repo structure:
+```
+.
+└── apps
+     ├── app-1.yaml
+     ├── app-2.yaml
+     ├── app-3.yaml
+     └── app-4.yaml
+```
+`app-1.yaml`:
+```yaml
+Name: cluster-dev
+appName: redis
+data:
+  phase: dev
+  rolloutStrategy: Recreate
+  monitoring:
+    enabled: false
+```
+
+`app-2.yaml`:
+```yaml
+Name: cluster-stag
+appName: redis
+data:
+  phase: stag
+  rolloutStrategy: Recreate
+  monitoring:
+    enabled: false
+```
+
+`app-3.yaml`:
+```yaml
+Name: cluster-test
+appName: redis
+data:
+  phase: test
+  rolloutStrategy: Rollout
+  monitoring:
+    enabled: true
+```
+
+`app-4.yaml`:
+```yaml
+Name: cluster-prod
+appName: redis
+data:
+  phase: prod
+  rolloutStrategy: Rollout
+  monitoring:
+    enabled: true
+```
+
+To include only the files with the labels(key-value pairs) `rolloutStrategy`, `phase` and `monitoring.enabled`, you can use the `fileLabelSelector` as follows:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/argoproj/argo-cd.git
+      revision: HEAD
+      files:
+      - path: "apps/app*.yaml"
+        fileLabelSelector:
+          matchLabels:
+            data.rolloutStrategy: Rollout
+            data.monitoring.enabled: true
+          matchExpressions:
+          - key: data.phase
+            operator: In
+            values:
+            - test
+            - prod
+  template:
+    metadata:
+      name: '{{Name}}-app'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: "apps"
+      destination:
+        server: https://kubernetes.default.svc
+```
+From the above appset example, only `app-3.yaml` and `app-4.yaml` will be included because only those files have the labels mentioned under `matchLabels` and `matchExpressions`.
+
+!!! note
+    If you need to filter based on labels nested within a list of objects, include the index in the key. For example, if the labels are within a list, specify the index in the key, like `data.labels.0.role`
+  ``` yaml
+  data:
+    labels:
+      - role: admin
+  ```
+
 ## Webhook Configuration
 
 When using a Git generator, ApplicationSet polls Git repositories every three minutes to detect changes. To eliminate

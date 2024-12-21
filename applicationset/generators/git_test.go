@@ -977,6 +977,301 @@ cluster:
 			},
 			expectedError: nil,
 		},
+		{
+			name: "create params from git files using matchLabels",
+			files: []v1alpha1.GitFileGeneratorItem{{
+				Path: "**/config.json",
+				FileLabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"cluster.name": "production",
+						"key1":         "val1",
+					},
+				},
+			}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+"cluster": {
+   "owner": "john.doe@example.com",
+   "name": "production",
+   "address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+"cluster": {
+	"owner": "foo.bar@example.com",
+	"name": "staging",
+	"address": "https://kubernetes.default.svc"
+}
+}`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"path":                    "cluster-config/production",
+					"path.basename":           "production",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
+					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "create params from git files using matchExpressions",
+			files: []v1alpha1.GitFileGeneratorItem{{
+				Path: "**/config.json",
+				FileLabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "cluster.name", Operator: metav1.LabelSelectorOpIn, Values: []string{"production", "test"}},
+					},
+				},
+			}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+"cluster": {
+   "owner": "john.doe@example.com",
+   "name": "production",
+   "address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+"cluster": {
+	"owner": "foo.bar@example.com",
+	"name": "staging",
+	"address": "https://kubernetes.default.svc"
+}
+}`),
+				"cluster-config/test/config.json": []byte(`{
+"cluster": {
+	"owner": "clairk.gen@example.com",
+	"name": "test",
+	"address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123,
+"key4": "val4",
+	 }`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "john.doe@example.com",
+					"cluster.name":            "production",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"path":                    "cluster-config/production",
+					"path.basename":           "production",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "production",
+					"path.basenameNormalized": "production",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+				{
+					"cluster.owner":           "clairk.gen@example.com",
+					"cluster.name":            "test",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"key4":                    "val4",
+					"path":                    "cluster-config/test",
+					"path.basename":           "test",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "test",
+					"path.basenameNormalized": "test",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "create params from git files matchLabels and matchExpressions",
+			files: []v1alpha1.GitFileGeneratorItem{{
+				Path: "**/config.json",
+				FileLabelSelector: &metav1.LabelSelector{
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						{Key: "cluster.name", Operator: metav1.LabelSelectorOpIn, Values: []string{"production", "test"}},
+					},
+					MatchLabels: map[string]string{
+						"key4": "val4",
+					},
+				},
+			}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+"cluster": {
+   "owner": "john.doe@example.com",
+   "name": "production",
+   "address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+"cluster": {
+	"owner": "foo.bar@example.com",
+	"name": "staging",
+	"address": "https://kubernetes.default.svc"
+}
+}`),
+				"cluster-config/test/config.json": []byte(`{
+"cluster": {
+	"owner": "clairk.gen@example.com",
+	"name": "test",
+	"address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123,
+"key4": "val4",
+	 }`),
+			},
+			repoPathsError: nil,
+			expected: []map[string]any{
+				{
+					"cluster.owner":           "clairk.gen@example.com",
+					"cluster.name":            "test",
+					"cluster.address":         "https://kubernetes.default.svc",
+					"key1":                    "val1",
+					"key2.key2_1":             "val2_1",
+					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"key3":                    "123",
+					"key4":                    "val4",
+					"path":                    "cluster-config/test",
+					"path.basename":           "test",
+					"path[0]":                 "cluster-config",
+					"path[1]":                 "test",
+					"path.basenameNormalized": "test",
+					"path.filename":           "config.json",
+					"path.filenameNormalized": "config.json",
+				},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "invalid value for matchLabels",
+			files: []v1alpha1.GitFileGeneratorItem{{
+				Path: "**/config.json",
+				FileLabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"cluster.owner": "john.doe@example.com",
+					},
+				},
+			}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+"cluster": {
+   "owner": "john.doe@example.com",
+   "name": "production",
+   "address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+"cluster": {
+	"owner": "foo.bar@example.com",
+	"name": "staging",
+	"address": "https://kubernetes.default.svc"
+}
+}`),
+			},
+			repoPathsError: nil,
+			expected:       []map[string]any{},
+			expectedError:  errors.New("error generating params from git: error parsing the label selector: values[0][cluster.owner]: Invalid value: \"john.doe@example.com\": a valid label must be an empty string or consist of alphanumeric characters, '-', '_' or '.', and must start and end with an alphanumeric character (e.g. 'MyValue',  or 'my_value',  or '12345', regex used for validation is '(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?')"),
+		},
+		{
+			name: "test no match found",
+			files: []v1alpha1.GitFileGeneratorItem{{
+				Path: "**/config.json",
+				FileLabelSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"cluster.owner": "test-owner",
+					},
+				},
+			}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
+"cluster": {
+   "owner": "john.doe@example.com",
+   "name": "production",
+   "address": "https://kubernetes.default.svc"
+},
+"key1": "val1",
+"key2": {
+   "key2_1": "val2_1",
+   "key2_2": {
+	   "key2_2_1": "val2_2_1"
+   }
+},
+"key3": 123
+}`),
+				"cluster-config/staging/config.json": []byte(`{
+"cluster": {
+	"owner": "foo.bar@example.com",
+	"name": "staging",
+	"address": "https://kubernetes.default.svc"
+}
+}`),
+			},
+			repoPathsError: nil,
+			expected:       []map[string]any{},
+			expectedError:  nil,
+		},
 	}
 
 	for _, testCase := range cases {
