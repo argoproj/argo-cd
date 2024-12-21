@@ -169,7 +169,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 
 	output := map[string]string{}
 	for _, file := range values {
-		values := map[string]interface{}{}
+		values := map[string]any{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
@@ -179,13 +179,13 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	return output, nil
 }
 
-func flatVals(input interface{}, output map[string]string, prefixes ...string) {
+func flatVals(input any, output map[string]string, prefixes ...string) {
 	switch i := input.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for k, v := range i {
 			flatVals(v, output, append(prefixes, k)...)
 		}
-	case []interface{}:
+	case []any:
 		p := append([]string(nil), prefixes...)
 		for j, v := range i {
 			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)

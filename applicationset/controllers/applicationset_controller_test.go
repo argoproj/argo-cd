@@ -1864,7 +1864,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GetTemplate", &generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
-		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
+		Return([]map[string]any{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
 
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 

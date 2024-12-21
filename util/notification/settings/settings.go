@@ -64,8 +64,8 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 		return nil, err
 	}
 
-	return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
+	return func(obj map[string]any, dest services.Destination) map[string]any {
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
 		})
@@ -78,8 +78,8 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.C
 		return nil, err
 	}
 
-	return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
+	return func(obj map[string]any, dest services.Destination) map[string]any {
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
 			"secrets": secret.Data,

@@ -170,7 +170,7 @@ func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...st
 }
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)

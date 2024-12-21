@@ -518,7 +518,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 			Changes: []bitbucketserver.RepositoryChange{
 				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/" + branchName}},
 			},
-			Repository: bitbucketserver.Repository{Links: map[string]interface{}{"clone": []interface{}{}}},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{}}},
 		}
 	}
 
@@ -531,7 +531,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	tests := []struct {
 		hasChanged     bool
 		targetRevision string
-		hookPayload    interface{}
+		hookPayload    any
 		name           string
 	}{
 		// Edge cases for bitbucket.

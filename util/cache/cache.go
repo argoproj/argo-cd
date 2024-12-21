@@ -268,7 +268,7 @@ func (c *Cache) generateFullKey(key string) string {
 }
 
 // Sets or deletes an item in cache
-func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) error {
+func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	if item == nil {
 		return fmt.Errorf("cannot set nil item in cache")
 	}
@@ -284,7 +284,7 @@ func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) err
 	}
 }
 
-func (c *Cache) GetItem(key string, item interface{}) error {
+func (c *Cache) GetItem(key string, item any) error {
 	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)

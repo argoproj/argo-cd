@@ -529,7 +529,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 
 // applyMergePatch will apply the given patch in the obj and return the patched
 // unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject interface{}) (*unstructured.Unstructured, error) {
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err

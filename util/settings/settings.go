@@ -228,7 +228,7 @@ type KustomizeSettings struct {
 
 var (
 	ByClusterURLIndexer     = "byClusterURL"
-	byClusterURLIndexerFunc = func(obj interface{}) ([]string, error) {
+	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
 		s, ok := obj.(*apiv1.Secret)
 		if !ok {
 			return nil, nil
@@ -245,7 +245,7 @@ var (
 		return nil, nil
 	}
 	ByClusterNameIndexer     = "byClusterName"
-	byClusterNameIndexerFunc = func(obj interface{}) ([]string, error) {
+	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
 		s, ok := obj.(*apiv1.Secret)
 		if !ok {
 			return nil, nil
@@ -264,8 +264,8 @@ var (
 	ByProjectClusterIndexer   = "byProjectCluster"
 	ByProjectRepoIndexer      = "byProjectRepo"
 	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
-	byProjectIndexerFunc      = func(secretType string) func(obj interface{}) ([]string, error) {
-		return func(obj interface{}) ([]string, error) {
+	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
+		return func(obj any) ([]string, error) {
 			s, ok := obj.(*apiv1.Secret)
 			if !ok {
 				return nil, nil
@@ -1389,14 +1389,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			mgr.onRepoOrClusterChanged()
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -1445,14 +1445,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	now := time.Now()
 	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if metaObj, ok := obj.(metav1.Object); ok {
 				if metaObj.GetCreationTimestamp().After(now) {
 					tryNotify()
 				}
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			oldMeta, oldOk := oldObj.(metav1.Common)
 			newMeta, newOk := newObj.(metav1.Common)
 			if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
@@ -1849,8 +1849,8 @@ func (a *ArgoCDSettings) GetServerEncryptionKey() ([]byte, error) {
 	return crypto.KeyFromPassphrase(string(a.ServerSignature))
 }
 
-func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
-	var dexCfg map[string]interface{}
+func UnmarshalDexConfig(config string) (map[string]any, error) {
+	var dexCfg map[string]any
 	err := yaml.Unmarshal([]byte(config), &dexCfg)
 	return dexCfg, err
 }
@@ -1859,7 +1859,7 @@ func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	configMap := map[string]interface{}{}
+	configMap := map[string]any{}
 	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &configMap)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
@@ -2232,13 +2232,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 
 // ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
 // object and replaces the value with the secret value
-func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
-	newObj := make(map[string]interface{})
+func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[string]any {
+	newObj := make(map[string]any)
 	for k, v := range obj {
 		switch val := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
+		case []any:
 			newObj[k] = replaceListSecrets(val, secretValues)
 		case string:
 			newObj[k] = ReplaceStringSecret(val, secretValues)
@@ -2249,13 +2249,13 @@ func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]strin
 	return newObj
 }
 
-func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
-	newObj := make([]interface{}, len(obj))
+func replaceListSecrets(obj []any, secretValues map[string]string) []any {
+	newObj := make([]any, len(obj))
 	for i, v := range obj {
 		switch val := v.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []interface{}:
+		case []any:
 			newObj[i] = replaceListSecrets(val, secretValues)
 		case string:
 			newObj[i] = ReplaceStringSecret(val, secretValues)

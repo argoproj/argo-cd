@@ -536,7 +536,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
-		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
+		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (any, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
@@ -733,7 +733,7 @@ func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIRe
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
-func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
+func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bool {
 	for _, obj := range apps {
 		app, ok := obj.(*appv1.Application)
 		if !ok {

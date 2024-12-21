@@ -52,14 +52,14 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 		return liveCopy, configCopy, nil
 	}
 	lvu := results.live.AsValue().Unstructured()
-	l, ok := lvu.(map[string]interface{})
+	l, ok := lvu.(map[string]any)
 	if !ok {
 		return nil, nil, fmt.Errorf("error converting live typedValue: expected map got %T", lvu)
 	}
 	normLive := &unstructured.Unstructured{Object: l}
 
 	cvu := results.config.AsValue().Unstructured()
-	c, ok := cvu.(map[string]interface{})
+	c, ok := cvu.(map[string]any)
 	if !ok {
 		return nil, nil, fmt.Errorf("error converting config typedValue: expected map got %T", cvu)
 	}

@@ -20,7 +20,7 @@ type ServiceRequest struct {
 
 type Output struct {
 	// Parameters is the list of parameter sets returned by the plugin.
-	Parameters []map[string]interface{} `json:"parameters"`
+	Parameters []map[string]any `json:"parameters"`
 }
 
 // ServiceResponse is the response object returned by the plugin service.
