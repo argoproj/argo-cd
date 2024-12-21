@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -80,7 +79,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			}
 
 			fmt.Printf("Argo CD Redis secret state confirmed: secret name %s.\n", redisInitialCredentials)
-			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, v1.GetOptions{})
+			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {
