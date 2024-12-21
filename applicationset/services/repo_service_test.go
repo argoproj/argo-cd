@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -39,7 +40,7 @@ func TestGetDirectories(t *testing.T) {
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
@@ -48,7 +49,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("unable to get dirs"))
+					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, errors.New("unable to get dirs"))
 				},
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -70,7 +71,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("revision HEAD is not signed"))
+					client.On("GetGitDirectories", mock.Anything, mock.Anything).Return(nil, errors.New("revision HEAD is not signed"))
 				},
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -122,7 +123,7 @@ func TestGetFiles(t *testing.T) {
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{
@@ -131,7 +132,7 @@ func TestGetFiles(t *testing.T) {
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("unable to get files"))
+					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, errors.New("unable to get files"))
 				},
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -159,7 +160,7 @@ func TestGetFiles(t *testing.T) {
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
 				func(client *repo_mocks.RepoServerServiceClient) {
-					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, fmt.Errorf("revision HEAD is not signed"))
+					client.On("GetGitFiles", mock.Anything, mock.Anything).Return(nil, errors.New("revision HEAD is not signed"))
 				},
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},

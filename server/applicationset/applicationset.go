@@ -3,6 +3,7 @@ package applicationset
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -184,7 +185,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	appset := q.GetApplicationset()
 
 	if appset == nil {
-		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
+		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 
 	projectName, err := s.validateAppSet(appset)
@@ -370,7 +371,7 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	appset := q.GetApplicationSet()
 
 	if appset == nil {
-		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
+		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
@@ -429,13 +430,13 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 
 func (s *Server) validateAppSet(appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
-		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
+		return "", errors.New("ApplicationSet cannot be validated for nil value")
 	}
 
 	projectName := appset.Spec.Template.Spec.Project
 
 	if strings.Contains(projectName, "{{") {
-		return "", fmt.Errorf("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
+		return "", errors.New("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
 	}
 
 	if err := appsetutils.CheckInvalidGenerators(appset); err != nil {

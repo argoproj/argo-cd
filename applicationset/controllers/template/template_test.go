@@ -1,7 +1,7 @@
 package template
 
 import (
-	"fmt"
+	"errors"
 	"maps"
 	"testing"
 
@@ -53,7 +53,7 @@ func TestGenerateApplications(t *testing.T) {
 		},
 		{
 			name:                "Handles error from the generator",
-			generateParamsError: fmt.Errorf("error"),
+			generateParamsError: errors.New("error"),
 			expectErr:           true,
 			expectedReason:      v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		},
@@ -68,7 +68,7 @@ func TestGenerateApplications(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSpec{},
 			},
-			rendererError:  fmt.Errorf("error"),
+			rendererError:  errors.New("error"),
 			expectErr:      true,
 			expectedReason: v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
 		},

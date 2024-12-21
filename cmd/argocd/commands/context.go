@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -85,7 +86,7 @@ func deleteContext(context, configPath string) error {
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	errors.CheckError(err)
 	if localCfg == nil {
-		return fmt.Errorf("Nothing to logout from")
+		return stderrors.New("Nothing to logout from")
 	}
 
 	serverName, ok := localCfg.RemoveContext(context)
@@ -104,7 +105,7 @@ func deleteContext(context, configPath string) error {
 		}
 		err = localconfig.ValidateLocalConfig(*localCfg)
 		if err != nil {
-			return fmt.Errorf("Error in logging out")
+			return stderrors.New("Error in logging out")
 		}
 		err = localconfig.WriteLocalConfig(*localCfg, configPath)
 		errors.CheckError(err)

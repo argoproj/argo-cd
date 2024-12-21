@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -104,7 +105,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
 					errors.CheckError(err)
 				}
 			}
@@ -112,7 +113,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
-				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -126,7 +127,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					repo.TLSClientCertData = string(tlsCertData)
 					repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -138,7 +139,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
-					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--github-app-private-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -150,7 +151,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
 				} else {
-					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}

@@ -226,7 +226,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
 	} else {
-		return nil, fmt.Errorf("no SCM provider implementation configured")
+		return nil, errors.New("no SCM provider implementation configured")
 	}
 
 	// Find all the available repos.

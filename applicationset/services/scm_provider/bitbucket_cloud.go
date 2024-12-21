@@ -2,6 +2,7 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -155,17 +156,17 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
 	cloneLinks, ok := repo.Links["clone"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from repo links")
+		return nil, errors.New("unknown type returned from repo links")
 	}
 	for _, link := range cloneLinks {
 		linkEntry, ok := link.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("unknown type returned from clone link")
+			return nil, errors.New("unknown type returned from clone link")
 		}
 		if linkEntry["name"] == cloneProtocol {
 			url, ok := linkEntry["href"].(string)
 			if !ok {
-				return nil, fmt.Errorf("could not find href for clone link")
+				return nil, errors.New("could not find href for clone link")
 			}
 			return &url, nil
 		}

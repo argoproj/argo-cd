@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
@@ -34,7 +34,7 @@ func GetFactorySettingsForCLI(argocdService *service.Service, secretName, config
 		ConfigMapName: configMapName,
 		InitGetVars: func(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
 			if *argocdService == nil {
-				return nil, fmt.Errorf("argocdService is not initialized")
+				return nil, errors.New("argocdService is not initialized")
 			}
 
 			if selfServiceNotificationEnabled {

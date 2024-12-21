@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -270,7 +271,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 
 			// We should have at least one valid PEM entry
 			if len(pemData) == 0 {
-				return nil, fmt.Errorf("No valid PEM data received.")
+				return nil, errors.New("No valid PEM data received.")
 			}
 
 			// Make sure we have valid X509 certificates in the data

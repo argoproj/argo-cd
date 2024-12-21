@@ -2,6 +2,7 @@ package generators
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -17,9 +18,9 @@ import (
 var _ Generator = (*MergeGenerator)(nil)
 
 var (
-	ErrLessThanTwoGeneratorsInMerge = fmt.Errorf("found less than two generators, Merge requires two or more")
-	ErrNoMergeKeys                  = fmt.Errorf("no merge keys were specified, Merge requires at least one")
-	ErrNonUniqueParamSets           = fmt.Errorf("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
+	ErrLessThanTwoGeneratorsInMerge = errors.New("found less than two generators, Merge requires two or more")
+	ErrNoMergeKeys                  = errors.New("no merge keys were specified, Merge requires at least one")
+	ErrNonUniqueParamSets           = errors.New("the parameters from a generator were not unique by the given mergeKeys, Merge requires all param sets to be unique")
 )
 
 type MergeGenerator struct {
@@ -182,7 +183,7 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 	}
 
 	if len(t) == 0 {
-		return nil, fmt.Errorf("child generator generated no parameters")
+		return nil, errors.New("child generator generated no parameters")
 	}
 
 	if len(t) > 1 {
