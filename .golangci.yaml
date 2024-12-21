@@ -14,6 +14,7 @@ linters:
     - gocritic
     - gofumpt
     - goimports
+    - gomodguard
     - gosimple
     - govet
     - ineffassign
@@ -40,6 +41,12 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/pkg/errors:
+            recommendations:
+              - errors
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
