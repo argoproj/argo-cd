@@ -105,9 +105,7 @@ func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 func TestInit(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	if err != nil {
-		t.Fatalf("Error registering the resource: %v", err)
-	}
+	require.NoErrorf(t, err, "Error registering the resource")
 	dynamicClient := fake.NewSimpleDynamicClient(scheme)
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
@@ -141,9 +139,7 @@ func TestInit(t *testing.T) {
 func TestInitTimeout(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)
-	if err != nil {
-		t.Fatalf("Error registering the resource: %v", err)
-	}
+	require.NoErrorf(t, err, "Error registering the resource")
 	dynamicClient := fake.NewSimpleDynamicClient(scheme)
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
