@@ -1859,12 +1859,21 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 	isTheOneMap := make(map[string]bool)
 	for _, treeNode := range treeNodes {
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
-			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
+			if !hasPodStopped(treeNode) && isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
 				pods = append(pods, treeNode)
 			}
 		}
 	}
 	return pods
+}
+
+func hasPodStopped(pod appv1.ResourceNode) bool {
+	for _, info := range pod.Info {
+		if info.Name == "Status Reason" && (info.Value == "Completed" || info.Value == "Failed" || info.Value == "Error") {
+			return true
+		}
+	}
+	return false
 }
 
 // check is currentNode is matching with group, kind, and name, or if any of its parents matches
