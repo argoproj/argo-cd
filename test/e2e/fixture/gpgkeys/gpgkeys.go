@@ -11,7 +11,7 @@ import (
 
 // Add GPG public key via API and create appropriate file where the ConfigMap mount would de it as well
 func AddGPGPublicKey() {
-	keyPath, err := filepath.Abs(fmt.Sprintf("../fixture/gpg/%s", fixture.GpgGoodKeyID))
+	keyPath, err := filepath.Abs("../fixture/gpg/" + fixture.GpgGoodKeyID)
 	errors.CheckError(err)
 	args := []string{"gpg", "add", "--from", keyPath}
 	errors.FailOnErr(fixture.RunCli(args...))

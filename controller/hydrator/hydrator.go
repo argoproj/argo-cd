@@ -304,7 +304,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
 		DrySha:        targetRevision,
-		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", targetRevision),
+		CommitMessage: "[Argo CD Bot] hydrate " + targetRevision,
 		Paths:         paths,
 	}
 

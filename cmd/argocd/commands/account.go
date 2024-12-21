@@ -358,7 +358,7 @@ func printAccountDetails(acc *accountpkg.Account) {
 				expiresAt := time.Unix(t.ExpiresAt, 0)
 				expiresAtFormatted = expiresAt.Format(time.RFC3339)
 				if expiresAt.Before(time.Now()) {
-					expiresAtFormatted = fmt.Sprintf("%s (expired)", expiresAtFormatted)
+					expiresAtFormatted = expiresAtFormatted + " (expired)"
 				}
 			}
 

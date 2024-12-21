@@ -100,7 +100,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -118,7 +118,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -135,7 +135,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -153,7 +153,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -219,7 +219,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
@@ -252,7 +252,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
 
@@ -288,7 +288,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
 

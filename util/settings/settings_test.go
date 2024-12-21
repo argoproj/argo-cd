@@ -134,8 +134,8 @@ func TestGetExtensionConfigs(t *testing.T) {
 			name:        "will return main and additional config successfully",
 			expectedLen: 2,
 			input: map[string]string{
-				extensionConfig: "main config",
-				fmt.Sprintf("%s.anotherExtension", extensionConfig): "another config",
+				extensionConfig:                       "main config",
+				extensionConfig + ".anotherExtension": "another config",
 			},
 			expected: map[string]string{
 				"":                 "main config",
