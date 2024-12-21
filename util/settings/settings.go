@@ -2204,7 +2204,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		hosts := []string{
 			"localhost",
 			"argocd-server",
-			fmt.Sprintf("argocd-server.%s", mgr.namespace),
+			"argocd-server." + mgr.namespace,
 			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
 			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
 		}

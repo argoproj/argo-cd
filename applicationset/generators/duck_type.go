@@ -211,7 +211,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 					}
 					params["values"].(map[string]string)[key] = value
 				} else {
-					params[fmt.Sprintf("values.%s", key)] = value
+					params["values."+key] = value
 				}
 			}
 

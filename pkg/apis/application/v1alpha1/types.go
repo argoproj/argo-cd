@@ -1009,12 +1009,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal plugin parameters: %w", err)
 	}
-	jsonParam := fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", string(out))
+	jsonParam := "ARGOCD_APP_PARAMETERS=" + string(out)
 
 	env := []string{jsonParam}
 
 	for _, param := range p {
-		envBaseName := fmt.Sprintf("PARAM_%s", escaped(param.Name))
+		envBaseName := "PARAM_" + escaped(param.Name)
 		if param.String_ != nil {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
