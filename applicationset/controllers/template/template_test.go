@@ -31,7 +31,7 @@ func TestGenerateApplications(t *testing.T) {
 
 	for _, c := range []struct {
 		name                string
-		params              []map[string]interface{}
+		params              []map[string]any
 		template            v1alpha1.ApplicationSetTemplate
 		generateParamsError error
 		rendererError       error
@@ -40,7 +40,7 @@ func TestGenerateApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate two applications",
-			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]any{{"name": "app1"}, {"name": "app2"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -59,7 +59,7 @@ func TestGenerateApplications(t *testing.T) {
 		},
 		{
 			name:   "Handles error from the render",
-			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]any{{"name": "app1"}, {"name": "app2"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -153,7 +153,7 @@ func TestGenerateApplications(t *testing.T) {
 func TestMergeTemplateApplications(t *testing.T) {
 	for _, c := range []struct {
 		name             string
-		params           []map[string]interface{}
+		params           []map[string]any
 		template         v1alpha1.ApplicationSetTemplate
 		overrideTemplate v1alpha1.ApplicationSetTemplate
 		expectedMerged   v1alpha1.ApplicationSetTemplate
@@ -161,7 +161,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate app",
-			params: []map[string]interface{}{{"name": "app1"}},
+			params: []map[string]any{{"name": "app1"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -245,13 +245,13 @@ func TestMergeTemplateApplications(t *testing.T) {
 func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 	for _, cases := range []struct {
 		name        string
-		params      []map[string]interface{}
+		params      []map[string]any
 		template    v1alpha1.ApplicationSetTemplate
 		expectedApp []v1alpha1.Application
 	}{
 		{
 			name: "Generate an application from a go template application set manifest using a pull request generator",
-			params: []map[string]interface{}{
+			params: []map[string]any{
 				{
 					"number":                                "1",
 					"title":                                 "title1",

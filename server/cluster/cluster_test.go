@@ -128,7 +128,7 @@ func newEnforcer() *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	})
 	return enforcer

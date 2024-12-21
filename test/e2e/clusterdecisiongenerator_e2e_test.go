@@ -47,8 +47,8 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	var expectedAppNewNamespace *argov1alpha1.Application
 	var expectedAppNewMetadata *argov1alpha1.Application
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
@@ -155,8 +155,8 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 	var expectedAppNewNamespace *argov1alpha1.Application
 	var expectedAppNewMetadata *argov1alpha1.Application
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
@@ -262,12 +262,12 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
@@ -357,12 +357,12 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
@@ -454,19 +454,19 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
 	}
 
-	clusterListSmall := []interface{}{
-		map[string]interface{}{
+	clusterListSmall := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},

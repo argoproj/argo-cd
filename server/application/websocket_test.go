@@ -130,7 +130,7 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 			return true
 		})
 		ts := newTestTerminalSession(w, r)
@@ -150,7 +150,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:test")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 			return false
 		})
 		ts := newTestTerminalSession(w, r)
