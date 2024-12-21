@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
@@ -306,6 +307,8 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, []v1alpha1.InfoItem{
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"}, // strings imported from common
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
 		}, info.Info)
 		assert.Equal(t, []string{"bar"}, info.Images)
 		assert.Equal(t, &PodInfo{
@@ -367,9 +370,81 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
+	t.Run("TestGetPodWithInitialContainerInfoWithResources", func(t *testing.T) {
+		pod := strToUnstructured(`
+        apiVersion: "v1"
+        kind: "Pod"
+        metadata:
+            labels:
+                app: "app-with-initial-container"
+            name: "app-with-initial-container-5f46976fdb-vd6rv"
+            namespace: "default"
+            ownerReferences:
+            - apiVersion: "apps/v1"
+              kind: "ReplicaSet"
+              name: "app-with-initial-container-5f46976fdb"
+        spec:
+            containers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+            initContainers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container-logshipper"
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "250m"
+                  memory: "256Mi"
+            nodeName: "minikube"
+        status:
+            containerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container"
+              ready: true
+              restartCount: 0
+              started: true
+              state:
+                running:
+                  startedAt: "2024-10-08T08:44:25Z"
+            initContainerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container-logshipper"
+              ready: true
+              restartCount: 0
+              started: false
+              state:
+                terminated:
+                  exitCode: 0
+                  reason: "Completed"
+            phase: "Running"
+    `)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Running"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "1/1"},
+			{Name: common.PodRequestsCPU, Value: "100"},
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
+		}, info.Info)
+	})
 	t.Run("TestGetPodInfoWithSidecar", func(t *testing.T) {
 		t.Parallel()
 
@@ -424,6 +499,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "2/2"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -482,6 +559,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Init:0/1"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -539,6 +618,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -596,6 +677,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -656,6 +739,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/3"},
 			{Name: "Restart Count", Value: "7"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -698,6 +783,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
 			{Name: "Restart Count", Value: "3"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -733,6 +820,45 @@ func TestGetPodInfo(t *testing.T) {
 		}, info.Info)
 	})
 
+	// Test pod condition succeed which had some allocated resources
+	t.Run("TestPodConditionSucceededWithResources", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test8
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+  status:
+    phase: Succeeded
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Completed
+            exitCode: 0
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Completed"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "0/1"},
+		}, info.Info)
+	})
+
 	// Test pod condition failed
 	t.Run("TestPodConditionFailed", func(t *testing.T) {
 		t.Parallel()
@@ -746,6 +872,46 @@ func TestGetPodInfo(t *testing.T) {
     nodeName: minikube
     containers:
       - name: container
+  status:
+    phase: Failed
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Error
+            exitCode: 1
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []v1alpha1.InfoItem{
+			{Name: "Status Reason", Value: "Error"},
+			{Name: "Node", Value: "minikube"},
+			{Name: "Containers", Value: "0/1"},
+		}, info.Info)
+	})
+
+	// Test pod condition failed with allocated resources
+
+	t.Run("TestPodConditionFailedWithResources", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test9
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
   status:
     phase: Failed
     containerStatuses:
@@ -826,6 +992,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -852,6 +1020,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -882,6 +1052,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "SchedulingGated"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/2"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 }
