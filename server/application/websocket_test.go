@@ -160,7 +160,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
 		_, err := ts.validatePermissions([]byte{})
 		require.Error(t, err)
-		assert.EqualError(t, err, permissionDeniedErr.Error())
+		assert.EqualError(t, err, common.PermissionDeniedAPIError.Error())
 	}
 
 	testServerConnection(t, validate, true)
