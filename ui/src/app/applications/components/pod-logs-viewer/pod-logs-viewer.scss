@@ -1,6 +1,13 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
 
+$pod-background-light: $argo-color-teal-3;
+$pod-background-dark: $dark-theme-background-2;
+:root {
+    --pod-background-light: #{$pod-background-light};
+    --pod-background-dark: #{$pod-background-dark};
+}
+
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
@@ -12,6 +19,7 @@
     &--inverted {
         background-color: black;
         color: white;
+        scrollbar-color: $argo-color-gray-5 $dark-theme-background-2;
     }
 
     &__settings {
@@ -204,6 +212,15 @@
         top: 50%;
         transform: translateY(2em);
         z-index: 1;
+    }
+
+    .pod-name-link {
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+        &:hover {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
     }
 }
 
