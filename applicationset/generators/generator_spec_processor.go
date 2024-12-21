@@ -13,7 +13,7 @@ import (
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	log "github.com/sirupsen/logrus"
 )
 
