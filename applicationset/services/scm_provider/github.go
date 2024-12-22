@@ -11,6 +11,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type contextKey struct{}
+
+var cacheContextKey = contextKey{}
+
+func ContextWithGithubCache(ctx context.Context, cache httpcache.Cache) context.Context {
+	return context.WithValue(ctx, cacheContextKey, cache)
+}
+
 type GithubProvider struct {
 	client       *github.Client
 	organization string
@@ -29,18 +37,21 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 		ts = oauth2.StaticTokenSource(
 			&oauth2.Token{AccessToken: token},
 		)
+		if cache, ok := ctx.Value(cacheContextKey).(httpcache.Cache); ok {
+			ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
+				Transport: &httpcache.Transport{
+					Cache: cache,
+				},
+			})
+		}
+
+		oauth2.NewClient(ctx, ts)
+
 	}
 
 	if cacheEnabled {
-		cache := httpcache.NewMemoryCache()
-		cachingHttpClient := http.Client{
-			Transport: &httpcache.Transport{
-				Cache: cache,
-			},
-		}
-		oauth2.NewClient(ctx, )
-	}
 
+	}
 
 	httpClient := oauth2.NewClient(ctx, ts)
 

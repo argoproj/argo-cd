@@ -488,7 +488,7 @@ type SCMProviderGeneratorGithub struct {
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
 	// should caching be enabled for github requests
-	CachingEnabled bool `json:"cachingEnabled,omitempty" protobuf:"varint,6,opt,name=cachingEnabled`
+	CachingEnabled bool `json:"cachingEnabled,omitempty" protobuf:"varint,6,opt,name=cachingEnabled"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
@@ -680,6 +680,8 @@ type PullRequestGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,5,opt,name=appSecretName"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// should caching be enabled for github requests
+	CachingEnabled bool `json:"cachingEnabled,omitempty" protobuf:"varint,6,opt,name=cachingEnabled"`
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
