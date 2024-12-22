@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/go-github/v63/github"
 	"github.com/gregjones/httpcache"
-	"golang.org/x/oauth2"
 )
 
 type contextKey struct{}
@@ -28,34 +27,31 @@ type GithubProvider struct {
 var _ SCMProviderService = &GithubProvider{}
 
 func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool, cacheEnabled bool) (*GithubProvider, error) {
-	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
+	var client *github.Client
+
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-		if cache, ok := ctx.Value(cacheContextKey).(httpcache.Cache); ok {
-			ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{
-				Transport: &httpcache.Transport{
-					Cache: cache,
-				},
-			})
-		}
 
-		oauth2.NewClient(ctx, ts)
-
-	}
-
+	httpClient := &http.Client{}
 	if cacheEnabled {
+		cache := httpcache.NewMemoryCache()
+
+		httpClient = &http.Client{
+			Transport: &httpcache.Transport{
+				Cache: cache,
+			},
+		}
+	} else {
+		httpClient = &http.Client{}
+	}
+
+	if token != "" {
+		client.WithAuthToken(token)
 
 	}
 
-	httpClient := oauth2.NewClient(ctx, ts)
-
-	var client *github.Client
 	if url == "" {
 		client = github.NewClient(httpClient)
 	} else {
