@@ -7,6 +7,7 @@ import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
+import {COLORS} from '../../../shared/components';
 
 export interface FilterResult {
     repos: boolean;
@@ -35,7 +36,10 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
         ...app,
         filterResult: {
             repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
-            sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+            sync:
+                pref.syncFilter.length === 0 ||
+                pref.syncFilter.includes(app.status.sync.status) ||
+                (pref.syncFilter.includes('Sync failed') && app.status.operationState?.phase === 'Failed'),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
             namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
@@ -96,22 +100,31 @@ const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter:
     });
 };
 
-const SyncFilter = (props: AppFilterProps) => (
-    <Filter
-        label='SYNC STATUS'
-        selected={props.pref.syncFilter}
-        setSelected={s => props.onChange({...props.pref, syncFilter: s})}
-        options={getOptions(
-            props.apps,
-            'sync',
-            app => app.status.sync.status,
-            Object.keys(SyncStatuses),
-            s => (
-                <ComparisonStatusIcon status={s as SyncStatusCode} noSpin={true} />
-            )
-        )}
-    />
-);
+const SyncFilter = (props: AppFilterProps) => {
+    const failedSyncOption = 'Sync failed';
+    const options = [...Object.keys(SyncStatuses), failedSyncOption];
+
+    // counts for sync statuses
+    const counts = getCounts(props.apps, 'sync', app => app.status.sync.status, options);
+
+    // counting failed operation phase separately
+    const failedCount = props.apps.filter(
+        app => app.status.operationState?.phase === 'Failed' && Object.keys(app.filterResult).every((key: keyof FilterResult) => key === 'sync' || app.filterResult[key])
+    ).length;
+
+    const filterOptions = options.map(status => ({
+        label: status,
+        icon:
+            status === failedSyncOption ? (
+                <i className='fa fa-times-circle' title='Sync failed' style={{color: COLORS.operation.failed}} />
+            ) : (
+                <ComparisonStatusIcon status={status as SyncStatusCode} noSpin={true} />
+            ),
+        count: status === failedSyncOption ? failedCount : counts.get(status)
+    }));
+
+    return <Filter label='SYNC STATUS' selected={props.pref.syncFilter} setSelected={s => props.onChange({...props.pref, syncFilter: s})} options={filterOptions} />;
+};
 
 const HealthFilter = (props: AppFilterProps) => (
     <Filter
