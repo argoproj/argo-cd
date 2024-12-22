@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/google/go-github/v66/github"
-	"golang.org/x/oauth2"
 )
 
 type GithubProvider struct {
@@ -19,13 +18,12 @@ type GithubProvider struct {
 var _ SCMProviderService = &GithubProvider{}
 
 func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
-	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
 
-	httpClient := http.Client{}
+	httpClient := &http.Client{}
 	var client *github.Client
 	if url == "" {
 		client = github.NewClient(httpClient).WithAuthToken(token)

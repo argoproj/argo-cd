@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/google/go-github/v66/github"
-	"golang.org/x/oauth2"
 )
 
 type GithubService struct {
@@ -20,12 +19,11 @@ type GithubService struct {
 var _ PullRequestService = (*GithubService)(nil)
 
 func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
-	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	httpClient := http.Client{}
+	httpClient := &http.Client{}
 	var client *github.Client
 	if url == "" {
 		client = github.NewClient(httpClient).WithAuthToken(token)
