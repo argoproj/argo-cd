@@ -212,7 +212,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		address = ptr.To("localhost")
 	}
 	if port == nil || *port == 0 {
-		addr := fmt.Sprintf("%s:0", *address)
+		addr := *address + ":0"
 		ln, err := net.Listen("tcp", addr)
 		if err != nil {
 			return fmt.Errorf("failed to listen on %q: %w", addr, err)

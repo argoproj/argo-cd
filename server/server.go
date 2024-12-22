@@ -153,7 +153,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
+	clientConstraint = ">= " + common.MinClientVersion
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
@@ -1102,7 +1102,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")
@@ -1268,7 +1268,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 

@@ -14,6 +14,7 @@ linters:
     - gocritic
     - gofumpt
     - goimports
+    - gomodguard
     - gosimple
     - govet
     - ineffassign
@@ -40,17 +41,23 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/pkg/errors:
+            recommendations:
+              - errors
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
     # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
-    err-error: false
+    err-error: true
     # Optimizes `fmt.Errorf`.
     errorf: false
     # Optimizes `fmt.Sprintf` with only one argument.
     sprintf1: true
     # Optimizes into strings concatenation.
-    strconcat: false
+    strconcat: true
   testifylint:
     enable-all: true
     disable:
