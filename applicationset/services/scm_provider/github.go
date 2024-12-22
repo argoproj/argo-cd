@@ -24,15 +24,11 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-	}
-	httpClient := oauth2.NewClient(ctx, ts)
+
+	httpClient := http.Client{}
 	var client *github.Client
 	if url == "" {
-		client = github.NewClient(httpClient)
+		client = github.NewClient(httpClient).WithAuthToken(token)
 	} else {
 		var err error
 		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)

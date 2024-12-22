@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/google/go-github/v66/github"
@@ -24,15 +25,10 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-	}
-	httpClient := oauth2.NewClient(ctx, ts)
+	httpClient := http.Client{}
 	var client *github.Client
 	if url == "" {
-		client = github.NewClient(httpClient)
+		client = github.NewClient(httpClient).WithAuthToken(token)
 	} else {
 		var err error
 		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
