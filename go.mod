@@ -43,6 +43,7 @@ require (
 	github.com/golang/protobuf v1.5.4
 	github.com/google/btree v1.1.3
 	github.com/google/go-cmp v0.6.0
+	github.com/google/go-github/v35 v35.3.0
 	github.com/google/go-github/v63 v63.0.0
 	github.com/google/go-jsonnet v0.20.0
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510

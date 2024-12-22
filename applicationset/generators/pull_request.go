@@ -215,7 +215,7 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, g.cacheEnabled)
+		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, cfg.CachingEnabled)
 	}
 
 	// always default to token, even if not set (public access)
