@@ -5,8 +5,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/services/internal/github_app"
 )
 
-func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string) (PullRequestService, error) {
-	client, err := github_app.Client(g, url)
+func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string, cacheEnabled bool) (PullRequestService, error) {
+	client, err := github_app.Client(g, url, cacheEnabled)
 	if err != nil {
 		return nil, err
 	}

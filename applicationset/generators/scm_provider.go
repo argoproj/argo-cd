@@ -41,14 +41,20 @@ type SCMConfig struct {
 	tokenRefStrictMode  bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
-	return SCMConfig{
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, cacheEnabled bool) SCMConfig {
+	scmConfig := SCMConfig{
 		scmRootCAPath:       scmRootCAPath,
 		allowedSCMProviders: allowedSCMProviders,
 		enableSCMProviders:  enableSCMProviders,
 		GitHubApps:          gitHubApps,
 		tokenRefStrictMode:  tokenRefStrictMode,
 	}
+
+	if cacheEnabled {
+		scmConfig.GitHubClientCache = httpcache.NewMemoryCache()
+	}
+
+	return scmConfig
 }
 
 func NewSCMProviderGenerator(client client.Client, scmConfig SCMConfig) Generator {
