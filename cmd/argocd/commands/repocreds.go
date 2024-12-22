@@ -25,7 +25,7 @@ import (
 func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "repocreds",
-		Short: "Manage repository connection parameters",
+		Short: "Manage credential templates for repositories",
 		Example: templates.Examples(`
 			# Add credentials with user/pass authentication to use for all repositories under the specified URL
 			argocd repocreds add URL --username USERNAME --password PASSWORD
