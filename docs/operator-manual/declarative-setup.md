@@ -71,6 +71,7 @@ See [application.yaml](application.yaml) for additional fields. As long as you h
 
 ```yaml
 spec:
+  project: default
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo
