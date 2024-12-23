@@ -2458,7 +2458,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	}
 
 	healthBeingChecked := watch.suspended || watch.health || watch.degraded
-	var healthCheckPassed bool 
+	var healthCheckPassed bool
 	if healthBeingChecked {
 		if watch.health {
 			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
