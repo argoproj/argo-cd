@@ -1990,6 +1990,39 @@
         }
       }
     },
+    "/api/v1/applicationsets/generate": {
+      "post": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Generate generates",
+        "operationId": "ApplicationSetService_Generate",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}": {
       "get": {
         "tags": [
