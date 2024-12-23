@@ -2,7 +2,7 @@
 
 ## argocd repocreds
 
-Manage repository connection parameters
+Manage credential templates for repositories
 
 ```
 argocd repocreds [flags]

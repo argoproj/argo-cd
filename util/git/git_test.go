@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -327,7 +326,7 @@ func TestLFSClient(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
-	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	fileHandle, err := os.Open(tempDir + "/test3.yaml")
 	require.NoError(t, err)
 	if err == nil {
 		defer func() {

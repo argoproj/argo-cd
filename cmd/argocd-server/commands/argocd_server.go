@@ -173,8 +173,8 @@ func NewCommand() *cobra.Command {
 			// repository server, if strict TLS validation was requested.
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/server/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-					fmt.Sprintf("%s/server/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/tls.crt",
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/ca.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
@@ -189,14 +189,14 @@ func NewCommand() *cobra.Command {
 
 			if !dexServerPlaintext && dexServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/dex/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/ca.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
 				dexTlsConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
-					fmt.Sprintf("%s/dex/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)

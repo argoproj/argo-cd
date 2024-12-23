@@ -256,10 +256,10 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 					break
 				}
 				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
+					rvalsStrs = append(rvalsStrs, "sub: "+sub)
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", issuedAtTime.Format(time.RFC3339)))
+					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
@@ -337,7 +337,7 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 // newInformers returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
+		cmFieldSelector := fields.ParseSelectorOrDie("metadata.name=" + e.configmap)
 		options.FieldSelector = cmFieldSelector.String()
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}

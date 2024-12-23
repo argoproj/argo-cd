@@ -257,7 +257,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
+			repoURL: server.URL + "/my-repo",
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -265,7 +265,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
+			repoURL: serverURL.Host + "/my-repo",
 		},
 	}
 
@@ -342,7 +342,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
+			repoURL: server.URL + "/my-repo",
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -350,7 +350,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
+			repoURL: serverURL.Host + "/my-repo",
 		},
 	}
 

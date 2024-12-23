@@ -670,9 +670,9 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
-		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.GetSource().TargetRevision)
+		syncStatusStr += " to " + app.Spec.GetSource().TargetRevision
 	case argoappv1.SyncStatusCodeOutOfSync:
-		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.GetSource().TargetRevision)
+		syncStatusStr += " from " + app.Spec.GetSource().TargetRevision
 	}
 	if !git.IsCommitSHA(app.Spec.GetSource().TargetRevision) && !git.IsTruncatedCommitSHA(app.Spec.GetSource().TargetRevision) && len(app.Status.Sync.Revision) > 7 {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
@@ -2054,7 +2054,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if len(list.Items) == 0 {
 					errMsg := "No matching apps found for filter:"
 					if selector != "" {
-						errMsg += fmt.Sprintf(" selector %s", selector)
+						errMsg += " selector " + selector
 					}
 					if len(projects) != 0 {
 						errMsg += fmt.Sprintf(" projects %v", projects)
@@ -3149,7 +3149,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appData, err = yaml.JSONToYAML(appData)
 			errors.CheckError(err)
 
-			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", appName), appData, func(input []byte) error {
+			cli.InteractiveEdit(appName+"-*-edit.yaml", appData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
 					return fmt.Errorf("error converting YAML to JSON: %w", err)

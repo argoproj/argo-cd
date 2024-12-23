@@ -153,7 +153,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
+	clientConstraint = ">= " + common.MinClientVersion
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
@@ -249,6 +249,9 @@ type ApplicationSetOpts struct {
 	EnableScmProviders       bool
 }
 
+// GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
+type GracefulRestartSignal struct{}
+
 // HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
 type HTTPMetricsRegistry interface {
@@ -260,6 +263,14 @@ type HTTPMetricsRegistry interface {
 	// extension.
 	ObserveExtensionRequestDuration(extension string, duration time.Duration)
 }
+
+// String is a part of os.Signal interface to represent a signal as a string.
+func (g GracefulRestartSignal) String() string {
+	return "GracefulRestartSignal"
+}
+
+// Signal is a part of os.Signal interface doing nothing.
+func (g GracefulRestartSignal) Signal() {}
 
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
@@ -713,8 +724,8 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	select {
 	case signal := <-a.stopCh:
 		log.Infof("API Server received signal: %s", signal.String())
-		// SIGUSR1 is used for triggering a server restart
-		if signal != syscall.SIGUSR1 {
+		gracefulRestartSignal := GracefulRestartSignal{}
+		if signal != gracefulRestartSignal {
 			a.terminateRequested.Store(true)
 		}
 		a.shutdown()
@@ -848,7 +859,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
 	// Triggers server restart
-	a.stopCh <- syscall.SIGUSR1
+	a.stopCh <- GracefulRestartSignal{}
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
@@ -1092,7 +1103,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")
@@ -1256,7 +1267,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 

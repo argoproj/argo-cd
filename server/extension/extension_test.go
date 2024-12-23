@@ -258,7 +258,7 @@ func TestCallExtension(t *testing.T) {
 
 		mux := http.NewServeMux()
 		extHandler := http.HandlerFunc(m.CallExtension())
-		mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), extHandler)
+		mux.Handle(extension.URLPrefix+"/", extHandler)
 
 		return &fixture{
 			mux:                mux,
@@ -713,7 +713,7 @@ func TestCallExtension(t *testing.T) {
 		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
-		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
+		r := newExtensionRequest(t, "Get", ts.URL+"/extensions/")
 		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
 
 		// when

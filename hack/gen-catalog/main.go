@@ -68,14 +68,14 @@ func newCatalogCommand() *cobra.Command {
 				trigger := triggers[name]
 				t, err := yaml.Marshal(trigger)
 				dieOnError(err, "Failed to marshal trigger")
-				cm.Data[fmt.Sprintf("trigger.%s", name)] = string(t)
+				cm.Data["trigger."+name] = string(t)
 			})
 
 			misc.IterateStringKeyMap(templates, func(name string) {
 				template := templates[name]
 				t, err := yaml.Marshal(template)
 				dieOnError(err, "Failed to marshal template")
-				cm.Data[fmt.Sprintf("template.%s", name)] = string(t)
+				cm.Data["template."+name] = string(t)
 			})
 
 			d, err := yaml.Marshal(cm)

@@ -150,7 +150,7 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	return append(os.Environ(), "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 }
 
 // Helper function to write some data to a temp file and return its path
@@ -617,7 +617,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 			result.Cipher = keyID[1]
 			result.KeyID = KeyID(keyID[2])
 			if result.KeyID == "" {
-				return unknownResult(fmt.Sprintf("Invalid PGP key ID found in verification result: %s", result.KeyID))
+				return unknownResult("Invalid PGP key ID found in verification result: " + result.KeyID)
 			}
 
 			// What was the result of signature verification?
