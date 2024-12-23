@@ -682,7 +682,7 @@ func RegisterApplicationSetServiceHandlerClient(ctx context.Context, mux *runtim
 var (
 	pattern_ApplicationSetService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3}, []string{"api", "v1", "applicationsets", "name"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ApplicationSetService_Generate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applicationsets"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ApplicationSetService_Generate_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "applicationsets", "generate"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_ApplicationSetService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "applicationsets"}, "", runtime.AssumeColonVerbOpt(true)))
 
