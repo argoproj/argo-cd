@@ -55,7 +55,7 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 	default:
 		// Check if the message contains "metadata.annotation: Too long"
 		if strings.Contains(res.Message, "metadata.annotations: Too long: must have at most 262144 bytes") {
-			res.Message = fmt.Sprintf("%s \n -Additional Info: This error usually means that you are trying to add a large resource on client side. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation.", res.Message)
+			res.Message = res.Message + " \n -Additional Info: This error usually means that you are trying to add a large resource on client side. Consider using Server-side apply or syncing with replace enabled. Note: Syncing with Replace enabled is potentially destructive as it may cause resource deletion and re-creation."
 		}
 	}
 
