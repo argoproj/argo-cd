@@ -37,7 +37,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		EnableLFS:             true,
 	}
 	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
-		clientset := getClientset(map[string]string{}, objects...)
+		clientset := getClientset(objects...)
 		settingsMgr := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
 			ns:            testNamespace,
@@ -210,7 +210,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -283,7 +283,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -405,7 +405,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -514,7 +514,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -546,7 +546,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
-	clientset := getClientset(map[string]string{})
+	clientset := getClientset()
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -675,7 +675,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -732,7 +732,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -793,7 +793,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -862,7 +862,7 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -916,7 +916,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
