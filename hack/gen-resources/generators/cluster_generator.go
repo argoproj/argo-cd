@@ -13,7 +13,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/helm"
 
-	"gopkg.in/yaml.v2"
+	yaml "sigs.k8s.io/yaml/goyaml.v2"
 
 	"k8s.io/client-go/kubernetes/scheme"
 
