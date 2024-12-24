@@ -2876,7 +2876,6 @@ arg@^4.1.0:
   dependencies:
     "@fortawesome/fontawesome-free" "^6.2.1"
     "@tippy.js/react" "^3.1.1"
-    antd "^5.6.1"
     classnames "^2.2.6"
     core-js "^3.32.1"
     foundation-sites "^6.4.3"
@@ -2886,7 +2885,7 @@ arg@^4.1.0:
     react-form "^2.16.0"
     react-helmet "^6.1.0"
     react-router-dom "^4.2.2"
-    react-toastify "9.0.8"
+    react-toastify "9.0.3"
     rxjs "^7.8.1"
     typescript "^4.9.5"
     uuid "^9.0.0"
@@ -7184,7 +7183,7 @@ multicast-dns@^6.0.1:
     dns-packet "^1.3.1"
     thunky "^1.0.2"
 
-nanoid@^3.3.7:
+nanoid@3.3.8, nanoid@^3.3.7:
   version "3.3.8"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.8.tgz#b1be3030bee36aaff18bacb375e5cce521684baf"
   integrity sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==
