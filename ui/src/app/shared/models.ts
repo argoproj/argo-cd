@@ -810,6 +810,7 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    description: string;
 }
 
 export interface Project {

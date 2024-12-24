@@ -258,6 +258,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		namespaces   []string
 		clusters     []string
 		timeZone     string
+		description  string
 	)
 	command := &cobra.Command{
 		Use:   "update PROJECT ID",
@@ -287,7 +288,7 @@ argocd proj windows update PROJECT ID \
 
 			for i, window := range proj.Spec.SyncWindows {
 				if id == i {
-					err := window.Update(schedule, duration, applications, namespaces, clusters, timeZone)
+					err := window.Update(schedule, duration, applications, namespaces, clusters, timeZone, description)
 					if err != nil {
 						errors.CheckError(err)
 					}
@@ -304,6 +305,7 @@ argocd proj windows update PROJECT ID \
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\\*-prod)")
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window. (e.g. --time-zone \"America/New_York\")")
+	command.Flags().StringVar(&description, "description", "", "Sync window description. (e.g. --description \"Ticket 123\")")
 	return command
 }
 
