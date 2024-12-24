@@ -364,6 +364,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [UFirstGroup](https://www.ufirstgroup.com/en/)
 1. [ungleich.ch](https://ungleich.ch/)
 1. [Unifonic Inc](https://www.unifonic.com/)
+1. [Union Inc](https://www.union.ai/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Upsider Inc.](https://up-sider.com/lp/)
 1. [Urbantz](https://urbantz.com/)

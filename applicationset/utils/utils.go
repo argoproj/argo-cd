@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"text/template"
 	"unsafe"
 
@@ -27,6 +28,7 @@ import (
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
+var slugifyNameMutex sync.Mutex
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -457,6 +459,10 @@ func NormalizeBitbucketBasePath(basePath string) string {
 // Returns:
 // - string: The generated URL-friendly slug based on the input name and options.
 func SlugifyName(args ...interface{}) string {
+	// Necessary mutex due to global shared state.
+	// https://github.com/argoproj/argo-cd/issues/18369
+	slugifyNameMutex.Lock()
+	defer slugifyNameMutex.Unlock()
 	// Default values for arguments
 	maxSize := 50
 	EnableSmartTruncate := true
