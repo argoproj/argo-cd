@@ -22,6 +22,9 @@ redis-ha:
     checkInterval: 3s
     metrics:
       enabled: true
+    extraConfig: |
+      global
+        maxconn 4096
   image:
     tag: 7.0.15-alpine
   containerSecurityContext: null
