@@ -72,7 +72,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("failed to get secret default/%s", RedisInitialCredentials),
+			expectedErr:      "failed to get secret default/" + RedisInitialCredentials,
 			secret:           nil,
 		},
 		{
@@ -92,7 +92,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			t.Parallel()
 			var (
 				ctx          = context.TODO()
-				kubeClient   = kubefake.NewSimpleClientset()
+				kubeClient   = kubefake.NewClientset()
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {

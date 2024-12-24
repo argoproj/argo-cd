@@ -6,7 +6,7 @@ import (
 
 	"github.com/aburan28/httpcache"
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v63/github"
+	"github.com/google/go-github/v66/github"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 )

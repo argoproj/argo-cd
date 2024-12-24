@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
@@ -22,10 +23,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/util/askpass"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -96,6 +97,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			if !disableTLS {
 				var err error
 				tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
@@ -122,7 +130,7 @@ func NewCommand() *cobra.Command {
 
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
-			cacheutil.CollectMetrics(redisClient, metricsServer)
+			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,

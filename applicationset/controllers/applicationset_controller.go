@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -95,9 +96,21 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
-func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	startReconcile := time.Now()
 	logCtx := log.WithField("applicationset", req.NamespacedName)
+
+	defer func() {
+		if rec := recover(); rec != nil {
+			logCtx.Errorf("Recovered from panic: %+v\n%s", rec, debug.Stack())
+			result = ctrl.Result{}
+			var ok bool
+			err, ok = rec.(error)
+			if !ok {
+				err = fmt.Errorf("%v", r)
+			}
+		}
+	}()
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
@@ -483,7 +496,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			return nil, err
 		}
 
-		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+		if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
@@ -770,7 +783,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	var validDestination bool
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
-	if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {

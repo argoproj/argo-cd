@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/aburan28/httpcache"
-	"github.com/google/go-github/v63/github"
+	"github.com/google/go-github/v66/github"
 )
 
 type contextKey struct{}

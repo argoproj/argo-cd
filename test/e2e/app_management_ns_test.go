@@ -346,7 +346,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
@@ -852,14 +852,14 @@ func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
-			})
+			}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -967,7 +967,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "app.kubernetes.io/instance="+app.Name)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1116,7 +1116,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	_, err = logs.Recv()
 	assertError(err, "EOF")
 
-	expectedError := fmt.Sprintf("Deployment apps guestbook-ui not found as part of application %s", appName)
+	expectedError := "Deployment apps guestbook-ui not found as part of application " + appName
 
 	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
 		Name:              &appName,
@@ -1251,7 +1251,7 @@ func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).
@@ -1291,7 +1291,7 @@ func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Create()
@@ -1696,7 +1696,6 @@ func TestNamespacedCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		CreateWithNoNameSpace().
 		Then().
 		And(func(app *Application) {
-			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Empty(t, app.Status.Conditions)
@@ -2233,14 +2232,14 @@ definitions:
 		SetTrackingMethod("annotation").
 		Path("crd-subresource").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
 				"argoproj.io/NonStatusSubResource": {
 					Actions: actions,
 				},
-			})
+			}))
 		}).
 		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -2321,14 +2320,14 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
 				"apps/Deployment": {
 					HealthLua: `return { status = 'Suspended' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-and-deployment").
@@ -2439,14 +2438,14 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			time.Sleep(3 * time.Second)
-			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			CheckError(SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
-			})
+			}))
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
 		And(func(app *Application) {
+			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {

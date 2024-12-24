@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="22 known vulnerabilities found in 43 vulnerable dependency paths.">
+  <meta name="description" content="24 known vulnerabilities found in 45 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 10th 2024, 12:18:54 am (UTC+00:00)</p>
+                <p class="timestamp">December 22nd 2024, 12:19:36 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -469,8 +469,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>43 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>45 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>969</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -479,6 +479,163 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.24.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.24.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Implementation of Authentication Algorithm when the key passed in the last call before a connection is established is assumed to be the key used for authentication. It is not necessarily the authentication key in use, and this allows attackers who can control the key cache by making their own carefully-timed connections to bypass authorization with subsequent legitimate <code>ServerConfig.PublicKeyCallback</code> callbacks.</p>
+        <p><strong>Note:</strong> The assumed caching behavior of this callback is not documented and is therefore considered human error, but the project maintainers have observed reliance on it for authorization decisions in production. In fact, the assumption is negated in the documentation, which states &quot;A call to this function does not guarantee that the key offered is in fact used to authenticate.&quot; The behavior after upgrading still allows the possibility of an attacker forcing their own key to be the one in the cache when the callback is invoked if the client is using a different authentication method such as <code>PasswordCallback</code>, <code>KeyboardInteractiveCallback</code>, or <code>NoClientAuth</code>. It is therefore recommended to rely on the return values of the connection itself, found in <code>ServerConn.Permissions</code> for further authorization steps.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/20094">GitHub Issue</a></li>
+        <li><a href="https://go.dev/cl/635315">go.dev Commit</a></li>
+        <li><a href="https://go.dev/issue/70779">go.dev Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ">Google Groups Forum</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2024-3321">Go Vulnerability Database</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8496611">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and golang.org/x/net/html@v0.27.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.27.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) through the functions <code>parseDoctype</code>, <code>htmlIntegrationPoint</code>, <code>inBodyIM</code> and <code>inTableIM</code>  due to inefficient usage of the method <code>strings.ToLower</code> combining with the <code>==</code> operator to convert strings to lowercase and then comparing them.</p>
+        <p>An attacker can cause the application to slow down significantly by crafting inputs that are processed non-linearly.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.33.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8e66b04771e35c4e4125e8c60334b34e2423effb">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/70906">GitHub Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-8535262">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
             <div class="card__section">
@@ -1913,6 +2070,9 @@
         <li><a href="https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2">https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0">https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20240903.txt">https://openssl-library.org/news/secadv/20240903.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/09/03/4">http://www.openwall.com/lists/oss-security/2024/09/03/4</a></li>
+        <li><a href="https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html">https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240912-0001/">https://security.netapp.com/advisory/ntap-20240912-0001/</a></li>
         </ul>
         
               <hr/>
@@ -2072,6 +2232,10 @@
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a">https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a</a></li>
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41">https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20241016.txt">https://openssl-library.org/news/secadv/20241016.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/16/1">http://www.openwall.com/lists/oss-security/2024/10/16/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/23/1">http://www.openwall.com/lists/oss-security/2024/10/23/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/24/1">http://www.openwall.com/lists/oss-security/2024/10/24/1</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20241101-0001/">https://security.netapp.com/advisory/ntap-20241101-0001/</a></li>
         </ul>
         
               <hr/>
