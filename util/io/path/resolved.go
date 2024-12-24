@@ -35,7 +35,7 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 	}
 
 	if maxDepth == 0 {
-		return "", fmt.Errorf("maximum nesting level reached")
+		return "", errors.New("maximum nesting level reached")
 	}
 
 	// If we resolved to a relative symlink, make sure we use the absolute
@@ -70,7 +70,7 @@ func isURLSchemeAllowed(scheme string, allowed []string) bool {
 // Instead, we log the concrete error details.
 func resolveFailure(path string, err error) error {
 	log.Errorf("failed to resolve path '%s': %v", path, err)
-	return fmt.Errorf("internal error: failed to resolve path. Check logs for more details")
+	return errors.New("internal error: failed to resolve path. Check logs for more details")
 }
 
 func ResolveFileOrDirectoryPath(appPath, repoRoot, dir string) (ResolvedFileOrDirectoryPath, error) {
@@ -176,7 +176,7 @@ func resolveFileOrDirectory(appPath string, repoRoot string, fileOrDirectory str
 	resolvedToRoot := path+string(os.PathSeparator) == requiredRootPath
 	if resolvedToRoot {
 		if !allowResolveToRoot {
-			return "", resolveFailure(path, fmt.Errorf("path resolved to repository root, which is not allowed"))
+			return "", resolveFailure(path, errors.New("path resolved to repository root, which is not allowed"))
 		}
 	} else {
 		// Make sure that the resolved path to file is within the repository's root path

@@ -2,7 +2,7 @@ package generators
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,7 +27,7 @@ type possiblyErroringFakeCtrlRuntimeClient struct {
 
 func (p *possiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, secretList client.ObjectList, opts ...client.ListOption) error {
 	if p.shouldError {
-		return fmt.Errorf("could not list Secrets")
+		return errors.New("could not list Secrets")
 	}
 	return p.Client.List(ctx, secretList, opts...)
 }
@@ -227,7 +227,7 @@ func TestGenerateParams(t *testing.T) {
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
-			expectedError: fmt.Errorf("error getting cluster secrets: could not list Secrets"),
+			expectedError: errors.New("error getting cluster secrets: could not list Secrets"),
 		},
 		{
 			name:     "flat mode without selectors",
@@ -677,7 +677,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
-			expectedError: fmt.Errorf("error getting cluster secrets: could not list Secrets"),
+			expectedError: errors.New("error getting cluster secrets: could not list Secrets"),
 		},
 		{
 			name:       "Clusters with flat list mode and no selector",

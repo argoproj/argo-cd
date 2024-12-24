@@ -3,7 +3,7 @@ package fixture
 import (
 	"bufio"
 	"context"
-	goerrors "errors"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -218,7 +218,7 @@ func init() {
 	}
 	f, err := os.Open(rf)
 	if err != nil {
-		if goerrors.Is(err, os.ErrNotExist) {
+		if stderrors.Is(err, os.ErrNotExist) {
 			return
 		} else {
 			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))

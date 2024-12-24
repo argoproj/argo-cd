@@ -63,7 +63,7 @@ func (s *Service) Init(workDir string) error {
 
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
-		return "", fmt.Errorf("Command is empty")
+		return "", errors.New("Command is empty")
 	}
 	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
 
@@ -212,7 +212,7 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
 	if !strings.HasPrefix(appPath, workDir) {
-		return fmt.Errorf("illegal appPath: out of workDir bound")
+		return errors.New("illegal appPath: out of workDir bound")
 	}
 	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
 	if err != nil {
@@ -384,7 +384,7 @@ func (s *Service) GetParametersAnnouncement(stream apiclient.ConfigManagementPlu
 	}
 	appPath := filepath.Clean(filepath.Join(workDir, metadata.AppRelPath))
 	if !strings.HasPrefix(appPath, workDir) {
-		return fmt.Errorf("illegal appPath: out of workDir bound")
+		return errors.New("illegal appPath: out of workDir bound")
 	}
 
 	repoResponse, err := getParametersAnnouncement(bufferedCtx, appPath, s.initConstants.PluginConfig.Spec.Parameters.Static, s.initConstants.PluginConfig.Spec.Parameters.Dynamic, metadata.GetEnv())
