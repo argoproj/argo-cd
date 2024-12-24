@@ -20,6 +20,7 @@ import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
+import {ApplicationsRestartPanel} from '../applications-restart-panel/applications-restart-panel';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './applications-list.scss';
@@ -314,6 +315,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
+    const restartAppsInput = tryJsonParse(query.get('restartApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
@@ -463,6 +465,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                    },
+                                                                    {
+                                                                        title: 'Restart Apps',
+                                                                        iconClassName: 'fa fa-recycle',
+                                                                        action: () => ctx.navigation.goto('.', {restartApps: true}, {replace: true})
                                                                     }
                                                                 ]
                                                             }
@@ -570,6 +577,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             key='refreshPanel'
                                                             show={refreshAppsInput}
                                                             hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
+                                                            apps={filteredApps}
+                                                        />
+                                                        <ApplicationsRestartPanel
+                                                            key='restartPanel'
+                                                            show={restartAppsInput}
+                                                            hide={() => ctx.navigation.goto('.', {restartApps: null}, {replace: true})}
                                                             apps={filteredApps}
                                                         />
                                                     </div>
