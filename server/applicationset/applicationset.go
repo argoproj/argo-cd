@@ -265,7 +265,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 	// TODO: this is a hack to get the github httpcache to load.
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true, true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true, true, 10000)
 
 	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 		return s.db.GetRepository(ctx, url, project)

@@ -215,7 +215,7 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, cfg.CachingEnabled)
+		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, g.SCMConfig.GitHubClientCache)
 	}
 
 	// always default to token, even if not set (public access)
@@ -223,5 +223,5 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
-	return pullrequest.NewGithubService(ctx, token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+	return pullrequest.NewGithubService(ctx, token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, g.SCMConfig.GitHubClientCache)
 }

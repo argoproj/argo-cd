@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/aburan28/httpcache"
 	"github.com/google/go-github/v63/github"
-	"github.com/gregjones/httpcache"
 )
 
 type contextKey struct{}
@@ -26,7 +26,7 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool, cacheEnabled bool) (*GithubProvider, error) {
+func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool, cache httpcache.Cache) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	var client *github.Client
 
@@ -35,9 +35,7 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 	}
 
 	httpClient := &http.Client{}
-	if cacheEnabled {
-		cache := httpcache.NewMemoryCache()
-
+	if cache != nil {
 		httpClient = &http.Client{
 			Transport: &httpcache.Transport{
 				Cache: cache,
@@ -49,7 +47,6 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 
 	if token != "" {
 		client.WithAuthToken(token)
-
 	}
 
 	if url == "" {

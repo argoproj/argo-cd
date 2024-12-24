@@ -7,7 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gregjones/httpcache"
+	"github.com/aburan28/httpcache"
+	"github.com/aburan28/httpcache/lrucache"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,7 +42,7 @@ type SCMConfig struct {
 	tokenRefStrictMode  bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, cacheEnabled bool) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, enableGithubCache bool, githubCacheSize int) SCMConfig {
 	scmConfig := SCMConfig{
 		scmRootCAPath:       scmRootCAPath,
 		allowedSCMProviders: allowedSCMProviders,
@@ -50,8 +51,8 @@ func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMP
 		tokenRefStrictMode:  tokenRefStrictMode,
 	}
 
-	if cacheEnabled {
-		scmConfig.GitHubClientCache = httpcache.NewMemoryCache()
+	if enableGithubCache {
+		scmConfig.GitHubClientCache = lrucache.NewLRUCache(githubCacheSize)
 	}
 
 	return scmConfig
@@ -291,7 +292,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 			github.Organization,
 			github.API,
 			github.AllBranches,
-			github.CachingEnabled,
+			g.GitHubClientCache,
 		)
 	}
 
@@ -299,5 +300,5 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
-	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches, github.CachingEnabled)
+	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches, g.GitHubClientCache)
 }
