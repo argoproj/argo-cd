@@ -79,7 +79,7 @@ func getIngress(un *unstructured.Unstructured) []v1.LoadBalancerIngress {
 	}
 	res := make([]v1.LoadBalancerIngress, 0)
 	for _, item := range ingress {
-		if lbIngress, ok := item.(map[string]interface{}); ok {
+		if lbIngress, ok := item.(map[string]any); ok {
 			if hostname := lbIngress["hostname"]; hostname != nil {
 				res = append(res, v1.LoadBalancerIngress{Hostname: fmt.Sprintf("%s", hostname)})
 			} else if ip := lbIngress["ip"]; ip != nil {
@@ -105,7 +105,7 @@ func populateServiceInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetLabels: targetLabels, Ingress: ingress, ExternalURLs: urls}
 }
 
-func getServiceName(backend map[string]interface{}, gvk schema.GroupVersionKind) (string, error) {
+func getServiceName(backend map[string]any, gvk schema.GroupVersionKind) (string, error) {
 	switch gvk.Group {
 	case "extensions":
 		return fmt.Sprintf("%s", backend["serviceName"]), nil
@@ -139,7 +139,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	urlsSet := make(map[string]bool)
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules"); ok && err == nil {
 		for i := range rules {
-			rule, ok := rules[i].(map[string]interface{})
+			rule, ok := rules[i].(map[string]any)
 			if !ok {
 				continue
 			}
@@ -157,7 +157,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				continue
 			}
 			for i := range paths {
-				path, ok := paths[i].(map[string]interface{})
+				path, ok := paths[i].(map[string]any)
 				if !ok {
 					continue
 				}
@@ -179,7 +179,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				stringPort := "http"
 				if tls, ok, err := unstructured.NestedSlice(un.Object, "spec", "tls"); ok && err == nil {
 					for i := range tls {
-						tlsline, ok := tls[i].(map[string]interface{})
+						tlsline, ok := tls[i].(map[string]any)
 						secretName := tlsline["secretName"]
 						if ok && secretName != nil {
 							stringPort = "https"
@@ -190,7 +190,7 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 							continue
 						}
 						if hosts := tlsline["hosts"]; hosts != nil {
-							tlshosts, ok := tlsline["hosts"].(map[string]interface{})
+							tlshosts, ok := tlsline["hosts"].(map[string]any)
 							if ok {
 								for j := range tlshosts {
 									if tlshosts[j] == host {
@@ -233,7 +233,7 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 
 	if rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "http"); ok && err == nil {
 		for i := range rules {
-			rule, ok := rules[i].(map[string]interface{})
+			rule, ok := rules[i].(map[string]any)
 			if !ok {
 				continue
 			}
@@ -242,7 +242,7 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 				continue
 			}
 			for i := range routes {
-				route, ok := routes[i].(map[string]interface{})
+				route, ok := routes[i].(map[string]any)
 				if !ok {
 					continue
 				}

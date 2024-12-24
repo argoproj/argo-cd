@@ -66,12 +66,12 @@ func TestInitGetVars(t *testing.T) {
 	testDestination := services.Destination{
 		Service: "webhook",
 	}
-	emptyAppData := map[string]interface{}{}
+	emptyAppData := map[string]any{}
 
 	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
-		appData := map[string]interface{}{
+		appData := map[string]any{
 			"name": "app-name",
 		}
 		result := varsProvider(appData, testDestination)

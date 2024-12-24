@@ -17,12 +17,12 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 		}}}},
 	}
 
-	res, err := processApplicationListField(&list, map[string]interface{}{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]interface{})
+	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
 
-	items, ok := resMap["items"].([]map[string]interface{})
+	items, ok := resMap["items"].([]map[string]any)
 	require.True(t, ok)
 	item := test.ToMap(items[0])
 
@@ -38,12 +38,12 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 		Items: []v1alpha1.Application{{Operation: nil}},
 	}
 
-	res, err := processApplicationListField(&list, map[string]interface{}{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]interface{})
+	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
 
-	items, ok := resMap["items"].([]map[string]interface{})
+	items, ok := resMap["items"].([]map[string]any)
 	require.True(t, ok)
 	item := test.ToMap(items[0])
 

@@ -153,12 +153,12 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 }
 
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
-	cloneLinks, ok := repo.Links["clone"].([]interface{})
+	cloneLinks, ok := repo.Links["clone"].([]any)
 	if !ok {
 		return nil, fmt.Errorf("unknown type returned from repo links")
 	}
 	for _, link := range cloneLinks {
-		linkEntry, ok := link.(map[string]interface{})
+		linkEntry, ok := link.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unknown type returned from clone link")
 		}

@@ -489,14 +489,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]interface{}),
+		ports[0].(map[string]any),
 		"containerPort",
 	)
 
@@ -505,7 +505,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"name",
 	)
 	assert.True(t, found)
