@@ -351,6 +351,8 @@ type Repository struct {
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -383,6 +385,8 @@ type RepositoryCredentials struct {
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
 
 // DeepLink structure
