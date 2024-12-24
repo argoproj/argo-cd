@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func rewrapError(err error, code codes.Code) error {
@@ -66,31 +66,31 @@ func kubeErrToGRPC(err error) error {
 	*/
 
 	switch {
-	case apierr.IsNotFound(err):
+	case apierrors.IsNotFound(err):
 		err = rewrapError(err, codes.NotFound)
-	case apierr.IsAlreadyExists(err):
+	case apierrors.IsAlreadyExists(err):
 		err = rewrapError(err, codes.AlreadyExists)
-	case apierr.IsInvalid(err):
+	case apierrors.IsInvalid(err):
 		err = rewrapError(err, codes.InvalidArgument)
-	case apierr.IsMethodNotSupported(err):
+	case apierrors.IsMethodNotSupported(err):
 		err = rewrapError(err, codes.Unimplemented)
-	case apierr.IsServiceUnavailable(err):
+	case apierrors.IsServiceUnavailable(err):
 		err = rewrapError(err, codes.Unavailable)
-	case apierr.IsBadRequest(err):
+	case apierrors.IsBadRequest(err):
 		err = rewrapError(err, codes.FailedPrecondition)
-	case apierr.IsUnauthorized(err):
+	case apierrors.IsUnauthorized(err):
 		err = rewrapError(err, codes.Unauthenticated)
-	case apierr.IsForbidden(err):
+	case apierrors.IsForbidden(err):
 		err = rewrapError(err, codes.PermissionDenied)
-	case apierr.IsTimeout(err):
+	case apierrors.IsTimeout(err):
 		err = rewrapError(err, codes.DeadlineExceeded)
-	case apierr.IsServerTimeout(err):
+	case apierrors.IsServerTimeout(err):
 		err = rewrapError(err, codes.Unavailable)
-	case apierr.IsConflict(err):
+	case apierrors.IsConflict(err):
 		err = rewrapError(err, codes.Aborted)
-	case apierr.IsTooManyRequests(err):
+	case apierrors.IsTooManyRequests(err):
 		err = rewrapError(err, codes.ResourceExhausted)
-	case apierr.IsInternalError(err):
+	case apierrors.IsInternalError(err):
 		err = rewrapError(err, codes.Internal)
 	default:
 		// This is necessary as GRPC Status don't support wrapped errors:
