@@ -177,7 +177,7 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 //
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
-func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, compression cache.RedisCompressionType, clientConfig clientcmd.ClientConfig) error {
+func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, clientConfig clientcmd.ClientConfig) error {
 	if clientConfig == nil {
 		flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
 		clientConfig = cli.AddKubectlFlagsToSet(flags)
@@ -269,8 +269,16 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
 		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
 	}
+	compressionTypeStr, err := common.GetRedisCompressionFromKubeConfig(ctx, kubeClientset, namespace)
+	if err != nil {
+		return fmt.Errorf("error getting redis compression: %w", err)
+	}
+	redisCompressionType, err := cache.CompressionTypeFromString(compressionTypeStr)
+	if err != nil {
+		return fmt.Errorf("error setting redis compression type: %w", err)
+	}
 
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: redisCompressionType, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,
@@ -321,7 +329,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctxStr := initialize.RetrieveContextIfChanged(c.Flag("context"))
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
-	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, cache.RedisCompressionNone, nil)
+	err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
