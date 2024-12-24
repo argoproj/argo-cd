@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -28,7 +28,7 @@ func NewInitialPasswordCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			if initialPass, ok := secret.Data["password"]; ok {

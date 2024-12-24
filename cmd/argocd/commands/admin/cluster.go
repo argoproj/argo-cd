@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -86,7 +86,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	if err != nil {
 		return nil, err
 	}
-	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
+	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 
 func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, appControllerName string) (int, error) {
 	appControllerPodLabelSelector := common.LabelKeyAppName + "=" + appControllerName
-	controllerPods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{
+	controllerPods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: appControllerPodLabelSelector,
 	})
 	if err != nil {
@@ -276,7 +276,7 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
 	}
-	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{})
+	appItems, err := appClient.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing application: %w", err)
 	}
@@ -671,7 +671,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			secName, err := db.URIToSecretName("cluster", clst.Server)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, secName, v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, secName, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))
