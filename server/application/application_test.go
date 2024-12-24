@@ -2169,6 +2169,38 @@ func TestLogsGetSelectedPod(t *testing.T) {
 	})
 }
 
+func TestHasPodStopped(t *testing.T) {
+	runningPod := appv1.ResourceNode{
+		ResourceRef: appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "1"},
+		Info:        []appsv1.InfoItem{{Name: "Status Reason", Value: "Running"}},
+	}
+	completedPod := appv1.ResourceNode{
+		ResourceRef: appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "2"},
+		Info:        []appsv1.InfoItem{{Name: "Status Reason", Value: "Completed"}},
+	}
+	failedPod := appv1.ResourceNode{
+		ResourceRef: appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "3"},
+		Info:        []appsv1.InfoItem{{Name: "Status Reason", Value: "Failed"}},
+	}
+	errorPod := appv1.ResourceNode{
+		ResourceRef: appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"},
+		Info:        []appsv1.InfoItem{{Name: "Status Reason", Value: "Error"}},
+	}
+
+	t.Run("RunningPod", func(t *testing.T) {
+		assert.False(t, hasPodStopped(runningPod))
+	})
+	t.Run("CompletedPod", func(t *testing.T) {
+		assert.True(t, hasPodStopped(completedPod))
+	})
+	t.Run("FailedPod", func(t *testing.T) {
+		assert.True(t, hasPodStopped(failedPod))
+	})
+	t.Run("ErrorPod", func(t *testing.T) {
+		assert.True(t, hasPodStopped(errorPod))
+	})
+}
+
 func TestMaxPodLogsRender(t *testing.T) {
 	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
 

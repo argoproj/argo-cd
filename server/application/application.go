@@ -1765,6 +1765,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var streams []chan logEntry
 
 	for _, pod := range pods {
+		if hasPodStopped(pod) {
+			continue
+		}
+
 		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
 			Container:    q.GetContainer(),
 			Follow:       q.GetFollow(),
@@ -1865,6 +1869,15 @@ func getSelectedPods(treeNodes []appv1.ResourceNode, q *application.ApplicationP
 		}
 	}
 	return pods
+}
+
+func hasPodStopped(pod appv1.ResourceNode) bool {
+	for _, info := range pod.Info {
+		if info.Name == "Status Reason" && (info.Value == "Completed" || info.Value == "Failed" || info.Value == "Error") {
+			return true
+		}
+	}
+	return false
 }
 
 // check is currentNode is matching with group, kind, and name, or if any of its parents matches
