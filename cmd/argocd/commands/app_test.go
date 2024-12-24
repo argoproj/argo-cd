@@ -2087,6 +2087,10 @@ func (c *fakeAppServiceClient) GetApplicationSyncWindows(ctx context.Context, in
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) GetOCIMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) RevisionMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
 	return nil, nil
 }
