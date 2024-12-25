@@ -449,7 +449,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
@@ -1319,7 +1319,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, _ = RunCli("app", "sync", app.Name, "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			_, _ = RunCli("app", "sync", app.Name, "--label", "app.kubernetes.io/instance="+app.Name)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1473,7 +1473,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 	_, err = logs.Recv()
 	assertError(err, "EOF")
 
-	expectedError := fmt.Sprintf("Deployment apps guestbook-ui not found as part of application %s", appName)
+	expectedError := "Deployment apps guestbook-ui not found as part of application " + appName
 
 	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
 		Name:              &appName,

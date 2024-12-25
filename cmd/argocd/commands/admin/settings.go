@@ -119,7 +119,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	}
 	setSettingsMeta(argocdSecret)
-	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
+	clientset := fake.NewClientset(argocdSecret, argocdCM)
 
 	manager := settings.NewSettingsManager(ctx, clientset, "default")
 	errors.CheckError(manager.ResyncInformers())
@@ -211,7 +211,7 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		var summary string
 		if ssoProvider != "" {
-			summary = fmt.Sprintf("%s is configured", ssoProvider)
+			summary = ssoProvider + " is configured"
 			if general.URL == "" {
 				summary = summary + " ('url' field is missing)"
 			}

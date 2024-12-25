@@ -61,7 +61,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 						if !ok {
 							return nil, fmt.Errorf("error parsing value as string %w", err)
 						}
-						params[fmt.Sprintf("values.%s", k)] = value
+						params["values."+k] = value
 					}
 				} else {
 					v, ok := value.(string)

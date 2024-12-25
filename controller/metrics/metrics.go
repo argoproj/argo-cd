@@ -30,18 +30,20 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter             *prometheus.CounterVec
-	kubectlExecCounter      *prometheus.CounterVec
-	kubectlExecPendingGauge *prometheus.GaugeVec
-	orphanedResourcesGauge  *prometheus.GaugeVec
-	k8sRequestCounter       *prometheus.CounterVec
-	clusterEventsCounter    *prometheus.CounterVec
-	redisRequestCounter     *prometheus.CounterVec
-	reconcileHistogram      *prometheus.HistogramVec
-	redisRequestHistogram   *prometheus.HistogramVec
-	registry                *prometheus.Registry
-	hostname                string
-	cron                    *cron.Cron
+	syncCounter                       *prometheus.CounterVec
+	kubectlExecCounter                *prometheus.CounterVec
+	kubectlExecPendingGauge           *prometheus.GaugeVec
+	orphanedResourcesGauge            *prometheus.GaugeVec
+	k8sRequestCounter                 *prometheus.CounterVec
+	clusterEventsCounter              *prometheus.CounterVec
+	redisRequestCounter               *prometheus.CounterVec
+	reconcileHistogram                *prometheus.HistogramVec
+	redisRequestHistogram             *prometheus.HistogramVec
+	resourceEventsProcessingHistogram *prometheus.HistogramVec
+	resourceEventsNumberGauge         *prometheus.GaugeVec
+	registry                          *prometheus.Registry
+	hostname                          string
+	cron                              *cron.Cron
 }
 
 const (
@@ -153,6 +155,20 @@ var (
 		},
 		descAppDefaultLabels,
 	)
+
+	resourceEventsProcessingHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_resource_events_processing",
+			Help:    "Time to process resource events in seconds.",
+			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
+		},
+		[]string{"server"},
+	)
+
+	resourceEventsNumberGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_resource_events_processed_in_batch",
+		Help: "Number of resource events processed in batch",
+	}, []string{"server"})
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -202,6 +218,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
+	registry.MustRegister(resourceEventsProcessingHistogram)
+	registry.MustRegister(resourceEventsNumberGauge)
 
 	return &MetricsServer{
 		registry: registry,
@@ -209,16 +227,18 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:             syncCounter,
-		k8sRequestCounter:       k8sRequestCounter,
-		kubectlExecCounter:      kubectlExecCounter,
-		kubectlExecPendingGauge: kubectlExecPendingGauge,
-		orphanedResourcesGauge:  orphanedResourcesGauge,
-		reconcileHistogram:      reconcileHistogram,
-		clusterEventsCounter:    clusterEventsCounter,
-		redisRequestCounter:     redisRequestCounter,
-		redisRequestHistogram:   redisRequestHistogram,
-		hostname:                hostname,
+		syncCounter:                       syncCounter,
+		k8sRequestCounter:                 k8sRequestCounter,
+		kubectlExecCounter:                kubectlExecCounter,
+		kubectlExecPendingGauge:           kubectlExecPendingGauge,
+		orphanedResourcesGauge:            orphanedResourcesGauge,
+		reconcileHistogram:                reconcileHistogram,
+		clusterEventsCounter:              clusterEventsCounter,
+		redisRequestCounter:               redisRequestCounter,
+		redisRequestHistogram:             redisRequestHistogram,
+		resourceEventsProcessingHistogram: resourceEventsProcessingHistogram,
+		resourceEventsNumberGauge:         resourceEventsNumberGauge,
+		hostname:                          hostname,
 		// This cron is used to expire the metrics cache.
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
@@ -284,6 +304,12 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 	m.redisRequestHistogram.WithLabelValues(m.hostname, common.ApplicationController).Observe(duration.Seconds())
 }
 
+// ObserveResourceEventsProcessingDuration observes resource events processing duration
+func (m *MetricsServer) ObserveResourceEventsProcessingDuration(server string, duration time.Duration, processedEventsNumber int) {
+	m.resourceEventsProcessingHistogram.WithLabelValues(server).Observe(duration.Seconds())
+	m.resourceEventsNumberGauge.WithLabelValues(server).Set(float64(processedEventsNumber))
+}
+
 // IncReconcile increments the reconcile counter for an application
 func (m *MetricsServer) IncReconcile(app *argoappv1.Application, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(app.Namespace, app.Spec.Destination.Server).Observe(duration.Seconds())
@@ -311,6 +337,8 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.redisRequestCounter.Reset()
 		m.reconcileHistogram.Reset()
 		m.redisRequestHistogram.Reset()
+		m.resourceEventsProcessingHistogram.Reset()
+		m.resourceEventsNumberGauge.Reset()
 	})
 	if err != nil {
 		return err
