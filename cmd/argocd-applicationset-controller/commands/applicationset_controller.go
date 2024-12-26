@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -100,6 +101,13 @@ func NewCommand() *cobra.Command {
 
 			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			restConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 
@@ -173,8 +181,8 @@ func NewCommand() *cobra.Command {
 
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
 				)
 				errors.CheckError(err)
 				tlsConfig.Certificates = pool

@@ -511,22 +511,22 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		ctx.And(func() {
 			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
 				"-n", fixture.TestNamespace(),
-				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
-				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
-				fmt.Sprintf("--from-literal=username=%s", GitUsername),
-				fmt.Sprintf("--from-literal=password=%s", GitPassword),
+				"--from-file=certSecret="+repos.CertPath,
+				"--from-file=keySecret="+repos.CertKeyPath,
+				"--from-literal=username="+GitUsername,
+				"--from-literal=password="+GitPassword,
 			))
 			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
-			fixture.SetHelmRepos(settings.HelmRepoCredentials{
+			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
 				Name:           "custom-repo",
 				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
 				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
 				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
 				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
-			})
+			}))
 		})
 	} else {
 		ctx = ctx.HelmRepoAdded("custom-repo")

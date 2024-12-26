@@ -145,15 +145,11 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 
 // GetAccounts returns list of configured accounts
 func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
-	err := mgr.ensureSynced(false)
+	cm, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
-	if err != nil {
-		return nil, err
-	}
-	cm, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
+	secret, err := mgr.getSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +237,7 @@ func parseAccounts(secret *v1.Secret, cm *v1.ConfigMap) (map[string]Account, err
 	}
 
 	for key, v := range cm.Data {
-		if !strings.HasPrefix(key, fmt.Sprintf("%s.", accountsKeyPrefix)) {
+		if !strings.HasPrefix(key, accountsKeyPrefix+".") {
 			continue
 		}
 

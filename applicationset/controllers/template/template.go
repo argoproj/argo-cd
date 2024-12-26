@@ -69,9 +69,11 @@ func GenerateApplications(logCtx *log.Entry, applicationSetInfo argov1alpha1.App
 				res = append(res, *app)
 			}
 		}
-
-		logCtx.WithField("generator", requestedGenerator).Infof("generated %d applications", len(res))
-		logCtx.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
+		if log.IsLevelEnabled(log.DebugLevel) {
+			logCtx.WithField("generator", requestedGenerator).Debugf("apps from generator: %+v", res)
+		} else {
+			logCtx.Infof("generated %d applications", len(res))
+		}
 	}
 
 	return res, applicationSetReason, firstError

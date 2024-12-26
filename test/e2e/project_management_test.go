@@ -520,7 +520,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
+		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)
@@ -532,10 +532,6 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	require.NoError(t, err)
-
-	// Waiting for the app to be successfully created.
-	// Else the sync would fail to retrieve the app resources.
-	time.Sleep(time.Second * 2)
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
@@ -555,7 +551,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
+		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)
@@ -572,10 +568,6 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
 	require.NoError(t, err)
-
-	// Waiting for the app to be successfully created.
-	// Else the sync would fail to retrieve the app resources.
-	time.Sleep(time.Second * 2)
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
