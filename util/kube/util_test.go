@@ -47,7 +47,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		"annotation3": "foo",
 	}
 
-	client := fake.NewSimpleClientset(secret)
+	client := fake.NewClientset(secret)
 
 	t.Run("Change field in existing secret", func(t *testing.T) {
 		ku := NewKubeUtil(client, context.TODO())
@@ -133,7 +133,7 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		"password": []byte("foobarbaz"),
 	}
 
-	client := fake.NewSimpleClientset(secret)
+	client := fake.NewClientset(secret)
 
 	t.Run("Change data in existing secret with merge", func(t *testing.T) {
 		ku := NewKubeUtil(client, context.TODO())
