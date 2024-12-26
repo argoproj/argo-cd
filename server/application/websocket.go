@@ -178,7 +178,7 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 	return 0, nil
 }
 
-// Read called in a loop from remotecommand as long as the process is running
+// Read called in a loop from remote command as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
 	code, err := t.performValidationsAndReconnect(p)
 	if err != nil {
@@ -189,7 +189,11 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	t.readLock.Unlock()
 	if err != nil {
-		log.Errorf("read message err: %v", err)
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Errorf("unexpected closer error: %v", err)
+			return copy(p, EndOfTransmission), err
+		}
+		log.Errorf("read message error: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage
@@ -219,7 +223,7 @@ func (t *terminalSession) Ping() error {
 	return err
 }
 
-// Write called from remotecommand whenever there is any output
+// Write called from remote command whenever there is any output
 func (t *terminalSession) Write(p []byte) (int, error) {
 	msg, err := json.Marshal(TerminalMessage{
 		Operation: "stdout",
