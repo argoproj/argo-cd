@@ -96,10 +96,10 @@ func TestGetDirectories(t *testing.T) {
 func TestGetDirectoriesRepoFiltering(t *testing.T) {
 	testNamespace := "test"
 	type fields struct {
-		submoduleEnabled  bool
-		getRepository     func(ctx context.Context, url, project string)
-		getGitDirectories func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
-		repoSecrets       []*v1.Secret
+		submoduleEnabled           bool
+		getRepositoryPreAssertions func(ctx context.Context, url, project string)
+		getGitDirectories          func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
+		repoSecrets                []*v1.Secret
 	}
 	type args struct {
 		ctx     context.Context
@@ -114,7 +114,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "NonExistentRepoResolution", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
@@ -168,7 +168,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					Paths: []string{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -216,7 +216,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					Paths: []string{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -265,7 +265,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					Paths: []string{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "some-proj", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -314,7 +314,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					Paths: []string{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -379,8 +379,8 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 			a := &argoCDService{
 				getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-					if tt.fields.getRepository != nil {
-						tt.fields.getRepository(ctx, url, project)
+					if tt.fields.getRepositoryPreAssertions != nil {
+						tt.fields.getRepositoryPreAssertions(ctx, url, project)
 					}
 					return testDB.GetRepository(ctx, url, project)
 				},
@@ -478,10 +478,10 @@ func TestGetFiles(t *testing.T) {
 func TestGetFilesRepoFiltering(t *testing.T) {
 	testNamespace := "test"
 	type fields struct {
-		submoduleEnabled bool
-		getRepository    func(ctx context.Context, url, project string)
-		getGitFiles      func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
-		repoSecrets      []*v1.Secret
+		submoduleEnabled           bool
+		getRepositoryPreAssertions func(ctx context.Context, url, project string)
+		getGitFiles                func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
+		repoSecrets                []*v1.Secret
 	}
 	type args struct {
 		ctx     context.Context
@@ -502,7 +502,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -550,7 +550,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -598,7 +598,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -647,7 +647,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "some-proj", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -696,7 +696,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepository: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
 			repoSecrets: []*v1.Secret{
@@ -761,8 +761,8 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
 			a := &argoCDService{
 				getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-					if tt.fields.getRepository != nil {
-						tt.fields.getRepository(ctx, url, project)
+					if tt.fields.getRepositoryPreAssertions != nil {
+						tt.fields.getRepositoryPreAssertions(ctx, url, project)
 					}
 					return testDB.GetRepository(ctx, url, project)
 				},
