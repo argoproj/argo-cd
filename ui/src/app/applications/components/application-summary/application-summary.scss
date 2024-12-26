@@ -8,7 +8,6 @@
         align-items: center;
         height: 100%;
         flex-wrap: wrap;
-        padding-top: 0.5em;
     }
 
     &__label {
@@ -24,10 +23,19 @@
     &__label_light {
         background-color: $argo-color-gray-2;
         color: $argo-color-gray-8;
-        border-radius: 5px;
-        padding: 4px;
-        line-height: 14px;
+        border-radius: 4px;
+        border: 1px solid $argo-color-gray-6;
+        line-height: 18px;
         margin: 0.3em 0.6em 0.3em 0;
+        padding: 0 4px 0 0;
+
+        > em {
+            font-style: normal;
+            background-color: $argo-color-gray-6;
+            color: $white-color;
+            margin-right: 4px;
+            padding: 0 4px;
+        }
     }
 
     &__sort-icon {

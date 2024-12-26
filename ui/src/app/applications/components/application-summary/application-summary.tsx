@@ -83,7 +83,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div className='application-summary__labels'>
                     {Object.keys(app.metadata.labels).map(label => (
                         <span className='application-summary__label_light' key={label}>
-                            {label}: {app.metadata.labels[label]}
+                            <em>{label}</em>
+                            {app.metadata.labels[label]}
                         </span>
                     ))}
                 </div>
@@ -97,7 +98,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     <div className='application-summary__labels' style={{paddingRight: '30px'}}>
                         {Object.keys(app.metadata.annotations || {}).map(annotation => (
                             <span className='application-summary__label_light' key={annotation}>
-                                {annotation}: {app.metadata.annotations[annotation]}
+                                <em>{annotation}</em>
+                                {app.metadata.annotations[annotation]}
                             </span>
                         ))}
                     </div>
