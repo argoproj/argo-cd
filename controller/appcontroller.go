@@ -350,65 +350,29 @@ func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
 }
 
 // JAY-KULKARNI-FUNCTION
-func (ctrl *ApplicationController) isAppProjectWithExistingApplications(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	//gvk := ref.GroupVersionKind()
-
+func (ctrl *ApplicationController) isAppProjectWithExistingApplications(obj *unstructured.Unstructured) (bool, error) {
+	if obj.GetKind() != "AppProject" {
+		return false, nil
+	}
 	origJSON, err := json.Marshal(obj)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	origProj := &appv1.AppProject{}
 	if err = json.Unmarshal(origJSON, &origProj); err != nil {
-		return false
+		return false, err
 	}
 
-	//return &clone, nil\
-	if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
-		log.Warnf("Failed to finalize project deletion: %v", err)
+	if err := ctrl.addProjectFinalizer(origProj); err != nil {
+		log.Warnf("Failed to add finalizer for project: %v", err)
 	}
-	//if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
-	//	if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
-	//		log.Warnf("Failed to finalize project deletion: %v", err)
-	//	}
-	//}
 
-	return true
-	//*appv1.AppProject
+	if err := ctrl.finalizeProjectDeletion(origProj); err != nil {
+		log.Errorf("Failed to finalize project deletion: %v", err)
+	}
 
-	//proj *appv1.AppProject := appv1.AppProject{}
-	//newRef := ref.DeepCopyInto(proj)
-	//resourceNamespace := ref.Namespace
-	//ctrl.getAppProj()
-	//ctrl.finalizeProjectDeletion()
-	//localAppProject := GetAppProject
-	//*appv1.AppProject.
-	//p, err := server.ArgoCDServer{}.AppClientset.ArgoprojV1alpha1().AppProjects(resourceNamespace).Get(context.TODO())
-
-	//	s.projectLock.Lock(q.Name)
-	//	defer s.projectLock.Unlock(q.Name)
-	//
-	//	p, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	appsList, err := s.appclientset.ArgoprojV1alpha1().Applications(s.ns).List(ctx, metav1.ListOptions{})
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	apps := argo.FilterByProjects(appsList.Items, []string{q.Name})
-	//	if len(apps) > 0 {
-	//		return nil, status.Errorf(codes.InvalidArgument, "project is referenced by %d applications", len(apps))
-	//	}
-	//	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
-	//	if err == nil {
-	//		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
-	//	}
-	//	return &project.EmptyResponse{}, err
-	//}
-	//appProjectName :=
-	//if argo.FilterByProjects(appsList.Items, []string{q.Name})
+	return origProj.HasFinalizer(), nil
 }
 
 func (ctrl *ApplicationController) newAppProjCache(name string) *appProjCache {
@@ -1166,9 +1130,24 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 	return err
 }
 
+func (ctrl *ApplicationController) addProjectFinalizer(proj *appv1.AppProject, stage ...string) error {
+	if proj.HasFinalizer() {
+		return nil
+	}
+	proj.SetProjectFinalizer()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"finalizers": proj.Finalizers,
+		},
+	})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
+}
+
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) && !ctrl.isAppProjectWithExistingApplications(app, obj) &&
+	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
 		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
 		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
 }
@@ -1263,6 +1242,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
 					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
 					return nil
+				}
+				isAppProjectWithExistingApplications, err := ctrl.isAppProjectWithExistingApplications(objsMap[k])
+				if isAppProjectWithExistingApplications {
+					logCtx.Infof("Unable to delete project %v", objsMap[k].GetName())
+					return err
 				}
 			}
 		}

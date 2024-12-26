@@ -287,7 +287,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
 	errorsutil.CheckError(err)
-
+	opts.Insecure = true
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
