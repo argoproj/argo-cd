@@ -357,6 +357,12 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 						},
 					},
 					"roles": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Roles are user defined RBAC roles associated with this project",
 							Type:        []string{"array"},
@@ -1811,6 +1817,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"parameters": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation",
 							Type:        []string{"array"},
@@ -1844,6 +1856,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 						},
 					},
 					"fileParameters": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "FileParameters are file parameters to the helm template",
 							Type:        []string{"array"},
@@ -1936,6 +1954,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"extVars": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "ExtVars is a list of Jsonnet External Variables",
 							Type:        []string{"array"},
@@ -1950,6 +1974,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 						},
 					},
 					"tlas": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "TLAS is a list of Jsonnet Top-level Arguments",
 							Type:        []string{"array"},
@@ -2290,6 +2320,12 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 						},
 					},
 					"info": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "name",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Info contains a list of information (URLs, email addresses, and plain text) that relates to the application",
 							Type:        []string{"array"},
@@ -4206,6 +4242,12 @@ func schema_pkg_apis_application_v1alpha1_JWTTokens(ref common.ReferenceCallback
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"items": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-patch-merge-key": "id",
+								"x-kubernetes-patch-strategy":  "merge",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
 							Items: &spec.SchemaOrArray{
