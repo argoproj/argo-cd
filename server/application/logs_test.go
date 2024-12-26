@@ -105,3 +105,25 @@ func TestMergeLogStreams_RaceCondition(t *testing.T) {
 		// and channel closer.
 	}
 }
+
+func TestParseLogsStream_ContainerLogRetrievalMessage(t *testing.T) {
+	r := io.NopCloser(strings.NewReader(`unable to retrieve container logs for containerd://2c7e54dbbfef27148d5`))
+
+	res := make(chan logEntry)
+	go func() {
+		parseLogsStream("test", r, res)
+		close(res)
+	}()
+
+	var entries []logEntry
+	for entry := range res {
+		entries = append(entries, entry)
+	}
+
+	require.Len(t, entries, 1)
+
+	assert.Equal(t, "unable to retrieve container logs for containerd://2c7e54dbbfef27148d5", entries[0].line)
+	assert.Equal(t, "test", entries[0].podName)
+	// Verify timestamp is recent (within last second)
+	assert.Less(t, time.Since(entries[0].timeStamp), time.Second)
+}
