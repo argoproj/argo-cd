@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="14 known vulnerabilities found in 1075 vulnerable dependency paths.">
+  <meta name="description" content="15 known vulnerabilities found in 1089 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">December 8th 2024, 12:28:19 am (UTC+00:00)</p>
+                <p class="timestamp">December 22nd 2024, 12:29:06 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -467,8 +467,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>14</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>1075 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>15</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>1089 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2041</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -477,6 +477,277 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
+            <div class="card__section">
+        
+                <div class="label label--critical">
+                    <span class="label__text">critical severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and golang.org/x/crypto/ssh@0.19.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.19.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Incorrect Implementation of Authentication Algorithm when the key passed in the last call before a connection is established is assumed to be the key used for authentication. It is not necessarily the authentication key in use, and this allows attackers who can control the key cache by making their own carefully-timed connections to bypass authorization with subsequent legitimate <code>ServerConfig.PublicKeyCallback</code> callbacks.</p>
+        <p><strong>Note:</strong> The assumed caching behavior of this callback is not documented and is therefore considered human error, but the project maintainers have observed reliance on it for authorization decisions in production. In fact, the assumption is negated in the documentation, which states &quot;A call to this function does not guarantee that the key offered is in fact used to authenticate.&quot; The behavior after upgrading still allows the possibility of an attacker forcing their own key to be the one in the cache when the callback is invoked if the client is using a different authentication method such as <code>PasswordCallback</code>, <code>KeyboardInteractiveCallback</code>, or <code>NoClientAuth</code>. It is therefore recommended to rely on the return values of the connection itself, found in <code>ServerConn.Permissions</code> for further authorization steps.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/crypto/commit/b4f1988a35dee11ec3e05d6bf3e90b695fbd8909">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/20094">GitHub Issue</a></li>
+        <li><a href="https://go.dev/cl/635315">go.dev Commit</a></li>
+        <li><a href="https://go.dev/issue/70779">go.dev Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ">Google Groups Forum</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2024-3321">Go Vulnerability Database</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8496611">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Denial of Service (DoS)</h2>
             <div class="card__section">

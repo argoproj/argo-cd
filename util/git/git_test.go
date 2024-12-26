@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -320,14 +319,14 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("")
 	require.NoError(t, err)
 
-	err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
-	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	fileHandle, err := os.Open(tempDir + "/test3.yaml")
 	require.NoError(t, err)
 	if err == nil {
 		defer func() {
@@ -358,7 +357,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -415,7 +414,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("")
 		require.NoError(t, err)
 
-		err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)

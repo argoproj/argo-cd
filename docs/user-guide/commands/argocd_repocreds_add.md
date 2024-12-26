@@ -84,5 +84,5 @@ argocd repocreds add REPOURL [flags]
 
 ### SEE ALSO
 
-* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
+* [argocd repocreds](argocd_repocreds.md)	 - Manage credential templates for repositories
 
