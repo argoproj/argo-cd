@@ -38,9 +38,9 @@ func TestPrintProjectTable(t *testing.T) {
 		return nil
 	})
 	assert.NoError(t, err)
-	expectation := `NAME            DESCRIPTION  DESTINATIONS  SOURCES  CLUSTER-RESOURCE-WHITELIST  NAMESPACE-RESOURCE-BLACKLIST  SIGNATURE-KEYS  ORPHANED-RESOURCES  ALLOWED-NODE-LABELS
-base                         *,*           *        <none>                      <none>                        <none>          disabled            <none>
-allowed-labels               *,*           *        <none>                      <none>                        <none>          disabled            2 label(s)
+	expectation := `NAME            DESCRIPTION  DESTINATIONS  SOURCES  CLUSTER-RESOURCE-WHITELIST  NAMESPACE-RESOURCE-BLACKLIST  SIGNATURE-KEYS  ORPHANED-RESOURCES  DESTINATION-SERVICE-ACCOUNTS  ALLOWED-NODE-LABELS
+base                         *,*           *        <none>                      <none>                        <none>          disabled            <none>                        <none>
+allowed-labels               *,*           *        <none>                      <none>                        <none>          disabled            <none>                        2 label(s)
 `
 	assert.Equal(t, expectation, output)
 }
