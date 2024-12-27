@@ -6468,6 +6468,13 @@
       "type": "object",
       "title": "AppProjectSpec is the specification of an AppProject",
       "properties": {
+        "allowedNodeLabels": {
+          "type": "array",
+          "title": "AllowedNodeLabels contains a list of node labels that will be visible on nodes in the pod view",
+          "items": {
+            "type": "string"
+          }
+        },
         "clusterResourceBlacklist": {
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
@@ -8118,6 +8125,12 @@
       "type": "object",
       "title": "HostInfo holds host name and resources metrics\nTODO: describe purpose of this type\nTODO: describe members of this type",
       "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
           "type": "string"
         },

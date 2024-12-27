@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	globutil "github.com/gobwas/glob"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
@@ -13,8 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 

@@ -96,6 +96,9 @@ message AppProjectSpec {
 
   // DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
   repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14;
+
+  // AllowedNodeLabels contains a list of node labels that will be visible on nodes in the pod view
+  repeated string allowedNodeLabels = 15;
 }
 
 // AppProjectStatus contains status information for AppProject CRs
@@ -1130,6 +1133,8 @@ message HostInfo {
   repeated HostResourceInfo resourcesInfo = 2;
 
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  map<string, string> labels = 4;
 }
 
 // TODO: describe this type
