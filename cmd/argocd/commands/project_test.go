@@ -3,9 +3,11 @@ package commands
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func newProj(name string) *v1alpha1.AppProject {
@@ -37,7 +39,7 @@ func TestPrintProjectTable(t *testing.T) {
 		printProjectTable([]v1alpha1.AppProject{*baseProj, *projSpecAllowedNodeLabels})
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectation := `NAME            DESCRIPTION  DESTINATIONS  SOURCES  CLUSTER-RESOURCE-WHITELIST  NAMESPACE-RESOURCE-BLACKLIST  SIGNATURE-KEYS  ORPHANED-RESOURCES  DESTINATION-SERVICE-ACCOUNTS  ALLOWED-NODE-LABELS
 base                         *,*           *        <none>                      <none>                        <none>          disabled            <none>                        <none>
 allowed-labels               *,*           *        <none>                      <none>                        <none>          disabled            <none>                        2 label(s)
@@ -87,9 +89,8 @@ sourceRepos:
 				err := PrintResource(tt.proj.Spec, "yaml")
 				return err
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, out)
 		})
 	}
-
 }
