@@ -210,6 +210,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 
 		return key.Key, nil
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
 	}
