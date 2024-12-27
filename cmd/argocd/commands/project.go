@@ -1233,7 +1233,7 @@ func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.C
 
 // NewProjectAddNodeLabelCommand returns a new instance of an `argocd proj add-node-label` command
 func NewProjectAddNodeLabelCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-node-label PROJECT LABEL",
 		Short: "Add allowed node label",
 		Example: templates.Examples(`
@@ -1275,7 +1275,7 @@ func NewProjectAddNodeLabelCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 // NewProjectRemoveNodeLabelCommand returns a new instance of an `argocd proj remove-node-label` command
 func NewProjectRemoveNodeLabelCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-node-label PROJECT LABEL",
 		Short: "Remove allowed node label",
 		Example: templates.Examples(`

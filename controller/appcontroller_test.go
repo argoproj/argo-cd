@@ -2211,8 +2211,10 @@ func TestGetAppHosts(t *testing.T) {
 	assert.Equal(t, []v1alpha1.HostInfo{{
 		Name:       "minikube",
 		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-		ResourcesInfo: []v1alpha1.HostResourceInfo{{
-			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		ResourcesInfo: []v1alpha1.HostResourceInfo{
+			{
+				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
+			},
 		},
 		Labels: map[string]string{"foo": "bar"},
 	}}, hosts)
