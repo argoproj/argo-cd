@@ -172,7 +172,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	if argoSettings.JWTConfig.CacheTTL != "" {
 		ttl, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
 		if err != nil {
-			log.Warnf("Invalid JWT cache TTL %q, using default", argoSettings.JWTConfig.CacheTTL)
+			log.Warnf("Invalid JWT cache TTL %q, using default (%d)", argoSettings.JWTConfig.CacheTTL, cacheTTL)
 		} else {
 			cacheTTL = ttl
 		}
