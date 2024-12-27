@@ -23248,6 +23248,12 @@ spec:
           spec:
             description: AppProjectSpec is the specification of an AppProject
             properties:
+              allowedNodeLabels:
+                description: AllowedNodeLabels contains a list of node labels that
+                  will be visible on nodes in the pod view
+                items:
+                  type: string
+                type: array
               clusterResourceBlacklist:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
