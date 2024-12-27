@@ -301,6 +301,7 @@ func (proj *AppProject) ValidateProject() error {
 			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
 		}
 		destServiceAccts[key] = true
+	}
 
 	if p.Spec.AllowedNodeLabels != nil {
 		allowedNodeLabels := make(map[string]bool)
