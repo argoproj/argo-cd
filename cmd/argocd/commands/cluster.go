@@ -166,13 +166,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
-				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
+				endpoint, caData, err := cmdutil.GetKubePublicEndpoint(clientset)
 				if err != nil || len(endpoint) == 0 {
 					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
 					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
+				clst.Config.TLSClientConfig.CAData = caData
 			}
 
 			if clusterOpts.Shard >= 0 {
