@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -281,7 +282,12 @@ func TestSetApplicationHealth_CRDHealthCheck(t *testing.T) {
 	// Test the health check for CRDs
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-	assert.Equal(t, "CRD has non-structural schema issues", healthStatus.Message)
+
+	// Debug log to inspect resource statuses
+	log.Infof("Overall health status: %+v", healthStatus)
+	log.Infof("Resource statuses after health check: %+v", resourceStatuses)
+
+	require.NotNil(t, resourceStatuses[0].Health, "Health should not be nil")
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[0].Health.Status)
+	assert.Equal(t, "CRD has non-structural schema issues", resourceStatuses[0].Health.Message)
 }

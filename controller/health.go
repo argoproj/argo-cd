@@ -62,9 +62,9 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == "True" {
 							healthStatus = &health.HealthStatus{
 								Status:  health.HealthStatusDegraded,
-								Message: "CRD has non-structural schema issues",
+								Message: condMessage,
 							}
-							log.Infof("Health status set to Degraded with message: %s", condMessage)
+							log.Infof("Health status set to Degraded with message: %s", healthStatus.Message)
 							break
 						}
 					} else {
@@ -100,6 +100,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		if persistResourceHealth {
 			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+			log.Infof("Persisting health status: %+v", resHealth)
 			statuses[i].Health = &resHealth
 		} else {
 			statuses[i].Health = nil
@@ -136,6 +137,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	if savedErr != nil && errCount > 1 {
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
+
+	log.Infof("Application %s health: %s", app.Name, appHealth)
 
 	return &appHealth, savedErr
 }
