@@ -250,3 +250,31 @@ return hs`,
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	})
 }
+
+func TestSetApplicationHealth_CRDHealthCheck(t *testing.T) {
+	crd := resourceFromFile("./testdata/customresourcedefinition.yaml")
+
+	// Simulate a CRD with NonStructuralSchema condition
+	crdConditions := []map[string]interface{}{
+		{
+			"type":    "NonStructuralSchema",
+			"status":  "True",
+			"reason":  "Violations",
+			"message": "spec.preserveUnknownFields: Invalid value: true: must be false",
+		},
+	}
+	err := unstructured.SetNestedSlice(crd.Object, crdConditions, "status", "conditions")
+	require.NoError(t, err)
+
+	resources := []managedResource{{
+		Group: "apiextensions.k8s.io", Version: "v1", Kind: "CustomResourceDefinition", Live: &crd,
+	}}
+	resourceStatuses := initStatuses(resources)
+
+	// Test the health check for CRDs
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+	assert.Equal(t, "CRD has non-structural schema issues", healthStatus.Message)
+	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[0].Health.Status)
+}

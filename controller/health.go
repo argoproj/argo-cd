@@ -6,9 +6,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -39,24 +39,34 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		var err error
 		healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
-		if res.Live == nil {
-			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
-		} else {
-			// App the manages itself should not affect own health
-			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
-				continue
-			}
-			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
-			if err != nil && savedErr == nil {
-				errCount++
-				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
-				// also log so we don't lose the message
-				log.WithField("application", app.QualifiedName()).Warn(savedErr)
-			}
-		}
 
-		if healthStatus == nil {
-			continue
+		if res.Kind == "CustomResourceDefinition" && res.Group == "apiextensions.k8s.io" {
+			// Custom logic for CRD health
+			conditions, found, err := unstructured.NestedSlice(res.Live.Object, "status", "conditions")
+			if err != nil {
+				log.WithError(err).Warnf("Failed to retrieve conditions for CRD %s/%s", res.Live.GetNamespace(), res.Live.GetName())
+			}
+			if found {
+				for _, condition := range conditions {
+					condMap, ok := condition.(map[string]interface{})
+					if ok {
+						condType, condTypeExists := condMap["type"].(string)
+						condStatus, condStatusExists := condMap["status"].(string)
+						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == "True" {
+							healthStatus = &health.HealthStatus{
+								Status:  health.HealthStatusDegraded,
+								Message: "CRD has non-structural schema issues",
+							}
+							break
+						}
+					} else {
+						log.Warnf("Unexpected condition format for CRD %s/%s", res.Live.GetNamespace(), res.Live.GetName())
+					}
+				}
+			}
+			if healthStatus == nil {
+				healthStatus = &health.HealthStatus{Status: health.HealthStatusHealthy}
+			}
 		}
 
 		if persistResourceHealth {
