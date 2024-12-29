@@ -39,8 +39,7 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		timeStampStr := parts[0]
 		logTime, err := time.Parse(time.RFC3339Nano, timeStampStr)
 		if err != nil {
-			if strings.HasPrefix(line, "unable to retrieve container logs for ") ||
-				strings.HasPrefix(line, "Unable to retrieve container logs for ") {
+			if strings.HasPrefix(strings.ToLower(line), "unable to retrieve container logs for ") {
 				ch <- logEntry{line: line, podName: podName, timeStamp: time.Now()}
 				break
 			}

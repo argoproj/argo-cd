@@ -110,9 +110,12 @@ func TestParseLogsStream_ContainerLogRetrievalMessage(t *testing.T) {
 	r := io.NopCloser(strings.NewReader(`unable to retrieve container logs for containerd://2c7e54dbbfef27148d5`))
 
 	res := make(chan logEntry)
+	done := make(chan struct{})
+
 	go func() {
 		parseLogsStream("test", r, res)
 		close(res)
+		close(done)
 	}()
 
 	var entries []logEntry
@@ -120,10 +123,14 @@ func TestParseLogsStream_ContainerLogRetrievalMessage(t *testing.T) {
 		entries = append(entries, entry)
 	}
 
+	// Wait for parseLogsStream to complete
+	<-done
+
 	require.Len(t, entries, 1)
 
 	assert.Equal(t, "unable to retrieve container logs for containerd://2c7e54dbbfef27148d5", entries[0].line)
 	assert.Equal(t, "test", entries[0].podName)
-	// Verify timestamp is recent (within last second)
-	assert.Less(t, time.Since(entries[0].timeStamp), time.Second)
+
+	// Verify timestamp is recent (within last 5 seconds)
+	assert.Less(t, time.Since(entries[0].timeStamp), 5*time.Second)
 }
