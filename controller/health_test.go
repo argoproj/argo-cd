@@ -263,7 +263,15 @@ func TestSetApplicationHealth_CRDHealthCheck(t *testing.T) {
 			"message": "spec.preserveUnknownFields: Invalid value: true: must be false",
 		},
 	}
-	err := unstructured.SetNestedSlice(crd.Object, crdConditions, "status", "conditions")
+
+	// Convert []map[string]interface{} to []interface{}
+	conditionsInterface := make([]interface{}, len(crdConditions))
+	for i, condition := range crdConditions {
+		conditionsInterface[i] = condition
+	}
+
+	// Set the conditions in the CRD's status field
+	err := unstructured.SetNestedSlice(crd.Object, conditionsInterface, "status", "conditions")
 	require.NoError(t, err)
 
 	resources := []managedResource{{

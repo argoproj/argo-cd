@@ -6,6 +6,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
+	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -46,6 +47,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			if err != nil {
 				log.WithError(err).Warnf("Failed to retrieve conditions for CRD %s/%s", res.Live.GetNamespace(), res.Live.GetName())
 			}
+
 			if found {
 				for _, condition := range conditions {
 					condMap, ok := condition.(map[string]interface{})
@@ -67,6 +69,26 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			if healthStatus == nil {
 				healthStatus = &health.HealthStatus{Status: health.HealthStatusHealthy}
 			}
+		} else if res.Live == nil {
+			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
+		} else {
+			// App that manages itself should not affect its own health
+			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
+				continue
+			}
+			healthStatus, err = health.GetResourceHealth(res.Live, healthOverrides)
+			if err != nil {
+				errCount++
+				if savedErr == nil {
+					savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
+				}
+				// Log the error for debugging
+				log.WithField("application", app.QualifiedName()).Warn(savedErr)
+			}
+		}
+
+		if healthStatus == nil {
+			continue
 		}
 
 		if persistResourceHealth {
@@ -76,12 +98,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			statuses[i].Health = nil
 		}
 
-		// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
+		// Health status checks
 		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
 			continue
 		}
 
-		// Missing or Unknown health status of child Argo CD app should not affect parent
+		// Ignore certain health statuses for child apps
 		if res.Kind == application.ApplicationKind && res.Group == application.Group && (healthStatus.Status == health.HealthStatusMissing || healthStatus.Status == health.HealthStatusUnknown) {
 			continue
 		}
@@ -90,9 +112,10 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			appHealth.Status = healthStatus.Status
 		}
 	}
+
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
-		// if the status didn't change, don't update the timestamp
+		// Update timestamp only if health status changes
 		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
 			appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
 		} else {
@@ -102,8 +125,10 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
+
 	if savedErr != nil && errCount > 1 {
 		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
+
 	return &appHealth, savedErr
 }
