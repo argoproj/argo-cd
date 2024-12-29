@@ -57,6 +57,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 						condType, condTypeExists := condMap["type"].(string)
 						log.Infof("Processing condition: %+v", condType)
 						condStatus, condStatusExists := condMap["status"].(string)
+						condMessage, _ := condMap["message"].(string)
 						log.Infof("Condition type: %s, status: %s, message: %s", condType, condStatus, condMessage)
 						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == "True" {
 							healthStatus = &health.HealthStatus{
