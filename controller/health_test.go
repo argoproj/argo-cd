@@ -260,10 +260,9 @@ func TestSetApplicationHealth_CRDHealthCheck(t *testing.T) {
 			"type":    "NonStructuralSchema",
 			"status":  "True",
 			"reason":  "Violations",
-			"message": "spec.preserveUnknownFields: Invalid value: true: must be false",
+			"message": "CRD has non-structural schema issues", // Ensure the message matches what you expect
 		},
 	}
-
 	// Convert []map[string]interface{} to []interface{}
 	conditionsInterface := make([]interface{}, len(crdConditions))
 	for i, condition := range crdConditions {

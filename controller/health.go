@@ -59,7 +59,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 						condStatus, condStatusExists := condMap["status"].(string)
 						condMessage, _ := condMap["message"].(string)
 						log.Infof("Condition type: %s, status: %s, message: %s", condType, condStatus, condMessage)
-						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == True {
+						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == "True" {
 							healthStatus = &health.HealthStatus{
 								Status:  health.HealthStatusDegraded,
 								Message: "CRD has non-structural schema issues",
