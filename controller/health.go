@@ -42,6 +42,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
 
 		if res.Kind == "CustomResourceDefinition" && res.Group == "apiextensions.k8s.io" {
+			log.Infof("Processing CRD %s/%s", res.Live.GetNamespace(), res.Live.GetName())
 			// Custom logic for CRD health
 			conditions, found, err := unstructured.NestedSlice(res.Live.Object, "status", "conditions")
 			if err != nil {
@@ -49,16 +50,20 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			}
 
 			if found {
+				log.Infof("Conditions found for CRD %s/%s: %+v", res.Live.GetNamespace(), res.Live.GetName(), conditions)
 				for _, condition := range conditions {
 					condMap, ok := condition.(map[string]interface{})
 					if ok {
 						condType, condTypeExists := condMap["type"].(string)
+						log.Infof("Processing condition: %+v", condType)
 						condStatus, condStatusExists := condMap["status"].(string)
+						log.Infof("Condition type: %s, status: %s, message: %s", condType, condStatus, condMessage)
 						if condTypeExists && condStatusExists && condType == "NonStructuralSchema" && condStatus == "True" {
 							healthStatus = &health.HealthStatus{
 								Status:  health.HealthStatusDegraded,
 								Message: "CRD has non-structural schema issues",
 							}
+							log.Infof("Health status set to Degraded with message: %s", condMessage)
 							break
 						}
 					} else {
@@ -67,6 +72,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				}
 			}
 			if healthStatus == nil {
+				log.Infof("Health status set to Healthy for CRD %s/%s", res.Live.GetNamespace(), res.Live.GetName())
 				healthStatus = &health.HealthStatus{Status: health.HealthStatusHealthy}
 			}
 		} else if res.Live == nil {
