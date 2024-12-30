@@ -2458,8 +2458,10 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	}
 
 	healthBeingChecked := watch.suspended || watch.health || watch.degraded
-	var healthCheckPassed bool
+	healthCheckPassed := true
+
 	if healthBeingChecked {
+		healthCheckPassed = false
 		if watch.health {
 			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
 		}
@@ -2469,8 +2471,6 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 		if watch.degraded {
 			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusDegraded)
 		}
-	} else {
-		healthCheckPassed = true
 	}
 
 	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
