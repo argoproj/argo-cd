@@ -3,6 +3,7 @@ package helm
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -246,11 +247,11 @@ func (c AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContain
 	}
 
 	if _, realmExists := tokenParams["realm"]; !realmExists {
-		return nil, fmt.Errorf("realm parameter not found in challenge")
+		return nil, errors.New("realm parameter not found in challenge")
 	}
 
 	if _, serviceExists := tokenParams["service"]; !serviceExists {
-		return nil, fmt.Errorf("service parameter not found in challenge")
+		return nil, errors.New("service parameter not found in challenge")
 	}
 
 	return tokenParams, nil
