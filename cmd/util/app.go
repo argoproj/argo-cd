@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -636,7 +637,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			app.Name = appName
 		}
 		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			return nil, stderrors.New("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
 		mergeLabels(app, labels)
@@ -895,10 +896,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, fmt.Errorf("No matching resource found")
+		return nil, stderrors.New("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }

@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
 type RevisionMetadata struct {
 	Author  string
@@ -784,7 +784,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
-		return "", fmt.Errorf("permission denied")
+		return "", errors.New("permission denied")
 	}
 	return out, nil
 }
@@ -807,7 +807,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	}
 
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
