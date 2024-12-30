@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 28,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -842,13 +842,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 3
+            "y": 7
           },
           "hiddenSeries": false,
           "id": 56,
@@ -873,10 +879,11 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 1,
           "points": false,
           "renderer": "flot",
@@ -939,13 +946,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 9
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 73,
@@ -969,10 +982,11 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1059,13 +1073,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 12
+            "y": 8
           },
           "hiddenSeries": false,
           "id": 58,
@@ -1087,10 +1107,11 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1103,10 +1124,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
+              "editorMode": "code",
               "expr": "sum(increase(argocd_app_reconcile_count{namespace=~\"$namespace\",dest_server=~\"$cluster\"}[$interval])) by ($grouping)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{$grouping}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1153,11 +1176,26 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "scaleDistribution": {
+                  "type": "linear"
+                }
+              }
+            },
+            "overrides": []
+          },
           "gridPos": {
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 18
+            "y": 14
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -1167,7 +1205,46 @@
             "show": true
           },
           "links": [],
-          "options": {},
+          "options": {
+            "calculate": false,
+            "calculation": {},
+            "cellGap": 2,
+            "cellValues": {
+              "decimals": 0
+            },
+            "color": {
+              "exponent": 0.5,
+              "fill": "#b4ff00",
+              "mode": "scheme",
+              "reverse": false,
+              "scale": "exponential",
+              "scheme": "Spectral",
+              "steps": 128
+            },
+            "exemplars": {
+              "color": "rgba(255,0,255,0.7)"
+            },
+            "filterValues": {
+              "le": 1e-9
+            },
+            "legend": {
+              "show": true
+            },
+            "rowsFrame": {
+              "layout": "auto"
+            },
+            "showValue": "never",
+            "tooltip": {
+              "show": true,
+              "yHistogram": true
+            },
+            "yAxis": {
+              "axisPlacement": "left",
+              "reverse": false,
+              "unit": "short"
+            }
+          },
+          "pluginVersion": "10.3.1",
           "reverseYBuckets": false,
           "targets": [
             {
@@ -1207,13 +1284,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 25
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 80,
@@ -1237,10 +1320,11 @@
           "links": [],
           "nullPointMode": "null as zero",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1299,13 +1383,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 27
           },
           "hiddenSeries": false,
           "id": 96,
@@ -1326,9 +1416,10 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1388,13 +1479,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 27
           },
           "hiddenSeries": false,
           "id": 98,
@@ -1414,9 +1511,10 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1481,7 +1579,7 @@
           "refId": "A"
         }
       ],
-      "title": "Controller Stats",
+      "title": "Application Controller Stats",
       "type": "row"
     },
     {
@@ -1507,8 +1605,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -1529,7 +1626,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -1557,10 +1654,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1568,7 +1667,7 @@
           "timeRegions": [],
           "title": "Memory Usage",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1604,8 +1703,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -1628,7 +1726,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "avg",
             "sortDesc": true,
             "total": false,
@@ -1656,10 +1754,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "irate(process_cpu_seconds_total{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}[1m])",
+              "editorMode": "code",
+              "expr": "irate(process_cpu_seconds_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[1m])",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1667,7 +1767,7 @@
           "timeRegions": [],
           "title": "CPU Usage",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1704,8 +1804,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -1728,7 +1827,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -1756,10 +1855,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_goroutines{job=\"argocd-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1767,7 +1868,7 @@
           "timeRegions": [],
           "title": "Goroutines",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1802,10 +1903,9 @@
           "refId": "A"
         }
       ],
-      "title": "Controller Telemetry",
+      "title": "Application Controller Telemetry",
       "type": "row"
     },
-    
     {
       "collapsed": true,
       "datasource": {
@@ -1815,9 +1915,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 9
       },
-      "id": 102,
+      "id": 117,
       "panels": [
         {
           "aliasColors": {},
@@ -1829,8 +1929,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -1840,10 +1939,10 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 9
+            "y": 10
           },
           "hiddenSeries": false,
-          "id": 34,
+          "id": 118,
           "legend": {
             "alignAsTable": true,
             "avg": true,
@@ -1851,7 +1950,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -1879,10 +1978,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1890,7 +1991,7 @@
           "timeRegions": [],
           "title": "Memory Usage",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -1926,8 +2027,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -1937,10 +2037,10 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 16
+            "y": 17
           },
           "hiddenSeries": false,
-          "id": 108,
+          "id": 119,
           "legend": {
             "alignAsTable": true,
             "avg": true,
@@ -1950,7 +2050,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "avg",
             "sortDesc": true,
             "total": false,
@@ -1978,10 +2078,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "irate(process_cpu_seconds_total{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}[1m])",
+              "editorMode": "code",
+              "expr": "irate(process_cpu_seconds_total{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}[1m])",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -1989,7 +2091,7 @@
           "timeRegions": [],
           "title": "CPU Usage",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -2026,8 +2128,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -2037,10 +2138,10 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 23
+            "y": 24
           },
           "hiddenSeries": false,
-          "id": 62,
+          "id": 120,
           "legend": {
             "alignAsTable": true,
             "avg": true,
@@ -2050,7 +2151,7 @@
             "max": true,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -2078,10 +2179,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-applicationset-controller-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_goroutines{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{namespace}}",
+              "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2089,7 +2192,7 @@
           "timeRegions": [],
           "title": "Goroutines",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -2136,7 +2239,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 10
       },
       "id": 88,
       "panels": [
@@ -2148,13 +2251,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 11
           },
           "hiddenSeries": false,
           "id": 90,
@@ -2165,7 +2274,7 @@
             "max": false,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -2176,9 +2285,10 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2191,10 +2301,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "sum(argocd_cluster_api_resource_objects{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+              "editorMode": "code",
+              "expr": "sum(argocd_cluster_api_resource_objects{namespace=~\"$namespace\",server=~\"$cluster\"}) by (pod,server)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{server}}",
+              "legendFormat": "{{pod}} - {{server}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2202,7 +2314,7 @@
           "timeRegions": [],
           "title": "Resource Objects Count",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -2236,13 +2348,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 34
+            "y": 18
           },
           "hiddenSeries": false,
           "id": 92,
@@ -2254,7 +2372,7 @@
             "max": false,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -2265,9 +2383,10 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2280,10 +2399,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "  sum(argocd_cluster_api_resources{namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+              "editorMode": "code",
+              "expr": "  sum(argocd_cluster_api_resources{namespace=~\"$namespace\",server=~\"$cluster\"}) by (pod, server)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{server}}",
+              "legendFormat": "{{pod}} - {{server}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2291,7 +2412,7 @@
           "timeRegions": [],
           "title": "API Resources Count",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -2325,13 +2446,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 40
+            "y": 24
           },
           "hiddenSeries": false,
           "id": 86,
@@ -2342,7 +2469,7 @@
             "max": false,
             "min": false,
             "rightSide": true,
-            "show": true,
+            "show": false,
             "sort": "current",
             "sortDesc": true,
             "total": false,
@@ -2353,9 +2480,10 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2368,10 +2496,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "sum(increase(argocd_cluster_events_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (server)",
+              "editorMode": "code",
+              "expr": "sum(increase(argocd_cluster_events_total{namespace=~\"$namespace\",server=~\"$cluster\"}[$interval])) by (pod, server)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{server}}",
+              "legendFormat": "{{pod}} - {{server}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2379,7 +2509,7 @@
           "timeRegions": [],
           "title": "Cluster Events Count",
           "tooltip": {
-            "shared": false,
+            "shared": true,
             "sort": 2,
             "value_type": "individual"
           },
@@ -2426,7 +2556,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 11
       },
       "id": 70,
       "panels": [
@@ -2440,8 +2570,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -2451,7 +2580,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 82,
@@ -2532,8 +2661,7 @@
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -2543,7 +2671,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 12
           },
           "hiddenSeries": false,
           "id": 84,
@@ -2639,8 +2767,7 @@
                 "scaleDistribution": {
                   "type": "linear"
                 }
-              },
-              "unitScale": true
+              }
             },
             "overrides": []
           },
@@ -2648,7 +2775,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 20
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2686,6 +2813,7 @@
             "showValue": "never",
             "tooltip": {
               "mode": "single",
+              "show": true,
               "showColorScale": false,
               "yHistogram": false
             },
@@ -2749,8 +2877,7 @@
                 "scaleDistribution": {
                   "type": "linear"
                 }
-              },
-              "unitScale": true
+              }
             },
             "overrides": []
           },
@@ -2758,7 +2885,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 20
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2796,6 +2923,7 @@
             "showValue": "never",
             "tooltip": {
               "mode": "single",
+              "show": true,
               "showColorScale": false,
               "yHistogram": false
             },
@@ -2843,13 +2971,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 28
           },
           "hiddenSeries": false,
           "id": 71,
@@ -2867,10 +3001,11 @@
           "links": [],
           "nullPointMode": "connected",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2883,10 +3018,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -2928,13 +3065,19 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": []
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 36
           },
           "hiddenSeries": false,
           "id": 72,
@@ -2952,10 +3095,11 @@
           "links": [],
           "nullPointMode": "null",
           "options": {
-            "dataLinks": []
+            "alertThreshold": true
           },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -2968,10 +3112,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_goroutines{job=\"argocd-repo-server\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3026,7 +3172,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 12
       },
       "id": 66,
       "panels": [
@@ -3038,19 +3184,13 @@
           "datasource": {
             "uid": "$datasource"
           },
-          "fieldConfig": {
-            "defaults": {
-              "unitScale": true
-            },
-            "overrides": []
-          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 12
+            "y": 13
           },
           "hiddenSeries": false,
           "id": 61,
@@ -3085,10 +3225,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3131,19 +3273,13 @@
           "datasource": {
             "uid": "$datasource"
           },
-          "fieldConfig": {
-            "defaults": {
-              "unitScale": true
-            },
-            "overrides": []
-          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 20
+            "y": 21
           },
           "hiddenSeries": false,
           "id": 36,
@@ -3178,10 +3314,12 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+              "editorMode": "code",
+              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
+              "range": true,
               "refId": "A"
             }
           ],
@@ -3223,19 +3361,13 @@
           "datasource": {
             "uid": "$datasource"
           },
-          "fieldConfig": {
-            "defaults": {
-              "unitScale": true
-            },
-            "overrides": []
-          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 24,
             "x": 0,
-            "y": 29
+            "y": 30
           },
           "hiddenSeries": false,
           "id": 38,
@@ -3306,21 +3438,29 @@
           "yaxis": {
             "align": false
           }
-        },
+        }
+      ],
+      "targets": [
         {
-          "content": "#### gRPC Services:",
-          "gridPos": {
-            "h": 2,
-            "w": 24,
-            "x": 0,
-            "y": 38
+          "datasource": {
+            "uid": "$datasource"
           },
-          "id": 54,
-          "links": [],
-          "mode": "markdown",
-          "transparent": true,
-          "type": "text"
-        },
+          "refId": "A"
+        }
+      ],
+      "title": "Server Stats",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "id": 121,
+      "panels": [
         {
           "aliasColors": {},
           "bars": false,
@@ -3330,12 +3470,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 14
           },
+          "hiddenSeries": false,
           "id": 40,
           "legend": {
             "alignAsTable": true,
@@ -3356,8 +3498,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3416,12 +3562,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 14
           },
+          "hiddenSeries": false,
           "id": 42,
           "legend": {
             "alignAsTable": true,
@@ -3440,8 +3588,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3500,12 +3652,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 23
           },
+          "hiddenSeries": false,
           "id": 44,
           "legend": {
             "alignAsTable": true,
@@ -3524,8 +3678,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3584,12 +3742,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 23
           },
+          "hiddenSeries": false,
           "id": 46,
           "legend": {
             "alignAsTable": true,
@@ -3607,8 +3767,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3675,12 +3839,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 32
           },
+          "hiddenSeries": false,
           "id": 48,
           "legend": {
             "alignAsTable": true,
@@ -3698,8 +3864,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3758,12 +3928,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 32
           },
+          "hiddenSeries": false,
           "id": 49,
           "legend": {
             "alignAsTable": true,
@@ -3781,8 +3953,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3841,12 +4017,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 41
           },
+          "hiddenSeries": false,
           "id": 50,
           "legend": {
             "alignAsTable": true,
@@ -3864,8 +4042,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3924,12 +4106,14 @@
             "uid": "$datasource"
           },
           "fill": 1,
+          "fillGradient": 0,
           "gridPos": {
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 41
           },
+          "hiddenSeries": false,
           "id": 99,
           "legend": {
             "alignAsTable": true,
@@ -3947,8 +4131,12 @@
           "linewidth": 1,
           "links": [],
           "nullPointMode": "null as zero",
+          "options": {
+            "alertThreshold": true
+          },
           "paceLength": 10,
           "percentage": false,
+          "pluginVersion": "10.3.1",
           "pointradius": 5,
           "points": false,
           "renderer": "flot",
@@ -3999,28 +4187,19 @@
           }
         }
       ],
-      "targets": [
-        {
-          "datasource": {
-            "uid": "$datasource"
-          },
-          "refId": "A"
-        }
-      ],
-      "title": "Server Stats",
+      "title": "gRPC Services",
       "type": "row"
     },
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
         "uid": "$datasource"
       },
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 14
       },
       "id": 110,
       "panels": [
@@ -4030,13 +4209,11 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "fieldConfig": {
             "defaults": {
-              "links": [],
-              "unitScale": true
+              "links": []
             },
             "overrides": []
           },
@@ -4046,7 +4223,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 13
+            "y": 15
           },
           "hiddenSeries": false,
           "id": 112,
@@ -4077,7 +4254,6 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
                 "uid": "$datasource"
               },
               "expr": "sum(increase(argocd_redis_request_total{namespace=~\"$namespace\"}[$interval])) by (failed)",
@@ -4118,7 +4294,6 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
             "uid": "$datasource"
           },
           "refId": "A"
@@ -4129,7 +4304,8 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 39,
+  "schemaVersion": 38,
+  "style": "dark",
   "tags": [],
   "templating": {
     "list": [
@@ -4137,7 +4313,7 @@
         "current": {
           "selected": false,
           "text": "Prometheus",
-          "value": "prometheus"
+          "value": "Prometheus"
         },
         "hide": 0,
         "includeAll": false,
@@ -4153,13 +4329,8 @@
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
-          "type": "prometheus",
           "uid": "$datasource"
         },
         "definition": "label_values(kube_pod_info, namespace)",
@@ -4244,7 +4415,7 @@
       {
         "allValue": "",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "namespace",
           "value": "namespace"
         },
@@ -4260,6 +4431,11 @@
           },
           {
             "selected": false,
+            "text": "exported_namespace",
+            "value": "exported_namespace"
+          },
+          {
+            "selected": false,
             "text": "name",
             "value": "name"
           },
@@ -4269,20 +4445,15 @@
             "value": "project"
           }
         ],
-        "query": "namespace,name,project",
+        "query": "namespace,exported_namespace,name,project",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
       },
       {
         "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
-          "type": "prometheus",
           "uid": "$datasource"
         },
         "definition": "label_values(argocd_cluster_info, server)",
@@ -4424,6 +4595,6 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "LCAgc9rWz",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
