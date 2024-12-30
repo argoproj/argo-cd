@@ -1,7 +1,7 @@
 package generators
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,7 +27,7 @@ type Generator interface {
 }
 
 var (
-	EmptyAppSetGeneratorError = fmt.Errorf("ApplicationSet is empty")
+	EmptyAppSetGeneratorError = errors.New("ApplicationSet is empty")
 	NoRequeueAfter            time.Duration
 )
 
