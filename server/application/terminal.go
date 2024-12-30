@@ -63,14 +63,11 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 }
 
 func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
-		return nil, err
-	}
-	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
+	destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 	if err != nil {
 		return nil, err
 	}
-	rawConfig, err := clst.RawRestConfig()
+	rawConfig, err := destCluster.RawRestConfig()
 	if err != nil {
 		return nil, err
 	}

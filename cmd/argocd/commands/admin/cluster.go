@@ -78,7 +78,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClient versioned.Interface, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -123,13 +123,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	}
 
 	apps := appItems.Items
-	for i, app := range apps {
-		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
-		if err != nil {
-			return nil, err
-		}
-		apps[i] = app
-	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
 
 	batchSize := 10
@@ -154,7 +147,11 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			}
 			nsSet := map[string]bool{}
 			for _, app := range apps {
-				if app.Spec.Destination.Server == cluster.Server {
+				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+				if err != nil {
+					return fmt.Errorf("error validating application destination: %w", err)
+				}
+				if destCluster.Server == cluster.Server {
 					nsSet[app.Spec.Destination.Namespace] = true
 				}
 			}
@@ -281,18 +278,16 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 		return fmt.Errorf("error listing application: %w", err)
 	}
 	apps := appItems.Items
-	for i, app := range apps {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB); err != nil {
-			return fmt.Errorf("error validating application destination: %w", err)
-		}
-		apps[i] = app
-	}
-
 	clusters := map[string][]string{}
 	for _, cluster := range clustersList.Items {
 		nsSet := map[string]bool{}
 		for _, app := range apps {
-			if app.Spec.Destination.Server != cluster.Server {
+			destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+			if err != nil {
+				return fmt.Errorf("error validating application destination: %w", err)
+			}
+
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 			// Use namespaces of actually deployed resources, since some application use dummy target namespace
