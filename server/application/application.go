@@ -313,7 +313,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
 	if q.GetApplication() == nil {
-		return nil, fmt.Errorf("error creating application: application is nil in request")
+		return nil, errors.New("error creating application: application is nil in request")
 	}
 	a := q.GetApplication()
 
@@ -441,7 +441,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, ac
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	if q.Name == nil || *q.Name == "" {
-		return nil, fmt.Errorf("invalid request: application name is missing")
+		return nil, errors.New("invalid request: application name is missing")
 	}
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
@@ -482,7 +482,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
 				if pos <= 0 || pos > numOfSources {
-					return fmt.Errorf("source position is out of range")
+					return errors.New("source position is out of range")
 				}
 				appSpec.Sources[pos-1].TargetRevision = q.Revisions[i]
 			}
@@ -588,7 +588,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	if query.Name == nil || *query.Name == "" {
-		return fmt.Errorf("invalid request: application name is missing")
+		return errors.New("invalid request: application name is missing")
 	}
 
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, query.GetProject(), query.GetAppNamespace(), query.GetName())
@@ -798,7 +798,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("application refresh deadline exceeded")
+			return nil, errors.New("application refresh deadline exceeded")
 		case event := <-events:
 			if appVersion, err := strconv.Atoi(event.Application.ResourceVersion); err == nil && appVersion > minVersion {
 				annotations := event.Application.GetAnnotations()
@@ -968,7 +968,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if q.GetApplication() == nil {
-		return nil, fmt.Errorf("error updating application: application is nil in request")
+		return nil, errors.New("error updating application: application is nil in request")
 	}
 	a := q.GetApplication()
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
@@ -985,7 +985,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
 	if q.GetSpec() == nil {
-		return nil, fmt.Errorf("error updating application spec: spec is nil in request")
+		return nil, errors.New("error updating application spec: spec is nil in request")
 	}
 	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionUpdate, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
@@ -1233,7 +1233,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, validate bool) error {
 	if app.GetName() == "" {
-		return fmt.Errorf("resource name may not be empty")
+		return errors.New("resource name may not be empty")
 	}
 
 	// ensure sources names are unique
@@ -1440,7 +1440,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		return nil, fmt.Errorf("error patching resource: %w", err)
 	}
 	if manifest == nil {
-		return nil, fmt.Errorf("failed to patch resource: manifest was nil")
+		return nil, errors.New("failed to patch resource: manifest was nil")
 	}
 	manifest, err = s.replaceSecretValues(manifest)
 	if err != nil {
@@ -2023,7 +2023,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *appv1.Applicatio
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
 			if pos <= 0 || pos > numOfSources {
-				return "", "", nil, nil, fmt.Errorf("source position is out of range")
+				return "", "", nil, nil, errors.New("source position is out of range")
 			}
 			sources[pos-1].TargetRevision = syncReq.Revisions[i]
 		}
@@ -2176,7 +2176,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return nil, nil, err
 	}
 	if !permitted {
-		return nil, nil, fmt.Errorf("error getting destination cluster")
+		return nil, nil, errors.New("error getting destination cluster")
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
