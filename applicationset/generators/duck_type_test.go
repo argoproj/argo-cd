@@ -2,7 +2,7 @@ package generators
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -160,7 +160,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -271,7 +271,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -456,7 +456,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -567,7 +567,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 

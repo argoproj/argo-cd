@@ -2,7 +2,7 @@ package application
 
 import (
 	"context"
-	coreerrors "errors"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -2066,7 +2066,7 @@ func TestGetCachedAppState(t *testing.T) {
 	})
 
 	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
-		randomError := coreerrors.New("random error")
+		randomError := stderrors.New("random error")
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
 			return randomError
 		})

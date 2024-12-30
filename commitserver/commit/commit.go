@@ -2,6 +2,7 @@ package commit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -78,16 +79,16 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	if r.Repo == nil {
-		return "", "", fmt.Errorf("repo is required")
+		return "", "", errors.New("repo is required")
 	}
 	if r.Repo.Repo == "" {
-		return "", "", fmt.Errorf("repo URL is required")
+		return "", "", errors.New("repo URL is required")
 	}
 	if r.TargetBranch == "" {
-		return "", "", fmt.Errorf("target branch is required")
+		return "", "", errors.New("target branch is required")
 	}
 	if r.SyncBranch == "" {
-		return "", "", fmt.Errorf("sync branch is required")
+		return "", "", errors.New("sync branch is required")
 	}
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
