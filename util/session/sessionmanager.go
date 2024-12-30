@@ -265,7 +265,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("account password has changed since token issued")
+		return nil, "", errors.New("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -536,7 +536,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
 		if argoSettings == nil {
-			return nil, "", fmt.Errorf("settings are not available while verifying the token")
+			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
@@ -573,7 +573,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 		return nil, err
 	}
 	if !settings.IsSSOConfigured() {
-		return nil, fmt.Errorf("SSO is not configured")
+		return nil, errors.New("SSO is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil
