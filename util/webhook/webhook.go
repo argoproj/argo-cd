@@ -41,7 +41,7 @@ type settingsSource interface {
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
-const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
+const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
 
@@ -340,7 +340,7 @@ func GetWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 	// 6. Required: `:` or `/`
 	// 7. Required: path parsed from `webURL`
 	// 8. Optional: `.git` extension
-	return getUrlRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:[0-9]+)?[:/]%[3]s(\.git)?$`)
+	return getUrlRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
 }
 
 // GetApiUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given apiURL.
@@ -350,7 +350,7 @@ func GetApiUrlRegex(apiURL string) (*regexp.Regexp, error) {
 	// 3. Required: hostname parsed from `webURL`
 	// 4. Optional: `:` followed by port number
 	// 5. Optional: `/`
-	return getUrlRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:[0-9]+)?/?$`)
+	return getUrlRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
 }
 
 func getUrlRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
