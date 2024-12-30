@@ -2,6 +2,7 @@ package generators
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -54,7 +55,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 				if key == "values" {
 					values, ok := (value).(map[string]interface{})
 					if !ok {
-						return nil, fmt.Errorf("error parsing values map")
+						return nil, errors.New("error parsing values map")
 					}
 					for k, v := range values {
 						value, ok := v.(string)

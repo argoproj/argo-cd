@@ -2,6 +2,7 @@ package generators
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -194,12 +195,12 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 
 	baseUrl, ok := cm.Data["baseUrl"]
 	if !ok || baseUrl == "" {
-		return nil, fmt.Errorf("baseUrl not found in ConfigMap")
+		return nil, errors.New("baseUrl not found in ConfigMap")
 	}
 
 	token, ok := cm.Data["token"]
 	if !ok || token == "" {
-		return nil, fmt.Errorf("token not found in ConfigMap")
+		return nil, errors.New("token not found in ConfigMap")
 	}
 
 	return cm.Data, nil

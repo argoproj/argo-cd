@@ -17,6 +17,7 @@ linters:
     - gomodguard
     - gosimple
     - govet
+    - importas
     - ineffassign
     - misspell
     - perfsprint
@@ -47,13 +48,17 @@ linters-settings:
         - github.com/pkg/errors:
             recommendations:
               - errors
+  importas:
+    alias:
+      - alias: stderrors
+        pkg: errors
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
     # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
     err-error: true
     # Optimizes `fmt.Errorf`.
-    errorf: false
+    errorf: true
     # Optimizes `fmt.Sprintf` with only one argument.
     sprintf1: true
     # Optimizes into strings concatenation.

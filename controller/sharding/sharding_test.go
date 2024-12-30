@@ -958,7 +958,7 @@ func TestGetClusterSharding(t *testing.T) {
 			useDynamicSharding: true,
 			expectedShard:      0,
 			expectedReplicas:   1,
-			expectedErr:        fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
+			expectedErr:        errors.New("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
 		},
 	}
 
