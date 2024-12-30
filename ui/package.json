@@ -6,6 +6,7 @@
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
     "build": "find ./dist -type f -not -name gitkeep -delete && webpack --config ./src/app/webpack.config.js --mode production",
+    "build:local": "NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build",
     "lint": "tsc --noEmit --project ./src/app && tslint -p ./src/app",
     "lint:fix": "tslint -p ./src/app --fix",
     "test": "jest"
@@ -15,7 +16,7 @@
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^4.1.21",
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#54f36c723d9a0e5d3386689298cbb9c27767fa00",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",

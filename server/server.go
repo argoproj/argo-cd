@@ -18,6 +18,7 @@ import (
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
+	"strconv"
 	"strings"
 	gosync "sync"
 	"time"
@@ -37,6 +38,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/klauspost/compress/zstd"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -960,13 +962,66 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	return mux
 }
 
+func isChromeVersionAtLeast(userAgent string, minVersion int) bool {
+	if strings.Contains(userAgent, "Chrome/") {
+		parts := strings.Split(userAgent, "Chrome/")
+		if len(parts) > 1 {
+			versionParts := strings.Split(parts[1], ".")
+			if len(versionParts) > 0 {
+				if ver, err := strconv.Atoi(versionParts[0]); err == nil {
+					return ver >= minVersion
+				}
+			}
+		}
+	}
+	return false
+}
+
+type responseWriterWrapper struct {
+	http.ResponseWriter
+	Writer *zstd.Encoder
+}
+
+func (w *responseWriterWrapper) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func zstdHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Encoding", "zstd")
+		writer.Header().Del("Content-Length")
+
+		encoder, err := zstd.NewWriter(writer)
+		if err != nil {
+			http.Error(writer, "Failed to create zstd encoder", http.StatusInternalServerError)
+			return
+		}
+		defer encoder.Close()
+
+		zstdWriter := &responseWriterWrapper{
+			ResponseWriter: writer,
+			Writer:         encoder,
+		}
+		handler.ServeHTTP(zstdWriter, request)
+	})
+}
+
 func compressHandler(handler http.Handler) http.Handler {
-	compr := handlers.CompressHandler(handler)
+	gzipCH := handlers.CompressHandler(handler)
+	zstdCH := zstdHandler(handler)
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Accept") == "text/event-stream" {
 			handler.ServeHTTP(writer, request)
+			return
+		}
+
+		// chrome supports zstd from 123 version
+		// https://github.com/facebook/zstd/releases/tag/v1.5.6
+		if isChromeVersionAtLeast(request.Header.Get("User-Agent"), 123) {
+			fmt.Printf("[edenz] user-agent: %s, zstd: %s\n", request.Header.Get("User-Agent"), request.URL.String())
+			zstdCH.ServeHTTP(writer, request)
 		} else {
-			compr.ServeHTTP(writer, request)
+			gzipCH.ServeHTTP(writer, request)
 		}
 	})
 }

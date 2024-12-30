@@ -54,39 +54,54 @@ const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.appl
 function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
     return from(services.applications.list(projects, {appNamespace, fields: APP_LIST_FIELDS})).pipe(
         mergeMap(applicationsList => {
+            const applicationsMap = new Map<string, models.Application>(
+                applicationsList.items.map(app => [AppUtils.appInstanceName(app), app])
+            );
             const applications = applicationsList.items;
+            const adaptiveEventsBufferTimeout = Math.min(
+                Math.ceil((applicationsMap.size + 1) / 5000) * EVENTS_BUFFER_TIMEOUT,
+                6 * EVENTS_BUFFER_TIMEOUT
+            );
+
             return merge(
                 from([applications]),
                 services.applications
                     .watch({projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
-                    // batch events to avoid constant re-rendering and improve UI performance
-                    .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
+                    .pipe(
+                        repeat(),
+                        retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))),
+                        bufferTime(adaptiveEventsBufferTimeout, 10),
+                    )
                     .pipe(
                         map(appChanges => {
                             appChanges.forEach(appChange => {
-                                const index = applications.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(appChange.application));
+                                const appName = AppUtils.appInstanceName(appChange.application);
                                 switch (appChange.type) {
                                     case 'DELETED':
-                                        if (index > -1) {
-                                            applications.splice(index, 1);
-                                        }
+                                        applicationsMap.delete(appName);
                                         break;
                                     default:
-                                        if (index > -1) {
-                                            applications[index] = appChange.application;
-                                        } else {
-                                            applications.unshift(appChange.application);
-                                        }
+                                        applicationsMap.set(appName, appChange.application);
                                         break;
                                 }
                             });
-                            return {applications, updated: appChanges.length > 0};
+
+                            if (appChanges.length <= 0) {
+                                return {
+                                    applications: [],
+                                    updated: false
+                                };
+                            }
+                            return {
+                                applications: Array.from(applicationsMap.values()),
+                                updated: appChanges.length > 0
+                            };
                         })
                     )
-                    .pipe(filter(item => item.updated))
-                    .pipe(map(item => item.applications))
+                    .pipe(
+                        filter(item => item.updated),
+                        map(item => item.applications)
+                    )
             );
         })
     );
@@ -200,11 +215,36 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
     const [isFocused, setFocus] = React.useState(false);
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
+    const [filteredApps, setFilteredApps] = React.useState<string[]>([]); // 用于存储过滤后的结果
+
+    const getFilteredApps = React.useCallback(
+        (searchTerm: string) => {
+            return apps
+                .map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))
+                .filter(name => name.toLowerCase().includes(searchTerm.toLowerCase())) // 进行大小写不敏感的匹配
+                .slice(0, 500);
+        },
+        [apps, useAuthSettingsCtx]
+    );
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const searchTerm = e.target.value;
+
+        // speed up render search items
+        if (searchTerm.length >= 3 || apps.length < 500) {
+            setFilteredApps(getFilteredApps(searchTerm));
+        } else {
+            setFilteredApps([]);
+        }
+
+        ctx.navigation.goto('.', {search: searchTerm}, {replace: true});
+    };
+
     useKeybinding({
         keys: Key.SLASH,
         action: () => {
             if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
+                searchBar.current.querySelector('input')?.focus();
                 setFocus(true);
                 return true;
             }
@@ -216,7 +256,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
         keys: Key.ESCAPE,
         action: () => {
             if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
+                searchBar.current.querySelector('input')?.blur();
                 setFocus(false);
                 return true;
             }
@@ -234,7 +274,7 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
                         style={{marginRight: '9px', cursor: 'pointer'}}
                         onClick={() => {
                             if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
+                                searchBar.current.querySelector('input')?.focus();
                             }
                         }}
                     />
@@ -265,9 +305,9 @@ const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Appli
             onSelect={val => {
                 ctx.navigation.goto(`./${val}`);
             }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+            onChange={handleSearchChange}
             value={content || ''}
-            items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            items={filteredApps}
         />
     );
 };
@@ -560,18 +600,22 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 )}
                                                             </>
                                                         )}
-                                                        <ApplicationsSyncPanel
-                                                            key='syncsPanel'
-                                                            show={syncAppsInput}
-                                                            hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
-                                                            apps={filteredApps}
-                                                        />
-                                                        <ApplicationsRefreshPanel
-                                                            key='refreshPanel'
-                                                            show={refreshAppsInput}
-                                                            hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
-                                                            apps={filteredApps}
-                                                        />
+                                                        {syncAppsInput && (
+                                                            <ApplicationsSyncPanel
+                                                                key='syncsPanel'
+                                                                show={syncAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
+                                                                apps={filteredApps}
+                                                            />
+                                                        )}
+                                                        {refreshAppsInput && (
+                                                            <ApplicationsRefreshPanel
+                                                                key='refreshPanel'
+                                                                show={refreshAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
+                                                                apps={filteredApps}
+                                                            />
+                                                        )}
                                                     </div>
                                                     <ObservableQuery>
                                                         {q => (

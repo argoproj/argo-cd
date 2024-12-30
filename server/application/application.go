@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -254,6 +255,30 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 	})
 }
 
+func pruneApplication(app *appv1.Application) *appv1.Application {
+	a := app.DeepCopy()
+	defer func() {
+		if e := recover(); e != nil {
+			log.Errorf("[edenz] error: %v\n%s", e, debug.Stack())
+		}
+	}()
+	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil && len(a.Status.OperationState.Operation.Sync.Resources) > 0 {
+		a.Status.OperationState.Operation.Sync.Resources = nil
+	}
+	if a.Status.OperationState != nil && a.Status.OperationState.SyncResult != nil && len(a.Status.OperationState.SyncResult.Resources) > 0 {
+		a.Status.OperationState.SyncResult.Resources = nil
+	}
+	if len(a.Status.Resources) > 0 {
+		a.Status.Resources = nil
+	}
+	if len(a.Status.History) > 0 {
+		a.Status.History = nil
+	}
+
+	a.Annotations = nil
+	return a
+}
+
 // List returns list of applications
 func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*appv1.ApplicationList, error) {
 	selector, err := labels.Parse(q.GetSelector())
@@ -290,7 +315,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			newItems = append(newItems, *a)
+			newItems = append(newItems, *pruneApplication(a))
 		}
 	}
 
@@ -1205,7 +1230,11 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
 		for i := range apps {
-			sendIfPermitted(*apps[i], watch.Added)
+			a := apps[i]
+			if appName == "" {
+				a = pruneApplication(a)
+			}
+			sendIfPermitted(*a, watch.Added)
 		}
 	}
 	unsubscribe := s.appBroadcaster.Subscribe(events)
@@ -1213,7 +1242,11 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for {
 		select {
 		case event := <-events:
-			sendIfPermitted(event.Application, event.Type)
+			a := &event.Application
+			if appName == "" {
+				a = pruneApplication(a)
+			}
+			sendIfPermitted(*a, event.Type)
 		case <-ws.Context().Done():
 			return nil
 		}
