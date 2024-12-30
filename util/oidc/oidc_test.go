@@ -112,7 +112,7 @@ func TestHandleCallback(t *testing.T) {
 }
 
 func TestClientApp_HandleLogin(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, false)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -167,7 +167,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -213,7 +212,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -295,7 +293,7 @@ func Test_Login_Flow(t *testing.T) {
 	// Show that SSO login works when no redirect URL is provided, and we fall back to the configured base href for the
 	// Argo CD instance.
 
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, false)
 	t.Cleanup(oidcTestServer.Close)
 
 	cdSettings := &settings.ArgoCDSettings{
@@ -308,7 +306,6 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
-
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
 	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
@@ -338,7 +335,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 }
 
 func TestClientApp_HandleCallback(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t)
+	oidcTestServer := test.GetOIDCTestServer(t, false)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -393,7 +390,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -411,6 +407,68 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
+
+		app.HandleCallback(w, req)
+
+		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
+		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
+	})
+}
+
+func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, true)
+	t.Cleanup(oidcTestServer.Close)
+
+	dexTestServer := test.GetDexTestServer(t)
+	t.Cleanup(dexTestServer.Close)
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+
+	tokenFilePath := "token.txt"
+	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+	file, _ := os.Create(tokenFilePath)
+	_, _ = file.Write([]byte("serviceAccountToken"))
+
+	t.Run("oidc certificate checking during oidc callback should toggle on config", func(t *testing.T) {
+		cdSettings := &settings.ArgoCDSettings{
+			URL:             "https://argocd.example.com",
+			ServerSignature: signature,
+			OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+useAzureWorkloadIdentity: true
+skipAudienceCheckWhenTokenHasNoAudience: true
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		}
+
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
+		req.Form = url.Values{
+			"code":  {"abc"},
+			"state": {"123"},
+		}
+		w := httptest.NewRecorder()
+
+		app.HandleCallback(w, req)
+
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
+
+		cdSettings.OIDCTLSInsecureSkipVerify = true
+
+		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		w = httptest.NewRecorder()
+
+		key, err := cdSettings.GetServerEncryptionKey()
+		require.NoError(t, err)
+		encrypted, _ := crypto.Encrypt([]byte("123"), key)
+		req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 
 		app.HandleCallback(w, req)
 
@@ -594,7 +652,6 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
-
 	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 

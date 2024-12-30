@@ -624,7 +624,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	})
 	oidcServer := ts
 	if !useDexForSSO {
-		oidcServer = testutil.GetOIDCTestServer(t)
+		oidcServer = testutil.GetOIDCTestServer(t, false)
 	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL

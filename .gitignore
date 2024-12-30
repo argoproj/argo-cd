@@ -21,6 +21,7 @@ node_modules/
 .envrc.remote
 .*.swp
 rerunreport.txt
+token.txt
 
 # ignore built binaries
 cmd/argocd/argocd

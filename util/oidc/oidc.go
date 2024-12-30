@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
@@ -60,6 +62,8 @@ type ClientApp struct {
 	clientID string
 	// OAuth2 client secret of this application
 	clientSecret string
+	// Use Azure Workload Identity for clientID auth instead of clientSecret
+	useAzureWorkloadIdentity bool
 	// Callback URL for OAuth2 responses (e.g. https://argocd.example.com/auth/callback)
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
@@ -81,6 +85,9 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
+	assertion   string
+	expires     time.Time
+	mtx         *sync.RWMutex
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -102,14 +109,16 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		return nil, err
 	}
 	a := ClientApp{
-		clientID:      settings.OAuth2ClientID(),
-		clientSecret:  settings.OAuth2ClientSecret(),
-		redirectURI:   redirectURL,
-		issuerURL:     settings.IssuerURL(),
-		userInfoPath:  settings.UserInfoPath(),
-		baseHRef:      baseHRef,
-		encryptionKey: encryptionKey,
-		clientCache:   cacheClient,
+		clientID:                 settings.OAuth2ClientID(),
+		clientSecret:             settings.OAuth2ClientSecret(),
+		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
+		redirectURI:              redirectURL,
+		issuerURL:                settings.IssuerURL(),
+		userInfoPath:             settings.UserInfoPath(),
+		baseHRef:                 baseHRef,
+		encryptionKey:            encryptionKey,
+		clientCache:              cacheClient,
+		mtx:                      &sync.RWMutex{},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -158,6 +167,7 @@ func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth
 		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
 		redirectURL = a.redirectURI
 	}
+
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
@@ -336,6 +346,41 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
+// getAzureKubernetesServiceAccountToken returns the specified file's content, which is expected to be a Kubernetes service account token.
+// Kubernetes is responsible for updating the file as service account tokens expire.
+func (a *ClientApp) getAzureKubernetesServiceAccountToken(context.Context) (string, error) {
+	file := ""
+	ok := false
+	if file == "" {
+		if file, ok = os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE"); !ok {
+			return "", errors.New("no token file specified. Check pod configuration or set TokenFilePath in the options")
+		}
+	}
+
+	a.mtx.RLock()
+	if a.expires.Before(time.Now()) {
+		// ensure only one goroutine at a time updates the assertion
+		a.mtx.RUnlock()
+		a.mtx.Lock()
+		defer a.mtx.Unlock()
+		// double check because another goroutine may have acquired the write lock first and done the update
+		if now := time.Now(); a.expires.Before(now) {
+			content, err := os.ReadFile(file)
+			if err != nil {
+				return "", err
+			}
+			a.assertion = string(content)
+			// Kubernetes rotates service account tokens when they reach 80% of their total TTL. The shortest TTL
+			// is 1 hour. That implies the token we just read is valid for at least 12 minutes (20% of 1 hour),
+			// but we add some margin for safety.
+			a.expires = now.Add(10 * time.Minute)
+		}
+	} else {
+		defer a.mtx.RUnlock()
+	}
+	return a.assertion, nil
+}
+
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	oauth2Config, err := a.oauth2Config(r, nil)
@@ -361,12 +406,29 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	ctx := gooidc.ClientContext(r.Context(), a.client)
-	token, err := oauth2Config.Exchange(ctx, code)
+	options := []oauth2.AuthCodeOption{}
+
+	if a.useAzureWorkloadIdentity {
+		clientAssertion, err := a.getAzureKubernetesServiceAccountToken(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		options = []oauth2.AuthCodeOption{
+			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
+		}
+	}
+
+	token, err := oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	idTokenRAW, ok := token.Extra("id_token").(string)
 	if !ok {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)

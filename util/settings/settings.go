@@ -169,6 +169,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		Issuer:                   o.Issuer,
 		ClientID:                 o.ClientID,
 		ClientSecret:             o.ClientSecret,
+		UseAzureWorkloadIdentity: o.UseAzureWorkloadIdentity,
 		CLIClientID:              o.CLIClientID,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
@@ -187,6 +188,7 @@ type OIDCConfig struct {
 	Issuer                   string                 `json:"issuer,omitempty"`
 	ClientID                 string                 `json:"clientID,omitempty"`
 	ClientSecret             string                 `json:"clientSecret,omitempty"`
+	UseAzureWorkloadIdentity bool                   `json:"useAzureWorkloadIdentity,omitempty"`
 	CLIClientID              string                 `json:"cliClientID,omitempty"`
 	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
 	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
@@ -2022,6 +2024,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.UseAzureWorkloadIdentity
+	}
+	return false
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
