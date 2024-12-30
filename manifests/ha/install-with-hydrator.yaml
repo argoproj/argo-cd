@@ -7139,6 +7139,17 @@ spec:
                             - path
                             type: object
                           type: array
+                        extraParameterFiles:
+                          items:
+                            properties:
+                              path:
+                                type: string
+                              prefix:
+                                type: string
+                            required:
+                            - path
+                            type: object
+                          type: array
                         files:
                           items:
                             properties:
@@ -9804,6 +9815,17 @@ spec:
                                         exclude:
                                           type: boolean
                                         path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  extraParameterFiles:
+                                    items:
+                                      properties:
+                                        path:
+                                          type: string
+                                        prefix:
                                           type: string
                                       required:
                                       - path
@@ -15554,6 +15576,17 @@ spec:
                                         exclude:
                                           type: boolean
                                         path:
+                                          type: string
+                                      required:
+                                      - path
+                                      type: object
+                                    type: array
+                                  extraParameterFiles:
+                                    items:
+                                      properties:
+                                        path:
+                                          type: string
+                                        prefix:
                                           type: string
                                       required:
                                       - path
