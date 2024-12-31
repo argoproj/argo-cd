@@ -165,7 +165,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 // VerifyJWT verifies a JWT token using the configured JWK Set URL
 func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error) {
 	if argoSettings.JWTConfig == nil || argoSettings.JWTConfig.JWKSetURL == "" {
-		return nil, fmt.Errorf("JWT configuration not found")
+		return nil, errors.New("JWT configuration not found")
 	}
 
 	cacheTTL := p.defaultCacheTTL
@@ -190,7 +190,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 
 		kid, ok := token.Header["kid"].(string)
 		if !ok {
-			return nil, fmt.Errorf("kid header not found in token")
+			return nil, errors.New("kid header not found in token")
 		}
 
 		var key *jose.JSONWebKey
@@ -216,7 +216,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, fmt.Errorf("invalid token claims")
+		return nil, errors.New("invalid token claims")
 	}
 
 	if argoSettings.JWTConfig.EmailClaim != "" {
@@ -250,7 +250,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 			}
 		}
 	} else if argoSettings.JWTConfig.Audience != "" {
-		return nil, fmt.Errorf("audience claim not found or invalid type")
+		return nil, errors.New("audience claim not found or invalid type")
 	}
 
 	return token, nil

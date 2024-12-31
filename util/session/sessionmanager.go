@@ -526,7 +526,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 	}
 	if argoSettings == nil {
-		return nil, "", fmt.Errorf("settings are not available while verifying the token")
+		return nil, "", errors.New("settings are not available while verifying the token")
 	}
 
 	// If JWKSetURL is configured, try JWT verification first
