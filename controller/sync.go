@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
@@ -275,14 +275,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		})
 	}
 
-	prunePropagationPolicy := v1.DeletePropagationForeground
+	prunePropagationPolicy := metav1.DeletePropagationForeground
 	switch {
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=background"):
-		prunePropagationPolicy = v1.DeletePropagationBackground
+		prunePropagationPolicy = metav1.DeletePropagationBackground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=foreground"):
-		prunePropagationPolicy = v1.DeletePropagationForeground
+		prunePropagationPolicy = metav1.DeletePropagationForeground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
-		prunePropagationPolicy = v1.DeletePropagationOrphan
+		prunePropagationPolicy = metav1.DeletePropagationOrphan
 	}
 
 	openAPISchema, err := m.getOpenAPISchema(clst.Server)
@@ -344,7 +344,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
-		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
+		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
