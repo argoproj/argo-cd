@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -45,7 +45,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	assert.NotNil(t, logger)
 
 	proj := argoappv1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:            "default",
 			Namespace:       "argocd",
 			ResourceVersion: "1",
@@ -86,7 +86,7 @@ func TestLogAppEvent(t *testing.T) {
 	assert.NotNil(t, logger)
 
 	app := argoappv1.Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:            "testapp",
 			Namespace:       "argocd",
 			ResourceVersion: "1",
