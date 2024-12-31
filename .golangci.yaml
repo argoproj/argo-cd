@@ -50,6 +50,8 @@ linters-settings:
               - errors
   importas:
     alias:
+      - alias: metav1 
+        pkg: k8s.io/apimachinery/pkg/apis/meta/v1
       - alias: stderrors
         pkg: errors
   perfsprint:

@@ -19,7 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -603,11 +603,11 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
 		},
