@@ -3,6 +3,7 @@ package sharding
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -471,7 +472,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 			replicasCount = int(*appControllerDeployment.Spec.Replicas)
 		} else {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
+			return nil, stderrors.New("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)

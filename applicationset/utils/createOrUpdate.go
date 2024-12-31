@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -128,7 +129,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 		return fmt.Errorf("error while wrapping using MutateFn: %w", err)
 	}
 	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
-		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
+		return stderrors.New("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
 }

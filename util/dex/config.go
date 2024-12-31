@@ -1,6 +1,7 @@
 package dex
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -113,12 +114,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 	}
 	connectors, ok := dexCfg["connectors"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("malformed Dex configuration found")
+		return nil, errors.New("malformed Dex configuration found")
 	}
 	for i, connectorIf := range connectors {
 		connector, ok := connectorIf.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("malformed Dex configuration found")
+			return nil, errors.New("malformed Dex configuration found")
 		}
 		connectorType := connector["type"].(string)
 		if !needsRedirectURI(connectorType) {
@@ -126,7 +127,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 		}
 		connectorCfg, ok := connector["config"].(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("malformed Dex configuration found")
+			return nil, errors.New("malformed Dex configuration found")
 		}
 		connectorCfg["redirectURI"] = dexRedirectURL
 		connector["config"] = connectorCfg
