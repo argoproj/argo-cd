@@ -205,7 +205,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		}
 
 		if key.Algorithm != "" && key.Algorithm != token.Header["alg"] {
-			return nil, fmt.Errorf("algorithm mismatch for kid %q: expected %v, got %v", kid, key.Algorithm, token.Header["alg"])
+			return nil, fmt.Errorf("algorithm mismatch for kid %q: expected %v, got %v. JWT issuer may be misconfigured/broken", kid, key.Algorithm, token.Header["alg"])
 		}
 
 		return key.Key, nil
@@ -234,7 +234,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	// Verify audience if configured
 	if aud, ok := claims["aud"].(string); ok {
 		if argoSettings.JWTConfig.Audience != "" && aud != argoSettings.JWTConfig.Audience {
-			return nil, fmt.Errorf("invalid audience claim, got %q, want %q", aud, argoSettings.JWTConfig.Audience)
+			return nil, fmt.Errorf("invalid audience claim, expected %q, got %q. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, aud)
 		}
 	} else if audList, ok := claims["aud"].([]interface{}); ok {
 		if argoSettings.JWTConfig.Audience != "" {
@@ -246,7 +246,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 				}
 			}
 			if !validAud {
-				return nil, fmt.Errorf("invalid audience claim, got %v, want %q", audList, argoSettings.JWTConfig.Audience)
+				return nil, fmt.Errorf("invalid audience claim, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audList)
 			}
 		}
 	} else if argoSettings.JWTConfig.Audience != "" {
