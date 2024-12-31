@@ -19,7 +19,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -123,7 +123,7 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(ctx, &updated, v1.UpdateOptions{})
+		_, err = projectsIf.Update(ctx, &updated, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("error while updating project:  %w", err)
 		}
@@ -199,7 +199,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 }
 
 func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(ctx, v1.ListOptions{})
+	projects, err := projIf.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)
 	}

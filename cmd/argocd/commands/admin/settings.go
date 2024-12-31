@@ -16,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -52,7 +52,7 @@ func collectLogs(callback func()) string {
 	return out.String()
 }
 
-func setSettingsMeta(obj v1.Object) {
+func setSettingsMeta(obj metav1.Object) {
 	obj.SetNamespace("default")
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -72,7 +72,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -104,13 +104,13 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		argocdSecret = &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
 			Data: map[string][]byte{
