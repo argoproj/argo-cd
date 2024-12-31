@@ -70,10 +70,7 @@ const (
 	foregroundPropagationPolicy string = "foreground"
 )
 
-var (
-	watchAPIBufferSize  = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
-	permissionDeniedErr = status.Error(codes.PermissionDenied, "permission denied")
-)
+var watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Server provides an Application service
 type Server struct {
@@ -174,7 +171,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// but the app is in a different project" response. We don't want the user inferring the existence of the
 			// app from response time.
 			_, _ = getApp()
-			return nil, nil, permissionDeniedErr
+			return nil, nil, argocommon.PermissionDeniedAPIError
 		}
 	}
 	a, err := getApp()
@@ -187,10 +184,10 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// We don't know if the user was allowed to get the Application, and we don't want to leak information about
 			// the Application's existence. Return 403.
 			logCtx.Warn("application does not exist")
-			return nil, nil, permissionDeniedErr
+			return nil, nil, argocommon.PermissionDeniedAPIError
 		}
 		logCtx.Errorf("failed to get application: %s", err)
-		return nil, nil, permissionDeniedErr
+		return nil, nil, argocommon.PermissionDeniedAPIError
 	}
 	// Even if we performed an initial RBAC check (because the request was fully parameterized), we still need to
 	// perform a second RBAC check to ensure that the user has access to the actual Application's project (not just the
@@ -208,7 +205,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		}
 		// The user didn't specify a project. We always return permission denied for both lack of access and lack of
 		// existence.
-		return nil, nil, permissionDeniedErr
+		return nil, nil, argocommon.PermissionDeniedAPIError
 	}
 	effectiveProject := "default"
 	if a.Spec.Project != "" {
@@ -1352,7 +1349,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
-	if err != nil && errors.Is(err, permissionDeniedErr) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
+	if err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
 		// If users dont have permission on the whole applications, maybe they have fine-grained access to the specific resources
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
