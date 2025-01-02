@@ -14,7 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -111,40 +112,55 @@ func EnsureCleanState(t *testing.T) {
 
 	fixtureClient := GetE2EFixtureK8sClient()
 
-	policy := v1.DeletePropagationForeground
+	policy := metav1.DeletePropagationForeground
 
-	// Delete the applicationset-e2e namespace, if it exists
-	err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
-	if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
-		CheckError(err)
-	}
-
-	// Delete the argocd-e2e-external namespace, if it exists
-	err2 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
-	if err2 != nil && !strings.Contains(err2.Error(), "not found") { // 'not found' error is expected
-		CheckError(err2)
-	}
-
-	// Delete the argocd-e2e-external namespace, if it exists
-	err3 := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
-	if err3 != nil && !strings.Contains(err3.Error(), "not found") { // 'not found' error is expected
-		CheckError(err3)
-	}
-
-	// delete resources
-	// kubectl delete applicationsets --all
-	CheckError(fixtureClient.AppSetClientset.DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	// kubectl delete apps --all
-	CheckError(fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-
-	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
+	fixture.RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			// Delete the applicationset-e2e namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, metav1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		func() error {
+			// Delete the argocd-e2e-external namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), metav1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		func() error {
+			// Delete the argocd-e2e-external namespace, if it exists
+			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), metav1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+				return err
+			}
+			return nil
+		},
+		// delete resources
+		func() error {
+			// kubectl delete applicationsets --all
+			return fixtureClient.AppSetClientset.DeleteCollection(context.Background(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete apps --all
+			return fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), metav1.DeleteOptions{PropagationPolicy: &policy}, metav1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete secrets -l e2e.argoproj.io=true
+			return fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
+	})
 
 	// First we wait up to 30 seconds for all the ApplicationSets to delete, but we don't fail if they don't.
 	// Why? We want to give Argo CD time to delete the Application's child resources, before we remove the finalizers below.
 	_ = waitForSuccess(func() error {
-		list, err := fixtureClient.AppSetClientset.List(context.Background(), v1.ListOptions{})
+		list, err := fixtureClient.AppSetClientset.List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -157,15 +173,15 @@ func EnsureCleanState(t *testing.T) {
 	}, time.Now().Add(30*time.Second))
 
 	// Remove finalizers from Argo CD Application resources in the namespace
-	err = waitForSuccess(func() error {
-		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), v1.ListOptions{})
+	err := waitForSuccess(func() error {
+		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
 		for _, app := range appList.Items {
 			t.Log("Removing finalizer for: ", app.Name)
 			app.Finalizers = []string{}
-			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Update(context.TODO(), &app, v1.UpdateOptions{})
+			_, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Update(context.TODO(), &app, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -183,7 +199,7 @@ func EnsureCleanState(t *testing.T) {
 	FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	fixture.LoginAs("admin")
+	CheckError(fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -195,13 +211,13 @@ func waitForExpectedClusterState() error {
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		SourceNamespaces:         []string{string(ArgoCDExternalNamespace), string(ArgoCDExternalNamespace2)},
 	})
 
 	// Wait up to 60 seconds for all the ApplicationSets to delete
 	if err := waitForSuccess(func() error {
-		list, err := fixtureClient.AppSetClientset.List(context.Background(), v1.ListOptions{})
+		list, err := fixtureClient.AppSetClientset.List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -217,7 +233,7 @@ func waitForExpectedClusterState() error {
 
 	// Wait up to 60 seconds for all the Applications to delete
 	if err := waitForSuccess(func() error {
-		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), v1.ListOptions{})
+		appList, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
@@ -244,15 +260,15 @@ func waitForExpectedClusterState() error {
 }
 
 func SetProjectSpec(fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
+	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	errors.CheckError(err)
 	proj.Spec = spec
-	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
+	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
 	errors.CheckError(err)
 }
 
 func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
-	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), namespace, v1.GetOptions{})
+	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 
 	msg := ""
 
@@ -260,7 +276,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
 	}
 
-	if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+	if msg == "" && err != nil && apierr.IsNotFound(err) {
 		// Success is an error containing 'applicationset-e2e' not found.
 		return nil
 	}
@@ -278,6 +294,18 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 func waitForSuccess(condition func() error, expireTime time.Time) error {
 	var mostRecentError error
 
+	sleepIntervals := []time.Duration{
+		10 * time.Millisecond,
+		20 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		200 * time.Millisecond,
+		300 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+	}
+	sleepIntervalsIdx := -1
+
 	for {
 		if time.Now().After(expireTime) {
 			break
@@ -293,8 +321,11 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 			break
 		}
 
-		// Wait 0.5 seconds on fail
-		time.Sleep(500 * time.Millisecond)
+		// Wait on fail
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
+		time.Sleep(sleepIntervals[sleepIntervalsIdx])
 	}
 	return mostRecentError
 }

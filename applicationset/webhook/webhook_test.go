@@ -104,6 +104,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a System Hook via Commit",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "System Hook",
+			payloadFile:        "gitlab-event.json",
+			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook with an unknown event",
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",
@@ -199,6 +208,7 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithGitGenerator("git-github-copy", namespace, "https://github.com/org/repo-copy"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
@@ -242,9 +252,8 @@ func TestWebhookHandler(t *testing.T) {
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
 				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
-					if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
-						t.Errorf("unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
-					}
+					expected, got := test.expectedRefresh, gotAppSet.RefreshRequired()
+					require.Equalf(t, expected, got, "unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
 					assert.False(t, gotAppSet.RefreshRequired())

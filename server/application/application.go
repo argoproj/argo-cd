@@ -70,10 +70,7 @@ const (
 	foregroundPropagationPolicy string = "foreground"
 )
 
-var (
-	watchAPIBufferSize  = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
-	permissionDeniedErr = status.Error(codes.PermissionDenied, "permission denied")
-)
+var watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Server provides an Application service
 type Server struct {
@@ -174,7 +171,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// but the app is in a different project" response. We don't want the user inferring the existence of the
 			// app from response time.
 			_, _ = getApp()
-			return nil, nil, permissionDeniedErr
+			return nil, nil, argocommon.PermissionDeniedAPIError
 		}
 	}
 	a, err := getApp()
@@ -187,10 +184,10 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// We don't know if the user was allowed to get the Application, and we don't want to leak information about
 			// the Application's existence. Return 403.
 			logCtx.Warn("application does not exist")
-			return nil, nil, permissionDeniedErr
+			return nil, nil, argocommon.PermissionDeniedAPIError
 		}
 		logCtx.Errorf("failed to get application: %s", err)
-		return nil, nil, permissionDeniedErr
+		return nil, nil, argocommon.PermissionDeniedAPIError
 	}
 	// Even if we performed an initial RBAC check (because the request was fully parameterized), we still need to
 	// perform a second RBAC check to ensure that the user has access to the actual Application's project (not just the
@@ -208,7 +205,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		}
 		// The user didn't specify a project. We always return permission denied for both lack of access and lack of
 		// existence.
-		return nil, nil, permissionDeniedErr
+		return nil, nil, argocommon.PermissionDeniedAPIError
 	}
 	effectiveProject := "default"
 	if a.Spec.Project != "" {
@@ -313,7 +310,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 // Create creates an application
 func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateRequest) (*appv1.Application, error) {
 	if q.GetApplication() == nil {
-		return nil, fmt.Errorf("error creating application: application is nil in request")
+		return nil, errors.New("error creating application: application is nil in request")
 	}
 	a := q.GetApplication()
 
@@ -369,7 +366,13 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	equalSpecs := reflect.DeepEqual(existing.Spec, a.Spec) &&
+
+	if err := argo.ValidateDestination(ctx, &existing.Spec.Destination, s.db); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
+	}
+
+	equalSpecs := existing.Spec.Destination.Equals(a.Spec.Destination) &&
+		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
 		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
@@ -435,7 +438,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, ac
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
 	if q.Name == nil || *q.Name == "" {
-		return nil, fmt.Errorf("invalid request: application name is missing")
+		return nil, errors.New("invalid request: application name is missing")
 	}
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
@@ -476,7 +479,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
 				if pos <= 0 || pos > numOfSources {
-					return fmt.Errorf("source position is out of range")
+					return errors.New("source position is out of range")
 				}
 				appSpec.Sources[pos-1].TargetRevision = q.Revisions[i]
 			}
@@ -582,7 +585,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	if query.Name == nil || *query.Name == "" {
-		return fmt.Errorf("invalid request: application name is missing")
+		return errors.New("invalid request: application name is missing")
 	}
 
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, query.GetProject(), query.GetAppNamespace(), query.GetName())
@@ -792,7 +795,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("application refresh deadline exceeded")
+			return nil, errors.New("application refresh deadline exceeded")
 		case event := <-events:
 			if appVersion, err := strconv.Atoi(event.Application.ResourceVersion); err == nil && appVersion > minVersion {
 				annotations := event.Application.GetAnnotations()
@@ -962,7 +965,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 // Update updates an application
 func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateRequest) (*appv1.Application, error) {
 	if q.GetApplication() == nil {
-		return nil, fmt.Errorf("error updating application: application is nil in request")
+		return nil, errors.New("error updating application: application is nil in request")
 	}
 	a := q.GetApplication()
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
@@ -979,7 +982,7 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 // UpdateSpec updates an application spec and filters out any invalid parameter overrides
 func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdateSpecRequest) (*appv1.ApplicationSpec, error) {
 	if q.GetSpec() == nil {
-		return nil, fmt.Errorf("error updating application spec: spec is nil in request")
+		return nil, errors.New("error updating application spec: spec is nil in request")
 	}
 	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbacpolicy.ActionUpdate, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
@@ -1227,8 +1230,20 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, validate bool) error {
 	if app.GetName() == "" {
-		return fmt.Errorf("resource name may not be empty")
+		return errors.New("resource name may not be empty")
 	}
+
+	// ensure sources names are unique
+	if app.Spec.HasMultipleSources() {
+		sourceNames := make(map[string]bool)
+		for _, source := range app.Spec.Sources {
+			if len(source.Name) > 0 && sourceNames[source.Name] {
+				return fmt.Errorf("application %s has duplicate source name: %s", app.Name, source.Name)
+			}
+			sourceNames[source.Name] = true
+		}
+	}
+
 	appNs := s.appNamespaceOrDefault(app.Namespace)
 	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1334,7 +1349,7 @@ func (s *Server) getAppResources(ctx context.Context, a *appv1.Application) (*ap
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*appv1.ResourceNode, *rest.Config, *appv1.Application, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
-	if err != nil && errors.Is(err, permissionDeniedErr) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
+	if err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
 		// If users dont have permission on the whole applications, maybe they have fine-grained access to the specific resources
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
@@ -1422,7 +1437,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 		return nil, fmt.Errorf("error patching resource: %w", err)
 	}
 	if manifest == nil {
-		return nil, fmt.Errorf("failed to patch resource: manifest was nil")
+		return nil, errors.New("failed to patch resource: manifest was nil")
 	}
 	manifest, err = s.replaceSecretValues(manifest)
 	if err != nil {
@@ -2005,7 +2020,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *appv1.Applicatio
 		sources := a.Spec.GetSources()
 		for i, pos := range syncReq.SourcePositions {
 			if pos <= 0 || pos > numOfSources {
-				return "", "", nil, nil, fmt.Errorf("source position is out of range")
+				return "", "", nil, nil, errors.New("source position is out of range")
 			}
 			sources[pos-1].TargetRevision = syncReq.Revisions[i]
 		}
@@ -2158,7 +2173,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 		return nil, nil, err
 	}
 	if !permitted {
-		return nil, nil, fmt.Errorf("error getting destination cluster")
+		return nil, nil, errors.New("error getting destination cluster")
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
@@ -2217,7 +2232,7 @@ func getAmbiguousRevision(app *appv1.Application, syncReq *application.Applicati
 	ambiguousRevision := ""
 	if app.Spec.HasMultipleSources() {
 		for i, pos := range syncReq.SourcePositions {
-			if pos == int64(sourceIndex) {
+			if pos == int64(sourceIndex+1) {
 				ambiguousRevision = syncReq.Revisions[i]
 			}
 		}
@@ -2502,10 +2517,10 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	} else {
 		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s", q.GetAction()))
+		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	}
 	return &application.ApplicationResponse{}, nil
 }

@@ -9,10 +9,12 @@ import (
 	"time"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
@@ -26,6 +28,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +42,7 @@ import (
 
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
+	mockcommitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -90,6 +94,10 @@ func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, g
 }
 
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
+	return newFakeControllerWithResync(data, time.Minute, repoErr)
+}
+
+func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -119,6 +127,8 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
+	mockCommitClientset := mockcommitclient.Clientset{}
+
 	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
@@ -141,7 +151,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	}
 	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
-	kubeClient := fake.NewSimpleClientset(runtimeObjs...)
+	kubeClient := fake.NewClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
@@ -150,16 +160,18 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		&mockRepoClientset,
+		&mockCommitClientset,
 		appstatecache.NewCache(
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
 		),
 		kubectl,
-		time.Minute,
+		appResyncPeriod,
 		time.Hour,
 		time.Second,
 		time.Minute,
 		nil,
+		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -174,6 +186,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		false,
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
+		false,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
@@ -492,8 +505,21 @@ func newFakeApp() *v1alpha1.Application {
 	return createFakeApp(fakeApp)
 }
 
+func newFakeAppWithHealthAndTime(status health.HealthStatusCode, timestamp metav1.Time) *v1alpha1.Application {
+	return createFakeAppWithHealthAndTime(fakeApp, status, timestamp)
+}
+
 func newFakeMultiSourceApp() *v1alpha1.Application {
 	return createFakeApp(fakeMultiSourceApp)
+}
+
+func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCode, timestamp metav1.Time) *v1alpha1.Application {
+	app := createFakeApp(testApp)
+	app.Status.Health = v1alpha1.HealthStatus{
+		Status:             status,
+		LastTransitionTime: &timestamp,
+	}
+	return app
 }
 
 func newFakeAppWithDestMismatch() *v1alpha1.Application {
@@ -1669,6 +1695,211 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 }
 
+func TestUpdateHealthStatusTransitionTime(t *testing.T) {
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	})
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.Application
+		configMapData  map[string]string
+		expectedStatus health.HealthStatusCode
+	}{
+		{
+			name: "Degraded to Missing",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Missing"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusMissing,
+		},
+		{
+			name: "Missing to Progressing",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusMissing, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusProgressing,
+		},
+		{
+			name: "Progressing to Healthy",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusProgressing, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusHealthy,
+		},
+		{
+			name: "Healthy  to Degraded",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusHealthy, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusDegraded,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{tc.app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(deployment): deployment,
+				},
+				configMapData: tc.configMapData,
+			}, nil)
+
+			ctrl.processAppRefreshQueueItem()
+			apps, err := ctrl.appLister.List(labels.Everything())
+			require.NoError(t, err)
+			assert.NotEmpty(t, apps)
+			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
+			assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+		})
+	}
+}
+
+func TestUpdateHealthStatusProgression(t *testing.T) {
+	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+		Status: v1.DeploymentStatus{
+			ObservedGeneration: 0,
+		},
+	})
+	configMapData := map[string]string{
+		"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = ""
+    hs.message = ""
+    
+    if obj.metadata ~= nil then
+      if obj.metadata.labels ~= nil then
+        current_status = obj.metadata.labels["status"]
+        if current_status == "Degraded" then
+          hs.status = "Missing"
+        elseif current_status == "Missing" then
+          hs.status = "Progressing"
+        elseif current_status == "Progressing" then
+          hs.status = "Healthy"
+        elseif current_status == "Healthy" then
+          hs.status = "Degraded"
+        end
+      end
+    end
+
+    return hs`,
+	}
+	ctrl := newFakeControllerWithResync(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(deployment): deployment,
+		},
+		configMapData: configMapData,
+		manifestResponses: []*apiclient.ManifestResponse{
+			{},
+			{},
+			{},
+			{},
+		},
+	}, time.Millisecond*10, nil)
+
+	testCases := []struct {
+		name           string
+		initialStatus  string
+		expectedStatus health.HealthStatusCode
+	}{
+		{
+			name:           "Degraded to Missing",
+			initialStatus:  "Degraded",
+			expectedStatus: health.HealthStatusMissing,
+		},
+		{
+			name:           "Missing to Progressing",
+			initialStatus:  "Missing",
+			expectedStatus: health.HealthStatusProgressing,
+		},
+		{
+			name:           "Progressing to Healthy",
+			initialStatus:  "Progressing",
+			expectedStatus: health.HealthStatusHealthy,
+		},
+		{
+			name:           "Healthy to Degraded",
+			initialStatus:  "Healthy",
+			expectedStatus: health.HealthStatusDegraded,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			deployment.SetLabels(map[string]string{"status": tc.initialStatus})
+			ctrl.processAppRefreshQueueItem()
+			apps, err := ctrl.appLister.List(labels.Everything())
+			require.NoError(t, err)
+			if assert.NotEmpty(t, apps) {
+				assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
+				assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+			}
+
+			ctrl.requestAppRefresh(app.Name, nil, nil)
+			time.Sleep(time.Millisecond * 15)
+		})
+	}
+}
+
 func TestProjectErrorToCondition(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "wrong project"
@@ -2147,7 +2378,7 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 		app,
 		appModified)
 	require.NoError(t, err)
-	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
+	assert.JSONEq(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
 }
 
 func TestAppStatusIsReplaced(t *testing.T) {
@@ -2182,14 +2413,92 @@ func TestAppStatusIsReplaced(t *testing.T) {
 
 func TestAlreadyAttemptSync(t *testing.T) {
 	app := newFakeApp()
-	t.Run("same manifest with sync result", func(t *testing.T) {
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
-		assert.True(t, attempted)
+
+	t.Run("no operation state", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		assert.False(t, attempted)
 	})
 
-	t.Run("different manifest with sync result", func(t *testing.T) {
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
+	t.Run("no sync operation", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.Operation.Sync = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
 		assert.False(t, attempted)
+	})
+
+	t.Run("no sync result", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.SyncResult = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		assert.False(t, attempted)
+	})
+
+	t.Run("single source", func(t *testing.T) {
+		t.Run("same manifest with sync result", func(t *testing.T) {
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("same manifest with sync result different targetRevision, same SHA", func(t *testing.T) {
+			// This test represents the case where the user changed a source's target revision to a new branch, but it
+			// points to the same revision as the old branch. We currently do not consider this as having been "already
+			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{TargetRevision: "branch1"}
+			app.Spec.Source = &v1alpha1.ApplicationSource{TargetRevision: "branch2"}
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, different SHA", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha1"
+			attempted, _ := alreadyAttemptedSync(app, "sha2", []string{}, false, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, same SHA", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
+			assert.True(t, attempted)
+		})
+	})
+
+	t.Run("multi-source", func(t *testing.T) {
+		t.Run("same manifest with sync result", func(t *testing.T) {
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("same manifest with sync result, different targetRevision, same SHA", func(t *testing.T) {
+			// This test represents the case where the user changed a source's target revision to a new branch, but it
+			// points to the same revision as the old branch. We currently do not consider this as having been "already
+			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch1"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch2"}}
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, different SHAs", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a_2", "sha_b_2"}, true, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, same SHAs", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a", "sha_b"}, true, true)
+			assert.True(t, attempted)
+		})
 	})
 }
 
@@ -2205,7 +2514,7 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	ctrl.selfHealBackOff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
-		Cap:      5 * time.Minute,
+		Cap:      2 * time.Minute,
 	}
 
 	app := &v1alpha1.Application{
@@ -2243,6 +2552,21 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		finishedAt:       nil,
 		expectedDuration: 18 * time.Second,
 		shouldSelfHeal:   false,
+	}, {
+		attempts:         4,
+		finishedAt:       nil,
+		expectedDuration: 54 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         5,
+		finishedAt:       nil,
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         6,
+		finishedAt:       nil,
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
 	}}
 
 	for i := range testCases {
@@ -2253,6 +2577,57 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 			ok, duration := ctrl.shouldSelfHeal(app)
 			require.Equal(t, ok, tc.shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)
+		})
+	}
+}
+
+func TestSyncTimeout(t *testing.T) {
+	testCases := []struct {
+		delta           time.Duration
+		expectedPhase   synccommon.OperationPhase
+		expectedMessage string
+	}{{
+		delta:           2 * time.Minute,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated",
+	}, {
+		delta:           30 * time.Second,
+		expectedPhase:   synccommon.OperationSucceeded,
+		expectedMessage: "successfully synced (no more tasks)",
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "HEAD",
+				},
+			}
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponses: []*apiclient.ManifestResponse{{
+					Manifests: []string{},
+				}},
+			}, nil)
+
+			ctrl.syncTimeout = time.Minute
+			app.Status.OperationState = &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{
+					Sync: &v1alpha1.SyncOperation{
+						Revision: "HEAD",
+					},
+				},
+				Phase:     synccommon.OperationRunning,
+				StartedAt: metav1.NewTime(time.Now().Add(-tc.delta)),
+			}
+			ctrl.processRequestedAppOperation(app)
+
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
+			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
 		})
 	}
 }

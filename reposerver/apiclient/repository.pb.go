@@ -2371,6 +2371,9 @@ func (m *UpdateRevisionForPathsRequest) GetInstallationID() string {
 }
 
 type UpdateRevisionForPathsResponse struct {
+	// Changes indicates whether any changes were detected in the provided paths. If false, it means that the manifest
+	// cache was updated to the new revision. If true, it means that there are relevant changes in the repo files and
+	// that new manifests should be generated.
 	Changes              bool     `protobuf:"varint,1,opt,name=changes,proto3" json:"changes,omitempty"`
 	Revision             string   `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`

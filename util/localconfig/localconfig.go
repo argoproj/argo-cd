@@ -1,6 +1,7 @@
 package localconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -131,7 +132,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, fmt.Errorf("Local config: current-context unset")
+			return nil, errors.New("Local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}
@@ -311,7 +312,7 @@ func GetUsername(subject string) string {
 
 func GetPromptsEnabled(useCLIOpts bool) bool {
 	if useCLIOpts {
-		forcePromptsEnabled := config.GetFlag("force-prompts-enabled", "")
+		forcePromptsEnabled := config.GetFlag("prompts-enabled", "")
 
 		if forcePromptsEnabled != "" {
 			return forcePromptsEnabled == "true"

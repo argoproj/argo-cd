@@ -3,6 +3,7 @@ package generators
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -371,7 +372,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			gotemplate:      false,
 			content:         []byte(`wrong body ...`),
 			expected:        []map[string]interface{}{},
-			expectedError:   fmt.Errorf("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
+			expectedError:   errors.New("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
 		},
 		{
 			name: "external secret",
@@ -475,7 +476,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
+			expectedError: errors.New("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
 		},
 		{
 			name:      "no configmap",
@@ -522,7 +523,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
+			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
 		},
 		{
 			name: "no baseUrl",
@@ -577,7 +578,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
+			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
 		},
 		{
 			name: "no token",
@@ -624,7 +625,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
+			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
 		},
 	}
 
@@ -694,7 +695,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				require.NoError(t, err)
 				gotJson, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.Equal(t, string(expectedJson), string(gotJson))
+				assert.JSONEq(t, string(expectedJson), string(gotJson))
 			}
 		})
 	}

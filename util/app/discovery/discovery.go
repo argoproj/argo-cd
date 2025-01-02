@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,7 +119,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 			}
 		}
 		if !connFound {
-			return nil, nil, fmt.Errorf("could not find plugin supporting the given repository")
+			return nil, nil, errors.New("could not find plugin supporting the given repository")
 		}
 	}
 	return conn, cmpClient, nil
@@ -170,6 +171,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
 	if err != nil {
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
+		io.Close(conn)
 		return nil, nil, false
 	}
 
@@ -178,6 +180,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		if namedPlugin {
 			return conn, cmpClient, true
 		}
+		io.Close(conn)
 		return nil, nil, false
 	}
 

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"testing"
@@ -13,11 +14,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -52,7 +55,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
+	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -75,7 +78,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	SetTrackingMethod(string(argo.TrackingMethodLabel))
+	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
@@ -309,10 +312,19 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	// Retrieve the bearer token from the ServiceAccount
-	token, err := clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
-	require.NoError(t, err)
-	assert.NotEmpty(t, token)
+	var token string
+
+	// Attempting to patch the ServiceAccount can intermittently fail with 'failed to patch serviceaccount "(...)" with bearer token secret: Operation cannot be fulfilled on serviceaccounts "(...)": the object has been modified; please apply your changes to the latest version and try again'
+	// We thus keep trying for up to 20 seconds.
+	waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
+		// Retrieve the bearer token from the ServiceAccount
+		token, err = clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
+
+		// Success is no error and a real token, otherwise keep trying
+		return (err == nil && token != ""), nil
+	})
+	require.NoError(t, waitErr)
+	require.NotEmpty(t, token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
 	if clusterScopedSecrets {
@@ -373,12 +385,12 @@ func extractKubeConfigValues() (string, string, error) {
 
 	context, ok := config.Contexts[config.CurrentContext]
 	if !ok || context == nil {
-		return "", "", fmt.Errorf("no context")
+		return "", "", stderrors.New("no context")
 	}
 
 	cluster, ok := config.Clusters[context.Cluster]
 	if !ok || cluster == nil {
-		return "", "", fmt.Errorf("no cluster")
+		return "", "", stderrors.New("no cluster")
 	}
 
 	var kubeConfigDefault string
@@ -396,7 +408,7 @@ func extractKubeConfigValues() (string, string, error) {
 		}
 
 		if kubeConfigDefault == "" {
-			return "", "", fmt.Errorf("unable to retrieve kube config path")
+			return "", "", stderrors.New("unable to retrieve kube config path")
 		}
 	}
 

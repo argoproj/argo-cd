@@ -34,7 +34,7 @@ func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSess
 
 func newEnforcer() *rbac.Enforcer {
 	additionalConfig := make(map[string]string, 0)
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -160,8 +160,55 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
 		_, err := ts.validatePermissions([]byte{})
 		require.Error(t, err)
-		assert.Equal(t, permissionDeniedErr.Error(), err.Error())
+		assert.EqualError(t, err, common.PermissionDeniedAPIError.Error())
 	}
 
 	testServerConnection(t, validate, true)
+}
+
+func TestTerminalSession_Write(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		for {
+			// Read the message from the WebSocket connection
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			// Respond back the same message
+			err = conn.WriteMessage(messageType, message)
+			require.NoError(t, err)
+		}
+	}))
+	defer server.Close()
+
+	u := "ws" + strings.TrimPrefix(server.URL, "http")
+	wsConn, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+	defer wsConn.Close()
+
+	ts := terminalSession{
+		wsConn: wsConn,
+	}
+
+	testData := []byte("hello world")
+	expectedMessage, err := json.Marshal(TerminalMessage{
+		Operation: "stdout",
+		Data:      string(testData),
+	})
+	require.NoError(t, err)
+
+	n, err := ts.Write(testData)
+	require.NoError(t, err)
+
+	assert.Equal(t, len(testData), n)
+
+	_, receivedMessage, err := wsConn.ReadMessage()
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedMessage, receivedMessage)
 }

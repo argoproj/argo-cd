@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -29,7 +29,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -54,9 +54,9 @@ func TestPersistRevisionHistory(t *testing.T) {
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Len(t, updatedApp.Status.History, 1)
+	require.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -75,7 +75,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	}
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -106,7 +106,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	app.Status.OperationState = nil
 	app.Status.History = nil
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -143,7 +143,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
@@ -156,7 +156,7 @@ func TestSyncComparisonError(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -202,7 +202,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		app.Status.History = nil
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -270,7 +270,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		app.Status.History = nil
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -654,7 +654,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "argocd-ns",
 				Name:      "testProj",
 			},
@@ -663,7 +663,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: applicationNamespace,
 				Name:      "testApp",
 			},
@@ -1000,7 +1000,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "argocd-ns",
 				Name:      "testProj",
 			},
@@ -1009,7 +1009,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: applicationNamespace,
 				Name:      "testApp",
 			},
@@ -1279,7 +1279,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		app.Status.OperationState = nil
 		app.Status.History = nil
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
@@ -1297,7 +1297,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		additionalObjs := []runtime.Object{}
 		if serviceAccountName != "" {
 			syncServiceAccount := &corev1.ServiceAccount{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      serviceAccountName,
 					Namespace: test.FakeDestNamespace,
 				},

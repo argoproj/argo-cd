@@ -113,15 +113,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		// TODO: Change to path
-		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
+		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
 		require.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
 		require.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
-			testName := fmt.Sprintf("discovery/%s", test.InputPath)
+			testName := "discovery/" + test.InputPath
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,

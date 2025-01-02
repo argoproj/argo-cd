@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
@@ -24,7 +24,7 @@ const (
 
 func TestInitGetVars(t *testing.T) {
 	notificationsCm := corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -36,7 +36,7 @@ func TestInitGetVars(t *testing.T) {
 		},
 	}
 	notificationsSecret := corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-notifications-secret",
 			Namespace: testNamespace,
 		},
@@ -44,15 +44,15 @@ func TestInitGetVars(t *testing.T) {
 			"notification-secret": []byte("secret-value"),
 		},
 	}
-	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
 		Data: notificationsCm.Data,
 	},
 		&corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},

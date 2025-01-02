@@ -200,7 +200,7 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
 		if len(jsonString) < 2 {
-			return nil, fmt.Errorf("Lua output was not a valid json object or array")
+			return nil, errors.New("Lua output was not a valid json object or array")
 		}
 		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
 		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
@@ -304,7 +304,7 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 
 func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
 	if len(scripts) == 0 {
-		return nil, fmt.Errorf("no action discovery script provided")
+		return nil, errors.New("no action discovery script provided")
 	}
 	availableActionsMap := make(map[string]appv1.ResourceAction)
 
@@ -407,7 +407,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	}
 
 	// Fetch predefined Lua scripts
-	discoveryKey := fmt.Sprintf("%s/actions/", key)
+	discoveryKey := key + "/actions/"
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 
 	// Ignore the error if the script does not exist.

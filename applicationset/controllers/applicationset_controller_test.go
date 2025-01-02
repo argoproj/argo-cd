@@ -3,10 +3,9 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -33,14 +32,13 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-
 	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestCreateOrUpdateInCluster(t *testing.T) {
@@ -1167,29 +1165,32 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
+
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
+				ArgoDB:        argodb,
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			// App on the cluster should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, retrievedApp.Finalizers)
@@ -1305,7 +1306,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: "namespace",
+					Namespace: "argocd",
 					Labels: map[string]string{
 						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
@@ -1323,29 +1324,30 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
+
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
+				ArgoDB:        argodb,
 			}
-			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
-			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
-			// clusterList, err := argoDB.ListClusters(context.Background())
-			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			require.NoError(t, err, "Unexpected error")
+
+			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "argocd")
+			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			finalizerRemoved := len(retrievedApp.Finalizers) == 0
 
@@ -1402,7 +1404,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
@@ -1418,11 +1420,11 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
 			assert.True(t, ownerReferencesRemoved)
@@ -1783,7 +1785,7 @@ func TestDeleteInCluster(t *testing.T) {
 				Name:      obj.Name,
 			}, got)
 
-			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io \"%s\" not found", obj.Name))
+			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io %q not found", obj.Name))
 		}
 	}
 }
@@ -1863,7 +1865,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GetTemplate", &generator).
 		Return(&v1alpha1.ApplicationSetTemplate{})
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
-		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
+		Return([]map[string]interface{}{}, errors.New("Simulated error generating params that could be related to an external service/API call"))
 
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
@@ -1890,15 +1892,11 @@ func TestRequeueGeneratorFails(t *testing.T) {
 }
 
 func TestValidateGeneratedApplications(t *testing.T) {
+	t.Parallel()
+
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-
-	// Valid cluster
-	myCluster := v1alpha1.Cluster{
-		Server: "https://kubernetes.default.svc",
-		Name:   "my-cluster",
-	}
 
 	// Valid project
 	myProject := &v1alpha1.AppProject{
@@ -1927,7 +1925,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	for _, cc := range []struct {
 		name             string
 		apps             []v1alpha1.Application
-		expectedErrors   []string
 		validationErrors map[int]error
 	}{
 		{
@@ -1950,7 +1947,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -1974,8 +1970,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application destination can't have both name and server defined"},
-			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
+			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: application destination can't have both name and server defined: my-cluster my-server")},
 		},
 		{
 			name: "project mismatch should return error",
@@ -1997,8 +1992,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"application references project DOES-NOT-EXIST which does not exist"},
-			validationErrors: map[int]error{0: fmt.Errorf("application references project DOES-NOT-EXIST which does not exist")},
+			validationErrors: map[int]error{0: errors.New("application references project DOES-NOT-EXIST which does not exist")},
 		},
 		{
 			name: "valid app should return true",
@@ -2020,7 +2014,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
 			validationErrors: map[int]error{},
 		},
 		{
@@ -2043,15 +2036,16 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{"there are no clusters with this name: nonexistent-cluster"},
-			validationErrors: map[int]error{0: fmt.Errorf("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
+			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-secret",
-					Namespace: "namespace",
+					Namespace: "argocd",
 					Labels: map[string]string{
 						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
@@ -2066,54 +2060,22 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-			argoDBMock := dbmocks.ArgoDB{}
-			argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
-			argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
-				myCluster,
-			}}, nil)
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:          client,
 				Scheme:          scheme,
 				Recorder:        record.NewFakeRecorder(1),
 				Generators:      map[string]generators.Generator{},
-				ArgoDB:          &argoDBMock,
+				ArgoDB:          argodb,
 				ArgoCDNamespace: "namespace",
 				KubeClientset:   kubeclientset,
 				Metrics:         metrics,
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
-
 			validationErrors, _ := r.validateGeneratedApplications(context.TODO(), cc.apps, appSetInfo)
-			var errorMessages []string
-			for _, v := range validationErrors {
-				errorMessages = append(errorMessages, v.Error())
-			}
-
-			if len(errorMessages) == 0 {
-				assert.Empty(t, cc.expectedErrors, "Expected errors but none were seen")
-			} else {
-				// An error was returned: it should be expected
-				matched := false
-				for _, expectedErr := range cc.expectedErrors {
-					foundMatch := strings.Contains(strings.Join(errorMessages, ";"), expectedErr)
-					assert.True(t, foundMatch, "Unble to locate expected error: %s", cc.expectedErrors)
-					matched = matched || foundMatch
-				}
-				assert.True(t, matched, "An unexpected error occurrred: %v", err)
-				// validation message was returned: it should be expected
-				matched = false
-				foundMatch := reflect.DeepEqual(validationErrors, cc.validationErrors)
-				var message string
-				for _, v := range validationErrors {
-					message = v.Error()
-					break
-				}
-				assert.True(t, foundMatch, "Unble to locate validation message: %s", message)
-				matched = matched || foundMatch
-				assert.True(t, matched, "An unexpected error occurrred: %v", err)
-			}
+			assert.Equal(t, cc.validationErrors, validationErrors)
 		})
 	}
 }
@@ -2159,17 +2121,11 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	}
 
 	kubeclientset := kubefake.NewSimpleClientset()
-	argoDBMock := dbmocks.ArgoDB{}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
-	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
-	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
-	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
-	argoDBMock.On("GetCluster", mock.Anything, "https://bad-cluster").Return(&badCluster, nil)
-	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
-		goodCluster,
-	}}, nil)
+
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2179,7 +2135,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:          &argoDBMock,
+		ArgoDB:          argodb,
 		KubeClientset:   kubeclientset,
 		Policy:          v1alpha1.ApplicationsSyncPolicySync,
 		ArgoCDNamespace: "argocd",
@@ -2363,11 +2319,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	}
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-	argoDBMock := dbmocks.ArgoDB{}
 
 	for _, testCase := range testCases {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&testCase.appset).Build()
 		metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+		argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 		r := ApplicationSetReconciler{
 			Client:   client,
@@ -2377,7 +2334,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			Generators: map[string]generators.Generator{
 				"List": generators.NewListGenerator(),
 			},
-			ArgoDB:        &argoDBMock,
+			ArgoDB:        argodb,
 			KubeClientset: kubeclientset,
 			Metrics:       metrics,
 		}
@@ -2433,16 +2390,30 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
-	argoDBMock := dbmocks.ArgoDB{}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			// Since this test requires the cluster to be an invalid destination, we
+			// always return a cluster named 'my-cluster2' (different from app 'my-cluster', above)
+			"name":   []byte("good-cluster"),
+			"server": []byte("https://good-cluster"),
+			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
+		},
+	}
+
+	objects := append([]runtime.Object{}, secret)
+	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
-	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
-	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
-	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
-		goodCluster,
-	}}, nil)
+
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2452,7 +2423,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:               &argoDBMock,
+		ArgoDB:               argodb,
 		ArgoCDNamespace:      "argocd",
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
@@ -2595,16 +2566,30 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
-	argoDBMock := dbmocks.ArgoDB{}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			// Since this test requires the cluster to be an invalid destination, we
+			// always return a cluster named 'my-cluster2' (different from app 'my-cluster', above)
+			"name":   []byte("good-cluster"),
+			"server": []byte("https://good-cluster"),
+			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
+		},
+	}
+
+	objects := append([]runtime.Object{}, secret)
+	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
-	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
-	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
-	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
-		goodCluster,
-	}}, nil)
+
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -2614,7 +2599,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
-		ArgoDB:               &argoDBMock,
+		ArgoDB:               argodb,
 		ArgoCDNamespace:      "argocd",
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
@@ -2689,7 +2674,7 @@ func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
@@ -2697,7 +2682,7 @@ func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2705,7 +2690,7 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestPolicies(t *testing.T) {
@@ -2717,14 +2702,8 @@ func TestPolicies(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
 		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
 	}
-	myCluster := v1alpha1.Cluster{
-		Server: "https://kubernetes.default.svc",
-		Name:   "my-cluster",
-	}
 
 	kubeclientset := kubefake.NewSimpleClientset()
-	argoDBMock := dbmocks.ArgoDB{}
-	argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
 
 	for _, c := range []struct {
 		name          string
@@ -2799,6 +2778,8 @@ func TestPolicies(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
+
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
@@ -2807,7 +2788,7 @@ func TestPolicies(t *testing.T) {
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
-				ArgoDB:          &argoDBMock,
+				ArgoDB:          argodb,
 				ArgoCDNamespace: "argocd",
 				KubeClientset:   kubeclientset,
 				Policy:          policy,
@@ -2881,7 +2862,6 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-	argoDBMock := dbmocks.ArgoDB{}
 
 	for _, cc := range []struct {
 		name                string
@@ -2957,6 +2937,8 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
+
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
@@ -2965,7 +2947,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -3714,14 +3696,15 @@ func TestBuildAppDependencyList(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -4381,14 +4364,15 @@ func TestBuildAppSyncMap(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -5326,17 +5310,18 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -6075,17 +6060,18 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -6286,17 +6272,18 @@ func TestUpdateResourceStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
@@ -6376,17 +6363,18 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
-			argoDBMock := dbmocks.ArgoDB{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(1),
 				Generators:    map[string]generators.Generator{},
-				ArgoDB:        &argoDBMock,
+				ArgoDB:        argodb,
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
