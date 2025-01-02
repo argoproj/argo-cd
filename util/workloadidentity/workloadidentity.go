@@ -8,6 +8,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
+const (
+	EmptyGuid = "00000000-0000-0000-0000-000000000000"
+)
+
 type TokenProvider interface {
 	GetToken(scope string) (string, error)
 }
