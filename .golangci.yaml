@@ -45,11 +45,16 @@ linters-settings:
   gomodguard:
     blocked:
       modules:
+        - github.com/golang-jwt/jwt/v4:
+            recommendations:
+              - github.com/golang-jwt/jwt/v5
         - github.com/pkg/errors:
             recommendations:
               - errors
   importas:
     alias:
+      - alias: jwtgo 
+        pkg: github.com/golang-jwt/jwt/v5
       - alias: metav1 
         pkg: k8s.io/apimachinery/pkg/apis/meta/v1
       - alias: stderrors
