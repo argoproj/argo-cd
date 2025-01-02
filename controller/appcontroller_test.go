@@ -611,29 +611,6 @@ func newFakeAppProject() map[string]interface{} {
 	if err != nil {
 		panic(err)
 	}
-	//fakeAppProject := v1alpha1.AppProject{
-	//	ObjectMeta: metav1.ObjectMeta{
-	//		Name:      projectName,
-	//		Namespace: test.FakeArgoCDNamespace,
-	//	},
-	//	Spec: v1alpha1.AppProjectSpec{
-	//		SourceRepos: []string{"*"},
-	//		Destinations: []v1alpha1.ApplicationDestination{
-	//			{
-	//				Server:    "*",
-	//				Namespace: "*",
-	//			},
-	//		},
-	//	},
-	//}
-	//fakeAppProjectMarshalled, err := fakeAppProject.Marshal()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//err = yaml.Unmarshal([]byte(fakeAppProjectMarshalled), &appProject)
-	//if err != nil {
-	//	panic(err)
-	//}
 	return appProject
 }
 
