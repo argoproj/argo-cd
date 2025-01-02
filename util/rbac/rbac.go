@@ -261,7 +261,7 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 						Subject: jwtutil.StringField(claims, "sub"),
 					},
 				}); utils.GetUserIdentifier(argoClaims) != "" {
-					rvalsStrs = append(rvalsStrs, "sub:"+utils.GetUserIdentifier(argoClaims))
+					rvalsStrs = append(rvalsStrs, "sub: "+utils.GetUserIdentifier(argoClaims))
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
 					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
