@@ -167,9 +167,9 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 
 	deployment := test.NewDeployment()
 
-	var initContainers []interface{}
-	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-0"})
-	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-1"})
+	var initContainers []any
+	initContainers = append(initContainers, map[string]any{"name": "init-container-0"})
+	initContainers = append(initContainers, map[string]any{"name": "init-container-1"})
 	err = unstructured.SetNestedSlice(deployment.Object, initContainers, "spec", "template", "spec", "initContainers")
 	require.NoError(t, err)
 
@@ -185,7 +185,7 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 1)
 
-	actualInitContainerName, has, err := unstructured.NestedString(actualInitContainers[0].(map[string]interface{}), "name")
+	actualInitContainerName, has, err := unstructured.NestedString(actualInitContainers[0].(map[string]any), "name")
 	require.NoError(t, err)
 	assert.True(t, has)
 	assert.Equal(t, "init-container-1", actualInitContainerName)

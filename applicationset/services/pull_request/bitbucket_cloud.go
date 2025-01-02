@@ -113,12 +113,12 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
 	}
 
-	resp, ok := response.(map[string]interface{})
+	resp, ok := response.(map[string]any)
 	if !ok {
 		return nil, errors.New("unknown type returned from bitbucket pull requests")
 	}
 
-	repoArray, ok := resp["values"].([]interface{})
+	repoArray, ok := resp["values"].([]any)
 	if !ok {
 		return nil, errors.New("unknown type returned from response values")
 	}
