@@ -1,4 +1,9 @@
 hs = {}
+if obj.spec.disabled then
+  hs.status = "Healthy"
+  hs.message = "Policy is disabled"
+  return hs
+end
 if obj.status == nil or obj.status.compliant == nil then
   hs.status = "Progressing"
   hs.message = "Waiting for the status to be reported"
