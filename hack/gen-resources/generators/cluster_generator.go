@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -72,7 +72,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 	}
 
 	var stdout, stderr, stdin bytes.Buffer
-	option := &v1.PodExecOptions{
+	option := &corev1.PodExecOptions{
 		Command:   cmd,
 		Container: "syncer",
 		Stdin:     true,

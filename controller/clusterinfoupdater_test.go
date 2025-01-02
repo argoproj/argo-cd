@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -44,7 +44,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
-	emptyArgoCDConfigMap := &v1.ConfigMap{
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -54,7 +54,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDSecret := &v1.Secret{
+	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,

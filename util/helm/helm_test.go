@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -43,10 +43,10 @@ func TestHelmTemplateParams(t *testing.T) {
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
-			var svc apiv1.Service
+			var svc corev1.Service
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
 			require.NoError(t, err)
-			assert.Equal(t, apiv1.ServiceTypeLoadBalancer, svc.Spec.Type)
+			assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
 		}
