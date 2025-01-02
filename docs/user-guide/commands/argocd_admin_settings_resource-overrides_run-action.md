@@ -22,7 +22,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 ### Options
 
 ```
-  -h, --help   help for run-action
+  -h, --help                help for run-action
       --param stringArray   Action parameters (e.g. --param key1=value1)
 ```
 
