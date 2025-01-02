@@ -681,6 +681,8 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	return token.AccessToken, nil
 }
 
+var _ Creds = AzureWorkloadIdentityCreds{}
+
 type AzureWorkloadIdentityCreds struct {
 	store         CredsStore
 	tokenProvider workloadidentity.TokenProvider
@@ -696,7 +698,7 @@ func NewAzureWorkloadIdentityCreds(store CredsStore, tokenProvider workloadident
 // GetUserInfo returns the username and email address for the credentials, if they're available.
 func (c AzureWorkloadIdentityCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
-	return "00000000-0000-0000-0000-000000000000", "", nil
+	return workloadidentity.EmptyGuid, "", nil
 }
 
 func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
@@ -730,7 +732,7 @@ func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error)
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	azureTokenCache.Set(key, token, gocache.DefaultExpiration)
+	azureTokenCache.Set(key, token, 2*time.Hour)
 	return token, nil
 }
 

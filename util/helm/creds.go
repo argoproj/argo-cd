@@ -39,6 +39,8 @@ type Creds interface {
 	GetInsecureSkipVerify() bool
 }
 
+var _ Creds = HelmCreds{}
+
 type HelmCreds struct {
 	Username           string
 	Password           string
@@ -72,6 +74,8 @@ func (creds HelmCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
+var _ Creds = AzureWorkloadIdentityCreds{}
+
 type AzureWorkloadIdentityCreds struct {
 	repoUrl            string
 	CAPath             string
@@ -82,7 +86,7 @@ type AzureWorkloadIdentityCreds struct {
 }
 
 func (creds AzureWorkloadIdentityCreds) GetUsername() string {
-	return "00000000-0000-0000-0000-000000000000"
+	return workloadidentity.EmptyGuid
 }
 
 func (creds AzureWorkloadIdentityCreds) GetPassword() (string, error) {
