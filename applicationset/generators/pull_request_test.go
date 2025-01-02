@@ -17,7 +17,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected       []map[string]interface{}
+		expected       []map[string]any
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
@@ -38,7 +38,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -71,7 +71,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "2",
 					"title":              "title2",
@@ -104,7 +104,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -149,7 +149,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -190,7 +190,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",

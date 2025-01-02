@@ -32,7 +32,7 @@ const (
 
 // return an AccountServer which returns fake data
 func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
-	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...interface{}) bool {
+	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	}, opts...)
 }
@@ -153,7 +153,7 @@ func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
 }
 
 func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer := func(claims jwt.Claims, rvals ...any) bool {
 		return false
 	}
 
@@ -319,7 +319,7 @@ func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
 }
 
 func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer := func(claims jwt.Claims, rvals ...any) bool {
 		return false
 	}
 

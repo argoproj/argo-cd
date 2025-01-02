@@ -123,17 +123,17 @@ func (db *db) watchSecrets(ctx context.Context,
 		options.LabelSelector = labelSelector.String()
 	}
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				handleAddEvent(secretObj)
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				handleDeleteEvent(secretObj)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
+		UpdateFunc: func(oldObj, newObj any) {
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					handleModEvent(oldSecretObj, newSecretObj)

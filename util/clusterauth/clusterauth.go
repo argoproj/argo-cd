@@ -77,7 +77,7 @@ func CreateServiceAccount(
 	return nil
 }
 
-func upsert(kind string, name string, create func() (interface{}, error), update func() (interface{}, error)) error {
+func upsert(kind string, name string, create func() (any, error), update func() (any, error)) error {
 	_, err := create()
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
@@ -105,9 +105,9 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 		},
 		Rules: rules,
 	}
-	return upsert("ClusterRole", name, func() (interface{}, error) {
+	return upsert("ClusterRole", name, func() (any, error) {
 		return clientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
-	}, func() (interface{}, error) {
+	}, func() (any, error) {
 		return clientset.RbacV1().ClusterRoles().Update(context.Background(), &clusterRole, metav1.UpdateOptions{})
 	})
 }
@@ -123,9 +123,9 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 		},
 		Rules: rules,
 	}
-	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
+	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
 		return clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-	}, func() (interface{}, error) {
+	}, func() (any, error) {
 		return clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
 	})
 }
@@ -146,9 +146,9 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 		},
 		Subjects: []rbacv1.Subject{subject},
 	}
-	return upsert("ClusterRoleBinding", name, func() (interface{}, error) {
+	return upsert("ClusterRoleBinding", name, func() (any, error) {
 		return clientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	}, func() (interface{}, error) {
+	}, func() (any, error) {
 		return clientset.RbacV1().ClusterRoleBindings().Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
 	})
 }
@@ -169,9 +169,9 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 		},
 		Subjects: []rbacv1.Subject{subject},
 	}
-	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
+	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
 		return clientset.RbacV1().RoleBindings(namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	}, func() (interface{}, error) {
+	}, func() (any, error) {
 		return clientset.RbacV1().RoleBindings(namespace).Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
 	})
 }
