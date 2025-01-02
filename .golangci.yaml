@@ -14,8 +14,10 @@ linters:
     - gocritic
     - gofumpt
     - goimports
+    - gomodguard
     - gosimple
     - govet
+    - importas
     - ineffassign
     - misspell
     - perfsprint
@@ -40,17 +42,29 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  gomodguard:
+    blocked:
+      modules:
+        - github.com/pkg/errors:
+            recommendations:
+              - errors
+  importas:
+    alias:
+      - alias: metav1 
+        pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+      - alias: stderrors
+        pkg: errors
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
     # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
-    err-error: false
+    err-error: true
     # Optimizes `fmt.Errorf`.
-    errorf: false
+    errorf: true
     # Optimizes `fmt.Sprintf` with only one argument.
     sprintf1: true
     # Optimizes into strings concatenation.
-    strconcat: false
+    strconcat: true
   testifylint:
     enable-all: true
     disable:

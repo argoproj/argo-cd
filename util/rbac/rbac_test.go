@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -371,7 +370,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
-	exp := fmt.Sprintf("rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: %s", iat)
+	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
 	// nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")

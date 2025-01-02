@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -130,7 +131,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
 			} else {
 				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
 		}
 	}
@@ -304,7 +305,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
 			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components

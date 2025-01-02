@@ -558,7 +558,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, fmt.Errorf("credentials: failed to append certificates")
+			return nil, errors.New("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}

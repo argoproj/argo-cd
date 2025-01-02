@@ -76,7 +76,7 @@ func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider
 			return handler(srv, stream)
 		}
 		logEntry := entry.WithFields(ctx_logrus.Extract(stream.Context()).Data)
-		newStream := &loggingServerStream{ServerStream: stream, entry: logEntry, logClaims: logClaims, info: fmt.Sprintf("received streaming call %s", info.FullMethod)}
+		newStream := &loggingServerStream{ServerStream: stream, entry: logEntry, logClaims: logClaims, info: "received streaming call " + info.FullMethod}
 		return handler(srv, newStream)
 	}
 }
@@ -87,7 +87,7 @@ func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider 
 			return handler(ctx, req)
 		}
 		logEntry := entry.WithFields(ctx_logrus.Extract(ctx).Data)
-		logRequest(logEntry, fmt.Sprintf("received unary call %s", info.FullMethod), req, ctx, logClaims)
+		logRequest(logEntry, "received unary call "+info.FullMethod, req, ctx, logClaims)
 		resp, err := handler(ctx, req)
 		return resp, err
 	}

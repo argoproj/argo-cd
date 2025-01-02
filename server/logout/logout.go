@@ -2,7 +2,6 @@ package logout
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -61,7 +60,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		http.Error(w, "Failed to retrieve argoCD settings: "+fmt.Sprintf("%s", err), http.StatusInternalServerError)
+		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -73,7 +72,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// golang does not provide any easy way to determine scheme of current request
 		// so redirecting ot http which will auto-redirect too https if necessary
 		host := strings.TrimRight(r.Host, "/")
-		argoURL = fmt.Sprintf("http://%s", host) + "/" + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+		argoURL = "http://" + host + "/" + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
 	}
 
 	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/")
@@ -82,7 +81,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
 	if tokenString == "" || err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		http.Error(w, "Failed to retrieve ArgoCD auth token: "+fmt.Sprintf("%s", err), http.StatusBadRequest)
+		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -96,7 +95,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Value: "",
 		}
 
-		argocdCookie.Path = fmt.Sprintf("/%s", strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/"))
+		argocdCookie.Path = "/" + strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/")
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 

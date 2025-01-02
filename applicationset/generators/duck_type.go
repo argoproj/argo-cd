@@ -2,6 +2,7 @@ package generators
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -96,13 +97,13 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Validate the fields
 	if kind == "" || versionIdx < 1 {
 		log.Warningf("kind=%v, resourceName=%v, versionIdx=%v", kind, resourceName, versionIdx)
-		return nil, fmt.Errorf("There is a problem with the apiVersion, kind or resourceName provided")
+		return nil, errors.New("There is a problem with the apiVersion, kind or resourceName provided")
 	}
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
-		return nil, fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator")
+		return nil, errors.New("There is a problem with the definition of the ClusterDecisionResource generator")
 	}
 
 	// Split up the apiVersion
@@ -130,7 +131,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	if len(duckResources.Items) == 0 {
 		log.Warning("no resource found, make sure you clusterDecisionResource is defined correctly")
-		return nil, fmt.Errorf("no clusterDecisionResources found")
+		return nil, errors.New("no clusterDecisionResources found")
 	}
 
 	// Override the duck type in the status of the resource
@@ -211,7 +212,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 					}
 					params["values"].(map[string]string)[key] = value
 				} else {
-					params[fmt.Sprintf("values.%s", key)] = value
+					params["values."+key] = value
 				}
 			}
 

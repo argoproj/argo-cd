@@ -4,10 +4,9 @@ import (
 	"context"
 	"testing"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -40,7 +39,7 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 		When().
 		And(func() {
 			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
-				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
+				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
@@ -66,7 +65,7 @@ func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 		// app should be auto-synced once k8s change detected
 		And(func() {
 			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
-				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), v1.PatchOptions{}))
+				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().

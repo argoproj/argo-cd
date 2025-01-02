@@ -958,7 +958,7 @@ func TestGetClusterSharding(t *testing.T) {
 			useDynamicSharding: true,
 			expectedShard:      0,
 			expectedReplicas:   1,
-			expectedErr:        fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
+			expectedErr:        errors.New("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
 		},
 	}
 
@@ -988,35 +988,37 @@ func TestGetClusterSharding(t *testing.T) {
 }
 
 func TestAppAwareCache(t *testing.T) {
-	_, db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
+	_, _, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	_, app1, app2, app3, app4, app5 := createTestApps()
 
-	clusterSharding := NewClusterSharding(db, 0, 1, "legacy")
+	clusterList := getClusterPointers([]v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5})
+	appList := getAppPointers([]v1alpha1.Application{app1, app2, app3, app4, app5})
 
-	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}}
-	appList := &v1alpha1.ApplicationList{Items: []v1alpha1.Application{app1, app2, app3, app4, app5}}
-	clusterSharding.Init(clusterList, appList)
+	getClusters := func() []*v1alpha1.Cluster { return clusterList }
+	getApps := func() []*v1alpha1.Application { return appList }
 
-	appDistribution := clusterSharding.GetAppDistribution()
+	appDistribution := getAppDistribution(getClusters, getApps)
 
-	assert.Equal(t, 2, appDistribution["cluster1"])
-	assert.Equal(t, 2, appDistribution["cluster2"])
-	assert.Equal(t, 1, appDistribution["cluster3"])
+	assert.Equal(t, int64(2), appDistribution["cluster1"])
+	assert.Equal(t, int64(2), appDistribution["cluster2"])
+	assert.Equal(t, int64(1), appDistribution["cluster3"])
 
 	app6 := createApp("app6", "cluster4")
-	clusterSharding.AddApp(&app6)
+	appList = append(appList, &app6)
 
 	app1Update := createApp("app1", "cluster2")
-	clusterSharding.UpdateApp(&app1Update)
+	// replace app 1
+	appList[0] = &app1Update
 
-	clusterSharding.DeleteApp(&app3)
+	// Remove app 3
+	appList = append(appList[:2], appList[3:]...)
 
-	appDistribution = clusterSharding.GetAppDistribution()
+	appDistribution = getAppDistribution(getClusters, getApps)
 
-	assert.Equal(t, 1, appDistribution["cluster1"])
-	assert.Equal(t, 2, appDistribution["cluster2"])
-	assert.Equal(t, 1, appDistribution["cluster3"])
-	assert.Equal(t, 1, appDistribution["cluster4"])
+	assert.Equal(t, int64(1), appDistribution["cluster1"])
+	assert.Equal(t, int64(2), appDistribution["cluster2"])
+	assert.Equal(t, int64(1), appDistribution["cluster3"])
+	assert.Equal(t, int64(1), appDistribution["cluster4"])
 }
 
 func createTestApps() (appAccessor, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application) {
