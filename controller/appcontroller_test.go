@@ -1297,7 +1297,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err = ctrl.finalizeApplicationDeletion(defaultProjectApp, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-
+		require.NoError(t, err)
 		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 3)
 		deletedResources := []string{}
 		for _, res := range ctrl.kubectl.(*MockKubectl).DeletedResources {
