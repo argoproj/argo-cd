@@ -26,10 +26,10 @@ func Test_JSONLogging(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(ctx context.Context, fullMethodName string, servingObject any) bool {
 		return true
 	}
 	interceptor := PayloadUnaryServerInterceptor(entry, false, decider)
@@ -47,10 +47,10 @@ func Test_logRequest(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(ctx context.Context, req any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(ctx context.Context, fullMethodName string, servingObject any) bool {
 		return true
 	}
 

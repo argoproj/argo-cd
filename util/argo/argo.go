@@ -228,8 +228,8 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
-	metadata := map[string]interface{}{
-		"metadata": map[string]interface{}{
+	metadata := map[string]any{
+		"metadata": map[string]any{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
 				argoappv1.AnnotationKeyHydrate: "normal",
@@ -1104,7 +1104,7 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	return proj
 }
 
-func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string {
+func GenerateSpecIsDifferentErrorMessage(entity string, a, b any) string {
 	basicMsg := fmt.Sprintf("existing %s spec is different; use upsert flag to force update", entity)
 	difference, _ := GetDifferentPathsBetweenStructs(a, b)
 	if len(difference) == 0 {
@@ -1113,7 +1113,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	return fmt.Sprintf("%s; difference in keys %q", basicMsg, strings.Join(difference, ","))
 }
 
-func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
+func GetDifferentPathsBetweenStructs(a, b any) ([]string, error) {
 	var difference []string
 	changelog, err := diff.Diff(a, b)
 	if err != nil {

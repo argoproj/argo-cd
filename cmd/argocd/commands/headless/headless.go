@@ -88,7 +88,7 @@ func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration tim
 	})
 }
 
-func (c *forwardCacheClient) Get(key string, obj interface{}) error {
+func (c *forwardCacheClient) Get(key string, obj any) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Get(key, obj)
 	})

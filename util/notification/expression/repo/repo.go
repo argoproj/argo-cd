@@ -93,12 +93,12 @@ func repoURLToHTTPS(rawURL string) string {
 	return parsed.String()
 }
 
-func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map[string]interface{} {
-	return map[string]interface{}{
+func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map[string]any {
+	return map[string]any{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,
 		"QueryEscape":       url.QueryEscape,
-		"GetCommitMetadata": func(commitSHA string) interface{} {
+		"GetCommitMetadata": func(commitSHA string) any {
 			meta, err := getCommitMetadata(commitSHA, app, argocdService)
 			if err != nil {
 				panic(err)
@@ -106,7 +106,7 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 
 			return *meta
 		},
-		"GetAppDetails": func() interface{} {
+		"GetAppDetails": func() any {
 			appDetails, err := getAppDetails(app, argocdService)
 			if err != nil {
 				panic(err)
