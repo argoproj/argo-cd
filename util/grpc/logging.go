@@ -8,7 +8,7 @@ import (
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/sirupsen/logrus"
