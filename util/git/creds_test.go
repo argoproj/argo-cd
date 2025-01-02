@@ -431,3 +431,12 @@ func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 	assert.Equal(t, "00000000-0000-0000-0000-000000000000", user)
 	assert.Equal(t, "", email)
 }
+
+func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {
+	var creds Creds = NewAzureWorkloadIdentityCreds(NoopCredsStore{}, new(mocks.TokenProvider))
+
+	_, ok := creds.(AzureWorkloadIdentityCreds)
+	if !ok {
+		t.Fatalf("expected HelmCreds but got %T", creds)
+	}
+}
