@@ -32,11 +32,11 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-  -h, --help                 help for relogin
-      --password string      The password of an account to authenticate
-      --sso-launch-browser   Automatically launch the default browser when performing SSO login (default true)
-      --sso-listener-address Address to listen on for OAuth2 login application (default "localhost")
-      --sso-port int         Port to run local OAuth2 login application (default 8085)
+  -h, --help                          help for relogin
+      --password string               The password of an account to authenticate
+      --sso-launch-browser            Automatically launch the default browser when performing SSO login (default true)
+      --sso-listener-address string   Address to listen on for OAuth2 login application (default "localhost")
+      --sso-port int                  Port to run local OAuth2 login application (default 8085)
 ```
 
 ### Options inherited from parent commands
@@ -72,3 +72,4 @@ argocd login cd.argoproj.io --core
 ### SEE ALSO
 
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
+
