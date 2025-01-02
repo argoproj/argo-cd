@@ -1564,9 +1564,7 @@ func TestUseDiffCache(t *testing.T) {
 		}
 		if a != nil {
 			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
-			if err != nil {
-				t.Fatalf("error merging app: %s", err)
-			}
+			require.NoErrorf(t, err, "error merging app")
 		}
 		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
 			// Simulate the controller's process for populating both of these fields.
