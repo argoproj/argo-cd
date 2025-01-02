@@ -2,7 +2,7 @@ package generators
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,11 +125,11 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					nil,
-					fmt.Errorf("fake error"),
+					errors.New("fake error"),
 				)
 			},
 			expected:    nil,
-			expectedErr: fmt.Errorf("error listing repos: fake error"),
+			expectedErr: errors.New("error listing repos: fake error"),
 		},
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {

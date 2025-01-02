@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,7 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -106,7 +107,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
 			if len(apps) > 1 {
-				errors.CheckError(fmt.Errorf("failed to generate spec, more than one application is not supported"))
+				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
 			}
 			app := apps[0]
 			if app.Name == "" {
@@ -283,7 +284,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), v1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {
@@ -336,7 +337,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
@@ -370,7 +371,7 @@ func reconcileApplications(
 		appClientset,
 		1*time.Hour,
 		appinformers.WithNamespace(namespace),
-		appinformers.WithTweakListOptions(func(options *v1.ListOptions) {}),
+		appinformers.WithTweakListOptions(func(options *metav1.ListOptions) {}),
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
@@ -378,7 +379,7 @@ func reconcileApplications(
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
 	if !kubecache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced, projInformer.HasSynced) {
-		return nil, fmt.Errorf("failed to sync cache")
+		return nil, stderrors.New("failed to sync cache")
 	}
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
@@ -404,7 +405,7 @@ func reconcileApplications(
 	appStateManager := controller.NewAppStateManager(
 		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff, ignoreNormalizerOpts)
 
-	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
+	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}

@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -307,9 +308,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			name:          "handles error from repo server",
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
-			repoError:     fmt.Errorf("error"),
+			repoError:     errors.New("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
 		},
 	}
 
@@ -608,9 +609,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			name:          "handles error from repo server",
 			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
-			repoError:     fmt.Errorf("error"),
+			repoError:     errors.New("error"),
 			expected:      []map[string]interface{}{},
-			expectedError: fmt.Errorf("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
 		},
 	}
 
@@ -808,9 +809,9 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			name:             "handles error during getting repo paths",
 			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
-			repoPathsError:   fmt.Errorf("paths error"),
+			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("error generating params from git: paths error"),
+			expectedError:    errors.New("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -820,7 +821,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1120,9 +1121,9 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			name:             "handles error during getting repo paths",
 			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
-			repoPathsError:   fmt.Errorf("paths error"),
+			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]interface{}{},
-			expectedError:    fmt.Errorf("error generating params from git: paths error"),
+			expectedError:    errors.New("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
@@ -1132,7 +1133,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]interface{}{},
-			expectedError:  fmt.Errorf("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1464,7 +1465,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			},
 			callGetDirectories: false,
 			expected:           []map[string]interface{}{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError:      fmt.Errorf("error getting project project: appprojects.argoproj.io \"project\" not found"),
+			expectedError:      errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
 	}
 	for _, testCase := range cases {
