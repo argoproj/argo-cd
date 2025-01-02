@@ -169,7 +169,7 @@ func helmIndexRefsKey(repo string) string {
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return fmt.Errorf("helm index data is nil, skipping cache")
+		return errors.New("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),

@@ -3,6 +3,7 @@ package gpg
 import (
 	"bufio"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -521,12 +522,12 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be the key ID, no prefix
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("Invalid output from gpg, end of text after primary key")
+				return nil, errors.New("Invalid output from gpg, end of text after primary key")
 			}
 
 			token = keyIdMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, fmt.Errorf("Invalid output from gpg, no key ID for primary key")
+				return nil, errors.New("Invalid output from gpg, no key ID for primary key")
 			}
 
 			key.Fingerprint = token[1]
@@ -539,11 +540,11 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be UID
 			if !scanner.Scan() {
-				return nil, fmt.Errorf("Invalid output from gpg, end of text after key ID")
+				return nil, errors.New("Invalid output from gpg, end of text after key ID")
 			}
 
 			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, fmt.Errorf("Invalid output from gpg, no identity for primary key")
+				return nil, errors.New("Invalid output from gpg, no identity for primary key")
 			}
 
 			token = uidMatch.FindStringSubmatch(scanner.Text())
