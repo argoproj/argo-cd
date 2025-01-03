@@ -44,7 +44,6 @@ import (
 // getDefaultTestClientSet creates a Clientset with the default argo objects
 // To add new objects, use kubeclientset.Tracker().Add(obj)
 func getDefaultTestClientSet() *kubefake.Clientset {
-
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      argocommon.ArgoCDSecretName,
