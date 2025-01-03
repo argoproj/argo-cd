@@ -164,7 +164,7 @@ Argo CD will then group those sources by the configured `syncSource` targetBranc
 ```go
 package hydrator
 
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 type DrySource struct {
 	repoURL        string

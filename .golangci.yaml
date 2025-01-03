@@ -42,7 +42,7 @@ linters-settings:
       - singleCaseSwitch
       - typeSwitchVar
   goimports:
-    local-prefixes: github.com/argoproj/argo-cd/v2
+    local-prefixes: github.com/argoproj/argo-cd/v3
   gomodguard:
     blocked:
       modules:

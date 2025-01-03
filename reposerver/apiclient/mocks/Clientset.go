@@ -1,9 +1,9 @@
 package mocks
 
 import (
-	apiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	apiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 
-	io "github.com/argoproj/argo-cd/v2/util/io"
+	io "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type Clientset struct {
