@@ -70,7 +70,7 @@ type jqNormalizerPatch struct {
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	dataJson := make(map[string]interface{})
+	dataJson := make(map[string]any)
 	err := json.Unmarshal(data, &dataJson)
 	if err != nil {
 		return nil, err

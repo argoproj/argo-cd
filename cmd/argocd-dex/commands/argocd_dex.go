@@ -181,14 +181,14 @@ func NewGenDexConfigCommand() *cobra.Command {
 				return nil
 			}
 			if out == "" {
-				dexCfg := make(map[string]interface{})
+				dexCfg := make(map[string]any)
 				err := yaml.Unmarshal(dexCfgBytes, &dexCfg)
 				errors.CheckError(err)
 				if staticClientsInterface, ok := dexCfg["staticClients"]; ok {
-					if staticClients, ok := staticClientsInterface.([]interface{}); ok {
+					if staticClients, ok := staticClientsInterface.([]any); ok {
 						for i := range staticClients {
 							staticClient := staticClients[i]
-							if mappings, ok := staticClient.(map[string]interface{}); ok {
+							if mappings, ok := staticClient.(map[string]any); ok {
 								for key := range mappings {
 									if key == "secret" {
 										mappings[key] = "******"
@@ -220,8 +220,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 	return &command
 }
 
-func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
-	if mapField, ok := obj.(map[string]interface{}); ok {
+func iterateStringFields(obj any, callback func(name string, val string) string) {
+	if mapField, ok := obj.(map[string]any); ok {
 		for field, val := range mapField {
 			if strVal, ok := val.(string); ok {
 				mapField[field] = callback(field, strVal)
@@ -229,7 +229,7 @@ func iterateStringFields(obj interface{}, callback func(name string, val string)
 				iterateStringFields(val, callback)
 			}
 		}
-	} else if arrayField, ok := obj.([]interface{}); ok {
+	} else if arrayField, ok := obj.([]any); ok {
 		for i := range arrayField {
 			iterateStringFields(arrayField[i], callback)
 		}
@@ -237,7 +237,7 @@ func iterateStringFields(obj interface{}, callback func(name string, val string)
 }
 
 func redactor(dirtyString string) string {
-	config := make(map[string]interface{})
+	config := make(map[string]any)
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
 	errors.CheckError(err)
 	iterateStringFields(config, func(name string, val string) string {

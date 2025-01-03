@@ -691,7 +691,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 // in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
 // the directory will be deleted.
 func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
-	configured := make(map[string]interface{})
+	configured := make(map[string]any)
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
