@@ -1034,6 +1034,8 @@ message GitDirectoryGeneratorItem {
 
 message GitFileGeneratorItem {
   optional string path = 1;
+
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector fileLabelSelector = 2;
 }
 
 message GitGenerator {
