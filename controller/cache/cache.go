@@ -20,7 +20,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -155,18 +155,18 @@ type LiveStateCache interface {
 	Init() error
 }
 
-type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
+type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
 
 type PodInfo struct {
 	NodeName         string
-	ResourceRequests v1.ResourceList
-	Phase            v1.PodPhase
+	ResourceRequests corev1.ResourceList
+	Phase            corev1.PodPhase
 }
 
 type NodeInfo struct {
 	Name       string
-	Capacity   v1.ResourceList
-	SystemInfo v1.NodeSystemInfo
+	Capacity   corev1.ResourceList
+	SystemInfo corev1.NodeSystemInfo
 }
 
 type ResourceInfo struct {
@@ -536,7 +536,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
-		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
+		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (any, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
@@ -576,7 +576,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
-		var ref v1.ObjectReference
+		var ref corev1.ObjectReference
 		if newRes != nil {
 			ref = newRes.Ref
 		} else {
@@ -733,7 +733,7 @@ func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIRe
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
-func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
+func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bool {
 	for _, obj := range apps {
 		app, ok := obj.(*appv1.Application)
 		if !ok {

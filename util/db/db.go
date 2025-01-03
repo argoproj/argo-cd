@@ -5,7 +5,7 @@ import (
 	"math"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -136,7 +136,7 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 	}
 }
 
-func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
+func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
 	if _, ok := cache[name]; !ok {
 		secret, err := db.settingsMgr.GetSecretByName(name)
 		if err != nil {

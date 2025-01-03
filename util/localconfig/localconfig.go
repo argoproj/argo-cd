@@ -1,12 +1,13 @@
 package localconfig
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
@@ -131,7 +132,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, fmt.Errorf("Local config: current-context unset")
+			return nil, errors.New("Local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}

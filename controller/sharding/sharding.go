@@ -3,6 +3,7 @@ package sharding
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -13,7 +14,7 @@ import (
 	"time"
 
 	slices "golang.org/x/exp/slices"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -419,8 +420,8 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 }
 
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
-func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*v1.ConfigMap, error) {
-	shardingCM := &v1.ConfigMap{
+func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
+	shardingCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: namespace,
@@ -471,7 +472,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
 			replicasCount = int(*appControllerDeployment.Spec.Replicas)
 		} else {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
+			return nil, stderrors.New("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)

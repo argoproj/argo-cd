@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -106,8 +106,8 @@ func isArgoCDConfigMap(name string) bool {
 func specsEqual(left, right unstructured.Unstructured) bool {
 	leftAnnotation := left.GetAnnotations()
 	rightAnnotation := right.GetAnnotations()
-	delete(leftAnnotation, apiv1.LastAppliedConfigAnnotation)
-	delete(rightAnnotation, apiv1.LastAppliedConfigAnnotation)
+	delete(leftAnnotation, corev1.LastAppliedConfigAnnotation)
+	delete(rightAnnotation, corev1.LastAppliedConfigAnnotation)
 	if !reflect.DeepEqual(leftAnnotation, rightAnnotation) {
 		return false
 	}
@@ -156,9 +156,9 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
+	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
 	errors.CheckError(err)
-	var cm apiv1.ConfigMap
+	var cm corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 

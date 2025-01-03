@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -125,7 +125,7 @@ func (db *db) getRepositories(indexer, project string) ([]*appv1.Repository, err
 	}
 	var res []*appv1.Repository
 	for i := range secrets {
-		repo, err := secretToRepository(secrets[i].(*apiv1.Secret))
+		repo, err := secretToRepository(secrets[i].(*corev1.Secret))
 		if err != nil {
 			return nil, err
 		}

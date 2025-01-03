@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	appv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,7 +26,7 @@ const (
 )
 
 func getClientset(objects ...runtime.Object) *fake.Clientset {
-	secret := v1.Secret{
+	secret := corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -36,7 +36,7 @@ func getClientset(objects ...runtime.Object) *fake.Clientset {
 			"server.secretkey": []byte("test"),
 		},
 	}
-	cm := v1.ConfigMap{
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -219,7 +219,7 @@ func TestCreateExistingRepository(t *testing.T) {
 }
 
 func TestGetRepository(t *testing.T) {
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "known-repo-secret",
@@ -233,7 +233,7 @@ func TestGetRepository(t *testing.T) {
 		Data: map[string][]byte{
 			"url": []byte("https://known/repo"),
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "secured-repo-secret",
@@ -247,7 +247,7 @@ func TestGetRepository(t *testing.T) {
 		Data: map[string][]byte{
 			"url": []byte("https://secured/repo"),
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "secured-repo-creds-secret",
@@ -299,7 +299,7 @@ func TestGetRepository(t *testing.T) {
 func TestGetClusterSuccessful(t *testing.T) {
 	server := "my-cluster"
 	name := "my-name"
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Labels: map[string]string{
@@ -353,7 +353,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "cluster-mycluster-3274446258"
 
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -384,7 +384,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "mycluster-443"
 
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -437,7 +437,7 @@ func TestFuzzyEquivalence(t *testing.T) {
 }
 
 func TestGetClusterServersByName(t *testing.T) {
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: testNamespace,
@@ -469,7 +469,7 @@ func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
 }
 
 func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
-	clientset := getClientset(&v1.Secret{
+	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: testNamespace,

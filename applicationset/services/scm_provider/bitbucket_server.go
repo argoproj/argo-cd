@@ -64,7 +64,7 @@ func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv
 }
 
 func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
-	paged := map[string]interface{}{
+	paged := map[string]any{
 		"limit": 100,
 	}
 	repos := []*Repository{}
@@ -122,7 +122,7 @@ func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol str
 }
 
 func (b *BitbucketServerProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	opts := map[string]interface{}{
+	opts := map[string]any{
 		"limit": 100,
 		"at":    repo.Branch,
 		"type_": true,
@@ -174,7 +174,7 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 	}
 	// Otherwise, scrape the GetBranches API.
 	branches := []bitbucketv1.Branch{}
-	paged := map[string]interface{}{
+	paged := map[string]any{
 		"limit": 100,
 	}
 	for {
