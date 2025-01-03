@@ -137,7 +137,6 @@ linters-settings:
       - name: use-any
       # report when a variable declaration can be simplified
       - name: var-declaration
-        disabled: true
       # warns when initialism, variable or package naming conventions are not followed.
       - name: var-naming
         disabled: true

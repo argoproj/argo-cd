@@ -239,7 +239,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 }
 
 func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {
-	var matching *unstructured.Unstructured = nil
+	var matching *unstructured.Unstructured
 	for _, item := range items {
 		if f(item) {
 			matching = &item

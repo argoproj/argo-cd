@@ -242,7 +242,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if displayAppName && applicationName != "" {
 		titleRectWidth := len(applicationName) * widthPerChar
-		var longerWidth int = max(titleRectWidth, svgWidth)
+		longerWidth := max(titleRectWidth, svgWidth)
 		rightRectWidth := longerWidth - leftRectWidth
 		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
 		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
