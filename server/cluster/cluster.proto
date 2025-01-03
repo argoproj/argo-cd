@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster";
 
 // Cluster Service
 //
@@ -7,7 +7,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster";
 package cluster;
 
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 
 // ClusterID holds a cluster server URL or cluster name
 message ClusterID {
