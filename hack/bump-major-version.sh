@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 # This script bumps the major version of Argo CD. Before cutting a new major release, run this script and open a PR.
-# If you have to make _any_ manual changes to the PR, this script should be updated to automate those.
-
-# This script is intended to be run from the root of the repository.
 
 # Get the current version from go.mod.
 CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
