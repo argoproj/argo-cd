@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -50,7 +50,7 @@ func newCommand() *cobra.Command {
 			}
 
 			handledConfigMap := func(obj any) {
-				cm, ok := obj.(*v1.ConfigMap)
+				cm, ok := obj.(*corev1.ConfigMap)
 				if !ok {
 					return
 				}

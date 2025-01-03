@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -69,7 +69,7 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestDeclarativeHelm(t *testing.T) {
@@ -522,10 +522,10 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
 				Name:           "custom-repo",
-				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
-				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
-				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
-				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
+				KeySecret:      &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
+				CertSecret:     &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
+				UsernameSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
+				PasswordSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
 			}))
 		})
 	} else {

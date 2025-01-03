@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -22,12 +22,12 @@ const (
 	fakeNamespace     = "fake-ns"
 )
 
-var noOpUpdate = func(cm *apiv1.ConfigMap) error {
+var noOpUpdate = func(cm *corev1.ConfigMap) error {
 	return nil
 }
 
-func fakeConfigMap() *apiv1.ConfigMap {
-	cm := apiv1.ConfigMap{
+func fakeConfigMap() *corev1.ConfigMap {
+	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",

@@ -14,7 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -118,7 +118,7 @@ func EnsureCleanState(t *testing.T) {
 		func() error {
 			// Delete the applicationset-e2e namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -126,7 +126,7 @@ func EnsureCleanState(t *testing.T) {
 		func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -134,7 +134,7 @@ func EnsureCleanState(t *testing.T) {
 		func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierr.IsNotFound(err) { // 'not found' error is expected
+			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -276,7 +276,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
 	}
 
-	if msg == "" && err != nil && apierr.IsNotFound(err) {
+	if msg == "" && err != nil && apierrors.IsNotFound(err) {
 		// Success is an error containing 'applicationset-e2e' not found.
 		return nil
 	}

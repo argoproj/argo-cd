@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -38,7 +38,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 
 	_, err := s.db.createSecret(ctx, repositorySecret)
 	if err != nil {
-		if apierr.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
 			hasLabel, err := s.hasRepoTypeLabel(secName)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -63,7 +63,7 @@ func (s *secretsRepositoryBackend) hasRepoTypeLabel(secretName string) (bool, er
 	noCache := make(map[string]*corev1.Secret)
 	sec, err := s.db.getSecret(secretName, noCache)
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return false, nil
 		}
 		return false, err
@@ -192,7 +192,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 
 	_, err := s.db.createSecret(ctx, repoCredsSecret)
 	if err != nil {
-		if apierr.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "repository credentials %q already exists", repoCreds.URL)
 		}
 		return nil, err

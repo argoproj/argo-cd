@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -74,7 +74,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				Type: corev1.SecretTypeOpaque,
 			}
 			_, err = kubeClientset.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-			if err != nil && !apierr.IsAlreadyExists(err) {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				errors.CheckError(err)
 			}
 

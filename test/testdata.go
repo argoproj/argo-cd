@@ -6,7 +6,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"github.com/redis/go-redis/v9"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -101,8 +101,8 @@ func NewConfigMap() *unstructured.Unstructured {
 	return testing.Unstructured(ConfigMapManifest)
 }
 
-func NewFakeConfigMap() *apiv1.ConfigMap {
-	cm := apiv1.ConfigMap{
+func NewFakeConfigMap() *corev1.ConfigMap {
+	cm := corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
 			APIVersion: "v1",
@@ -119,8 +119,8 @@ func NewFakeConfigMap() *apiv1.ConfigMap {
 	return &cm
 }
 
-func NewFakeSecret(policy ...string) *apiv1.Secret {
-	secret := apiv1.Secret{
+func NewFakeSecret(policy ...string) *corev1.Secret {
+	secret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
 			APIVersion: "v1",

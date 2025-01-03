@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
@@ -25,7 +25,7 @@ func NewServer(apiFactory api.Factory) notification.NotificationServiceServer {
 func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListRequest) (*notification.TriggerList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return &notification.TriggerList{}, nil
 		}
 	}
@@ -40,7 +40,7 @@ func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListR
 func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListRequest) (*notification.ServiceList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return &notification.ServiceList{}, nil
 		}
 		return nil, err
@@ -56,7 +56,7 @@ func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListR
 func (s *Server) ListTemplates(ctx context.Context, q *notification.TemplatesListRequest) (*notification.TemplateList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return &notification.TemplateList{}, nil
 		}
 		return nil, err

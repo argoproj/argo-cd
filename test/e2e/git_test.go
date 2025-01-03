@@ -4,11 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
-
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
@@ -64,7 +63,7 @@ func TestGitSemverResolutionUsingConstraint(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(Pod(func(p v1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
+		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }
 
 func TestGitSemverResolutionUsingConstraintWithLeadingZero(t *testing.T) {
@@ -89,5 +88,5 @@ func TestGitSemverResolutionUsingConstraintWithLeadingZero(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(Pod(func(p v1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
+		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }

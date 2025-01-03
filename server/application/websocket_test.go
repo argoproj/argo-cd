@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -34,7 +34,7 @@ func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSess
 
 func newEnforcer() *rbac.Enforcer {
 	additionalConfig := make(map[string]string, 0)
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -43,7 +43,7 @@ func newEnforcer() *rbac.Enforcer {
 			},
 		},
 		Data: additionalConfig,
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,

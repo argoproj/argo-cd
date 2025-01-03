@@ -8,8 +8,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -170,7 +170,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			http.Error(w, "App not found", http.StatusNotFound)
 			return
 		}
@@ -216,7 +216,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pod.Status.Phase != v1.PodRunning {
+	if pod.Status.Phase != corev1.PodRunning {
 		http.Error(w, "Pod not running", http.StatusBadRequest)
 		return
 	}
@@ -309,7 +309,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		Namespace(namespace).
 		SubResource("exec")
 
-	req.VersionedParams(&v1.PodExecOptions{
+	req.VersionedParams(&corev1.PodExecOptions{
 		Container: containerName,
 		Command:   cmd,
 		Stdin:     true,
