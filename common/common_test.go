@@ -96,9 +96,8 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {
-				if _, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{}); err != nil {
-					t.Fatalf("Failed to create secret: %v", err)
-				}
+				_, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{})
+				require.NoErrorf(t, err, "Failed to create secret")
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
 			if tc.expectedErr != "" {

@@ -36,20 +36,20 @@ func TestRequeueAfter(t *testing.T) {
 	appClientset := kubefake.NewSimpleClientset()
 	k8sClient := fake.NewClientBuilder().Build()
 	duckType := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v2quack",
 			"kind":       "Duck",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name":      "mightyduck",
 				"namespace": "namespace",
-				"labels":    map[string]interface{}{"duck": "all-species"},
+				"labels":    map[string]any{"duck": "all-species"},
 			},
-			"status": map[string]interface{}{
-				"decisions": []interface{}{
-					map[string]interface{}{
+			"status": map[string]any{
+				"decisions": []any{
+					map[string]any{
 						"clusterName": "staging-01",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"clusterName": "production-01",
 					},
 				},

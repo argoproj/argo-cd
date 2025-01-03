@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,12 +28,14 @@ const (
 )
 
 var testClaims = ServiceAccountClaims{
-	Sub:                "system:serviceaccount:kube-system:argocd-manager",
-	Iss:                "kubernetes/serviceaccount",
-	Namespace:          "kube-system",
-	SecretName:         "argocd-manager-token-tj79r",
-	ServiceAccountName: "argocd-manager",
-	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+	"kube-system",
+	"argocd-manager-token-tj79r",
+	"argocd-manager",
+	"91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
+	jwt.RegisteredClaims{
+		Subject: "system:serviceaccount:kube-system:argocd-manager",
+		Issuer:  "kubernetes/serviceaccount",
+	},
 }
 
 func newServiceAccount() *corev1.ServiceAccount {
@@ -221,7 +224,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
 	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
-	assert.True(t, apierr.IsNotFound(err))
+	assert.True(t, apierrors.IsNotFound(err))
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {

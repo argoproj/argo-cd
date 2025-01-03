@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 // nolint:unparam
-func getSecret(client kubernetes.Interface, ns, name string) (*apiv1.Secret, error) {
+func getSecret(client kubernetes.Interface, ns, name string) (*corev1.Secret, error) {
 	s, err := client.CoreV1().Secrets(ns).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func getSecret(client kubernetes.Interface, ns, name string) (*apiv1.Secret, err
 }
 
 func Test_CreateOrUpdateSecretField(t *testing.T) {
-	secret := &apiv1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: "test",
@@ -113,7 +113,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 }
 
 func Test_CreateOrUpdateSecretData(t *testing.T) {
-	secret := &apiv1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: "test",

@@ -37,7 +37,7 @@ type WebhookHandler struct {
 	azuredevops    *azuredevops.Webhook
 	client         client.Client
 	generators     map[string]generators.Generator
-	queue          chan interface{}
+	queue          chan any
 }
 
 type gitGeneratorInfo struct {
@@ -94,7 +94,7 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 		azuredevops: azuredevopsHandler,
 		client:      client,
 		generators:  generators,
-		queue:       make(chan interface{}, payloadQueueSize),
+		queue:       make(chan any, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -118,7 +118,7 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 	}
 }
 
-func (h *WebhookHandler) HandleEvent(payload interface{}) {
+func (h *WebhookHandler) HandleEvent(payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	if gitGenInfo == nil && prGenInfo == nil {
@@ -157,7 +157,7 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
+	var payload any
 	var err error
 
 	switch {
@@ -191,7 +191,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
+func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	var (
 		webURL      string
 		revision    string
@@ -236,7 +236,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 }
 
-func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
+func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
@@ -517,7 +517,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 
 	// Generate params for first child generator
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
-	params := []map[string]interface{}{}
+	params := []map[string]any{}
 	for _, g := range relGenerators {
 		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {
