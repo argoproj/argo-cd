@@ -3,7 +3,6 @@ package cache
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -254,7 +253,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 
 func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache) map[string]*CachedManifestResponse {
 	t.Helper()
-	items, err := inMemCache.Items(func() interface{} { return &CachedManifestResponse{} })
+	items, err := inMemCache.Items(func() any { return &CachedManifestResponse{} })
 	require.NoError(t, err)
 
 	result := map[string]*CachedManifestResponse{}
@@ -307,7 +306,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		return
 	}
 
-	jsonMap := map[string]interface{}{}
+	jsonMap := map[string]any{}
 	err = json.Unmarshal(str, &jsonMap)
 	if err != nil {
 		assert.FailNow(t, "Unable to unmarshal", err)
@@ -419,7 +418,7 @@ func TestTryLockGitRefCache_OwnershipFlows(t *testing.T) {
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	require.NoError(t, err)
 	var output [][2]string
-	key := fmt.Sprintf("git-refs|%s", "my-repo-url")
+	key := "git-refs|" + "my-repo-url"
 	err = utilCache.GetItem(key, &output)
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 2})
 	require.NoError(t, err)

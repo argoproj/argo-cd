@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
 type RevisionMetadata struct {
 	Author  string
@@ -784,7 +784,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
-		return "", fmt.Errorf("permission denied")
+		return "", errors.New("permission denied")
 	}
 	return out, nil
 }
@@ -807,7 +807,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	}
 
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
@@ -943,7 +943,7 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
+	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
@@ -965,8 +965,8 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	// If a basic auth header is explicitly set, tell Git to send it to the
 	// server to force use of basic auth instead of negotiating the auth scheme
 	for _, e := range environ {
-		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
-			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
+		if strings.HasPrefix(e, forceBasicAuthHeaderEnv+"=") {
+			args = append([]string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv}, args...)
 		}
 	}
 
@@ -1002,7 +1002,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			} else {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 				if err == nil && caPath != "" {
-					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+					cmd.Env = append(cmd.Env, "GIT_SSL_CAINFO="+caPath)
 				}
 			}
 		}

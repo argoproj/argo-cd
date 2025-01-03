@@ -33,7 +33,7 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -153,7 +153,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
+	clientConstraint = ">= " + common.MinClientVersion
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
@@ -933,7 +933,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
@@ -947,7 +947,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
@@ -1102,7 +1102,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")
@@ -1268,7 +1268,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 
@@ -1626,7 +1626,7 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	bf.handler.ServeHTTP(w, r)
 }
 
-func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	if rq, ok := req.(*repositorypkg.RepoQuery); ok {
 		repo, err := url.QueryUnescape(rq.Repo)
 		if err != nil {

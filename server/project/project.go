@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -165,7 +165,7 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 	projName := q.GetName()
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			"project": projName,
 		}).Warnf("unauthorized access to project, error=%v", err.Error())
 		return nil, fmt.Errorf("unauthorized access to project %v", projName)

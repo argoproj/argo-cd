@@ -2,7 +2,7 @@ package controller
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -62,7 +62,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
 func TestCompareAppStateRepoError(t *testing.T) {
 	app := newFakeApp()
-	ctrl := newFakeController(&fakeData{manifestResponses: make([]*apiclient.ManifestResponse, 3)}, fmt.Errorf("test repo error"))
+	ctrl := newFakeController(&fakeData{manifestResponses: make([]*apiclient.ManifestResponse, 3)}, errors.New("test repo error"))
 	sources := make([]argoappv1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
@@ -1564,9 +1564,7 @@ func TestUseDiffCache(t *testing.T) {
 		}
 		if a != nil {
 			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
-			if err != nil {
-				t.Fatalf("error merging app: %s", err)
-			}
+			require.NoErrorf(t, err, "error merging app")
 		}
 		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
 			// Simulate the controller's process for populating both of these fields.

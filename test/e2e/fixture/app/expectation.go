@@ -112,7 +112,7 @@ func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expe
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
 		if err != nil {
-			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+			return failed, "namespace not found " + err.Error()
 		}
 
 		block(c.app(), ns)
@@ -288,7 +288,7 @@ func NoNamespace(name string) Expectation {
 			return succeeded, "namespace not found"
 		}
 
-		return failed, fmt.Sprintf("found namespace %s", name)
+		return failed, "found namespace " + name
 	}
 }
 

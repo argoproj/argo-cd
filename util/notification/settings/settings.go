@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
@@ -34,7 +34,7 @@ func GetFactorySettingsForCLI(argocdService *service.Service, secretName, config
 		ConfigMapName: configMapName,
 		InitGetVars: func(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
 			if *argocdService == nil {
-				return nil, fmt.Errorf("argocdService is not initialized")
+				return nil, errors.New("argocdService is not initialized")
 			}
 
 			if selfServiceNotificationEnabled {
@@ -64,8 +64,8 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 		return nil, err
 	}
 
-	return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
+	return func(obj map[string]any, dest services.Destination) map[string]any {
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
 		})
@@ -78,8 +78,8 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.C
 		return nil, err
 	}
 
-	return func(obj map[string]interface{}, dest services.Destination) map[string]interface{} {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]interface{}{
+	return func(obj map[string]any, dest services.Destination) map[string]any {
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
 			"secrets": secret.Data,

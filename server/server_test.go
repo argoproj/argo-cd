@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -778,7 +778,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		anonymousEnabled      bool
 		claims                jwt.RegisteredClaims
 		expectedErrorContains string
-		expectedClaims        interface{}
+		expectedClaims        any
 		useDex                bool
 	}
 	tests := []testData{
@@ -903,7 +903,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			argocd, oidcURL := getTestServer(t, testDataCopy.anonymousEnabled, true, testDataCopy.useDex, settings_util.OIDCConfig{})
 
 			if testDataCopy.useDex {
-				testDataCopy.claims.Issuer = fmt.Sprintf("%s/api/dex", oidcURL)
+				testDataCopy.claims.Issuer = oidcURL + "/api/dex"
 			} else {
 				testDataCopy.claims.Issuer = oidcURL
 			}
@@ -933,7 +933,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 		test                  string
 		anonymousEnabled      bool
 		expectedErrorContains string
-		expectedClaims        interface{}
+		expectedClaims        any
 	}
 	tests := []testData{
 		{
@@ -976,7 +976,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 		test                 string
 		anonymousEnabled     bool
 		expectedErrorMessage string
-		expectedClaims       interface{}
+		expectedClaims       any
 	}
 	tests := []testData{
 		{
@@ -1003,7 +1003,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			ctx := context.Background() //nolint:ineffassign,staticcheck
 
 			argocd, dexURL := getTestServer(t, testDataCopy.anonymousEnabled, false, true, settings_util.OIDCConfig{})
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: fmt.Sprintf("%s/api/dex", dexURL)})
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: dexURL + "/api/dex"})
 			tokenString, err := token.SignedString([]byte("key"))
 			require.NoError(t, err)
 			ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
@@ -1026,7 +1026,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		anonymousEnabled     bool
 		metadata             metadata.MD
 		expectedErrorMessage string
-		expectedClaims       interface{}
+		expectedClaims       any
 	}
 	tests := []testData{
 		{
@@ -1460,7 +1460,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", fmt.Sprintf("/%s", testCase.filename), nil)
+			req := httptest.NewRequest("", "/"+testCase.filename, nil)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 

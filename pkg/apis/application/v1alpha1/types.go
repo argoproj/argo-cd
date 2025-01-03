@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -952,7 +953,7 @@ func (p ApplicationSourcePluginParameter) Equals(other ApplicationSourcePluginPa
 //
 // There are efforts to change things upstream, but nothing has been merged yet. See https://github.com/golang/go/issues/37711
 func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
-	out := map[string]interface{}{}
+	out := map[string]any{}
 	out["name"] = p.Name
 	if p.String_ != nil {
 		out["string"] = p.String_
@@ -1009,12 +1010,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal plugin parameters: %w", err)
 	}
-	jsonParam := fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", string(out))
+	jsonParam := "ARGOCD_APP_PARAMETERS=" + string(out)
 
 	env := []string{jsonParam}
 
 	for _, param := range p {
-		envBaseName := fmt.Sprintf("PARAM_%s", escaped(param.Name))
+		envBaseName := "PARAM_" + escaped(param.Name)
 		if param.String_ != nil {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
@@ -2659,7 +2660,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
-		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
+		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
 	window := &SyncWindow{
@@ -2866,7 +2867,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
 
 	if len(s) > 0 {
