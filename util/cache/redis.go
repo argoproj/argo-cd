@@ -196,7 +196,7 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	}
 }
 
-func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+func (redisHook) ProcessPipelineHook(_ redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }
 

@@ -233,7 +233,7 @@ var (
 
 func newAppAndProjLister(objects ...runtime.Object) (applisters.ApplicationLister, k8scache.SharedIndexInformer) {
 	fakeAppsClientset := fakeapps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects()
 	appsInformer := factory.Argoproj().V1alpha1().Applications()
 	for _, obj := range objects {
@@ -964,7 +964,7 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enforcer.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	return enforcer
@@ -986,7 +986,7 @@ func TestGetRepository(t *testing.T) {
 			name: "empty project and no repos",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "something-else"},
@@ -1002,7 +1002,7 @@ func TestGetRepository(t *testing.T) {
 			name: "empty project and no matching repos",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{}, nil
 				},
 				q: &repository.RepoQuery{
@@ -1016,7 +1016,7 @@ func TestGetRepository(t *testing.T) {
 			name: "empty project + matching repo with an empty project",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "foobar", Project: ""},
@@ -1038,7 +1038,7 @@ func TestGetRepository(t *testing.T) {
 			name: "empty project + matching repo with a non-empty project",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "foobar", Project: "foobar"},
@@ -1060,7 +1060,7 @@ func TestGetRepository(t *testing.T) {
 			name: "non-empty project + matching repo with an empty project",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "foobar", Project: ""},
@@ -1079,7 +1079,7 @@ func TestGetRepository(t *testing.T) {
 			name: "non-empty project + matching repo with a matching project",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "foobar", Project: "foobar"},
@@ -1101,7 +1101,7 @@ func TestGetRepository(t *testing.T) {
 			name: "non-empty project + matching repo with a non-matching project",
 			args: args{
 				ctx: context.TODO(),
-				listRepositories: func(ctx context.Context, query *repository.RepoQuery) (*appsv1.RepositoryList, error) {
+				listRepositories: func(_ context.Context, _ *repository.RepoQuery) (*appsv1.RepositoryList, error) {
 					return &appsv1.RepositoryList{
 						Items: []*appsv1.Repository{
 							{Repo: "foobar", Project: "something-else"},

@@ -36,7 +36,7 @@ func NewServer(
 }
 
 // ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
-func (s *Server) List(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
+func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}

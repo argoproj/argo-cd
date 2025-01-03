@@ -63,7 +63,7 @@ type shardApplicationControllerMapping struct {
 // and returns whether or not the cluster should be processed by a given shard. It calls the distributionFunction
 // to determine which shard will process the cluster, and if the given shard is equal to the calculated shard
 // the function will return true.
-func GetClusterFilter(db db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
+func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, replicas, shard int) ClusterFilterFunction {
 	return func(c *v1alpha1.Cluster) bool {
 		clusterShard := 0
 		if c != nil && c.Shard != nil {
@@ -255,7 +255,7 @@ func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[str
 // NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0
 // the function is created for API compatibility purposes and is not supposed to be activated.
 func NoShardingDistributionFunction() DistributionFunction {
-	return func(c *v1alpha1.Cluster) int { return 0 }
+	return func(_ *v1alpha1.Cluster) int { return 0 }
 }
 
 // InferShard extracts the shard index based on its hostname.

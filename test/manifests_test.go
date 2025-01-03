@@ -22,7 +22,7 @@ func TestKustomizeVersion(t *testing.T) {
 
 // TestBuildManifests makes sure we are consistent in naming, and all kustomization.yamls are buildable
 func TestBuildManifests(t *testing.T) {
-	err := filepath.Walk("../manifests", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../manifests", func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

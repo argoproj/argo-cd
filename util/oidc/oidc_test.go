@@ -644,7 +644,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -678,7 +678,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -712,7 +712,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 			  notevenJsongarbage	
 				`
@@ -754,7 +754,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -789,7 +789,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]

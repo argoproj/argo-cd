@@ -285,7 +285,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 }
 
 // List returns list of projects
-func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+func (s *Server) List(ctx context.Context, _ *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)

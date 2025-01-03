@@ -21,7 +21,7 @@ func NewInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()

@@ -32,7 +32,7 @@ func TestPolicyInformer(t *testing.T) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go enf.runInformer(ctx, func(cm *corev1.ConfigMap) error {
+	go enf.runInformer(ctx, func(_ *corev1.ConfigMap) error {
 		return nil
 	})
 

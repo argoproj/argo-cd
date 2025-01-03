@@ -36,7 +36,7 @@ func NewExportCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "export",
 		Short: "Export all Argo CD data to stdout (default) or a file",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			config, err := clientConfig.ClientConfig()

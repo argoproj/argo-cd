@@ -171,11 +171,11 @@ status:
     status: Healthy
 `
 
-var noOpHealthCheck = func(r *http.Request) error {
+var noOpHealthCheck = func(_ *http.Request) error {
 	return nil
 }
 
-var appFilter = func(obj any) bool {
+var appFilter = func(_ any) bool {
 	return true
 }
 
@@ -203,7 +203,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 		fakeApps = append(fakeApps, a)
 	}
 	appClientset := appclientset.NewSimpleClientset(fakeApps...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	go appInformer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
