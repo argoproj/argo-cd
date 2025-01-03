@@ -2,8 +2,8 @@ package commands
 
 import (
 	"bytes"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"testing"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
