@@ -24,7 +24,7 @@ jobs:
         run: |
           set -ue
           CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
-          echo "::set-output name=MAJOR_VERSION::$CURRENT_VERSION"
+          echo "MAJOR_VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Run script to bump the version
         run: |
