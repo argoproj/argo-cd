@@ -20,7 +20,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -202,12 +202,12 @@ type OIDCConfig struct {
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
 type HelmRepoCredentials struct {
-	URL            string                   `json:"url,omitempty"`
-	Name           string                   `json:"name,omitempty"`
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
+	URL            string                    `json:"url,omitempty"`
+	Name           string                    `json:"name,omitempty"`
+	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	CertSecret     *corev1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 // KustomizeVersion holds information about additional Kustomize version
@@ -229,7 +229,7 @@ type KustomizeSettings struct {
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*apiv1.Secret)
+		s, ok := obj.(*corev1.Secret)
 		if !ok {
 			return nil, nil
 		}
@@ -246,7 +246,7 @@ var (
 	}
 	ByClusterNameIndexer     = "byClusterName"
 	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*apiv1.Secret)
+		s, ok := obj.(*corev1.Secret)
 		if !ok {
 			return nil, nil
 		}
@@ -266,7 +266,7 @@ var (
 	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
 	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
 		return func(obj any) ([]string, error) {
-			s, ok := obj.(*apiv1.Secret)
+			s, ok := obj.(*corev1.Secret)
 			if !ok {
 				return nil, nil
 			}
@@ -318,11 +318,11 @@ type Repository struct {
 	// helm only
 	Name string `json:"name,omitempty"`
 	// Name of the secret storing the username used to access the repo
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	// Name of the secret storing the SSH private key used to access the repo. Git only
-	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	SSHPrivateKeySecret *corev1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
@@ -330,13 +330,13 @@ type Repository struct {
 	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
 	// Name of the secret storing the TLS client cert data
-	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	TLSClientCertDataSecret *corev1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
-	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	TLSClientCertKeySecret *corev1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
@@ -348,7 +348,7 @@ type Repository struct {
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
@@ -358,17 +358,17 @@ type RepositoryCredentials struct {
 	// The URL pattern the repository URL has to match
 	URL string `json:"url,omitempty"`
 	// Name of the secret storing the username used to access the repo
-	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
-	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	// Name of the secret storing the SSH private key used to access the repo. Git only
-	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	SSHPrivateKeySecret *corev1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Name of the secret storing the TLS client cert data
-	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	TLSClientCertDataSecret *corev1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
-	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	TLSClientCertKeySecret *corev1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
@@ -380,7 +380,7 @@ type RepositoryCredentials struct {
 	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
@@ -638,14 +638,14 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	return mgr.secretsInformer, nil
 }
 
-func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
+func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
 	argoCDSecret, err := mgr.getSecret()
 	createSecret := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
-		argoCDSecret = &apiv1.Secret{
+		argoCDSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
@@ -676,14 +676,14 @@ func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) err
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) error) error {
+func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) error) error {
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
 		if !apierr.IsNotFound(err) {
 			return err
 		}
-		argoCDCM = &apiv1.ConfigMap{
+		argoCDCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
@@ -716,14 +716,14 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) erro
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
+func (mgr *SettingsManager) getConfigMap() (*corev1.ConfigMap, error) {
 	return mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
 }
 
 // Returns the ConfigMap with the given name from the cluster.
 // The ConfigMap must be labeled with "app.kubernetes.io/part-of: argocd" in
 // order to be retrievable.
-func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error) {
+func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -739,12 +739,12 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.Con
 	return cmCopy, err
 }
 
-func (mgr *SettingsManager) getSecret() (*apiv1.Secret, error) {
+func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
 // Returns the Secret with the given name from the cluster.
-func (mgr *SettingsManager) GetSecretByName(secretName string) (*apiv1.Secret, error) {
+func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -760,7 +760,7 @@ func (mgr *SettingsManager) GetSecretByName(secretName string) (*apiv1.Secret, e
 	return secretCopy, err
 }
 
-func (mgr *SettingsManager) getSecrets() ([]*apiv1.Secret, error) {
+func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -1256,7 +1256,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 }
 
 func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
-	return mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
+	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
 		if len(repos) > 0 {
 			yamlStr, err := yaml.Marshal(repos)
 			if err != nil {
@@ -1271,7 +1271,7 @@ func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
 }
 
 func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
-	return mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
+	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
 		if len(creds) > 0 {
 			yamlStr, err := yaml.Marshal(creds)
 			if err != nil {
@@ -1489,7 +1489,7 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
-func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]string {
+func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]string {
 	binaryUrls := map[string]string{}
 	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-amd64", "linux-arm64", "linux-ppc64le", "linux-s390x"} {
 		if val, ok := argoCDCM.Data[settingsBinaryUrlsKey+"."+archType]; ok {
@@ -1500,7 +1500,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]st
 }
 
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
-func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
+func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -1592,7 +1592,7 @@ func validateExternalURL(u string) error {
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret, secrets []*apiv1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *corev1.Secret, secrets []*corev1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -1675,7 +1675,7 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
 func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
+	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
 		if settings.URL != "" {
 			argoCDCM.Data[settingURLKey] = settings.URL
 		} else {
@@ -1710,7 +1710,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	return mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
+	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 		if settings.WebhookGitHubSecret != "" {
 			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)

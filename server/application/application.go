@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -811,7 +811,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
@@ -1762,7 +1762,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var streams []chan logEntry
 
 	for _, pod := range pods {
-		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container:    q.GetContainer(),
 			Follow:       q.GetFollow(),
 			Timestamps:   true,
@@ -2325,7 +2325,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 }
 
 func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -2336,7 +2336,7 @@ func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason s
 }
 
 func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"

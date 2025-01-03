@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -311,7 +311,7 @@ func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]by
 			if len(data) == 0 {
 				return nil
 			}
-			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Create(context.Background(), &apiv1.Secret{
+			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Create(context.Background(), &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Annotations: map[string]string{
@@ -387,7 +387,7 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		Proxy:                      repoInfo.Proxy,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*corev1.SecretKeySelector{
 		{Dest: &repo.Username, Transform: StripCRLFCharacter}:             repoInfo.UsernameSecret,
 		{Dest: &repo.Password, Transform: StripCRLFCharacter}:             repoInfo.PasswordSecret,
 		{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:        repoInfo.SSHPrivateKeySecret,
@@ -395,7 +395,7 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:     repoInfo.TLSClientCertKeySecret,
 		{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}:  repoInfo.GithubAppPrivateKeySecret,
 		{Dest: &repo.GCPServiceAccountKey, Transform: StripCRLFCharacter}: repoInfo.GCPServiceAccountKey,
-	}, make(map[string]*apiv1.Secret))
+	}, make(map[string]*corev1.Secret))
 	return repo, err
 }
 
@@ -407,7 +407,7 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*corev1.SecretKeySelector{
 		{Dest: &creds.Username}:             repoInfo.UsernameSecret,
 		{Dest: &creds.Password}:             repoInfo.PasswordSecret,
 		{Dest: &creds.SSHPrivateKey}:        repoInfo.SSHPrivateKeySecret,
@@ -415,17 +415,17 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		{Dest: &creds.TLSClientCertKey}:     repoInfo.TLSClientCertKeySecret,
 		{Dest: &creds.GithubAppPrivateKey}:  repoInfo.GithubAppPrivateKeySecret,
 		{Dest: &creds.GCPServiceAccountKey}: repoInfo.GCPServiceAccountKey,
-	}, make(map[string]*apiv1.Secret))
+	}, make(map[string]*corev1.Secret))
 	return creds, err
 }
 
 // Set data to be stored in a given secret used for repository credentials and templates.
 // The name of the secret is a combination of the prefix given, and a calculated value
 // from the repository or template URL.
-func (l *legacyRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
+func (l *legacyRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *corev1.SecretKeySelector, value string, defaultKeyName string) *corev1.SecretKeySelector {
 	if secretKey == nil && value != "" {
-		secretKey = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url, "")},
+		secretKey = &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url, "")},
 			Key:                  defaultKeyName,
 		}
 	}
