@@ -69,11 +69,11 @@ func (s internalSelector) Add(reqs ...Requirement) Selector {
 
 type nothingSelector struct{}
 
-func (n nothingSelector) Matches(l labels.Labels) bool {
+func (n nothingSelector) Matches(_ labels.Labels) bool {
 	return false
 }
 
-func (n nothingSelector) Add(r ...Requirement) Selector {
+func (n nothingSelector) Add(_ ...Requirement) Selector {
 	return n
 }
 

@@ -371,7 +371,7 @@ func TestGetBranchesMissingDefault(t *testing.T) {
 }
 
 func TestGetBranchesEmptyRepo(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		switch r.RequestURI {
 		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":

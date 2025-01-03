@@ -521,18 +521,18 @@ func loadPolicyLine(line string, model model.Model) error {
 	return nil
 }
 
-func (a *argocdAdapter) SavePolicy(model model.Model) error {
+func (a *argocdAdapter) SavePolicy(_ model.Model) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) AddPolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) RemovePolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+func (a *argocdAdapter) RemoveFilteredPolicy(_ string, _ string, _ int, _ ...string) error {
 	return errors.New("not implemented")
 }

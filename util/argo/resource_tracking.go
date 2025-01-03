@@ -111,7 +111,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // GetAppInstance returns the representation of the app instance annotation.
 // If the tracking method does not support metadata, or the annotation could
 // not be parsed, it returns nil.
-func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
+func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, _ string, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
 		return rt.getAppInstanceValue(un, instanceID)
