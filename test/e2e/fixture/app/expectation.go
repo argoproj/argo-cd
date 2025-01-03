@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
@@ -223,7 +223,7 @@ func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -236,7 +236,7 @@ func DoesNotExistNow() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
