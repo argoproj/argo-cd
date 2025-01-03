@@ -108,7 +108,6 @@ linters-settings:
       - name: errorf
       # incrementing an integer variable by 1 is recommended to be done using the `++` operator
       - name: increment-decrement
-        disabled: true
       # highlights redundant else-blocks that can be eliminated from the code
       - name: indent-error-flow
         disabled: true
