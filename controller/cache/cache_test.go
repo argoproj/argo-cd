@@ -536,9 +536,9 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x string = "x"
-		hash2_y string = "y"
-		hash3_x string = "x"
+		hash1_x = "x"
+		hash2_y = "y"
+		hash3_x = "x"
 	)
 	info := &ResourceInfo{
 		manifestHash: hash1_x,

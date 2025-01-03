@@ -42,7 +42,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 		return nil, errors.New("More than one key found in input data")
 	}
 
-	var retKey *appsv1.GnuPGPublicKey = nil
+	var retKey *appsv1.GnuPGPublicKey
 	// Is there a better way to get the first element from a map without knowing its key?
 	for _, k := range parsed {
 		retKey = k
