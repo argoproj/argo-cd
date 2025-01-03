@@ -21,7 +21,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -642,7 +641,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	argoCDSecret, err := mgr.getSecret()
 	createSecret := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
@@ -680,7 +679,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
@@ -1658,7 +1657,7 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 	var cert tls.Certificate
 	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 	}

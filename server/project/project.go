@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -260,7 +260,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
-	if apierr.IsAlreadyExists(err) {
+	if apierrors.IsAlreadyExists(err) {
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project.Name, metav1.GetOptions{})
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing project details: %v", getErr)
@@ -539,7 +539,7 @@ func (s *Server) NormalizeProjs() error {
 					log.Infof("Successfully normalized project %s.", proj.Name)
 					break
 				}
-				if !apierr.IsConflict(err) {
+				if !apierrors.IsConflict(err) {
 					log.Warnf("Failed normalize project %s", proj.Name)
 					break
 				}

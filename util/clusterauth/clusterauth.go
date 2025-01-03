@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -67,7 +67,7 @@ func CreateServiceAccount(
 	}
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
-		if !apierr.IsAlreadyExists(err) {
+		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("Failed to create service account %q in namespace %q: %w", serviceAccountName, namespace, err)
 		}
 		log.Infof("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
@@ -80,7 +80,7 @@ func CreateServiceAccount(
 func upsert(kind string, name string, create func() (any, error), update func() (any, error)) error {
 	_, err := create()
 	if err != nil {
-		if !apierr.IsAlreadyExists(err) {
+		if !apierrors.IsAlreadyExists(err) {
 			return fmt.Errorf("Failed to create %s %q: %w", kind, name, err)
 		}
 		_, err = update()
@@ -339,7 +339,7 @@ func UninstallClusterManagerRBAC(clientset kubernetes.Interface) error {
 // UninstallRBAC uninstalls RBAC related resources  for a binding, role, and service account
 func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
 	if err := clientset.RbacV1().ClusterRoleBindings().Delete(context.Background(), bindingName, metav1.DeleteOptions{}); err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ClusterRoleBinding: %w", err)
 		}
 		log.Infof("ClusterRoleBinding %q not found", bindingName)
@@ -348,7 +348,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 	}
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(context.Background(), roleName, metav1.DeleteOptions{}); err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ClusterRole: %w", err)
 		}
 		log.Infof("ClusterRole %q not found", roleName)
@@ -357,7 +357,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 	}
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(context.Background(), serviceAccount, metav1.DeleteOptions{}); err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("Failed to delete ServiceAccount: %w", err)
 		}
 		log.Infof("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
@@ -456,7 +456,7 @@ func RotateServiceAccountSecrets(clientset kubernetes.Interface, claims *Service
 	// 2. delete existing secret object
 	secretsClient := clientset.CoreV1().Secrets(claims.Namespace)
 	err = secretsClient.Delete(context.Background(), claims.SecretName, metav1.DeleteOptions{})
-	if !apierr.IsNotFound(err) {
+	if !apierrors.IsNotFound(err) {
 		return err
 	}
 	return nil

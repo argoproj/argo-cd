@@ -26,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,8 +59,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/stats"
-
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -277,7 +275,7 @@ func NewApplicationController(
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
 			if err != nil {
-				if kubeerrors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
 					appControllerDeployment = nil
 				} else {
 					return fmt.Errorf("error retrieving Application Controller Deployment: %w", err)
@@ -400,7 +398,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	}
 	proj, err := projCache.(*appProjCache).GetAppProject(context.TODO())
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, err
 		} else {
 			return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %w", app.Spec.Project, err)
@@ -1180,7 +1178,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
 		return nil
@@ -1535,7 +1533,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -2449,7 +2447,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
 	var condition appv1.ApplicationCondition
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		condition = appv1.ApplicationCondition{
 			Type:    appv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),

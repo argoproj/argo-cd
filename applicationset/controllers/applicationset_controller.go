@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -465,7 +465,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			updatedAppset.DeepCopyInto(applicationSet)
 			return nil
 		})
-		if err != nil && !apierr.IsNotFound(err) {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
@@ -489,7 +489,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		appProject := &argov1alpha1.AppProject{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
 				continue
 			}
@@ -1302,7 +1302,7 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 			updatedAppset.DeepCopyInto(appset)
 			return nil
 		})
-		if err != nil && !apierr.IsNotFound(err) {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}

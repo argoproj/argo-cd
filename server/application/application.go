@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -176,10 +176,10 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	}
 	a, err := getApp()
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			if project != "" {
 				// We know that the user was allowed to get the Application, but the Application does not exist. Return 404.
-				return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+				return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 			}
 			// We don't know if the user was allowed to get the Application, and we don't want to leak information about
 			// the Application's existence. Return 403.
@@ -201,7 +201,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// The user specified a project. We would have returned a 404 if the user had access to the app, but the app
 			// did not exist. So we have to return a 404 when the app does exist, but the user does not have access.
 			// Otherwise, they could infer that the app exists based on the error code.
-			return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+			return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 		}
 		// The user didn't specify a project. We always return permission denied for both lack of access and lack of
 		// existence.
@@ -218,7 +218,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		}).Warnf("user tried to %s application in project %s, but the application is in project %s", action, project, effectiveProject)
 		// The user has access to the app, but the app is in a different project. Return 404, meaning "app doesn't
 		// exist in that project".
-		return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+		return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 	}
 	// Get the app's associated project, and make sure all project restrictions are enforced.
 	proj, err := s.getAppProject(ctx, a, logCtx)
@@ -357,7 +357,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		s.waitSync(created)
 		return created, nil
 	}
-	if !apierr.IsAlreadyExists(err) {
+	if !apierrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("error creating application: %w", err)
 	}
 
@@ -949,7 +949,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 			s.waitSync(res)
 			return res, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, err
 		}
 
@@ -1055,7 +1055,7 @@ func (s *Server) getAppProject(ctx context.Context, a *appv1.Application, logCtx
 	// If there's a permission issue or the app doesn't exist, return a vague error to avoid letting the user enumerate project names.
 	vagueError := status.Errorf(codes.InvalidArgument, "app is not allowed in project %q, or the project does not exist", a.Spec.Project)
 
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return nil, vagueError
 	}
 
@@ -1247,7 +1247,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	appNs := s.appNamespaceOrDefault(app.Namespace)
 	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("error getting application by name: %w", err)
 		}
 		// Kubernetes go-client will return a pointer to a zero-value app instead of nil, even
@@ -2311,7 +2311,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error updating application: %w", err)
 		}
 		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
@@ -2548,7 +2548,7 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	if statusPatch != nil {
 		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
 		if err != nil {
-			if !apierr.IsNotFound(err) {
+			if !apierrors.IsNotFound(err) {
 				return nil, fmt.Errorf("error patching resource: %w", err)
 			}
 			// K8s API server returns 404 NotFound when the CRD does not support the status subresource

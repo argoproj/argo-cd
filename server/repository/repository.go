@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -330,7 +330,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACObj); err != nil {
 		return nil, err
 	}
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		// app doesn't exist since it still is being formulated. verify they can create the app
 		// before we reveal repo details
 		if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACObj); err != nil {

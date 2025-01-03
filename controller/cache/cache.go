@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -409,14 +409,14 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return kerrors.IsInternalError(err) ||
-		kerrors.IsInvalid(err) ||
-		kerrors.IsTooManyRequests(err) ||
-		kerrors.IsServerTimeout(err) ||
-		kerrors.IsServiceUnavailable(err) ||
-		kerrors.IsTimeout(err) ||
-		kerrors.IsUnexpectedObjectError(err) ||
-		kerrors.IsUnexpectedServerError(err) ||
+	return apierrors.IsInternalError(err) ||
+		apierrors.IsInvalid(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsServiceUnavailable(err) ||
+		apierrors.IsTimeout(err) ||
+		apierrors.IsUnexpectedObjectError(err) ||
+		apierrors.IsUnexpectedServerError(err) ||
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
@@ -429,11 +429,11 @@ func isHTTP2GoawayErr(err error) bool {
 }
 
 func isExceededQuotaErr(err error) bool {
-	return kerrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
+	return apierrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
 }
 
 func isResourceQuotaConflictErr(err error) bool {
-	return kerrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
+	return apierrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
 }
 
 func isTransientNetworkErr(err error) bool {
