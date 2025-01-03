@@ -106,7 +106,7 @@ func getModification(modification string, resource string, scope string, permiss
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
 	case "remove":
-		return func(proj string, action string) string {
+		return func(_ string, _ string) string {
 			return ""
 		}, nil
 	}

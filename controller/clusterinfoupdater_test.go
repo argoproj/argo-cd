@@ -102,7 +102,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 }
 
 func TestUpdateClusterLabels(t *testing.T) {
-	shouldNotBeInvoked := func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+	shouldNotBeInvoked := func(_ context.Context, _ *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
 		require.NoError(t, shouldNotHappen)
 		return nil, shouldNotHappen
@@ -160,7 +160,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, nil
 			},
@@ -176,7 +176,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, errors.New("some error happened while saving")
 			},

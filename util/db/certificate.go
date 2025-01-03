@@ -56,7 +56,7 @@ type CertificateListSelector struct {
 //   - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
-func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
+func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 	// selector may be given as nil, but we need at least an empty data structure
 	// so we create it if necessary.
 	if selector == nil {
@@ -123,7 +123,7 @@ func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateLis
 }
 
 // Get a single certificate from the datastore
-func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
+func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
 		sshKnownHostsList, err := db.getSSHKnownHostsData()
 		if err != nil {

@@ -17,7 +17,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(_ *signedRequestMock) (string, error) {
 				return "token", nil
 			},
 		}
@@ -52,7 +52,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		// given
 		t.Parallel()
 		mock := &signedRequestMock{
-			returnFunc: func(m *signedRequestMock) (string, error) {
+			returnFunc: func(_ *signedRequestMock) (string, error) {
 				return "", errors.New("some error")
 			},
 		}
@@ -71,7 +71,7 @@ type signedRequestMock struct {
 	returnFunc            func(m *signedRequestMock) (string, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(clusterName, roleARN string, profile string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(_, _ string, _ string) (string, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }

@@ -41,7 +41,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
+func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
 	organizationUrl := buildURL(url, organization)
 
 	var connection *azuredevops.Connection

@@ -6,7 +6,7 @@ import (
 )
 
 // Fake implementation for testing
-func NewFakeAppsetMetrics(client ctrlclient.WithWatch) *ApplicationsetMetrics {
+func NewFakeAppsetMetrics(_ ctrlclient.WithWatch) *ApplicationsetMetrics {
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_appset_reconcile",

@@ -88,7 +88,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		delete(secret.Labels, common.LabelKeySecretType)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
@@ -125,7 +125,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
@@ -134,7 +134,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		})
 		watcher := watch.NewFakeWithChanSize(1, true)
 		watcher.Add(secret)
-		f.clientSet.AddWatchReactor("secrets", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
+		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
 

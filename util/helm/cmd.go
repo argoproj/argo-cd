@@ -120,7 +120,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)

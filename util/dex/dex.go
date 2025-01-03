@@ -45,7 +45,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: false,
 		RootCAs:            tlsConfig.RootCAs,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
 				return stderrors.New("dex server certificate does not match")
 			}

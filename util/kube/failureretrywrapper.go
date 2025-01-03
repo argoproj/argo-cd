@@ -17,7 +17,7 @@ type failureRetryRoundTripper struct {
 }
 
 // nolint:unparam
-func shouldRetry(counter int, r *http.Request, response *http.Response, err error) bool {
+func shouldRetry(counter int, _ *http.Request, response *http.Response, err error) bool {
 	if counter <= 0 {
 		return false
 	}

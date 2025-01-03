@@ -239,7 +239,7 @@ func NewApplicationController(
 				}
 			}
 		},
-		UpdateFunc: func(old, new any) {
+		UpdateFunc: func(_, new any) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
 				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := new.(metav1.Object); ok {
@@ -270,7 +270,7 @@ func NewApplicationController(
 		deploymentInformer = factory.Apps().V1().Deployments()
 	}
 
-	readinessHealthCheck := func(r *http.Request) error {
+	readinessHealthCheck := func(_ *http.Request) error {
 		if dynamicClusterDistributionEnabled {
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
@@ -587,7 +587,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
-	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
+	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, _ string) bool {
 		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {

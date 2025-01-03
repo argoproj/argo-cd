@@ -19,7 +19,7 @@ import (
 
 func TestKustomize2AppSource(t *testing.T) {
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
-		return func(app *Application) {
+		return func(_ *Application) {
 			name := "k2-patched-guestbook-ui-deploy1"
 			labelValue, err := fixture.Run(
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
@@ -186,7 +186,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 	deploymentName := "guestbook-ui"
 	deploymentReplicas := 2
 	checkReplicasFor := func(kind string) func(app *Application) {
-		return func(app *Application) {
+		return func(_ *Application) {
 			name := deploymentName
 			replicas, err := fixture.Run(
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
@@ -303,7 +303,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			kubeVersion := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
@@ -315,7 +315,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Equal(t, "v999.999.999", FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
@@ -335,7 +335,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
@@ -347,7 +347,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")

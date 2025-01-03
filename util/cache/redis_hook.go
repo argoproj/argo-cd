@@ -36,6 +36,6 @@ func (hook *argoRedisHooks) ProcessHook(next redis.ProcessHook) redis.ProcessHoo
 	}
 }
 
-func (hook *argoRedisHooks) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+func (hook *argoRedisHooks) ProcessPipelineHook(_ redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }

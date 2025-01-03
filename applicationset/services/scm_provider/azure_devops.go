@@ -57,7 +57,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
+func NewAzureDevOpsProvider(accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
 		return nil, errors.New("no access token provided")
 	}
@@ -72,7 +72,7 @@ func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string,
 	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }
 
-func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, _ string) ([]*Repository, error) {
 	gitClient, err := g.clientFactory.GetClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)

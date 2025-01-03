@@ -54,7 +54,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg list -o yaml
   		`),
 
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
@@ -133,7 +133,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg add --from /path/to/keyfile
   		`),
 
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			if fromFile == "" {

@@ -44,7 +44,7 @@ import (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestNamespacedGetLogsAllowNoSwitch(t *testing.T) {
+func TestNamespacedGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
 func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
@@ -89,7 +89,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			assert.ErrorContains(t, err, "permission denied")
 		})
@@ -142,17 +142,17 @@ func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
@@ -200,17 +200,17 @@ func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
 			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
 			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
@@ -290,7 +290,7 @@ func TestNamespacedAppCreation(t *testing.T) {
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(NamespacedEvent(AppNamespace(), EventReasonResourceCreated, "create")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
 			require.NoError(t, err)
@@ -463,7 +463,7 @@ func TestNamespacedAppLabels(t *testing.T) {
 		When().
 		CreateApp("-l", "foo=bar").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Contains(t, FailOnErr(RunCli("app", "list")), ctx.AppQualifiedName())
 			assert.Contains(t, FailOnErr(RunCli("app", "list", "-l", "foo=bar")), ctx.AppQualifiedName())
 			assert.NotContains(t, FailOnErr(RunCli("app", "list", "-l", "foo=rubbish")), ctx.AppQualifiedName())
@@ -702,7 +702,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName())).(string)
 			assert.Empty(t, diffOutput)
 		}).
@@ -716,7 +716,7 @@ metadata:
 stringData:
   username: test-username`).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput := FailOnErr(RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata/secrets")).(string)
 			assert.Empty(t, diffOutput)
 		})
@@ -733,7 +733,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Patch deployment
 			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
@@ -743,7 +743,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			require.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
@@ -756,7 +756,7 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", "testdata/guestbook")
 			require.NoError(t, err)
 			assert.Empty(t, diffOutput)
@@ -815,13 +815,13 @@ func TestNamespacedResourceDiffing(t *testing.T) {
 		When().Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
@@ -893,7 +893,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 	}
 	expect.
 		Expect(HealthIs(statusCode)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := RunCli("app", "diff", ctx.AppQualifiedName(), "--local-repo-root", ".", "--local", path.Join("testdata", appPath))
 			assert.Empty(t, diffOutput)
 			require.NoError(t, err)
@@ -970,7 +970,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "app.kubernetes.io/instance="+app.Name)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "this-label=does-not-exist")
 			assert.ErrorContains(t, err, "level=fatal")
 		})
@@ -986,7 +986,7 @@ func TestNamespacedLocalManifestSync(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
@@ -997,7 +997,7 @@ func TestNamespacedLocalManifestSync(t *testing.T) {
 		Sync("--local-repo-root", ".").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 81")
 			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.3")
@@ -1008,7 +1008,7 @@ func TestNamespacedLocalManifestSync(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			res, _ := RunCli("app", "manifests", ctx.AppQualifiedName())
 			assert.Contains(t, res, "containerPort: 80")
 			assert.Contains(t, res, "image: quay.io/argoprojlabs/argocd-e2e-container:0.2")
@@ -1853,7 +1853,7 @@ func TestNamespacedNamespaceAutoCreation(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(Success("")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
 			require.NoError(t, err)
@@ -1992,7 +1992,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(namespace, func(app *Application, ns *corev1.Namespace) {
+		Expect(Namespace(namespace, func(_ *Application, ns *corev1.Namespace) {
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Labels, "kubectl.kubernetes.io/last-applied-configuration")
@@ -2444,7 +2444,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).
