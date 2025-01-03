@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
-	"github.com/imdario/mergo"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -1564,9 +1564,7 @@ func TestUseDiffCache(t *testing.T) {
 		}
 		if a != nil {
 			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
-			if err != nil {
-				t.Fatalf("error merging app: %s", err)
-			}
+			require.NoErrorf(t, err, "error merging app")
 		}
 		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
 			// Simulate the controller's process for populating both of these fields.

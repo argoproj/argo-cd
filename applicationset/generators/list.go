@@ -29,7 +29,7 @@ func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return &appSetGenerator.List.Template
 }
 
-func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -38,11 +38,11 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		return nil, EmptyAppSetGeneratorError
 	}
 
-	res := make([]map[string]interface{}, len(appSetGenerator.List.Elements))
+	res := make([]map[string]any, len(appSetGenerator.List.Elements))
 
 	for i, tmpItem := range appSetGenerator.List.Elements {
-		params := map[string]interface{}{}
-		var element map[string]interface{}
+		params := map[string]any{}
+		var element map[string]any
 		err := json.Unmarshal(tmpItem.Raw, &element)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshling list element %w", err)
@@ -53,7 +53,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		} else {
 			for key, value := range element {
 				if key == "values" {
-					values, ok := (value).(map[string]interface{})
+					values, ok := (value).(map[string]any)
 					if !ok {
 						return nil, errors.New("error parsing values map")
 					}
@@ -78,7 +78,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 
 	// Append elements from ElementsYaml to the response
 	if len(appSetGenerator.List.ElementsYaml) > 0 {
-		var yamlElements []map[string]interface{}
+		var yamlElements []map[string]any
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {
 			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %w", err)

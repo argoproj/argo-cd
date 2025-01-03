@@ -22,8 +22,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -154,7 +154,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	if user == "" {
 		user = "Unknown user"
 	}
-	logCtx := log.WithFields(map[string]interface{}{
+	logCtx := log.WithFields(map[string]any{
 		"user":        user,
 		"application": name,
 		"namespace":   namespace,
@@ -163,7 +163,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		// The user has provided everything we need to perform an initial RBAC check.
 		givenRBACName := security.RBACName(s.ns, project, namespace, name)
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, givenRBACName); err != nil {
-			logCtx.WithFields(map[string]interface{}{
+			logCtx.WithFields(map[string]any{
 				"project":                project,
 				argocommon.SecurityField: argocommon.SecurityMedium,
 			}).Warnf("user tried to %s application which they do not have access to: %s", action, err)
@@ -176,10 +176,10 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	}
 	a, err := getApp()
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			if project != "" {
 				// We know that the user was allowed to get the Application, but the Application does not exist. Return 404.
-				return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+				return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 			}
 			// We don't know if the user was allowed to get the Application, and we don't want to leak information about
 			// the Application's existence. Return 403.
@@ -193,7 +193,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	// perform a second RBAC check to ensure that the user has access to the actual Application's project (not just the
 	// project they specified in the request).
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, a.RBACName(s.ns)); err != nil {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("user tried to %s application which they do not have access to: %s", action, err)
@@ -201,7 +201,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 			// The user specified a project. We would have returned a 404 if the user had access to the app, but the app
 			// did not exist. So we have to return a 404 when the app does exist, but the user does not have access.
 			// Otherwise, they could infer that the app exists based on the error code.
-			return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+			return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 		}
 		// The user didn't specify a project. We always return permission denied for both lack of access and lack of
 		// existence.
@@ -212,13 +212,13 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		effectiveProject = a.Spec.Project
 	}
 	if project != "" && effectiveProject != project {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("user tried to %s application in project %s, but the application is in project %s", action, project, effectiveProject)
 		// The user has access to the app, but the app is in a different project. Return 404, meaning "app doesn't
 		// exist in that project".
-		return nil, nil, status.Error(codes.NotFound, apierr.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
+		return nil, nil, status.Error(codes.NotFound, apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, name).Error())
 	}
 	// Get the app's associated project, and make sure all project restrictions are enforced.
 	proj, err := s.getAppProject(ctx, a, logCtx)
@@ -357,7 +357,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 		s.waitSync(created)
 		return created, nil
 	}
-	if !apierr.IsAlreadyExists(err) {
+	if !apierrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("error creating application: %w", err)
 	}
 
@@ -811,7 +811,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*v1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
@@ -949,7 +949,7 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 			s.waitSync(res)
 			return res, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, err
 		}
 
@@ -1055,13 +1055,13 @@ func (s *Server) getAppProject(ctx context.Context, a *appv1.Application, logCtx
 	// If there's a permission issue or the app doesn't exist, return a vague error to avoid letting the user enumerate project names.
 	vagueError := status.Errorf(codes.InvalidArgument, "app is not allowed in project %q, or the project does not exist", a.Spec.Project)
 
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		return nil, vagueError
 	}
 
 	var applicationNotAllowedToUseProjectErr *appv1.ErrApplicationNotAllowedToUseProject
 	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("error getting app project: %s", err)
@@ -1111,8 +1111,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		// Although the cascaded deletion/propagation policy finalizer is not set when apps are created via
 		// API, they will often be set by the user as part of declarative config. As part of a delete
 		// request, we always calculate the patch to see if we need to set/unset the finalizer.
-		patch, err := json.Marshal(map[string]interface{}{
-			"metadata": map[string]interface{}{
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
 				"finalizers": a.Finalizers,
 			},
 		})
@@ -1247,7 +1247,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	appNs := s.appNamespaceOrDefault(app.Namespace)
 	currApp, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return fmt.Errorf("error getting application by name: %w", err)
 		}
 		// Kubernetes go-client will return a pointer to a zero-value app instead of nil, even
@@ -1762,7 +1762,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	var streams []chan logEntry
 
 	for _, pod := range pods {
-		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &v1.PodLogOptions{
+		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
 			Container:    q.GetContainer(),
 			Follow:       q.GetFollow(),
 			Timestamps:   true,
@@ -2160,7 +2160,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
 			"destination": app.Spec.Destination,
@@ -2177,7 +2177,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
 			"destination": app.Spec.Destination,
@@ -2311,7 +2311,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error updating application: %w", err)
 		}
 		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
@@ -2325,7 +2325,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 }
 
 func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -2336,7 +2336,7 @@ func (s *Server) logAppEvent(a *appv1.Application, ctx context.Context, reason s
 }
 
 func (s *Server) logResourceEvent(res *appv1.ResourceNode, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -2548,7 +2548,7 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	if statusPatch != nil {
 		_, err = s.kubectl.PatchResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), types.MergePatchType, diffBytes, "status")
 		if err != nil {
-			if !apierr.IsNotFound(err) {
+			if !apierrors.IsNotFound(err) {
 				return nil, fmt.Errorf("error patching resource: %w", err)
 			}
 			// K8s API server returns 404 NotFound when the CRD does not support the status subresource
@@ -2597,7 +2597,7 @@ func (s *Server) createResource(ctx context.Context, config *rest.Config, newObj
 // splitStatusPatch splits a patch into two: one for a non-status patch, and the status-only patch.
 // Returns nil for either if the patch doesn't have modifications to non-status, or status, respectively.
 func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
-	var obj map[string]interface{}
+	var obj map[string]any
 	err := json.Unmarshal(patch, &obj)
 	if err != nil {
 		return nil, nil, err
@@ -2605,7 +2605,7 @@ func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
 	var nonStatusPatch, statusPatch []byte
 	if statusVal, ok := obj["status"]; ok {
 		// calculate the status-only patch
-		statusObj := map[string]interface{}{
+		statusObj := map[string]any{
 			"status": statusVal,
 		}
 		statusPatch, err = json.Marshal(statusObj)
