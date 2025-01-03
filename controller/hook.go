@@ -41,7 +41,7 @@ func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 	return false
 }
 
-func (ctrl *ApplicationController) executePostDeleteHooks(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, proj *v1alpha1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Application, proj *v1alpha1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(destCluster *v1alpha1.
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(destCluster, app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
 	if err != nil {
 		return false, err
 	}

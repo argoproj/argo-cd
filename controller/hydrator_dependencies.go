@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-
 	"github.com/argoproj/argo-cd/v2/controller/hydrator"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -41,13 +39,8 @@ func (ctrl *ApplicationController) GetRepoObjs(app *appv1.Application, source ap
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
-	destCluster, err := argoutil.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get destination cluster: %w", err)
-	}
-
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(destCluster, app, sources, appLabelKey, revisions, true, true, false, project, false, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, appLabelKey, revisions, true, true, false, project, false, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}

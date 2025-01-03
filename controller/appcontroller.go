@@ -1257,7 +1257,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(destCluster, app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1410,11 +1410,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
-	if destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
+	// Call GetDestinationCluster to validate the destination cluster.
+	if _, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
 		state.Phase = synccommon.OperationFailed
 		state.Message = err.Error()
 	} else {
-		ctrl.appStateManager.SyncAppState(destCluster, app, state)
+		ctrl.appStateManager.SyncAppState(app, state)
 	}
 	ts.AddCheckpoint("validate_and_sync_app_state_ms")
 
@@ -1712,9 +1713,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	compareResult, err := ctrl.appStateManager.CompareAppState(destCluster, app, project, revisions, sources,
-		refreshType == appv1.RefreshTypeHard,
-		comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, false)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources, false)
 
 	ts.AddCheckpoint("compare_app_state_ms")
 

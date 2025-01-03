@@ -69,9 +69,9 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
-	SyncAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error)
+	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -125,7 +125,7 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, rollback, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
@@ -165,6 +165,11 @@ func (m *appStateManager) GetRepoObjs(destCluster *v1alpha1.Cluster, app *v1alph
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
+	}
+
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get destination cluster: %w", err)
 	}
 
 	ts.AddCheckpoint("build_options_ms")
@@ -470,7 +475,7 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool, rollback bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
 	appLabelKey, resourceOverrides, resFilter, installationID, err := m.getComparisonSettings()
 
@@ -510,6 +515,11 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	if err != nil {
+		return nil, err
+	}
+
 	logCtx := log.WithField("application", app.QualifiedName())
 	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
 
@@ -531,7 +541,7 @@ func (m *appStateManager) CompareAppState(destCluster *v1alpha1.Cluster, app *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(destCluster, app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
+		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
