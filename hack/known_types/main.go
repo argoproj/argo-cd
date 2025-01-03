@@ -65,7 +65,7 @@ func newCommand() *cobra.Command {
 
 				docs = append(docs, fmt.Sprintf("%s/%s", shortPackagePath, typeName.Name()))
 				mapItems = append(mapItems, fmt.Sprintf(`
-	knownTypes["%s/%s"] = func() interface{} {
+	knownTypes["%s/%s"] = func() any {
 		return &%s.%s{}
 	}`, shortPackagePath, typeName.Name(), alias, typeName.Name()))
 			}

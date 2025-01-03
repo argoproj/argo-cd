@@ -64,7 +64,7 @@ func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Confi
 }
 
 func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
-	paged := map[string]interface{}{
+	paged := map[string]any{
 		"limit": 100,
 	}
 

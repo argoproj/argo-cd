@@ -159,7 +159,7 @@ func (r *reconcileResults) getAppsMap() map[string]appReconcileResult {
 	return res
 }
 
-func printLine(format string, a ...interface{}) {
+func printLine(format string, a ...any) {
 	_, _ = fmt.Printf(format+"\n", a...)
 }
 
@@ -186,12 +186,12 @@ func NewDiffReconcileResults() *cobra.Command {
 	return command
 }
 
-func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
+func toUnstructured(val any) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(val)
 	if err != nil {
 		return nil, fmt.Errorf("error while marhsalling value: %w", err)
 	}
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		return nil, fmt.Errorf("error while unmarhsalling data: %w", err)
@@ -384,7 +384,7 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
+	server, err := metrics.NewMetricsServer("", appLister, func(obj any) bool {
 		return true
 	}, func(r *http.Request) error {
 		return nil

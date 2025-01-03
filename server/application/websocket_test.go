@@ -16,7 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,7 +130,7 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 			return true
 		})
 		ts := newTestTerminalSession(w, r)
@@ -150,7 +150,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:test")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 			return false
 		})
 		ts := newTestTerminalSession(w, r)

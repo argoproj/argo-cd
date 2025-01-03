@@ -541,7 +541,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				"source": q.ApplicationSource,
 			}).Debugf("not generating manifests as path and chart fields are empty")
 			res = &apiclient.ManifestResponse{
@@ -2519,7 +2519,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	revisionPresent := gitClient.IsRevisionPresent(revision)
 
-	log.WithFields(map[string]interface{}{
+	log.WithFields(map[string]any{
 		"skipFetch": revisionPresent,
 	}).Debugf("Checking out revision %v", revision)
 
