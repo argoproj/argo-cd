@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -249,4 +250,44 @@ return hs`,
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	})
+}
+
+func TestSetApplicationHealth_CRDHealthCheck(t *testing.T) {
+	crd := resourceFromFile("./testdata/customresourcedefinition.yaml")
+
+	// Simulate a CRD with NonStructuralSchema condition
+	crdConditions := []map[string]interface{}{
+		{
+			"type":    "NonStructuralSchema",
+			"status":  "True",
+			"reason":  "Violations",
+			"message": "CRD has non-structural schema issues", // Ensure the message matches what you expect
+		},
+	}
+	// Convert []map[string]interface{} to []interface{}
+	conditionsInterface := make([]interface{}, len(crdConditions))
+	for i, condition := range crdConditions {
+		conditionsInterface[i] = condition
+	}
+
+	// Set the conditions in the CRD's status field
+	err := unstructured.SetNestedSlice(crd.Object, conditionsInterface, "status", "conditions")
+	require.NoError(t, err)
+
+	resources := []managedResource{{
+		Group: "apiextensions.k8s.io", Version: "v1", Kind: "CustomResourceDefinition", Live: &crd,
+	}}
+	resourceStatuses := initStatuses(resources)
+
+	// Test the health check for CRDs
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+
+	// Debug log to inspect resource statuses
+	log.Infof("Overall health status: %+v", healthStatus)
+	log.Infof("Resource statuses after health check: %+v", resourceStatuses)
+
+	require.NotNil(t, resourceStatuses[0].Health, "Health should not be nil")
+	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[0].Health.Status)
+	assert.Equal(t, "CRD has non-structural schema issues", resourceStatuses[0].Health.Message)
 }
