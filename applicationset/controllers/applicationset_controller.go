@@ -553,12 +553,13 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
-	ownsHandler := getOwnsHandlerPredicates(enableProgressiveSyncs)
+	appOwnsHandler := getApplicationOwnsHandler(enableProgressiveSyncs)
+	appSetOwnsHandler := getApplicationSetOwnsHandler()
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
-		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(appSetOwnsHandler)).
+		Owns(&argov1alpha1.Application{}, builder.WithPredicates(appOwnsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
 		Watches(
 			&corev1.Secret{},
@@ -566,7 +567,6 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 				Client: mgr.GetClient(),
 				Log:    log.WithField("type", "createSecretEventHandler"),
 			}).
-		// TODO: also watch Applications and respond on changes if we own them.
 		Complete(r)
 }
 
@@ -1467,7 +1467,7 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 	return application
 }
 
-func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
+func getApplicationOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// if we are the owner and there is a create event, we most likely created it and do not need to
@@ -1504,8 +1504,8 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 			if !isApp {
 				return false
 			}
-			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
-			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s", requeue, appNew.Name)
+			requeue := shouldRequeueForApplication(appOld, appNew, enableProgressiveSyncs)
+			logCtx.WithField("requeue", requeue).Debugf("requeue caused by application %s", appNew.Name)
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
@@ -1522,13 +1522,13 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 	}
 }
 
-// shouldRequeueApplicationSet determines when we want to requeue an ApplicationSet for reconciling based on an owned
+// shouldRequeueForApplication determines when we want to requeue an ApplicationSet for reconciling based on an owned
 // application change
 // The applicationset controller owns a subset of the Application CR.
 // We do not need to re-reconcile if parts of the application change outside the applicationset's control.
 // An example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
 // Additionally, Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation which are set by K8s.
-func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov1alpha1.Application, enableProgressiveSyncs bool) bool {
+func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov1alpha1.Application, enableProgressiveSyncs bool) bool {
 	if appOld == nil || appNew == nil {
 		return false
 	}
@@ -1558,6 +1558,76 @@ func shouldRequeueApplicationSet(appOld *argov1alpha1.Application, appNew *argov
 		}
 	}
 
+	return false
+}
+
+func getApplicationSetOwnsHandler() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			if log.IsLevelEnabled(log.DebugLevel) {
+				var appSetName string
+				appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
+				if isApp {
+					appSetName = appSet.QualifiedName()
+				}
+				log.WithField("applicationset", appSetName).Debugln("received create event")
+			}
+			// Always queue a new applicationset
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			if log.IsLevelEnabled(log.DebugLevel) {
+				var appSetName string
+				appSet, isAppSet := e.Object.(*argov1alpha1.ApplicationSet)
+				if isAppSet {
+					appSetName = appSet.QualifiedName()
+				}
+				log.WithField("applicationset", appSetName).Debugln("received delete event")
+			}
+			// Always queue for the deletion of an applicationset
+			return true
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			appSetOld, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			appSetNew, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			requeue := shouldRequeueForApplicationSet(appSetOld, appSetNew)
+			log.WithField("applicationset", appSetNew.QualifiedName()).
+				WithField("requeue", requeue).Debugln("received update event")
+			return requeue
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			if log.IsLevelEnabled(log.DebugLevel) {
+				var appSetName string
+				appSet, isAppSet := e.Object.(*argov1alpha1.ApplicationSet)
+				if isAppSet {
+					appSetName = appSet.QualifiedName()
+				}
+				log.WithField("applicationset", appSetName).Debugln("received generic event")
+			}
+			return true
+		},
+	}
+}
+
+// shouldRequeueForApplicationSet determines when we need to requeue an applicationset
+func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.ApplicationSet) bool {
+	// only compare the applicationset spec, annotations, labels and finalizes specifically avoiding
+	// the status field. status is owned by the applicationset controller,
+	// and we do not need to requeue when it does bookkeeping
+	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
+	// in the ApplicationSetTemplate from the generators
+	if !cmp.Equal(appSetOld.Spec, appSetNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
+		!cmp.Equal(appSetOld.ObjectMeta.GetAnnotations(), appSetNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appSetOld.ObjectMeta.GetLabels(), appSetNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appSetOld.ObjectMeta.GetFinalizers(), appSetNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+		return true
+	}
 	return false
 }
 
