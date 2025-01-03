@@ -297,7 +297,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, nil)
 	expected := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			Version: "v1",
@@ -322,6 +322,246 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreatedAt:       nil,
 	}
 	assert.Equal(t, expected, resNode)
+}
+
+func Test_asResourceNodeInferParents(t *testing.T) {
+	type testCase struct {
+		name              string
+		clusterCacheSetup func(*mocks.ClusterCache)
+		childResource     *cache.Resource
+		expected          appv1.ResourceNode
+	}
+
+	tests := []testCase{
+		{
+			name: "inferred parent with namespace",
+			clusterCacheSetup: func(clusterCache *mocks.ClusterCache) {
+				parentKey := kube.NewResourceKey("custom-api.example.org/v1alpha1", "Parent", "parentns", "parent-resource")
+				parentResource := &cache.Resource{
+					Ref: v1.ObjectReference{
+						APIVersion: "custom-api.example.org/v1alpha1",
+						Kind:       "Parent",
+						Name:       "parent-resource",
+						Namespace:  "parentns",
+					},
+					Resource: &unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name":      "parent-resource",
+								"namespace": "parentns",
+							},
+						},
+					},
+				}
+				clusterCache.On("FindResources", "parentns", mock.Anything).Return(map[kube.ResourceKey]*cache.Resource{
+					parentKey: parentResource,
+				})
+			},
+			childResource: &cache.Resource{
+				Ref: v1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Child",
+					Name:       "child-resource",
+					Namespace:  "",
+				},
+				Resource: &unstructured.Unstructured{
+					Object: map[string]any{
+						"metadata": map[string]any{
+							"annotations": map[string]any{
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
+								"argocd.argoproj.io/parentNamespace":  "parentns",
+							},
+						},
+					},
+				},
+			},
+			expected: appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Name:    "child-resource",
+					Version: "v1",
+					Kind:    "Child",
+				},
+				ParentRefs: []appv1.ResourceRef{
+					{
+						Group:     "custom-api.example.org",
+						Kind:      "Parent",
+						Name:      "parent-resource",
+						Namespace: "parentns",
+					},
+				},
+			},
+		},
+		{
+			name: "inferred parent without namespace",
+			clusterCacheSetup: func(clusterCache *mocks.ClusterCache) {
+				parentKey := kube.NewResourceKey("custom-api.example.org/v1alpha1", "Parent", "", "parent-resource")
+				parentResource := &cache.Resource{
+					Ref: v1.ObjectReference{
+						APIVersion: "custom-api.example.org/v1alpha1",
+						Kind:       "Parent",
+						Name:       "parent-resource",
+						Namespace:  "",
+					},
+					Resource: &unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name":      "parent-resource",
+								"namespace": "",
+							},
+						},
+					},
+				}
+				clusterCache.On("FindResources", "", mock.Anything).Return(map[kube.ResourceKey]*cache.Resource{
+					parentKey: parentResource,
+				})
+			},
+			childResource: &cache.Resource{
+				Ref: v1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Child",
+					Name:       "child-resource",
+					Namespace:  "",
+				},
+				Resource: &unstructured.Unstructured{
+					Object: map[string]any{
+						"metadata": map[string]any{
+							"annotations": map[string]any{
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
+							},
+						},
+					},
+				},
+			},
+			expected: appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Name:      "child-resource",
+					Version:   "v1",
+					Kind:      "Child",
+					Namespace: "",
+				},
+				ParentRefs: []appv1.ResourceRef{
+					{
+						Group:     "custom-api.example.org",
+						Kind:      "Parent",
+						Name:      "parent-resource",
+						Namespace: "",
+					},
+				},
+			},
+		},
+		{
+			name: "inferred parent different namespace",
+			clusterCacheSetup: func(clusterCache *mocks.ClusterCache) {
+				parentKey := kube.NewResourceKey("custom-api.example.org/v1alpha1", "Parent", "parentns", "parent-resource")
+				parentResource := &cache.Resource{
+					Ref: v1.ObjectReference{
+						APIVersion: "custom-api.example.org/v1alpha1",
+						Kind:       "Parent",
+						Name:       "parent-resource",
+						Namespace:  "parentns",
+					},
+					Resource: &unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name":      "parent-resource",
+								"namespace": "parentns",
+							},
+						},
+					},
+				}
+				clusterCache.On("FindResources", "", mock.Anything).Return(map[kube.ResourceKey]*cache.Resource{
+					parentKey: parentResource,
+				})
+			},
+			childResource: &cache.Resource{
+				Ref: v1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Child",
+					Name:       "child-resource",
+					Namespace:  "childns",
+				},
+				Resource: &unstructured.Unstructured{
+					Object: map[string]any{
+						"metadata": map[string]any{
+							"annotations": map[string]any{
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
+							},
+						},
+					},
+				},
+			},
+			expected: appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Name:      "child-resource",
+					Version:   "v1",
+					Kind:      "Child",
+					Namespace: "childns",
+				},
+				ParentRefs: []appv1.ResourceRef{
+					{
+						Group:     "custom-api.example.org",
+						Kind:      "Parent",
+						Name:      "parent-resource",
+						Namespace: "parentns",
+					},
+				},
+			},
+		},
+		{
+			name: "nonexistent parent",
+			clusterCacheSetup: func(clusterCache *mocks.ClusterCache) {
+				clusterCache.On("FindResources", "orphans", mock.Anything).Return(map[kube.ResourceKey]*cache.Resource{})
+			},
+			childResource: &cache.Resource{
+				Ref: v1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					Name:       "orphan-pod",
+					Namespace:  "orphans",
+				},
+				Resource: &unstructured.Unstructured{
+					Object: map[string]any{
+						"metadata": map[string]any{
+							"annotations": map[string]any{
+								"argocd.argoproj.io/parentName":       "missing-deploy",
+								"argocd.argoproj.io/parentKind":       "Deployment",
+								"argocd.argoproj.io/parentApiVersion": "apps/v1",
+								"argocd.argoproj.io/parentNamespace":  "orphans",
+							},
+						},
+					},
+				},
+			},
+			expected: appv1.ResourceNode{
+				ResourceRef: appv1.ResourceRef{
+					Name:      "orphan-pod",
+					Version:   "v1",
+					Kind:      "Pod",
+					Namespace: "orphans",
+				},
+				ParentRefs: []appv1.ResourceRef{},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clusterCache := &mocks.ClusterCache{}
+			tc.clusterCacheSetup(clusterCache)
+
+			parent := extractParent(clusterCache, tc.childResource)
+			resNode := asResourceNode(tc.childResource, parent)
+
+			assert.Equal(t, tc.expected, resNode)
+			clusterCache.AssertExpectations(t)
+		})
+	}
 }
 
 func Test_getAppRecursive(t *testing.T) {
