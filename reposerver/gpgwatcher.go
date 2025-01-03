@@ -47,7 +47,7 @@ func StartGPGWatcher(sourcePath string) error {
 							if err != nil {
 								log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
 								if attempt < maxRecreateRetries {
-									attempt += 1
+									attempt++
 									log.Infof("Retrying to re-create watcher, attempt %d of %d", attempt, maxRecreateRetries)
 									time.Sleep(1 * time.Second)
 									continue

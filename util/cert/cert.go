@@ -159,7 +159,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 	// TODO: Implement error heuristics
 
 	for scanner.Scan() {
-		curLine += 1
+		curLine++
 		if !inCertData {
 			if strings.HasPrefix(scanner.Text(), CertificateBeginMarker) {
 				certLine = 1
@@ -167,7 +167,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 				pemData += scanner.Text() + "\n"
 			}
 		} else {
-			certLine += 1
+			certLine++
 			pemData += scanner.Text() + "\n"
 			if strings.HasPrefix(scanner.Text(), CertificateEndMarker) {
 				inCertData = false
@@ -215,10 +215,10 @@ func ParseSSHKnownHostsFromStream(stream io.Reader) ([]string, error) {
 	numEntries := 0
 
 	for scanner.Scan() {
-		curLine += 1
+		curLine++
 		lineData := scanner.Text()
 		if IsValidSSHKnownHostsEntry(lineData) {
-			numEntries += 1
+			numEntries++
 			knownHostsLists = append(knownHostsLists, lineData)
 		}
 	}
