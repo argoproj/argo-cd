@@ -38,7 +38,7 @@ func TestClientDo(t *testing.T) {
 		content         []byte
 		fakeServer      *httptest.Server
 		clientOptionFns []ClientOptionFunc
-		expected        []map[string]interface{}
+		expected        []map[string]any
 		expectedCode    int
 		expectedError   error
 	}{
@@ -65,12 +65,12 @@ func TestClientDo(t *testing.T) {
 				}
 			})),
 			clientOptionFns: nil,
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1": "val1",
-					"key2": map[string]interface{}{
+					"key2": map[string]any{
 						"key2_1": "val2_1",
-						"key2_2": map[string]interface{}{
+						"key2_2": map[string]any{
 							"key2_2_1": "val2_2_1",
 						},
 					},
@@ -108,7 +108,7 @@ func TestClientDo(t *testing.T) {
 				}
 			})),
 			clientOptionFns: nil,
-			expected:        []map[string]interface{}(nil),
+			expected:        []map[string]any(nil),
 			expectedCode:    http.StatusUnauthorized,
 			expectedError:   errors.New("API error with status code 401: "),
 		},
@@ -123,7 +123,7 @@ func TestClientDo(t *testing.T) {
 			req, err := client.NewRequest("POST", "", cc.params, nil)
 			require.NoError(t, err, "NewRequest returned unexpected error")
 
-			var data []map[string]interface{}
+			var data []map[string]any
 
 			resp, err := client.Do(ctx, req, &data)
 

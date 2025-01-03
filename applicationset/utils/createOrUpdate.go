@@ -115,7 +115,7 @@ func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Applicati
 		logCtx.Errorf("failed to generate patch: %v", err)
 	}
 	// Get the patch as a plain object so it is easier to work with in json logs.
-	var patchObj map[string]interface{}
+	var patchObj map[string]any
 	err = json.Unmarshal(patchBytes, &patchObj)
 	if err != nil {
 		logCtx.Errorf("failed to unmarshal patch: %v", err)

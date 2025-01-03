@@ -1115,7 +1115,7 @@ func AddTag(name string) {
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values interface{}) (string, error) {
+func Declarative(filename string, values any) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 

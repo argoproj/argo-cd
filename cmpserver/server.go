@@ -35,7 +35,7 @@ type ArgoCDCMPServer struct {
 	opts          []grpc.ServerOption
 	initConstants plugin.CMPServerInitConstants
 	stopCh        chan os.Signal
-	doneCh        chan interface{}
+	doneCh        chan any
 	sig           os.Signal
 }
 
@@ -75,7 +75,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		log:           serverLog,
 		opts:          serverOpts,
 		stopCh:        make(chan os.Signal),
-		doneCh:        make(chan interface{}),
+		doneCh:        make(chan any),
 		initConstants: initConstants,
 	}, nil
 }

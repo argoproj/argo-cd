@@ -233,7 +233,7 @@ func NewApplicationController(
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
 	var err error
 	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
+		AddFunc: func(obj any) {
 			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
 				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := obj.(metav1.Object); ok {
@@ -241,7 +241,7 @@ func NewApplicationController(
 				}
 			}
 		},
-		UpdateFunc: func(old, new interface{}) {
+		UpdateFunc: func(old, new any) {
 			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
 				ctrl.projectRefreshQueue.AddRateLimited(key)
 				if projMeta, ok := new.(metav1.Object); ok {
@@ -249,7 +249,7 @@ func NewApplicationController(
 				}
 			}
 		},
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
 				// immediately push to queue for deletes
 				ctrl.projectRefreshQueue.Add(key)
@@ -326,7 +326,7 @@ func (ctrl *ApplicationController) InvalidateProjectsCache(names ...string) {
 			ctrl.projByNameCache.Delete(name)
 		}
 	} else if ctrl != nil {
-		ctrl.projByNameCache.Range(func(key, _ interface{}) bool {
+		ctrl.projByNameCache.Range(func(key, _ any) bool {
 			ctrl.projByNameCache.Delete(key)
 			return true
 		})
@@ -1123,8 +1123,8 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
 	proj.RemoveFinalizer()
 	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patch, _ = json.Marshal(map[string]any{
+		"metadata": map[string]any{
 			"finalizers": proj.Finalizers,
 		},
 	})
@@ -1323,8 +1323,8 @@ func (ctrl *ApplicationController) updateFinalizers(app *appv1.Application) erro
 	}
 
 	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patch, _ = json.Marshal(map[string]any{
+		"metadata": map[string]any{
 			"finalizers": app.Finalizers,
 		},
 	})
@@ -1345,8 +1345,8 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 	app.Status.SetConditions([]appv1.ApplicationCondition{condition}, map[appv1.ApplicationConditionType]bool{condition.Type: true})
 
 	var patch []byte
-	patch, err := json.Marshal(map[string]interface{}{
-		"status": map[string]interface{}{
+	patch, err := json.Marshal(map[string]any{
+		"status": map[string]any{
 			"conditions": app.Status.Conditions,
 		},
 	})
@@ -1504,8 +1504,8 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]interface{}{
-		"status": map[string]interface{}{
+	patch := map[string]any{
+		"status": map[string]any{
 			"operationState": state,
 		},
 	}
@@ -1975,7 +1975,7 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	}
 }
 
-func createMergePatch(orig, new interface{}) ([]byte, bool, error) {
+func createMergePatch(orig, new any) ([]byte, bool, error) {
 	origBytes, err := json.Marshal(orig)
 	if err != nil {
 		return nil, false, err
@@ -2255,7 +2255,7 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
-func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {
+func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
 		return false
@@ -2324,7 +2324,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		&appv1.Application{},
 		refreshTimeout,
 		cache.Indexers{
-			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+			cache.NamespaceIndex: func(obj any) ([]string, error) {
 				app, ok := obj.(*appv1.Application)
 				if ok {
 					// We only generally work with applications that are in one
@@ -2350,7 +2350,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				return cache.MetaNamespaceIndexFunc(obj)
 			},
-			orphanedIndex: func(obj interface{}) (i []string, e error) {
+			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
 					return nil, nil
@@ -2374,7 +2374,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
 	_, err := informer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
 					return
 				}
@@ -2387,7 +2387,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.clusterSharding.AddApp(newApp)
 				}
 			},
-			UpdateFunc: func(old, new interface{}) {
+			UpdateFunc: func(old, new any) {
 				if !ctrl.canProcessApp(new) {
 					return
 				}
@@ -2423,7 +2423,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
-			DeleteFunc: func(obj interface{}) {
+			DeleteFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
 					return
 				}

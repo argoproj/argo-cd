@@ -508,19 +508,19 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.Len(t, patchedTargets, 1)
 
 		// live should have 1 entry
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
 
 		// target has 2 entries
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
+		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
 		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
+		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
 
 		// It should be *1* entries in the array
-		require.Len(t, dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Len(t, dig[[]any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
 		// and it should NOT equal an empty object
-		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
+		require.Len(t, dig[any](patchedTargets[0].Object, []any{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -548,10 +548,10 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.True(t, ok)
 		assert.Len(t, containers, 1)
 
-		ports := containers[0].(map[string]interface{})["ports"].([]interface{})
+		ports := containers[0].(map[string]any)["ports"].([]any)
 		assert.Len(t, ports, 1)
 
-		env := containers[0].(map[string]interface{})["env"].([]interface{})
+		env := containers[0].(map[string]any)["env"].([]any)
 		assert.Len(t, env, 3)
 
 		first := env[0]
@@ -559,14 +559,14 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		third := env[2]
 
 		// Currently the defined order at this time is the insertion order of the target manifest.
-		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]interface{})["name"])
-		assert.Equal(t, "some_value", first.(map[string]interface{})["value"])
+		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]any)["name"])
+		assert.Equal(t, "some_value", first.(map[string]any)["value"])
 
-		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]interface{})["name"])
-		assert.Equal(t, "some_other_value", second.(map[string]interface{})["value"])
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]any)["name"])
+		assert.Equal(t, "some_other_value", second.(map[string]any)["value"])
 
-		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]interface{})["name"])
-		assert.Equal(t, "yet_another_value", third.(map[string]interface{})["value"])
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]any)["name"])
+		assert.Equal(t, "yet_another_value", third.(map[string]any)["value"])
 	})
 
 	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
@@ -598,7 +598,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
 		require.NoError(t, err)
 		require.True(t, ok)
-		labels, ok := metadata["labels"].(map[string]interface{})
+		labels, ok := metadata["labels"].(map[string]any)
 		require.True(t, ok)
 		assert.Len(t, labels, 2)
 		assert.Equal(t, "web", labels["appProcess"])
@@ -609,29 +609,29 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 
 		assert.Equal(t, int64(1), spec["replicas"])
 
-		template, ok := spec["template"].(map[string]interface{})
+		template, ok := spec["template"].(map[string]any)
 		require.True(t, ok)
 
-		tMetadata, ok := template["metadata"].(map[string]interface{})
+		tMetadata, ok := template["metadata"].(map[string]any)
 		require.True(t, ok)
-		tLabels, ok := tMetadata["labels"].(map[string]interface{})
+		tLabels, ok := tMetadata["labels"].(map[string]any)
 		require.True(t, ok)
 		assert.Len(t, tLabels, 2)
 		assert.Equal(t, "web", tLabels["appProcess"])
 
-		tSpec, ok := template["spec"].(map[string]interface{})
+		tSpec, ok := template["spec"].(map[string]any)
 		require.True(t, ok)
 		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Len(t, containers, 1)
 
-		first := containers[0].(map[string]interface{})
+		first := containers[0].(map[string]any)
 		assert.Equal(t, "alpine:3", first["image"])
 
-		resources, ok := first["resources"].(map[string]interface{})
+		resources, ok := first["resources"].(map[string]any)
 		require.True(t, ok)
-		requests, ok := resources["requests"].(map[string]interface{})
+		requests, ok := resources["requests"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "400m", requests["cpu"])
 
@@ -640,7 +640,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.True(t, ok)
 		assert.Len(t, env, 1)
 
-		env0 := env[0].(map[string]interface{})
+		env0 := env[0].(map[string]any)
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
 	})
@@ -1411,15 +1411,15 @@ func TestSyncWithImpersonate(t *testing.T) {
 	})
 }
 
-func dig[T any](obj interface{}, path []interface{}) T {
+func dig[T any](obj any, path []any) T {
 	i := obj
 
 	for _, segment := range path {
 		switch segment.(type) {
 		case int:
-			i = i.([]interface{})[segment.(int)]
+			i = i.([]any)[segment.(int)]
 		case string:
-			i = i.(map[string]interface{})[segment.(string)]
+			i = i.(map[string]any)[segment.(string)]
 		default:
 			panic("invalid path for object")
 		}

@@ -56,7 +56,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -113,11 +113,11 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 	return pluginClient, nil
 }
 
-func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]interface{}, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]interface{}, error) {
-	res := []map[string]interface{}{}
+func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]any, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]any, error) {
+	res := []map[string]any{}
 
 	for _, objectFound := range objectsFound {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		if useGoTemplate {
 			for k, v := range objectFound {
@@ -133,7 +133,7 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 			}
 		}
 
-		params["generator"] = map[string]interface{}{
+		params["generator"] = map[string]any{
 			"input": map[string]argoprojiov1alpha1.PluginParameters{
 				"parameters": pluginParams,
 			},

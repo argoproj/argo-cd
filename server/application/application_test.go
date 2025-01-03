@@ -17,7 +17,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -95,9 +95,9 @@ func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters
 	return func() {}
 }
 
-func (broadcasterMock) OnAdd(interface{}, bool)           {}
-func (broadcasterMock) OnUpdate(interface{}, interface{}) {}
-func (broadcasterMock) OnDelete(interface{})              {}
+func (broadcasterMock) OnAdd(any, bool)   {}
+func (broadcasterMock) OnUpdate(any, any) {}
+func (broadcasterMock) OnDelete(any)      {}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -585,11 +585,11 @@ func (t *TestServerStream) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestServerStream) SendMsg(m interface{}) error {
+func (t *TestServerStream) SendMsg(m any) error {
 	return nil
 }
 
-func (t *TestServerStream) RecvMsg(m interface{}) error {
+func (t *TestServerStream) RecvMsg(m any) error {
 	return nil
 }
 
@@ -637,11 +637,11 @@ func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestResourceTreeServer) SendMsg(m interface{}) error {
+func (t *TestResourceTreeServer) SendMsg(m any) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) RecvMsg(m interface{}) error {
+func (t *TestResourceTreeServer) RecvMsg(m any) error {
 	return nil
 }
 
@@ -667,11 +667,11 @@ func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestPodLogsServer) SendMsg(m interface{}) error {
+func (t *TestPodLogsServer) SendMsg(m any) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) RecvMsg(m interface{}) error {
+func (t *TestPodLogsServer) RecvMsg(m any) error {
 	return nil
 }
 

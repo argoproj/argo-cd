@@ -332,7 +332,7 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 
 // RbacEnforcer defines the contract to enforce rbac rules
 type RbacEnforcer interface {
-	EnforceErr(rvals ...interface{}) error
+	EnforceErr(rvals ...any) error
 }
 
 // Manager is the object that will be responsible for registering
@@ -416,7 +416,7 @@ func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, erro
 
 	configs := ExtensionConfigs{}
 	for extName, extConfig := range s.ExtensionConfig {
-		extConfigMap := map[string]interface{}{}
+		extConfigMap := map[string]any{}
 		err := yaml.Unmarshal([]byte(extConfig), &extConfigMap)
 		if err != nil {
 			return nil, fmt.Errorf("invalid extension config: %w", err)

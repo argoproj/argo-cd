@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,7 +115,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	// now set builtin policy
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 
-	allowed := [][]interface{}{
+	allowed := [][]any{
 		{"admin", "applications", "get", "foo/bar"},
 		{"admin", "applications", "delete", "foo/bar"},
 		{"role:readonly", "applications", "get", "foo/bar"},
@@ -128,7 +128,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 		}
 	}
 
-	disallowed := [][]interface{}{
+	disallowed := [][]any{
 		{"role:readonly", "applications", "create", "foo/bar"},
 		{"role:readonly", "applications", "delete", "foo/bar"},
 	}
@@ -215,7 +215,7 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	_ = enf.SetUserPolicy(policy)
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return false
 	})
 
@@ -279,7 +279,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	})
 	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -308,7 +308,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))

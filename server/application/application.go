@@ -154,7 +154,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	if user == "" {
 		user = "Unknown user"
 	}
-	logCtx := log.WithFields(map[string]interface{}{
+	logCtx := log.WithFields(map[string]any{
 		"user":        user,
 		"application": name,
 		"namespace":   namespace,
@@ -163,7 +163,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		// The user has provided everything we need to perform an initial RBAC check.
 		givenRBACName := security.RBACName(s.ns, project, namespace, name)
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, givenRBACName); err != nil {
-			logCtx.WithFields(map[string]interface{}{
+			logCtx.WithFields(map[string]any{
 				"project":                project,
 				argocommon.SecurityField: argocommon.SecurityMedium,
 			}).Warnf("user tried to %s application which they do not have access to: %s", action, err)
@@ -193,7 +193,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 	// perform a second RBAC check to ensure that the user has access to the actual Application's project (not just the
 	// project they specified in the request).
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, a.RBACName(s.ns)); err != nil {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("user tried to %s application which they do not have access to: %s", action, err)
@@ -212,7 +212,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 		effectiveProject = a.Spec.Project
 	}
 	if project != "" && effectiveProject != project {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("user tried to %s application in project %s, but the application is in project %s", action, project, effectiveProject)
@@ -1061,7 +1061,7 @@ func (s *Server) getAppProject(ctx context.Context, a *appv1.Application, logCtx
 
 	var applicationNotAllowedToUseProjectErr *appv1.ErrApplicationNotAllowedToUseProject
 	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
-		logCtx.WithFields(map[string]interface{}{
+		logCtx.WithFields(map[string]any{
 			"project":                a.Spec.Project,
 			argocommon.SecurityField: argocommon.SecurityMedium,
 		}).Warnf("error getting app project: %s", err)
@@ -1111,8 +1111,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		// Although the cascaded deletion/propagation policy finalizer is not set when apps are created via
 		// API, they will often be set by the user as part of declarative config. As part of a delete
 		// request, we always calculate the patch to see if we need to set/unset the finalizer.
-		patch, err := json.Marshal(map[string]interface{}{
-			"metadata": map[string]interface{}{
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{
 				"finalizers": a.Finalizers,
 			},
 		})
@@ -2160,7 +2160,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 	}
 
 	if err := argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
 			"destination": app.Spec.Destination,
@@ -2177,7 +2177,7 @@ func (s *Server) getObjectsForDeepLinks(ctx context.Context, app *appv1.Applicat
 	}
 	clst, err := s.db.GetCluster(ctx, app.Spec.Destination.Server)
 	if err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			"application": app.GetName(),
 			"ns":          app.GetNamespace(),
 			"destination": app.Spec.Destination,
@@ -2597,7 +2597,7 @@ func (s *Server) createResource(ctx context.Context, config *rest.Config, newObj
 // splitStatusPatch splits a patch into two: one for a non-status patch, and the status-only patch.
 // Returns nil for either if the patch doesn't have modifications to non-status, or status, respectively.
 func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
-	var obj map[string]interface{}
+	var obj map[string]any
 	err := json.Unmarshal(patch, &obj)
 	if err != nil {
 		return nil, nil, err
@@ -2605,7 +2605,7 @@ func splitStatusPatch(patch []byte) ([]byte, []byte, error) {
 	var nonStatusPatch, statusPatch []byte
 	if statusVal, ok := obj["status"]; ok {
 		// calculate the status-only patch
-		statusObj := map[string]interface{}{
+		statusObj := map[string]any{
 			"status": statusVal,
 		}
 		statusPatch, err = json.Marshal(statusObj)

@@ -32,7 +32,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		inputParameters map[string]apiextensionsv1.JSON
 		values          map[string]string
 		gotemplate      bool
-		expected        []map[string]interface{}
+		expected        []map[string]any
 		content         []byte
 		expectedError   error
 	}{
@@ -74,13 +74,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -134,7 +134,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
@@ -142,7 +142,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3":                 "123",
 					"values.valuekey1":     "valuevalue1",
 					"values.valuekey2":     "templated-val1",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -192,17 +192,17 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1": "val1",
-					"key2": map[string]interface{}{
+					"key2": map[string]any{
 						"key2_1": "val2_1",
-						"key2_2": map[string]interface{}{
+						"key2_2": map[string]any{
 							"key2_2_1": "val2_2_1",
 						},
 					},
 					"key3": float64(123),
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -251,14 +251,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				"key3": 123,
 				"pkey2": "valplugin"
 			 }]}}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
 					"pkey2":                "valplugin",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -305,14 +305,14 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
-						"input": map[string]map[string]interface{}{
+					"generator": map[string]any{
+						"input": map[string]map[string]any{
 							"parameters": {},
 						},
 					},
@@ -344,7 +344,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			inputParameters: map[string]apiextensionsv1.JSON{},
 			gotemplate:      false,
 			content:         []byte(`{"input": {"parameters": []}}`),
-			expected:        []map[string]interface{}{},
+			expected:        []map[string]any{},
 			expectedError:   nil,
 		},
 		{
@@ -371,7 +371,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			inputParameters: map[string]apiextensionsv1.JSON{},
 			gotemplate:      false,
 			content:         []byte(`wrong body ...`),
-			expected:        []map[string]interface{}{},
+			expected:        []map[string]any{},
 			expectedError:   errors.New("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
 		},
 		{
@@ -411,14 +411,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				"key3": 123,
 				"pkey2": "valplugin"
 			 }]}}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
 					"pkey2":                "valplugin",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -460,13 +460,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -507,13 +507,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -562,13 +562,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -609,13 +609,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]interface{}{
+					"generator": map[string]any{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},

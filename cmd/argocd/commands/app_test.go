@@ -367,20 +367,20 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 func Test_groupObjsByKey(t *testing.T) {
 	localObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},
@@ -388,20 +388,20 @@ func Test_groupObjsByKey(t *testing.T) {
 	}
 	liveObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},

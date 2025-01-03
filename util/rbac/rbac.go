@@ -18,7 +18,7 @@ import (
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
 	"github.com/casbin/govaluate"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -46,7 +46,7 @@ const (
 // CasbinEnforcer represents methods that must be implemented by a Casbin enforces
 type CasbinEnforcer interface {
 	EnableLog(bool)
-	Enforce(rvals ...interface{}) (bool, error)
+	Enforce(rvals ...any) (bool, error)
 	LoadPolicy() error
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
@@ -140,9 +140,9 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
-type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
+type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...any) bool
 
-func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...interface{}) (e CasbinEnforcer, err error) {
+func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...any) (e CasbinEnforcer, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -193,7 +193,7 @@ func (e *Enforcer) LoadPolicy() error {
 }
 
 // Glob match func
-func globMatchFunc(args ...interface{}) (interface{}, error) {
+func globMatchFunc(args ...any) (any, error) {
 	if len(args) < 2 {
 		return false, nil
 	}
@@ -236,12 +236,12 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
-func (e *Enforcer) Enforce(rvals ...interface{}) bool {
+func (e *Enforcer) Enforce(rvals ...any) bool {
 	return enforce(e.getCabinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
-func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
+func (e *Enforcer) EnforceErr(rvals ...any) error {
 	if !e.Enforce(rvals...) {
 		errMsg := "permission denied"
 		if len(rvals) > 0 {
@@ -272,7 +272,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 // EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...any) bool {
 	enf := e.CreateEnforcerWithRuntimePolicy(project, policy)
 	return e.EnforceWithCustomEnforcer(enf, rvals...)
 }
@@ -285,15 +285,15 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
-func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...any) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...any) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
-		if ok, err := enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...); ok && err == nil {
+		if ok, err := enf.Enforce(append([]any{defaultRole}, rvals[1:]...)...); ok && err == nil {
 			return true
 		}
 	}
@@ -310,9 +310,9 @@ func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEn
 		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
 			return true
 		}
-		rvals = append([]interface{}{""}, rvals[1:]...)
+		rvals = append([]any{""}, rvals[1:]...)
 	default:
-		rvals = append([]interface{}{""}, rvals[1:]...)
+		rvals = append([]any{""}, rvals[1:]...)
 	}
 	ok, err := enf.Enforce(rvals...)
 	return ok && err == nil
@@ -365,7 +365,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 	cmInformer := e.newInformer()
 	_, err := cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
+			AddFunc: func(obj any) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
 					err := e.syncUpdate(cm, onUpdated)
 					if err != nil {
@@ -375,7 +375,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 					}
 				}
 			},
-			UpdateFunc: func(old, new interface{}) {
+			UpdateFunc: func(old, new any) {
 				oldCM := old.(*apiv1.ConfigMap)
 				newCM := new.(*apiv1.ConfigMap)
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
