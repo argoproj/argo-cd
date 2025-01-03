@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.
@@ -23,8 +23,8 @@ func MakeSignature(size int) ([]byte, error) {
 //
 // This function takes a slice of pointers to Secrets and returns a new slice
 // containing deep copies of the original secrets.
-func SecretCopy(secrets []*apiv1.Secret) []*apiv1.Secret {
-	secretsCopy := make([]*apiv1.Secret, len(secrets))
+func SecretCopy(secrets []*corev1.Secret) []*corev1.Secret {
+	secretsCopy := make([]*corev1.Secret, len(secrets))
 	for i, secret := range secrets {
 		secretsCopy[i] = secret.DeepCopy()
 	}

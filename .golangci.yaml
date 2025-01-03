@@ -49,6 +49,10 @@ linters-settings:
         - github.com/golang-jwt/jwt/v4:
             recommendations:
               - github.com/golang-jwt/jwt/v5
+        - github.com/imdario/mergo:
+            recommendations:
+              - dario.cat/mergo
+            reason: "`github.com/imdario/mergo` has been renamed."
         - github.com/pkg/errors:
             recommendations:
               - errors
@@ -56,6 +60,8 @@ linters-settings:
     alias:
       - alias: jwtgo 
         pkg: github.com/golang-jwt/jwt/v5
+      - alias: corev1
+        pkg: k8s.io/api/core/v1
       - alias: metav1 
         pkg: k8s.io/apimachinery/pkg/apis/meta/v1
       - alias: stderrors
