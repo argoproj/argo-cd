@@ -291,19 +291,19 @@ func schema_pkg_apis_application_v1alpha1_AppProject(ref common.ReferenceCallbac
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProjectStatus"),
 						},
 					},
@@ -339,7 +339,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectList(ref common.ReferenceCal
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -349,7 +349,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectList(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.AppProject"),
 									},
 								},
@@ -394,7 +394,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination"),
 									},
 								},
@@ -415,7 +415,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ProjectRole"),
 									},
 								},
@@ -429,7 +429,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
@@ -443,7 +443,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
@@ -476,7 +476,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
@@ -490,7 +490,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey"),
 									},
 								},
@@ -504,7 +504,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"),
 									},
 								},
@@ -540,7 +540,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount"),
 									},
 								},
@@ -570,7 +570,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectStatus(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTTokens"),
 									},
 								},
@@ -608,19 +608,19 @@ func schema_pkg_apis_application_v1alpha1_Application(ref common.ReferenceCallba
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationStatus"),
 						},
 					},
@@ -770,7 +770,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationList(ref common.ReferenceCa
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -780,7 +780,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationList(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application"),
 									},
 								},
@@ -897,19 +897,19 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSet(ref common.ReferenceCal
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetStatus"),
 						},
 					},
@@ -1134,7 +1134,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetList(ref common.Referenc
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -1144,7 +1144,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetList(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSet"),
 									},
 								},
@@ -1290,7 +1290,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStep(ref common.R
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationMatchExpression"),
 									},
 								},
@@ -1322,7 +1322,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetRolloutStrategy(ref comm
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetRolloutStep"),
 									},
 								},
@@ -1356,7 +1356,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetGenerator"),
 									},
 								},
@@ -1365,7 +1365,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -1411,7 +1411,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetSpec(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetResourceIgnoreDifferences"),
 									},
 								},
@@ -1447,7 +1447,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetCondition"),
 									},
 								},
@@ -1460,7 +1460,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetApplicationStatus"),
 									},
 								},
@@ -1474,7 +1474,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetStatus(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"),
 									},
 								},
@@ -1551,13 +1551,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTemplate(ref common.Refe
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplateMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSpec"),
 						},
 					},
@@ -1709,7 +1709,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetTree(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
 									},
 								},
@@ -1824,7 +1824,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 					"jsonnet": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Jsonnet holds options specific to Jsonnet",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourceJsonnet"),
 						},
 					},
@@ -1879,7 +1879,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmParameter"),
 									},
 								},
@@ -1912,7 +1912,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HelmFileParameter"),
 									},
 								},
@@ -2018,7 +2018,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar"),
 									},
 								},
@@ -2032,7 +2032,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceJsonnet(ref common.Re
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JsonnetVar"),
 									},
 								},
@@ -2172,7 +2172,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizeReplica"),
 									},
 								},
@@ -2186,7 +2186,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceKustomize(ref common.
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KustomizePatch"),
 									},
 								},
@@ -2276,7 +2276,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourcePlugin(ref common.Ref
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSourcePluginParameter"),
 									},
 								},
@@ -2333,7 +2333,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 					"destination": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Destination is a reference to the target Kubernetes server and namespace",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination"),
 						},
 					},
@@ -2358,7 +2358,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"),
 									},
 								},
@@ -2372,7 +2372,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Info"),
 									},
 								},
@@ -2393,7 +2393,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 									},
 								},
@@ -2429,7 +2429,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceStatus"),
 									},
 								},
@@ -2439,14 +2439,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"sync": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Sync contains information about the application's current sync status",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncStatus"),
 						},
 					},
 					"health": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Health contains information about the application's current health status",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HealthStatus"),
 						},
 					},
@@ -2457,7 +2457,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RevisionHistory"),
 									},
 								},
@@ -2471,7 +2471,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationCondition"),
 									},
 								},
@@ -2506,7 +2506,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"summary": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Summary contains a list of URLs and container images used by this application",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSummary"),
 						},
 					},
@@ -2542,7 +2542,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					"sourceHydrator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceHydrator stores information about the current state of source hydration",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydratorStatus"),
 						},
 					},
@@ -2611,7 +2611,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
 									},
 								},
@@ -2625,7 +2625,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceNode"),
 									},
 								},
@@ -2639,7 +2639,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationTree(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostInfo"),
 									},
 								},
@@ -2678,7 +2678,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref common.Refer
 					"application": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Application is:\n * If Type is Added or Modified: the new state of the object.\n * If Type is Deleted: the state of the object immediately before deletion.\n * If Type is Error: *api.Status is recommended; other types may make sense\n   depending on context.",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Application"),
 						},
 					},
@@ -2866,14 +2866,14 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config holds cluster information for connecting to a cluster",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterConfig"),
 						},
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Deprecated: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
@@ -2908,7 +2908,7 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					"info": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Info holds information about cluster cache and state",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterInfo"),
 						},
 					},
@@ -3039,7 +3039,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 					"tlsClientConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "TLSClientConfig contains settings to enable transport layer security",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.TLSClientConfig"),
 						},
 					},
@@ -3088,13 +3088,13 @@ func schema_pkg_apis_application_v1alpha1_ClusterGenerator(ref common.ReferenceC
 					"selector": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Selector defines a label selector to match against all clusters registered with ArgoCD. Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used for matching the selector.",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -3139,7 +3139,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallba
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConnectionState contains information about the connection to the cluster",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
@@ -3153,7 +3153,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterInfo(ref common.ReferenceCallba
 					"cacheInfo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "CacheInfo contains information about the cluster cache",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ClusterCacheInfo"),
 						},
 					},
@@ -3198,7 +3198,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -3208,7 +3208,7 @@ func schema_pkg_apis_application_v1alpha1_ClusterList(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster"),
 									},
 								},
@@ -3275,14 +3275,14 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 					"source": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Source is a reference to the application's source used for comparison",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
 					"destination": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Destination is a reference to the application's destination used for comparison",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationDestination"),
 						},
 					},
@@ -3293,7 +3293,7 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 									},
 								},
@@ -3307,7 +3307,7 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"),
 									},
 								},
@@ -3378,7 +3378,7 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 					},
 					"generate": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"),
 						},
 					},
@@ -3530,13 +3530,13 @@ func schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref common.Reference
 					},
 					"labelSelector": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
 						},
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -3759,7 +3759,7 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem"),
 									},
 								},
@@ -3772,7 +3772,7 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GitFileGeneratorItem"),
 									},
 								},
@@ -3794,7 +3794,7 @@ func schema_pkg_apis_application_v1alpha1_GitGenerator(ref common.ReferenceCallb
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -3895,7 +3895,7 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.Referenc
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -3905,7 +3905,7 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKeyList(ref common.Referenc
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.GnuPGPublicKey"),
 									},
 								},
@@ -4064,7 +4064,7 @@ func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback)
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HostResourceInfo"),
 									},
 								},
@@ -4073,7 +4073,7 @@ func schema_pkg_apis_application_v1alpha1_HostInfo(ref common.ReferenceCallback)
 					},
 					"systemInfo": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/api/core/v1.NodeSystemInfo"),
 						},
 					},
@@ -4173,7 +4173,7 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 					"sourceHydrator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceHydrator holds the hydrator config used for the hydrate operation",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"),
 						},
 					},
@@ -4308,7 +4308,7 @@ func schema_pkg_apis_application_v1alpha1_JWTTokens(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken"),
 									},
 								},
@@ -4634,7 +4634,7 @@ func schema_pkg_apis_application_v1alpha1_ListGenerator(ref common.ReferenceCall
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -4708,7 +4708,7 @@ func schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator"),
 									},
 								},
@@ -4717,7 +4717,7 @@ func schema_pkg_apis_application_v1alpha1_MatrixGenerator(ref common.ReferenceCa
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -4743,7 +4743,7 @@ func schema_pkg_apis_application_v1alpha1_MergeGenerator(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetNestedGenerator"),
 									},
 								},
@@ -4766,7 +4766,7 @@ func schema_pkg_apis_application_v1alpha1_MergeGenerator(ref common.ReferenceCal
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -4792,7 +4792,7 @@ func schema_pkg_apis_application_v1alpha1_NestedMatrixGenerator(ref common.Refer
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"),
 									},
 								},
@@ -4821,7 +4821,7 @@ func schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"),
 									},
 								},
@@ -4867,7 +4867,7 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 					"initiatedBy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "InitiatedBy contains information about who initiated the operations",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
 						},
 					},
@@ -4887,7 +4887,7 @@ func schema_pkg_apis_application_v1alpha1_Operation(ref common.ReferenceCallback
 					"retry": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Retry controls the strategy to apply if a sync fails",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RetryStrategy"),
 						},
 					},
@@ -4936,7 +4936,7 @@ func schema_pkg_apis_application_v1alpha1_OperationState(ref common.ReferenceCal
 					"operation": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Operation is the original requested operation",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation"),
 						},
 					},
@@ -5096,7 +5096,7 @@ func schema_pkg_apis_application_v1alpha1_OrphanedResourcesMonitorSettings(ref c
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OrphanedResourceKey"),
 									},
 								},
@@ -5200,13 +5200,13 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 				Properties: map[string]spec.Schema{
 					"configMapRef": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginConfigMapRef"),
 						},
 					},
 					"input": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PluginInput"),
 						},
 					},
@@ -5219,7 +5219,7 @@ func schema_pkg_apis_application_v1alpha1_PluginGenerator(ref common.ReferenceCa
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -5320,7 +5320,7 @@ func schema_pkg_apis_application_v1alpha1_ProjectRole(ref common.ReferenceCallba
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.JWTToken"),
 									},
 								},
@@ -5386,7 +5386,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter"),
 									},
 								},
@@ -5402,7 +5402,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.Refere
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -5834,7 +5834,7 @@ func schema_pkg_apis_application_v1alpha1_RefTarget(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"Repo": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Repository"),
 						},
 					},
@@ -5997,7 +5997,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCredsList(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -6007,7 +6007,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCredsList(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds"),
 									},
 								},
@@ -6062,7 +6062,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConnectionState contains information about the current state of connection to the repository server",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
@@ -6263,7 +6263,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref common.R
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -6274,7 +6274,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificateList(ref common.R
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepositoryCertificate"),
 									},
 								},
@@ -6299,7 +6299,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryList(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"),
 						},
 					},
@@ -6342,7 +6342,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceAction(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionParam"),
 									},
 								},
@@ -6456,7 +6456,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActions(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceActionDefinition"),
 									},
 								},
@@ -6677,7 +6677,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceRef"),
 									},
 								},
@@ -6705,7 +6705,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref common.Refe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("k8s.io/api/core/v1.LoadBalancerIngress"),
 									},
 								},
@@ -6784,7 +6784,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ResourceRef"),
 									},
 								},
@@ -6797,7 +6797,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceNode(ref common.ReferenceCallb
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.InfoItem"),
 									},
 								},
@@ -6877,13 +6877,13 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 					},
 					"IgnoreDifferences": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff"),
 						},
 					},
 					"IgnoreResourceUpdates": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OverrideIgnoreDiff"),
 						},
 					},
@@ -6893,7 +6893,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceOverride(ref common.ReferenceC
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField"),
 									},
 								},
@@ -7186,7 +7186,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 					"source": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Source is a reference to the application source used for the sync operation",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
@@ -7203,7 +7203,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 									},
 								},
@@ -7228,7 +7228,7 @@ func schema_pkg_apis_application_v1alpha1_RevisionHistory(ref common.ReferenceCa
 					"initiatedBy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "InitiatedBy contains information about who initiated the operations",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator"),
 						},
 					},
@@ -7344,7 +7344,7 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref common.Refere
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter"),
 									},
 								},
@@ -7367,7 +7367,7 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref common.Refere
 					},
 					"template": {
 						SchemaProps: spec.SchemaProps{
-							Default: map[string]any{},
+							Default: map[string]interface{}{},
 							Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate"),
 						},
 					},
@@ -7915,14 +7915,14 @@ func schema_pkg_apis_application_v1alpha1_SourceHydrator(ref common.ReferenceCal
 					"drySource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DrySource specifies where the dry \"don't repeat yourself\" manifest source lives.",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"),
 						},
 					},
 					"syncSource": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SyncSource specifies where to sync hydrated manifests from.",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncSource"),
 						},
 					},
@@ -7992,7 +7992,7 @@ func schema_pkg_apis_application_v1alpha1_SuccessfulHydrateOperation(ref common.
 					"sourceHydrator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SourceHydrator holds the hydrator config used for the hydrate operation",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"),
 						},
 					},
@@ -8045,7 +8045,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource"),
 									},
 								},
@@ -8095,7 +8095,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperation(ref common.ReferenceCall
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 									},
 								},
@@ -8203,7 +8203,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 					"source": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Source records the application source information of the sync, used for comparing auto-sync",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 						},
 					},
@@ -8214,7 +8214,7 @@ func schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref common.Referen
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSource"),
 									},
 								},
@@ -8381,7 +8381,7 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 					"comparedTo": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ComparedTo contains information about what has been compared",
-							Default:     map[string]any{},
+							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo"),
 						},
 					},
@@ -8714,7 +8714,7 @@ func schema_pkg_apis_application_v1alpha1_rawResourceOverride(ref common.Referen
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: map[string]any{},
+										Default: map[string]interface{}{},
 										Ref:     ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.KnownTypeField"),
 									},
 								},
