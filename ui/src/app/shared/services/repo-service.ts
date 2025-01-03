@@ -16,6 +16,7 @@ export interface HTTPSQuery {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHQuery {

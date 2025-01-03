@@ -296,6 +296,10 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+func (a *ApplicationSource) IsOCI() bool {
+	return strings.HasPrefix(a.RepoURL, "oci://")
+}
+
 // IsRef returns true when the application source is of type Ref
 func (a *ApplicationSource) IsRef() bool {
 	return a.Ref != ""
@@ -1564,6 +1568,17 @@ type RevisionMetadata struct {
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
 	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+}
+
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+type OCIMetadata struct {
+	CreatedAt   string `json:"createdAt,omitempty" protobuf:"bytes,1,opt,name=createdAt"`
+	Authors     string `json:"authors,omitempty" protobuf:"bytes,2,opt,name=authors"`
+	ImageURL    string `json:"imageUrl,omitempty" protobuf:"bytes,3,opt,name=imageUrl"`
+	DocsURL     string `json:"docsUrl,omitempty" protobuf:"bytes,4,opt,name=docsUrl"`
+	SourceURL   string `json:"sourceUrl,omitempty" protobuf:"bytes,5,opt,name=sourceUrl"`
+	Version     string `json:"version,omitempty" protobuf:"bytes,6,opt,name=version"`
+	Description string `json:"description,omitempty" protobuf:"bytes,7,opt,name=description"`
 }
 
 // ChartDetails contains helm chart metadata for a specific version

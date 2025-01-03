@@ -187,6 +187,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(stderrors.New("Must specify --name for repos of type 'helm'"))
 			}
 
+			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHttp {
+				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHttp
+			}
+
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
 
@@ -197,7 +201,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			// We let the server check access to the repository before adding it. If
-			// it is a private repo, but we cannot access with with the credentials
+			// it is a private repo, but we cannot access with the credentials
 			// that were supplied, we bail out.
 			//
 			// Skip validation if we are just adding credentials template, chances
@@ -222,6 +226,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Project:                    repoOpts.Repo.Project,
 				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
 				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
+				InsecureOciForceHttp:       repoOpts.Repo.InsecureOCIForceHttp,
 			}
 			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
@@ -237,6 +242,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
+	command.Flags().BoolVar(&repoOpts.InsecureOCIForceHttp, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 	cmdutil.AddRepoFlags(command, &repoOpts)
 	return command
 }
