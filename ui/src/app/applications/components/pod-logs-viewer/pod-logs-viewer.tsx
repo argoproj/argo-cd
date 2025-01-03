@@ -1,4 +1,4 @@
-import {DataLoader} from 'argo-ui';
+import {DataLoader, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState, useRef} from 'react';
@@ -62,6 +62,57 @@ const getPodColors = (isDark: boolean) => {
     return envColors || (isDark ? POD_COLORS_DARK : POD_COLORS_LIGHT);
 };
 
+const PodSelector = ({pods, selectedPod, setSelectedPod}: {pods: string[]; selectedPod: string | null; setSelectedPod: (pod: string | null) => void}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <Tooltip content='Select a pod to highlight its logs'>
+            <div className='custom-select' ref={dropdownRef}>
+                <div className='select-header argo-field' onClick={() => setIsOpen(!isOpen)}>
+                    {selectedPod || 'Select a pod'}
+                </div>
+                {isOpen && (
+                    <div className='select-container'>
+                        <div className='select-options'>
+                            {pods.map(pod => (
+                                <div
+                                    key={pod}
+                                    className={`select-option ${selectedPod === pod ? 'selected' : ''}`}
+                                    onClick={() => {
+                                        setSelectedPod(pod);
+                                        setIsOpen(false);
+                                    }}>
+                                    {pod}
+                                </div>
+                            ))}
+                        </div>
+                        <div
+                            className='select-option clear-highlight'
+                            onClick={() => {
+                                setSelectedPod(null);
+                                setIsOpen(false);
+                            }}>
+                            Clear highlight
+                        </div>
+                    </div>
+                )}
+            </div>
+        </Tooltip>
+    );
+};
+
 function getPodBackgroundColor(podName: string, darkMode: boolean) {
     const colors = getPodColors(darkMode);
     return colors[0];
@@ -93,6 +144,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
+    const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
 
     const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
         return (val => {
@@ -238,6 +290,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
+                                <Spacer />
+                                <PodSelector pods={uniquePods} selectedPod={selectedPod} setSelectedPod={setSelectedPod} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />

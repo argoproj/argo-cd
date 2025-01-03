@@ -224,6 +224,75 @@ $pod-background-dark: $dark-theme-background-2;
     }
 }
 
+.custom-select {
+    position: relative;
+    width: 300px;
+    
+    .select-header {
+        height: 37px;
+        padding: 0 10px;
+        font-size: 14px;
+        line-height: 37px;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        
+        &:after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 16px;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #666;
+        }
+    }
+
+    .select-container {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ccc;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+
+    .select-options {
+        max-height: 200px;
+        overflow-y: auto;
+        border-bottom: 1px solid #ccc;
+
+        .select-option {
+            padding: 8px 10px;
+            cursor: pointer;
+            
+            &:hover {
+                background-color: #f5f5f5;
+            }
+            
+            &.selected {
+                background-color: #e6f3ff;
+            }
+        }
+    }
+
+    .clear-highlight {
+        padding: 8px 10px;
+        text-align: center;
+        color: #190fd7;
+        cursor: pointer;
+        
+        &:hover {
+            background-color: #f0f0f0;
+        }
+    }
+}
+
 .copySuccess {
     // ARGO_SUCCESS_COLOR
     background-color: #18be94 !important;
