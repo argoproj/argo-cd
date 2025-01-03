@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -245,7 +245,7 @@ const (
 )
 
 func getCertClientset() *fake.Clientset {
-	cm := v1.ConfigMap{
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -256,7 +256,7 @@ func getCertClientset() *fake.Clientset {
 		Data: nil,
 	}
 
-	sshCM := v1.ConfigMap{
+	sshCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-ssh-known-hosts-cm",
 			Namespace: testNamespace,
@@ -269,7 +269,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	tlsCM := v1.ConfigMap{
+	tlsCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-tls-certs-cm",
 			Namespace: testNamespace,

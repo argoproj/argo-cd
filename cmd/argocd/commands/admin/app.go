@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -453,5 +453,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

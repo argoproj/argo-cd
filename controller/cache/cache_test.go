@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -72,7 +72,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(managedByApp map[string]bool, ref v1.ObjectReference) {
+		onObjectUpdated: func(managedByApp map[string]bool, ref corev1.ObjectReference) {
 		},
 		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
@@ -279,7 +279,7 @@ func TestIsRetryableError(t *testing.T) {
 func Test_asResourceNode_owner_refs(t *testing.T) {
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
-		Ref: v1.ObjectReference{
+		Ref: corev1.ObjectReference{
 			APIVersion: "v1",
 		},
 		OwnerRefs: []metav1.OwnerReference{
@@ -335,7 +335,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -355,7 +355,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->cm2->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -364,7 +364,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -383,7 +383,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cm1->cm2->app1 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -393,7 +393,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -401,7 +401,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -422,7 +422,7 @@ func Test_getAppRecursive(t *testing.T) {
 			// Issue #11699, fixed #12667.
 			name: "ok: cm1->cm2 & cm1->cm3->cm2 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -432,12 +432,12 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -457,7 +457,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1<->cm2",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -466,7 +466,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -474,7 +474,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -488,7 +488,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1->cm2->cm3->cm1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -497,7 +497,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -505,7 +505,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -513,7 +513,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{

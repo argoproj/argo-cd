@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
@@ -88,7 +88,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
-		_, err = secrets.Create(context.TODO(), &v1.Secret{
+		_, err = secrets.Create(context.TODO(), &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "repo-",
 				Namespace:    opts.Namespace,

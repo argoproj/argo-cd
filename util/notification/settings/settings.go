@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
@@ -18,7 +18,7 @@ func GetFactorySettings(argocdService service.Service, secretName, configMapName
 	return api.Settings{
 		SecretName:    secretName,
 		ConfigMapName: configMapName,
-		InitGetVars: func(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			if selfServiceNotificationEnabled {
 				return initGetVarsWithoutSecret(argocdService, cfg, configMap, secret)
 			}
@@ -32,7 +32,7 @@ func GetFactorySettingsForCLI(argocdService *service.Service, secretName, config
 	return api.Settings{
 		SecretName:    secretName,
 		ConfigMapName: configMapName,
-		InitGetVars: func(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
+		InitGetVars: func(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 			if *argocdService == nil {
 				return nil, errors.New("argocdService is not initialized")
 			}
@@ -45,7 +45,7 @@ func GetFactorySettingsForCLI(argocdService *service.Service, secretName, config
 	}
 }
 
-func getContext(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (map[string]string, error) {
+func getContext(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (map[string]string, error) {
 	context := map[string]string{}
 	if contextYaml, ok := configMap.Data["context"]; ok {
 		if err := yaml.Unmarshal([]byte(contextYaml), &context); err != nil {
@@ -58,7 +58,7 @@ func getContext(cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (ma
 	return context, nil
 }
 
-func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
+func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 	context, err := getContext(cfg, configMap, secret)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 	}, nil
 }
 
-func initGetVars(argocdService service.Service, cfg *api.Config, configMap *v1.ConfigMap, secret *v1.Secret) (api.GetVars, error) {
+func initGetVars(argocdService service.Service, cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (api.GetVars, error) {
 	context, err := getContext(cfg, configMap, secret)
 	if err != nil {
 		return nil, err
