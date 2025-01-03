@@ -6,8 +6,11 @@ import (
 	"time"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/gitops-engine/pkg/cache"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -56,11 +59,12 @@ type HasClustersInfo interface {
 }
 
 type clusterCollector struct {
-	infoSource    HasClustersInfo
-	info          []cache.ClusterInfo
-	lock          sync.Mutex
-	clusters      argoappv1.ClusterList
-	clusterLabels []string
+	infoSource      HasClustersInfo
+	info            []cache.ClusterInfo
+	lock            sync.Mutex
+	clusterLabels   []string
+	kubeClientset   kubernetes.Interface
+	argoCDNamespace string
 }
 
 func (c *clusterCollector) Run(ctx context.Context) {
@@ -108,7 +112,15 @@ func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 	now := time.Now()
-	clusters := c.clusters
+	// list clusters from Argo CD
+	settingsMgr := settings.NewSettingsManager(context.TODO(), c.kubeClientset, c.argoCDNamespace)
+	argoDB := db.NewDB(c.argoCDNamespace, settingsMgr, c.kubeClientset)
+	clustersList, err := argoDB.ListClusters(context.TODO())
+	if err != nil {
+		return
+	}
+
+	clusters := *clustersList
 	for _, cluster := range c.info {
 		metadata := findClusterMetadata(cluster.Server, clusters)
 
