@@ -1,4 +1,4 @@
-import {DataLoader, Tooltip} from 'argo-ui';
+import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState, useRef} from 'react';
@@ -15,6 +15,7 @@ import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
 import {FollowToggleButton} from './follow-toggle-button';
 import {ShowPreviousLogsToggleButton} from './show-previous-logs-toggle-button';
+import {PodHighlightButton} from './pod-logs-highlight-button';
 import {TimestampsToggleButton} from './timestamps-toggle-button';
 import {DarkModeToggleButton} from './dark-mode-toggle-button';
 import {FullscreenButton} from './fullscreen-button';
@@ -60,57 +61,6 @@ const POD_COLORS_DARK = ['var(--pod-background-dark)'];
 const getPodColors = (isDark: boolean) => {
     const envColors = (window as any).env?.POD_COLORS?.[isDark ? 'dark' : 'light'];
     return envColors || (isDark ? POD_COLORS_DARK : POD_COLORS_LIGHT);
-};
-
-const PodSelector = ({pods, selectedPod, setSelectedPod}: {pods: string[]; selectedPod: string | null; setSelectedPod: (pod: string | null) => void}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    return (
-        <Tooltip content='Select a pod to highlight its logs'>
-            <div className='custom-select' ref={dropdownRef}>
-                <div className='select-header argo-field' onClick={() => setIsOpen(!isOpen)}>
-                    {selectedPod || 'Select a pod'}
-                </div>
-                {isOpen && (
-                    <div className='select-container'>
-                        <div className='select-options'>
-                            {pods.map(pod => (
-                                <div
-                                    key={pod}
-                                    className={`select-option ${selectedPod === pod ? 'selected' : ''}`}
-                                    onClick={() => {
-                                        setSelectedPod(pod);
-                                        setIsOpen(false);
-                                    }}>
-                                    {pod}
-                                </div>
-                            ))}
-                        </div>
-                        <div
-                            className='select-option clear-highlight'
-                            onClick={() => {
-                                setSelectedPod(null);
-                                setIsOpen(false);
-                            }}>
-                            Clear highlight
-                        </div>
-                    </div>
-                )}
-            </div>
-        </Tooltip>
-    );
 };
 
 function getPodBackgroundColor(podName: string, darkMode: boolean) {
@@ -291,7 +241,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
-                                <PodSelector pods={uniquePods} selectedPod={selectedPod} setSelectedPod={setSelectedPod} />
+                                <PodHighlightButton pods={uniquePods} selectedPod={selectedPod} setSelectedPod={setSelectedPod} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
