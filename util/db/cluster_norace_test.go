@@ -135,7 +135,7 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 	// !race:
 	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
 	// https://github.com/argoproj/argo-cd/issues/4755
-	argoCDConfigMapWithInClusterServerAddressDisabled := &v1.ConfigMap{
+	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -145,7 +145,7 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
-	argoCDSecret := &v1.Secret{
+	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,

@@ -298,7 +298,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 }
 
 func TestGetCluster(t *testing.T) {
-	emptyArgoCDConfigMap := &v1.ConfigMap{
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -308,7 +308,7 @@ func TestGetCluster(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDConfigMapWithInClusterServerAddressDisabled := &v1.ConfigMap{
+	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -318,7 +318,7 @@ func TestGetCluster(t *testing.T) {
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
-	argoCDSecret := &v1.Secret{
+	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -331,7 +331,7 @@ func TestGetCluster(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	secretForServerWithInClusterAddr := &v1.Secret{
+	secretForServerWithInClusterAddr := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster1",
 			Namespace: fakeNamespace,
@@ -345,7 +345,7 @@ func TestGetCluster(t *testing.T) {
 		},
 	}
 
-	secretForServerWithExternalClusterAddr := &v1.Secret{
+	secretForServerWithExternalClusterAddr := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster2",
 			Namespace: fakeNamespace,
@@ -556,7 +556,7 @@ func TestListClusters(t *testing.T) {
 }
 
 func TestGetClusterServersByName(t *testing.T) {
-	emptyArgoCDConfigMap := &v1.ConfigMap{
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -566,7 +566,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDSecret := &v1.Secret{
+	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -579,7 +579,7 @@ func TestGetClusterServersByName(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	argoCDConfigMapWithInClusterServerAddressDisabled := &v1.ConfigMap{
+	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -589,7 +589,7 @@ func TestGetClusterServersByName(t *testing.T) {
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
-	argoCDSecretInClusterConfigured := &v1.Secret{
+	argoCDSecretInClusterConfigured := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: fakeNamespace,
@@ -608,7 +608,7 @@ func TestGetClusterServersByName(t *testing.T) {
 	}
 
 	t.Run("returns the server name", func(t *testing.T) {
-		argoCDClusterSecret := &v1.Secret{
+		argoCDClusterSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-cluster-secret",
 				Namespace: fakeNamespace,
