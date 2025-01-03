@@ -1617,7 +1617,7 @@ func getApplicationSetOwnsHandler() predicate.Funcs {
 
 // shouldRequeueForApplicationSet determines when we need to requeue an applicationset
 func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.ApplicationSet) bool {
-	// only compare the applicationset spec, annotations, labels and finalizes specifically avoiding
+	// only compare the applicationset spec, annotations, labels and finalizers, specifically avoiding
 	// the status field. status is owned by the applicationset controller,
 	// and we do not need to requeue when it does bookkeeping
 	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
