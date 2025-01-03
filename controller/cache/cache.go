@@ -108,10 +108,10 @@ var (
 	clusterCacheAttemptLimit int32 = 1
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
-	clusterCacheRetryUseBackoff bool = false
+	clusterCacheRetryUseBackoff = false
 
 	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
-	clusterCacheBatchEventsProcessing bool = false
+	clusterCacheBatchEventsProcessing = false
 
 	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventProcessingInterval = 100 * time.Millisecond

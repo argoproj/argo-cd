@@ -502,7 +502,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	var curKey *appsv1.GnuPGPublicKey = nil
+	var curKey *appsv1.GnuPGPublicKey
 	for scanner.Scan() {
 		if strings.HasPrefix(scanner.Text(), "pub ") {
 			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.

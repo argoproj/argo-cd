@@ -1124,7 +1124,7 @@ func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
 type ResourceHealthLocation string
 
 var (
-	ResourceHealthLocationInline  ResourceHealthLocation = ""
+	ResourceHealthLocationInline  ResourceHealthLocation
 	ResourceHealthLocationAppTree ResourceHealthLocation = "appTree"
 )
 
