@@ -19,12 +19,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # Get the current major version from go.mod and save it as a variable.
-      - name: Get current major version
-        id: get-current-major-version
+      - name: Get target version
+        id: get-target-version
         run: |
           set -ue
           CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
-          echo "MAJOR_VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "TARGET_VERSION=$((CURRENT_VERSION + 1))" >> $GITHUB_OUTPUT
 
       - name: Run script to bump the version
         run: |
@@ -33,10 +33,10 @@ jobs:
       - name: Create pull request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
         with:
-          commit-message: "Bump major version to ${{ steps.get-current-major-version.outputs.MAJOR_VERSION }}"
-          title: "Bump major version to ${{ steps.get-current-major-version.outputs.MAJOR_VERSION }}"
+          commit-message: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"
+          title: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"
           body: |
-            Congrats! You've just bumped the major version to ${{ steps.get-current-major-version.outputs.MAJOR_VERSION }}.
+            Congrats! You've just bumped the major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}.
             
             Next steps:
             - [ ] Merge this PR
