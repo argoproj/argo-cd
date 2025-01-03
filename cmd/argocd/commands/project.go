@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -84,6 +85,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
 	command.AddCommand(NewProjectAddDestinationServiceAccountCommand(clientOpts))
 	command.AddCommand(NewProjectRemoveDestinationServiceAccountCommand(clientOpts))
+	command.AddCommand(NewProjectAddNodeLabelCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveNodeLabelCommand(clientOpts))
 	return command
 }
 
@@ -811,7 +814,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\tALLOWED-NODE-LABELS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -867,7 +870,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, allowedNodeLabels string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -912,7 +915,13 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
+	switch len(p.Spec.AllowedNodeLabels) {
+	case 0:
+		allowedNodeLabels = "<none>"
+	default:
+		allowedNodeLabels = fmt.Sprintf("%d label(s)", len(p.Spec.AllowedNodeLabels))
+	}
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts, allowedNodeLabels)
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
@@ -1219,5 +1228,90 @@ func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.C
 		},
 	}
 
+	return command
+}
+
+// NewProjectAddNodeLabelCommand returns a new instance of an `argocd proj add-node-label` command
+func NewProjectAddNodeLabelCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "add-node-label PROJECT LABEL",
+		Short: "Add allowed node label",
+		Example: templates.Examples(`
+			# Add an allowed node label to the project with name PROJECT
+			argocd proj add-node-label PROJECT LABEL
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			label := args[1]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			if errs := validation.IsQualifiedName(label); len(errs) != 0 {
+				fmt.Println(strings.Join(errs, "; "))
+			}
+
+			for _, item := range proj.Spec.AllowedNodeLabels {
+				if item == label {
+					fmt.Printf("Node label '%s' already allowed in project\n", item)
+					return
+				}
+			}
+			proj.Spec.AllowedNodeLabels = append(proj.Spec.AllowedNodeLabels, label)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	return command
+}
+
+// NewProjectRemoveNodeLabelCommand returns a new instance of an `argocd proj remove-node-label` command
+func NewProjectRemoveNodeLabelCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "remove-node-label PROJECT LABEL",
+		Short: "Remove allowed node label",
+		Example: templates.Examples(`
+			# Remove allowed node label LABEL from project PROJECT
+			argocd proj remove-node-label PROJECT LABEL
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			label := args[1]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			index := -1
+			for i, item := range proj.Spec.AllowedNodeLabels {
+				if item == label {
+					index = i
+					break
+				}
+			}
+			if index == -1 {
+				fmt.Printf("Node label '%s' does not exist in project\n", label)
+			} else {
+				proj.Spec.AllowedNodeLabels = append(proj.Spec.AllowedNodeLabels[:index], proj.Spec.AllowedNodeLabels[index+1:]...)
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			}
+		},
+	}
 	return command
 }
