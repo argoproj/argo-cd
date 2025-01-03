@@ -56,6 +56,8 @@ linters-settings:
     alias:
       - alias: jwtgo 
         pkg: github.com/golang-jwt/jwt/v5
+      - alias: corev1
+        pkg: k8s.io/api/core/v1
       - alias: metav1 
         pkg: k8s.io/apimachinery/pkg/apis/meta/v1
       - alias: stderrors

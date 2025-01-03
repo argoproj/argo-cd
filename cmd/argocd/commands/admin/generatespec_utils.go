@@ -8,7 +8,7 @@ import (
 	"os"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -38,7 +38,7 @@ func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
 // PrintResources prints a single resource in YAML or JSON format to stdout according to the output format
 func PrintResources(output string, out io.Writer, resources ...any) error {
 	for i, resource := range resources {
-		if secret, ok := resource.(*v1.Secret); ok {
+		if secret, ok := resource.(*corev1.Secret); ok {
 			convertSecretData(secret)
 		}
 		filteredResource, err := omitFields(resource)
@@ -97,7 +97,7 @@ func omitFields(resource any) (any, error) {
 }
 
 // convertSecretData converts kubernetes secret's data to stringData
-func convertSecretData(secret *v1.Secret) {
+func convertSecretData(secret *corev1.Secret) {
 	secret.Kind = kube.SecretKind
 	secret.APIVersion = "v1"
 	secret.StringData = map[string]string{}
