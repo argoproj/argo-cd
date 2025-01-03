@@ -1355,7 +1355,8 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			}
 
 			kubeclientset := getDefaultTestClientSet()
-			kubeclientset.Tracker().Add(secret)
+			err := kubeclientset.Tracker().Add(secret)
+			require.NoError(t, err)
 
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
@@ -2093,7 +2094,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			}
 
 			kubeclientset := getDefaultTestClientSet()
-			kubeclientset.Tracker().Add(secret)
+			err := kubeclientset.Tracker().Add(secret)
+			require.NoError(t, err)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2443,7 +2445,8 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	kubeclientset := getDefaultTestClientSet()
-	kubeclientset.Tracker().Add(secret)
+	err = kubeclientset.Tracker().Add(secret)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
@@ -2619,7 +2622,8 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	}
 
 	kubeclientset := getDefaultTestClientSet()
-	kubeclientset.Tracker().Add(secret)
+	err = kubeclientset.Tracker().Add(secret)
+	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
