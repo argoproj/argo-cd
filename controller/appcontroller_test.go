@@ -605,7 +605,7 @@ func newFakeServiceAccount() map[string]any {
 	return serviceAccount
 }
 
-func newFakeAppProject() map[string]interface{} {
+func newFakeAppProject() map[string]any {
 	var appProject map[string]any
 	err := yaml.Unmarshal([]byte(fakeAppProjectDeveloper), &appProject)
 	if err != nil {
