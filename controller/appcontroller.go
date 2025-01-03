@@ -883,7 +883,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}
 
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, *clusters, ctrl.metricsClusterLabels)
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.metricsClusterLabels, ctrl.kubeClientset, ctrl.namespace)
 
 	errors.CheckError(ctrl.stateCache.Init())
 

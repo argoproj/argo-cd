@@ -24,6 +24,7 @@ import (
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
@@ -232,7 +233,8 @@ type TestMetricServerConfig struct {
 	AppConditions    []string
 	ClusterLabels    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
-	Clusters         argoappv1.ClusterList
+	KubeClientset    *kubefake.Clientset
+	ArgoCDNamespace  string
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
@@ -244,7 +246,8 @@ func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse stri
 		AppConditions:    appConditions,
 		ClusterLabels:    []string{},
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
-		Clusters:         argoappv1.ClusterList{},
+		KubeClientset:    kubefake.NewSimpleClientset(),
+		ArgoCDNamespace:  "namespace",
 	}
 	runTest(t, cfg)
 }
@@ -259,10 +262,11 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
 		collector := &clusterCollector{
-			infoSource:    ci,
-			info:          ci.GetClustersInfo(),
-			clusters:      cfg.Clusters,
-			clusterLabels: cfg.ClusterLabels,
+			infoSource:      ci,
+			info:            ci.GetClustersInfo(),
+			clusterLabels:   cfg.ClusterLabels,
+			kubeClientset:   cfg.KubeClientset,
+			argoCDNamespace: cfg.ArgoCDNamespace,
 		}
 		metricsServ.registry.MustRegister(collector)
 	}
