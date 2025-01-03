@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# This script bumps the major version of Argo CD. Before cutting a new major release, run this script and open a PR.
+# If you have to make _any_ manual changes to the PR, this script should be updated to automate those.
+
+# This script is intended to be run from the root of the repository.
+
+# Get the current version from go.mod.
+CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
+
+echo "Upgrading from v${CURRENT_VERSION} to v$((CURRENT_VERSION + 1))..."
+
+# sed commands in this script use -i.bak for compatibility with both GNU sed and BSD sed.
+
+for file in .golangci.yaml .goreleaser.yaml .mockery.yaml Makefile Procfile; do
+  echo "Incrementing the major version in $file..."
+  sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" "$file" && rm "$file.bak"
+done
+
+for file in hack/generate-proto.sh hack/update-codegen.sh hack/update-openapi.sh; do
+  echo "Incrementing the major version in $file..."
+  sed -i.bak "s/v${CURRENT_VERSION}/v$((CURRENT_VERSION + 1))/g" "$file" && rm "$file.bak"
+done
+
+echo "Incrementing the major version in proto files..."
+find . -name '*.proto' -exec sed -i.bak "s/github.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec sed -i.bak "s/github\.com.\argoproj\.argo_cd\.v${CURRENT_VERSION}/github\.com.\argoproj\.argo_cd\.v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
+
+echo "Incrementing the major version in go files..."
+find . -name '*.go' -exec sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
+
+echo "Incrementing the major version in go.mod..."
+sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" go.mod && rm go.mod.bak
+
+echo 'Finished! Now run `make codegen-local && make lint-local && make test-local` to ensure everything is working as expected.'
