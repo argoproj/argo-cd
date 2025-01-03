@@ -1156,14 +1156,14 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 	return err
 }
 
-func (ctrl *ApplicationController) addProjectFinalizer(proj *appv1.AppProject, stage ...string) error {
+func (ctrl *ApplicationController) addProjectFinalizer(proj *appv1.AppProject) error {
 	if proj.HasFinalizer() {
 		return nil
 	}
 	proj.SetProjectFinalizer()
 	var patch []byte
-	patch, _ = json.Marshal(map[string]interface{}{
-		"metadata": map[string]interface{}{
+	patch, _ = json.Marshal(map[string]any{
+		"metadata": map[string]any{
 			"finalizers": proj.Finalizers,
 		},
 	})

@@ -606,7 +606,7 @@ func newFakeServiceAccount() map[string]any {
 }
 
 func newFakeAppProject() map[string]interface{} {
-	var appProject map[string]interface{}
+	var appProject map[string]any
 	err := yaml.Unmarshal([]byte(fakeAppProjectDeveloper), &appProject)
 	if err != nil {
 		panic(err)
@@ -1235,11 +1235,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 0)
-		deletedResources := []string{}
-		for _, res := range ctrl.kubectl.(*MockKubectl).DeletedResources {
-			deletedResources = append(deletedResources, res.Name)
-		}
+		require.Empty(t, ctrl.kubectl.(*MockKubectl).DeletedResources)
 		assert.True(t, patched)
 	})
 
