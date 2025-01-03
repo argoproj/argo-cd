@@ -30,7 +30,7 @@ func (bar *Bar) getPercent() int64 {
 }
 
 func (bar *Bar) Increment() {
-	bar.cur += 1
+	bar.cur++
 }
 
 func (bar *Bar) Play() {

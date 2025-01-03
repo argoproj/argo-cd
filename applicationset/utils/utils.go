@@ -131,7 +131,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
-		for i := 0; i < original.NumField(); i += 1 {
+		for i := 0; i < original.NumField(); i++ {
 			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
@@ -173,7 +173,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValueIntoUnexported(copy, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		}
 
-		for i := 0; i < original.Len(); i += 1 {
+		for i := 0; i < original.Len(); i++ {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err

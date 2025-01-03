@@ -99,7 +99,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	i := 0
 	for _, mergedParamSet := range baseParamSetsByMergeKey {
 		mergedParamSets[i] = mergedParamSet
-		i += 1
+		i++
 	}
 
 	return mergedParamSets, nil
