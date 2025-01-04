@@ -79,7 +79,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
 	cmd := exec.Command("gpgconf", "--kill", "gpg-agent")
-	cmd.Env = []string{fmt.Sprintf("GNUPGHOME=%s", p)}
+	cmd.Env = []string{"GNUPGHOME=" + p}
 	err = cmd.Run()
 	require.NoError(t, err)
 
@@ -104,7 +104,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 
 	t.Run("Unaccessible GNUPGHOME", func(t *testing.T) {
 		p := initTempDir(t)
-		fp := fmt.Sprintf("%s/gpg", p)
+		fp := p + "/gpg"
 		err = os.Mkdir(fp, 0o000)
 		if err != nil {
 			panic(err.Error())

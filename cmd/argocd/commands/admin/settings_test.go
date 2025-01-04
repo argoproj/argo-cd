@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -14,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -45,7 +44,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewClientset(&v1.ConfigMap{
+	clientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -54,7 +53,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			},
 		},
 		Data: data,
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDSecretName,
@@ -270,7 +269,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 
 	require.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
+		assert.Contains(t, out, "✅ "+k)
 	}
 }
 

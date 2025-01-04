@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -69,7 +69,7 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestDeclarativeHelm(t *testing.T) {
@@ -511,10 +511,10 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 		ctx.And(func() {
 			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
 				"-n", fixture.TestNamespace(),
-				fmt.Sprintf("--from-file=certSecret=%s", repos.CertPath),
-				fmt.Sprintf("--from-file=keySecret=%s", repos.CertKeyPath),
-				fmt.Sprintf("--from-literal=username=%s", GitUsername),
-				fmt.Sprintf("--from-literal=password=%s", GitPassword),
+				"--from-file=certSecret="+repos.CertPath,
+				"--from-file=keySecret="+repos.CertKeyPath,
+				"--from-literal=username="+GitUsername,
+				"--from-literal=password="+GitPassword,
 			))
 			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
@@ -522,10 +522,10 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
 				Name:           "custom-repo",
-				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
-				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
-				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
-				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
+				KeySecret:      &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
+				CertSecret:     &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
+				UsernameSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
+				PasswordSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
 			}))
 		})
 	} else {

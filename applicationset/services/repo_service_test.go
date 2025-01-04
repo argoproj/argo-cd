@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestGetDirectories(t *testing.T) {
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
@@ -419,7 +420,7 @@ func TestGetFiles(t *testing.T) {
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-				return nil, fmt.Errorf("unable to get repos")
+				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{

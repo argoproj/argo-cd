@@ -74,7 +74,7 @@ service ApplicationSetService {
 	// Generate generates
 	rpc Generate (ApplicationSetGenerateRequest) returns (ApplicationSetGenerateResponse) {
 		option (google.api.http) = {
-			post: "/api/v1/applicationsets"
+			post: "/api/v1/applicationsets/generate"
 			body: "*"
 		};
 	}

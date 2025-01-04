@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -38,10 +39,10 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 
 	// Each key/value pair in the config map must exactly contain one public key, with the (short) GPG key ID as key
 	if len(parsed) != 1 {
-		return nil, fmt.Errorf("More than one key found in input data")
+		return nil, errors.New("More than one key found in input data")
 	}
 
-	var retKey *appsv1.GnuPGPublicKey = nil
+	var retKey *appsv1.GnuPGPublicKey
 	// Is there a better way to get the first element from a map without knowing its key?
 	for _, k := range parsed {
 		retKey = k
@@ -51,7 +52,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 		retKey.KeyData = keyData
 		return retKey, nil
 	} else {
-		return nil, fmt.Errorf("Could not find the GPG key")
+		return nil, errors.New("Could not find the GPG key")
 	}
 }
 

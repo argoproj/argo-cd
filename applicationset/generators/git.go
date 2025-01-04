@@ -51,7 +51,7 @@ func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appli
 	return getDefaultRequeueAfter()
 }
 
-func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -82,7 +82,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	}
 
 	var err error
-	var res []map[string]interface{}
+	var res []map[string]any
 	if len(appSetGenerator.Git.Directories) != 0 {
 		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.Template.Spec.Project, appSet.Spec.GoTemplateOptions)
 	} else if len(appSetGenerator.Git.Files) != 0 {
@@ -97,7 +97,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
 	// Directories, not files
 	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, noRevisionCache, verifyCommit)
 	if err != nil {
@@ -122,7 +122,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]interface{}, error) {
+func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
@@ -144,7 +144,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	sort.Strings(allPaths)
 
 	// Generate params from each path, and return
-	res := []map[string]interface{}{}
+	res := []map[string]any{}
 	for _, path := range allPaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
 		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
@@ -157,14 +157,14 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]interface{}, error) {
-	objectsFound := []map[string]interface{}{}
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
+	objectsFound := []map[string]any{}
 
 	// First, we attempt to parse as an array
 	err := yaml.Unmarshal(fileContent, &objectsFound)
 	if err != nil {
 		// If unable to parse as an array, attempt to parse as a single object
-		singleObj := make(map[string]interface{})
+		singleObj := make(map[string]any)
 		err = yaml.Unmarshal(fileContent, &singleObj)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file: %w", err)
@@ -172,20 +172,20 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		objectsFound = append(objectsFound, singleObj)
 	} else if len(objectsFound) == 0 {
 		// If file is valid but empty, add a default empty item
-		objectsFound = append(objectsFound, map[string]interface{}{})
+		objectsFound = append(objectsFound, map[string]any{})
 	}
 
-	res := []map[string]interface{}{}
+	res := []map[string]any{}
 
 	for _, objectFound := range objectsFound {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		if useGoTemplate {
 			for k, v := range objectFound {
 				params[k] = v
 			}
 
-			paramPath := map[string]interface{}{}
+			paramPath := map[string]any{}
 
 			paramPath["path"] = path.Dir(filePath)
 			paramPath["basename"] = path.Base(paramPath["path"].(string))
@@ -194,7 +194,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
 			if pathParamPrefix != "" {
-				params[pathParamPrefix] = map[string]interface{}{"path": paramPath}
+				params[pathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
 				params["path"] = paramPath
 			}
@@ -261,19 +261,19 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 	return res
 }
 
-func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
-	res := make([]map[string]interface{}, len(requestedApps))
+func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+	res := make([]map[string]any, len(requestedApps))
 	for i, a := range requestedApps {
-		params := make(map[string]interface{}, 5)
+		params := make(map[string]any, 5)
 
 		if useGoTemplate {
-			paramPath := map[string]interface{}{}
+			paramPath := map[string]any{}
 			paramPath["path"] = a
 			paramPath["basename"] = path.Base(a)
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
 			if appSetGenerator.Git.PathParamPrefix != "" {
-				params[appSetGenerator.Git.PathParamPrefix] = map[string]interface{}{"path": paramPath}
+				params[appSetGenerator.Git.PathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
 				params["path"] = paramPath
 			}

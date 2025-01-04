@@ -9,8 +9,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
@@ -108,11 +108,11 @@ func StatusExists() Expectation {
 	}
 }
 
-func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
+func Namespace(name string, block func(app *Application, ns *corev1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
 		if err != nil {
-			return failed, fmt.Sprintf("namespace not found %s", err.Error())
+			return failed, "namespace not found " + err.Error()
 		}
 
 		block(c.app(), ns)
@@ -223,7 +223,7 @@ func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -236,7 +236,7 @@ func DoesNotExistNow() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -245,7 +245,7 @@ func DoesNotExistNow() Expectation {
 	}
 }
 
-func Pod(predicate func(p v1.Pod) bool) Expectation {
+func Pod(predicate func(p corev1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
@@ -260,7 +260,7 @@ func Pod(predicate func(p v1.Pod) bool) Expectation {
 	}
 }
 
-func NotPod(predicate func(p v1.Pod) bool) Expectation {
+func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
@@ -275,7 +275,7 @@ func NotPod(predicate func(p v1.Pod) bool) Expectation {
 	}
 }
 
-func pods() (*v1.PodList, error) {
+func pods() (*corev1.PodList, error) {
 	fixture.KubeClientset.CoreV1()
 	pods, err := fixture.KubeClientset.CoreV1().Pods(fixture.DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
 	return pods, err
@@ -288,11 +288,11 @@ func NoNamespace(name string) Expectation {
 			return succeeded, "namespace not found"
 		}
 
-		return failed, fmt.Sprintf("found namespace %s", name)
+		return failed, "found namespace " + name
 	}
 }
 
-func namespace(name string) (*v1.Namespace, error) {
+func namespace(name string) (*corev1.Namespace, error) {
 	fixture.KubeClientset.CoreV1()
 	return fixture.KubeClientset.CoreV1().Namespaces().Get(context.Background(), name, metav1.GetOptions{})
 }

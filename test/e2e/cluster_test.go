@@ -38,7 +38,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 		CreateApp()
 
 	tries := 25
-	for i := 0; i <= tries; i += 1 {
+	for i := 0; i <= tries; i++ {
 		clusterFixture.GivenWithSameState(t).
 			When().
 			List().
@@ -213,7 +213,7 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	clusterURL := url.QueryEscape(KubernetesInternalAPIServerAddr)
 
 	var cluster Cluster
-	err := DoHttpJsonRequest("GET", fmt.Sprintf("/api/v1/clusters/%s", clusterURL), &cluster)
+	err := DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
 	require.NoError(t, err)
 
 	assert.Equal(t, "in-cluster", cluster.Name)
