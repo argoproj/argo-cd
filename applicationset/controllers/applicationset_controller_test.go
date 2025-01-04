@@ -674,7 +674,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -6393,13 +6393,13 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 	}
 }
 
-func TestOwnsHandler(t *testing.T) {
+func TestApplicationOwnsHandler(t *testing.T) {
 	// progressive syncs do not affect create, delete, or generic
-	ownsHandler := getOwnsHandlerPredicates(true)
+	ownsHandler := getApplicationOwnsHandler(true)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
-	ownsHandler = getOwnsHandlerPredicates(false)
+	ownsHandler = getApplicationOwnsHandler(false)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
@@ -6579,7 +6579,7 @@ func TestOwnsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
+			ownsHandler = getApplicationOwnsHandler(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
 		})
 	}
@@ -6652,6 +6652,120 @@ func TestMigrateStatus(t *testing.T) {
 			err := r.migrateStatus(context.Background(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandler(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	assert.True(t, ownsHandler.CreateFunc(event.CreateEvent{}))
+	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
+	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
+
+	tests := []struct {
+		name      string
+		appSetOld *v1alpha1.ApplicationSet
+		appSetNew *v1alpha1.ApplicationSet
+		want      bool
+	}{
+		{
+			name: "Different Spec",
+			appSetOld: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{Git: &v1alpha1.GitGenerator{}},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Different Annotations",
+			appSetOld: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value2"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Different Labels",
+			appSetOld: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"key1": "value1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"key1": "value2"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Different Finalizers",
+			appSetOld: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer2"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "No Changes",
+			appSetOld: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value1"},
+					Labels:      map[string]string{"key1": "value1"},
+					Finalizers:  []string{"finalizer1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value1"},
+					Labels:      map[string]string{"key1": "value1"},
+					Finalizers:  []string{"finalizer1"},
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ownsHandler := getApplicationSetOwnsHandler()
+			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
+				ObjectOld: tt.appSetOld,
+				ObjectNew: tt.appSetNew,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
 		})
 	}
 }
