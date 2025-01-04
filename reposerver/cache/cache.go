@@ -166,7 +166,7 @@ func helmIndexRefsKey(repo string) string {
 }
 
 func ociTagsKey(repo string) string {
-	return fmt.Sprintf("oci-tags|%s", repo)
+	return "oci-tags|" + repo
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
@@ -190,7 +190,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 func (c *Cache) SetOCITags(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return fmt.Errorf("oci index data is nil, skipping cache")
+		return errors.New("oci index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		ociTagsKey(repo),

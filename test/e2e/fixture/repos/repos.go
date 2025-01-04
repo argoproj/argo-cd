@@ -191,7 +191,7 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
 func PushImageToOCIRegistry(pathName, tag string) {
-	imagePath := fmt.Sprintf("./testdata/%s", pathName)
+	imagePath := "./testdata/" + pathName
 
 	errors.FailOnErr(fixture.Run(
 		imagePath,

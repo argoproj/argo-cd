@@ -6,7 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"math"
 	"os"
@@ -114,7 +114,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
+			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
 		},
 		{
 			name: "extraction fails due to multiple layers",
@@ -130,7 +130,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("expected only a single oci layer, got 2"),
+			expectedError: errors.New("expected only a single oci layer, got 2"),
 		},
 		{
 			name: "extraction fails due to invalid media type",
@@ -145,7 +145,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("oci layer media type application/vnd.oci.image.layer.v1.tar+gzip is not in the list of allowed media types"),
+			expectedError: errors.New("oci layer media type application/vnd.oci.image.layer.v1.tar+gzip is not in the list of allowed media types"),
 		},
 		{
 			name: "extraction fails due to non-existent digest",
@@ -159,7 +159,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("error resolving oci repo from digest sha256:nonexistentdigest: not found"),
+			expectedError: errors.New("error resolving oci repo from digest sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
@@ -261,7 +261,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
 					_, _, err := c.Extract(context.Background(), sha, "non-existent-project")
 					require.Error(t, err)
-					require.EqualError(t, fmt.Errorf("error resolving oci repo from digest sha256:34a4a54b23e018edd08aadd78a126a0cedf1e70452daf0d6b36ea44253350a73: not found"), err.Error())
+					require.EqualError(t, errors.New("error resolving oci repo from digest sha256:34a4a54b23e018edd08aadd78a126a0cedf1e70452daf0d6b36ea44253350a73: not found"), err.Error())
 				},
 			},
 		},
@@ -351,7 +351,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			name:     "resolve digest directly",
 			revision: descriptor.Digest.String(),
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
-				return []string{}, fmt.Errorf("this should not be invoked")
+				return []string{}, errors.New("this should not be invoked")
 			}},
 			expectedDigest: descriptor.Digest.String(),
 		},
@@ -361,15 +361,15 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: fmt.Errorf("no version for constraints: constraint not found in 4 tags"),
+			expectedError: errors.New("no version for constraints: constraint not found in 4 tags"),
 		},
 		{
 			name:     "error fetching tags",
 			revision: "^1.0.0",
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
-				return []string{}, fmt.Errorf("some random error")
+				return []string{}, errors.New("some random error")
 			}},
-			expectedError: fmt.Errorf("error fetching tags: failed to get tags: some random error"),
+			expectedError: errors.New("error fetching tags: failed to get tags: some random error"),
 		},
 		{
 			name:     "error resolving digest",
@@ -377,7 +377,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: fmt.Errorf("cannot get digest for revision sha256:abc123: not found"),
+			expectedError: errors.New("cannot get digest for revision sha256:abc123: not found"),
 		},
 		// new tests
 		{
@@ -402,7 +402,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"latest", "stable", "prod", "dev"}, nil
 			}},
-			expectedError: fmt.Errorf("no version for constraints: constraint not found in 4 tags"),
+			expectedError: errors.New("no version for constraints: constraint not found in 4 tags"),
 		},
 		{
 			name:     "resolve with empty tag list",
@@ -410,7 +410,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{}, nil
 			}},
-			expectedError: fmt.Errorf("no version for constraints: constraint not found in 0 tags"),
+			expectedError: errors.New("no version for constraints: constraint not found in 0 tags"),
 		},
 	}
 	for _, tt := range tests {
