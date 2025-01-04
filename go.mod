@@ -1,4 +1,4 @@
-module github.com/argoproj/argo-cd/v2
+module github.com/argoproj/argo-cd/v3
 
 go 1.22.0
 

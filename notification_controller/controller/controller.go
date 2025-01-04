@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
+	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
-	argocert "github.com/argoproj/argo-cd/v2/util/cert"
+	argocert "github.com/argoproj/argo-cd/v3/util/cert"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (

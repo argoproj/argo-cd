@@ -8,13 +8,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
-	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	"github.com/argoproj/argo-cd/v3/util/session"
 )
 
 // NewReloginCommand returns a new instance of `argocd relogin` command

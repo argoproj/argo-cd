@@ -14,8 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/transport"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (

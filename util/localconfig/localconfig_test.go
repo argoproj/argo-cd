@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v3/util/config"
 
 	"github.com/stretchr/testify/require"
 

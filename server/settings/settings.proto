@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings";
 
 // Settings Service
 //
@@ -8,8 +8,8 @@ package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/server/settings/oidc/claims.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/server/settings/oidc/claims.proto";
 
 // SettingsQuery is a query for Argo CD settings
 message SettingsQuery {

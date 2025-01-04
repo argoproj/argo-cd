@@ -6,13 +6,13 @@ mockname: "{{.InterfaceName}}"
 with-expecter: false
 # individual interface config
 packages:
-  github.com/argoproj/argo-cd/v2/applicationset/generators:
+  github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
       Generator:
-  github.com/argoproj/argo-cd/v2/applicationset/services:
+  github.com/argoproj/argo-cd/v3/applicationset/services:
     interfaces:
       Repos:
-  github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider:
+  github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider:
     config:
       dir: "applicationset/services/scm_provider/aws_codecommit/mocks"
     interfaces:
@@ -23,27 +23,27 @@ packages:
       dir: "applicationset/services/scm_provider/azure_devops/git/mocks"
     interfaces:
       Client:
-  github.com/argoproj/argo-cd/v2/applicationset/utils:
+  github.com/argoproj/argo-cd/v3/applicationset/utils:
     interfaces:
       Renderer:
-  github.com/argoproj/argo-cd/v2/commitserver/commit:
+  github.com/argoproj/argo-cd/v3/commitserver/commit:
     interfaces:
       RepoClientFactory:
-  github.com/argoproj/argo-cd/v2/commitserver/apiclient:
+  github.com/argoproj/argo-cd/v3/commitserver/apiclient:
     interfaces:
       CommitServiceClient:
       Clientset:
-  github.com/argoproj/argo-cd/v2/controller/cache:
+  github.com/argoproj/argo-cd/v3/controller/cache:
     interfaces:
       LiveStateCache:
-  github.com/argoproj/argo-cd/v2/reposerver/apiclient:
+  github.com/argoproj/argo-cd/v3/reposerver/apiclient:
     interfaces:
       RepoServerServiceClient:
       RepoServerService_GenerateManifestWithFilesClient:
-  github.com/argoproj/argo-cd/v2/server/application:
+  github.com/argoproj/argo-cd/v3/server/application:
     interfaces:
       Broadcaster:
-  github.com/argoproj/argo-cd/v2/server/extension:
+  github.com/argoproj/argo-cd/v3/server/extension:
     interfaces:
       ApplicationGetter:
       ExtensionMetricsRegistry:
@@ -51,26 +51,26 @@ packages:
       RbacEnforcer:
       SettingsGetter:
       UserGetter:
-  github.com/argoproj/argo-cd/v2/util/db:
+  github.com/argoproj/argo-cd/v3/util/db:
     interfaces:
       ArgoDB:
-  github.com/argoproj/argo-cd/v2/util/git:
+  github.com/argoproj/argo-cd/v3/util/git:
     interfaces:
       Client:
-  github.com/argoproj/argo-cd/v2/util/helm:
+  github.com/argoproj/argo-cd/v3/util/helm:
     interfaces:
       Client:
-  github.com/argoproj/argo-cd/v2/util/io:
+  github.com/argoproj/argo-cd/v3/util/io:
     interfaces:
       TempPaths:
-  github.com/argoproj/argo-cd/v2/util/notification/argocd:
+  github.com/argoproj/argo-cd/v3/util/notification/argocd:
     interfaces:
       Service:
   # These mocks are not currently used, but they are part of the public API of this package.      
-  github.com/argoproj/argo-cd/v2/pkg/apiclient/session:
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/session:
     interfaces:
       SessionServiceServer:
       SessionServiceClient:
-  github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster:
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer:

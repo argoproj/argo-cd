@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/test/fixture/test"
+	"github.com/argoproj/argo-cd/v3/test/fixture/test"
 )
 
 func TestKustomizeVersion(t *testing.T) {

@@ -6,10 +6,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 const (

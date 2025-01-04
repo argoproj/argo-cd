@@ -1,9 +1,9 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
+option go_package = "github.com/argoproj/argo-cd/v3/reposerver/apiclient";
 
 package repository;
 
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 import "google/protobuf/empty.proto";
 
 // ManifestRequest is a query for manifest generation.

@@ -7,7 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 )
 
 // Server provides an Application service

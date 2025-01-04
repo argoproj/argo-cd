@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +19,7 @@ import (
 
 	prometheus "github.com/prometheus/client_golang/prometheus"
 
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
 
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 

@@ -17,8 +17,8 @@ import (
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
-	"github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type cred struct {

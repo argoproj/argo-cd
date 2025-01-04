@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate";
 
 // Certificate Service
 //
@@ -8,7 +8,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate";
 package certificate;
 
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 
 // Message to query the server for configured repository certificates
 message RepositoryCertificateQuery {

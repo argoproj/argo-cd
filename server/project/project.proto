@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/project";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/project";
 
 // Project Service
 //
@@ -8,8 +8,8 @@ package project;
 
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/server/application/application.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/server/application/application.proto";
 
 // ProjectCreateRequest defines project creation parameters.
 message ProjectCreateRequest {

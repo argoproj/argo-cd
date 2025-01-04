@@ -3,7 +3,7 @@ package db
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func Test_getRepositoryCredentialIndex(t *testing.T) {

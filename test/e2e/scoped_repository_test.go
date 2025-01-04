@@ -3,16 +3,16 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
-	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 )
 
 func TestCreateRepositoryWithProject(t *testing.T) {

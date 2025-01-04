@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds";
 
 // Repository Service
 //
@@ -7,7 +7,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds";
 package repocreds;
 
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 
 // RepoCredsQuery is a query for RepoCreds resources
 message RepoCredsQuery {

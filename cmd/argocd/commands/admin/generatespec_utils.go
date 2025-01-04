@@ -11,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+	ioutil "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func getOutWriter(inline bool, filePath string) (io.Writer, io.Closer, error) {
