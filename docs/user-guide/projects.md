@@ -315,9 +315,10 @@ stringData:
 ```
 
 !!! warning
-Please keep in mind when using a project-scoped repository, only applications from the same project can make use of
-it. When using applicationsets with the Git generator, only non-scoped repositories can be used (i.e. repositories that
-do _not_ have a `project` set).
+Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
+name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
+(i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
+that do _not_ have a `project` set).
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
 
