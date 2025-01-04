@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -52,7 +52,7 @@ func TestGetDirectories(t *testing.T) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
-				return nil, fmt.Errorf("unable to get dirs")
+				return nil, errors.New("unable to get dirs")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
@@ -74,7 +74,7 @@ func TestGetDirectories(t *testing.T) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
-				return nil, fmt.Errorf("revision HEAD is not signed")
+				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 	}
@@ -100,7 +100,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 		submoduleEnabled           bool
 		getRepositoryPreAssertions func(ctx context.Context, url, project string)
 		getGitDirectories          func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
-		repoSecrets                []*v1.Secret
+		repoSecrets                []*corev1.Secret
 	}
 	type args struct {
 		ctx     context.Context
@@ -124,7 +124,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					Paths: []string{},
 				}, nil
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -172,7 +172,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -220,7 +220,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -269,7 +269,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "some-proj", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -318,7 +318,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -361,7 +361,7 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cm := v1.ConfigMap{
+			cm := corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-cm",
 					Namespace: testNamespace,
@@ -428,7 +428,7 @@ func TestGetFiles(t *testing.T) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				return nil, fmt.Errorf("unable to get files")
+				return nil, errors.New("unable to get files")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
@@ -456,7 +456,7 @@ func TestGetFiles(t *testing.T) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
-				return nil, fmt.Errorf("revision HEAD is not signed")
+				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 	}
@@ -482,7 +482,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 		submoduleEnabled           bool
 		getRepositoryPreAssertions func(ctx context.Context, url, project string)
 		getGitFiles                func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
-		repoSecrets                []*v1.Secret
+		repoSecrets                []*corev1.Secret
 	}
 	type args struct {
 		ctx     context.Context
@@ -506,7 +506,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -554,7 +554,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -602,7 +602,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -651,7 +651,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "some-proj", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -700,7 +700,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
-			repoSecrets: []*v1.Secret{
+			repoSecrets: []*corev1.Secret{
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: testNamespace,
@@ -743,7 +743,7 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cm := v1.ConfigMap{
+			cm := corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-cm",
 					Namespace: testNamespace,
