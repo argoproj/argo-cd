@@ -139,6 +139,7 @@ type ApplicationController struct {
 	refreshRequestedApps          map[string]CompareWith
 	refreshRequestedAppsMutex     *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
+	metricsClusterLabels          []string
 	kubectlSemaphore              *semaphore.Weighted
 	clusterSharding               sharding.ClusterShardingCache
 	projByNameCache               sync.Map
@@ -173,6 +174,7 @@ func NewApplicationController(
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
 	metricsApplicationConditions []string,
+	metricsClusterLabels []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
 	clusterSharding sharding.ClusterShardingCache,
@@ -218,6 +220,7 @@ func NewApplicationController(
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
+		metricsClusterLabels:              metricsClusterLabels,
 	}
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset)
@@ -859,7 +862,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.appHydrateQueue.ShutDown()
 	defer ctrl.hydrationQueue.ShutDown()
 
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
 	ctrl.RegisterClusterSecretUpdater(ctx)
 
 	go ctrl.appInformer.Run(ctx.Done())
@@ -882,6 +884,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 			ctrl.clusterSharding.Init(clusters, appItems)
 		}
 	}
+
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.metricsClusterLabels, ctrl.kubeClientset, ctrl.namespace)
 
 	errors.CheckError(ctrl.stateCache.Init())
 

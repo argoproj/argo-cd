@@ -16,6 +16,7 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -60,6 +61,7 @@ var (
 
 	descAppLabels     *prometheus.Desc
 	descAppConditions *prometheus.Desc
+	descClusterLabels *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -246,8 +248,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, clusterLabels []string, kubeClientset kubernetes.Interface, argoCDNamespace string) {
+	collector := &clusterCollector{infoSource: source, clusterLabels: clusterLabels, kubeClientset: kubeClientset, argoCDNamespace: argoCDNamespace}
 	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
