@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/resource_customizations"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -70,6 +71,10 @@ type VM struct {
 }
 
 func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
+	return vm.runLuaWithResourceActionParameters(obj, script, nil)
+}
+
+func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -99,6 +104,12 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState,
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	l.SetContext(ctx)
+
+	for _, resourceActionParameter := range resourceActionParameters {
+		value := decodeValue(l, resourceActionParameter.GetValue())
+		l.SetGlobal(resourceActionParameter.GetName(), value)
+	}
+
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
 	err := l.DoString(script)
@@ -173,8 +184,8 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
-	l, err := vm.runLua(obj, script)
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
+	l, err := vm.runLuaWithResourceActionParameters(obj, script, resourceActionParameters)
 	if err != nil {
 		return nil, err
 	}
