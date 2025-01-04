@@ -92,7 +92,10 @@ linters-settings:
         disabled: true
       # context.Context() should be the first parameter of a function when provided as argument.
       - name: context-as-argument
-        disabled: true
+        disabled: false
+        arguments:
+          # Allow functions with test or bench signatures.
+          - allowTypesBefore: "*testing.T,testing.TB"
       # Basic types should not be used as a key in `context.WithValue`
       - name: context-keys-type
         disabled: true

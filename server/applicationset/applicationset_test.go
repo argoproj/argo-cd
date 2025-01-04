@@ -528,7 +528,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, true)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
@@ -544,7 +544,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update no merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, false)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{

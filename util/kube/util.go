@@ -21,7 +21,7 @@ type kubeUtil struct {
 type updateFn func(s *corev1.Secret, new bool) error
 
 // NewKubeUtil NewUtil returns a new kubeUtil receiver
-func NewKubeUtil(client kubernetes.Interface, ctx context.Context) *kubeUtil {
+func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
 	return &kubeUtil{client: client, ctx: ctx}
 }
 

@@ -644,7 +644,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{
@@ -827,7 +827,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{

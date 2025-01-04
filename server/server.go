@@ -1196,19 +1196,19 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		registerExtensions(mux, a, metricsReg)
 	}
 
-	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationsetpkg.RegisterApplicationSetServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(notificationpkg.RegisterNotificationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(ctx, versionpkg.RegisterVersionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, clusterpkg.RegisterClusterServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationpkg.RegisterApplicationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationsetpkg.RegisterApplicationSetServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, notificationpkg.RegisterNotificationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repositorypkg.RegisterRepositoryServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repocredspkg.RegisterRepoCredsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, sessionpkg.RegisterSessionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, settingspkg.RegisterSettingsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, projectpkg.RegisterProjectServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, accountpkg.RegisterAccountServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
@@ -1458,7 +1458,7 @@ func isMainJsBundle(url *url.URL) bool {
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 
 // mustRegisterGWHandler is a convenience function to register a gateway handler
-func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) {
+func mustRegisterGWHandler(ctx context.Context, register registerFunc, mux *runtime.ServeMux, conn *grpc.ClientConn) {
 	err := register(ctx, mux, conn)
 	if err != nil {
 		panic(err)
