@@ -59,7 +59,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                     <div className='argo-table-list__head'>
                         <div className='row'>
                             <div className='columns small-1 xxxlarge-1' />
-                            <div className='columns small-2 xxxlarge-1'>NAME</div>
+                            <div className='columns small-2 xxxlarge-2'>NAME</div>
                             <div className='columns small-1 xxxlarge-1'>GROUP/KIND</div>
                             <div className='columns small-1 xxxlarge-1'>SYNC ORDER</div>
                             <div className='columns small-2 xxxlarge-1'>NAMESPACE</div>
