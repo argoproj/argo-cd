@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -156,15 +157,18 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
-	// Create a new token object, specifying signing method and the claims
-	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.RegisteredClaims{
-		IssuedAt:  jwt.NewNumericDate(now),
-		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: jwt.NewNumericDate(now),
-		Subject:   subject,
-		ID:        id,
+	claims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			Issuer:    SessionManagerClaimsIssuer,
+			NotBefore: jwt.NewNumericDate(now),
+			Subject:   subject,
+			ID:        id,
+		},
+		FederatedClaims: &utils.FederatedClaims{
+			UserID: "", // Empty for local auth
+		},
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
@@ -226,7 +230,19 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
-	subject := jwtutil.StringField(claims, "sub")
+	// Convert MapClaims to ArgoClaims
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(claims, "sub"),
+		},
+	}
+	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+		argoClaims.FederatedClaims = &utils.FederatedClaims{
+			UserID: jwtutil.StringField(fedClaims, "user_id"),
+		}
+	}
+
+	subject := utils.GetUserIdentifier(argoClaims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -502,9 +518,24 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				return
 			}
 			ctx := r.Context()
+
+			// Convert claims to MapClaims
+			mapClaims, err := jwtutil.MapClaims(claims)
+			if err != nil {
+				http.Error(w, "Invalid claims format", http.StatusUnauthorized)
+				return
+			}
+
+			argoClaims := &utils.ArgoClaims{
+				RegisteredClaims: jwt.RegisteredClaims{
+					Subject: jwtutil.StringField(mapClaims, "sub"),
+				},
+				FederatedClaims: utils.GetFederatedClaims(mapClaims),
+			}
+
 			// Add claims to the context to inspect for RBAC
 			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
+			ctx = context.WithValue(ctx, "user_id", utils.GetUserIdentifier(argoClaims))
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
@@ -515,12 +546,14 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	var claims jwt.RegisteredClaims
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
 	}
-	switch claims.Issuer {
+	// Get issuer from MapClaims
+	issuer, _ := claims["iss"].(string)
+	switch issuer {
 	case SessionManagerClaimsIssuer:
 		// Argo CD signed token
 		return mgr.Parse(tokenString)
@@ -547,8 +580,8 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			log.Warnf("Failed to verify token: %s", err)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
-				claims = jwt.RegisteredClaims{
-					Issuer: "sso",
+				claims = jwt.MapClaims{
+					"iss": "sso",
 				}
 				return claims, "", common.TokenVerificationErr
 			}
@@ -584,7 +617,7 @@ func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringA
 }
 
 func LoggedIn(ctx context.Context) bool {
-	return Sub(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
+	return GetUserIdentifier(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
 }
 
 // Username is a helper to extract a human readable username from a context
@@ -593,12 +626,12 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.StringField(mapClaims, "iss") {
-	case SessionManagerClaimsIssuer:
-		return jwtutil.StringField(mapClaims, "sub")
-	default:
-		return jwtutil.StringField(mapClaims, "email")
+	subject := jwtutil.StringField(mapClaims, "sub")
+	if strings.Contains(subject, ":") {
+		parts := strings.Split(subject, ":")
+		return parts[0] // Return just the username part
 	}
+	return subject
 }
 
 func Iss(ctx context.Context) string {
@@ -617,12 +650,19 @@ func Iat(ctx context.Context) (time.Time, error) {
 	return jwtutil.IssuedAtTime(mapClaims)
 }
 
-func Sub(ctx context.Context) string {
+// GetUserIdentifier returns the user identifier from context, prioritizing federated claims over subject
+func GetUserIdentifier(ctx context.Context) string {
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return ""
 	}
-	return jwtutil.StringField(mapClaims, "sub")
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(mapClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	}
+	return utils.GetUserIdentifier(argoClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {
@@ -633,11 +673,32 @@ func Groups(ctx context.Context, scopes []string) []string {
 	return jwtutil.GetGroups(mapClaims, scopes)
 }
 
+type contextKey struct{}
+
+var claimsKey = contextKey{}
+
+// ClaimsKey returns the context key used for claims
+func ClaimsKey() interface{} {
+	return claimsKey
+}
+
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
-	claims, ok := ctx.Value("claims").(jwt.Claims)
+	claims, ok := ctx.Value(claimsKey).(jwt.Claims)
 	if !ok {
-		return nil, false
+		claims, ok = ctx.Value("claims").(jwt.Claims)
+		if !ok {
+			// Try direct MapClaims from both keys
+			mapClaims, ok := ctx.Value(claimsKey).(jwt.MapClaims)
+			if !ok {
+				mapClaims, ok = ctx.Value("claims").(jwt.MapClaims)
+			}
+			if ok {
+				return mapClaims, true
+			}
+			return nil, false
+		}
 	}
+
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return nil, false
