@@ -2,14 +2,19 @@ package oidc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -28,12 +33,19 @@ type Provider interface {
 	ParseConfig() (*OIDCConfiguration, error)
 
 	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
+
+	VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error)
 }
 
 type providerImpl struct {
 	issuerURL      string
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
+
+	jwksCache       *jose.JSONWebKeySet
+	jwksExpiry      time.Time
+	jwksCacheMux    sync.Mutex
+	defaultCacheTTL time.Duration
 }
 
 var _ Provider = &providerImpl{}
@@ -41,8 +53,9 @@ var _ Provider = &providerImpl{}
 // NewOIDCProvider initializes an OIDC provider
 func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 	return &providerImpl{
-		issuerURL: issuerURL,
-		client:    client,
+		issuerURL:       issuerURL,
+		client:          client,
+		defaultCacheTTL: 5 * time.Minute,
 	}
 }
 
@@ -147,6 +160,126 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 	}
 
 	return idToken, nil
+}
+
+// VerifyJWT verifies a JWT token using the configured JWK Set URL
+func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error) {
+	if argoSettings.JWTConfig == nil || argoSettings.JWTConfig.JWKSetURL == "" {
+		return nil, errors.New("JWT configuration not found")
+	}
+
+	cacheTTL := p.defaultCacheTTL
+	if argoSettings.JWTConfig.CacheTTL != "" {
+		ttl, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
+		if err != nil {
+			log.Warnf("Invalid JWT cache TTL %q, using default (%d)", argoSettings.JWTConfig.CacheTTL, cacheTTL)
+		} else {
+			cacheTTL = ttl
+		}
+	}
+
+	jwks, err := p.getJWKS(argoSettings.JWTConfig.JWKSetURL, cacheTTL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JWKS: %w", err)
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		kid, ok := token.Header["kid"].(string)
+		if !ok {
+			return nil, errors.New("kid header not found in token")
+		}
+
+		var key *jose.JSONWebKey
+		for _, k := range jwks.Keys {
+			if k.KeyID == kid {
+				key = &k
+				break
+			}
+		}
+		if key == nil {
+			return nil, fmt.Errorf("no key found for kid %q", kid)
+		}
+
+		if key.Algorithm != "" && key.Algorithm != token.Header["alg"] {
+			return nil, fmt.Errorf("algorithm mismatch for kid %q: expected %v, got %v. JWT issuer may be misconfigured/broken", kid, key.Algorithm, token.Header["alg"])
+		}
+
+		return key.Key, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+
+	if argoSettings.JWTConfig.EmailClaim != "" {
+		if _, ok := claims[argoSettings.JWTConfig.EmailClaim]; !ok {
+			return nil, fmt.Errorf("required email claim %q not found", argoSettings.JWTConfig.EmailClaim)
+		}
+	}
+
+	if argoSettings.JWTConfig.UsernameClaim != "" {
+		if _, ok := claims[argoSettings.JWTConfig.UsernameClaim]; !ok {
+			return nil, fmt.Errorf("required username claim %q not found", argoSettings.JWTConfig.UsernameClaim)
+		}
+	}
+
+	// Verify audience if configured
+	if aud, ok := claims["aud"].(string); ok {
+		if argoSettings.JWTConfig.Audience != "" && aud != argoSettings.JWTConfig.Audience {
+			return nil, fmt.Errorf("invalid audience claim, expected %q, got %q. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, aud)
+		}
+	} else if audList, ok := claims["aud"].([]interface{}); ok {
+		if argoSettings.JWTConfig.Audience != "" {
+			validAud := false
+			for _, a := range audList {
+				if a.(string) == argoSettings.JWTConfig.Audience {
+					validAud = true
+					break
+				}
+			}
+			if !validAud {
+				return nil, fmt.Errorf("invalid audience claim, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audList)
+			}
+		}
+	} else if argoSettings.JWTConfig.Audience != "" {
+		return nil, errors.New("audience claim not found or invalid type")
+	}
+
+	return token, nil
+}
+
+func (p *providerImpl) getJWKS(jwksURL string, cacheTTL time.Duration) (*jose.JSONWebKeySet, error) {
+	p.jwksCacheMux.Lock()
+	defer p.jwksCacheMux.Unlock()
+
+	if p.jwksCache != nil && time.Now().Before(p.jwksExpiry) {
+		return p.jwksCache, nil
+	}
+
+	resp, err := http.Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var jwks jose.JSONWebKeySet
+	err = json.NewDecoder(resp.Body).Decode(&jwks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JWKS: %w", err)
+	}
+
+	p.jwksCache = &jwks
+	p.jwksExpiry = time.Now().Add(cacheTTL)
+
+	return &jwks, nil
 }
 
 func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
