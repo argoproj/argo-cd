@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	fakeappclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -130,16 +132,7 @@ func Test_PolicyFromYAML(t *testing.T) {
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
-	require.True(t, checkPolicy("my-org:team-qa", "update", "project", "foo",
-		"", uPol, dRole, matchMode, true, nil))
-}
-
-func trueLogRbacEnforce() bool {
-	return true
-}
-
-func falseLogRbacEnforce() bool {
-	return false
+	require.True(t, checkPolicy("", "my-org:team-qa", rbacpolicy.ActionUpdate, rbacpolicy.ResourceProjects, "foo", "", uPol, "", dRole, matchMode, true, nil))
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
@@ -163,105 +156,43 @@ func Test_PolicyFromK8s(t *testing.T) {
 	require.Equal(t, "", matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceClusters, "*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, "*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, "*", assets.BuiltinPolicyCSV, uPol, "", "role:readonly", "glob", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, "*", "", uPol, "", "role:readonly", "glob", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("use regex match mode instead of glob", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, ".*", assets.BuiltinPolicyCSV, uPol, "", "role:readonly", "regex", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.True(t, ok)
-	})
-	// no function is provided to check if logs rbac is enforced or not, so the policy permissions are queried to determine if no-such-user can get logs
-	t.Run("no-such-user get logs", func(t *testing.T) {
-		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.False(t, ok)
-	})
-	// logs rbac policy is enforced, and no-such-user is not granted logs permission in user policy, so the result should be false (cannot get logs)
-	t.Run("no-such-user get logs rbac enforced", func(t *testing.T) {
-		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, trueLogRbacEnforce)
-		require.False(t, ok)
-	})
-	// no-such-user is not granted logs permission in user policy, but logs rbac policy is not enforced, so logs permission is open to all
-	t.Run("no-such-user get logs rbac not enforced", func(t *testing.T) {
-		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, falseLogRbacEnforce)
-		require.True(t, ok)
-	})
-	// no function is provided to check if logs rbac is enforced or not, so the policy permissions are queried to determine if log-deny-user can get logs
-	t.Run("log-deny-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.False(t, ok)
-	})
-	// logs rbac policy is enforced, and log-deny-user is denied logs permission in user policy, so the result should be false (cannot get logs)
-	t.Run("log-deny-user get logs rbac enforced", func(t *testing.T) {
-		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, trueLogRbacEnforce)
-		require.False(t, ok)
-	})
-	// log-deny-user is denied logs permission in user policy, but logs rbac policy is not enforced, so logs permission is open to all
-	t.Run("log-deny-user get logs rbac not enforced", func(t *testing.T) {
-		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, falseLogRbacEnforce)
-		require.True(t, ok)
-	})
-	// no function is provided to check if logs rbac is enforced or not, so the policy permissions are queried to determine if log-allow-user can get logs
-	t.Run("log-allow-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.True(t, ok)
-	})
-	// logs rbac policy is enforced, and log-allow-user is granted logs permission in user policy, so the result should be true (can get logs)
-	t.Run("log-allow-user get logs rbac enforced", func(t *testing.T) {
-		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, trueLogRbacEnforce)
-		require.True(t, ok)
-	})
-	// log-allow-user is granted logs permission in user policy, and logs rbac policy is not enforced, so logs permission is open to all
-	t.Run("log-allow-user get logs rbac not enforced", func(t *testing.T) {
-		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, falseLogRbacEnforce)
-		require.True(t, ok)
-	})
-	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.True(t, ok)
-	})
-	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:test", rbacpolicy.ActionGet, rbacpolicy.ResourceLogs, "*/*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:test", rbacpolicy.ActionCreate, rbacpolicy.ResourceExec, "*/*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
-		require.True(t, ok)
-	})
-	// trueLogRbacEnforce or falseLogRbacEnforce should not affect non-logs resources
-	t.Run("create applicationsets with trueLogRbacEnforce", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, trueLogRbacEnforce)
-		require.True(t, ok)
-	})
-	t.Run("create applicationsets with falseLogRbacEnforce", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, trueLogRbacEnforce)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, "", dRole, "", true, nil)
 		require.True(t, ok)
 	})
 }
@@ -301,43 +232,238 @@ p, role:readonly, certificates, get, .*, allow
 p, role:, certificates, get, .*, allow`
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplications, ".*/.*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", ".*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceClusters, ".*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, ".*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, "role:readonly", "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, ".*", builtInPolicy, uPol, "", "role:readonly", "regex", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", "", uPol, "role:readonly", "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, ".*", "", uPol, "", "role:readonly", "regex", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("use glob match mode instead of regex", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceCertificates, ".+", builtInPolicy, uPol, "", dRole, "glob", true, nil)
 		require.False(t, ok)
 	})
 	t.Run("get logs via glob match mode", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceLogs, ".*/.*", builtInPolicy, uPol, "", dRole, "glob", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceExec, ".*/.*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplicationSets, ".*/.*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, nil)
+		ok := checkPolicy("", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplicationSets, ".*/.*", builtInPolicy, uPol, "", dRole, "regex", true, nil)
+		require.True(t, ok)
+	})
+}
+
+func Test_PolicyFromAppProjects(t *testing.T) {
+	ctx := context.Background()
+
+	policy := `
+g, role:user, proj:foo:test
+g, role:user, proj:bar:test
+`
+
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-rbac-cm",
+			Namespace: "argocd",
+		},
+		Data: map[string]string{
+			"policy.csv":       policy,
+			"policy.default":   "",
+			"policy.matchMode": "glob",
+		},
+	})
+
+	appclients := fakeappclientset.NewSimpleClientset(newProj("foo", "test"))
+	projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
+	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
+
+	require.Equal(t, policy, uPol)
+	require.Empty(t, dRole)
+	require.Equal(t, "glob", matchMode)
+
+	t.Run("get applications", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplications, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionGet, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("*", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplications, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("create applications", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplications, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionCreate, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplications, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("update applications", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplications, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionUpdate, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionUpdate, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionUpdate, rbacpolicy.ResourceApplications, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("delete applications", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplications, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionDelete, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplications, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("sync applications", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplications, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionSync, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionSync, rbacpolicy.ResourceApplications, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionSync, rbacpolicy.ResourceApplications, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("get applicationsets", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplicationSets, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionGet, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceApplicationSets, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("create applicationsets", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplicationSets, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionCreate, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceApplicationSets, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("update applicationsets", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplicationSets, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionUpdate, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionUpdate, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionUpdate, rbacpolicy.ResourceApplicationSets, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("delete applicationsets", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceApplicationSets, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionDelete, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplicationSets, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionDelete, rbacpolicy.ResourceApplicationSets, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("get logs", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceLogs, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionGet, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceLogs, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionGet, rbacpolicy.ResourceLogs, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.True(t, ok)
+	})
+
+	t.Run("create exec", func(t *testing.T) {
+		modification, err := getModification("set", rbacpolicy.ResourceExec, "*", "allow")
+		require.NoError(t, err)
+		err = updateProjects(ctx, projIf, "foo", "test", rbacpolicy.ActionCreate, modification, false)
+		require.NoError(t, err)
+
+		projectPolicies := getProjectPolicies(ctx, projIf, "*")
+		ok := checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceExec, "*/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
+		require.False(t, ok)
+
+		projectPolicies = getProjectPolicies(ctx, projIf, "foo")
+		ok = checkPolicy("foo", "role:user", rbacpolicy.ActionCreate, rbacpolicy.ResourceExec, "foo/*", assets.BuiltinPolicyCSV, uPol, projectPolicies, dRole, "glob", true, nil)
 		require.True(t, ok)
 	})
 }
