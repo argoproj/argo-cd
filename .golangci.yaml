@@ -101,18 +101,22 @@ linters-settings:
         disabled: true
       # for better readability, the errors should be last in the list of returned values by a function.
       - name: error-return
+        disabled: false
       # for better readability, error messages should not be capitalized or end with punctuation or a newline.
       - name: error-strings
         disabled: true
       # report when replacing `errors.New(fmt.Sprintf())` with `fmt.Errorf()` is possible
       - name: errorf
+        disabled: false
       # incrementing an integer variable by 1 is recommended to be done using the `++` operator
       - name: increment-decrement
+        disabled: false
       # highlights redundant else-blocks that can be eliminated from the code
       - name: indent-error-flow
         disabled: true
       # This rule suggests a shorter way of writing ranges that do not use the second value.
       - name: range
+        disabled: false
       # receiver names in a method should reflect the struct name (p for Person, for example)
       - name: receiver-naming
         disabled: true
@@ -121,7 +125,7 @@ linters-settings:
         disabled: true
       # redundant else-blocks that can be eliminated from the code.
       - name: superfluous-else
-        disabled: true
+        disabled: false
       # prevent confusing name for variables when using `time` package
       - name: time-naming
         disabled: true
@@ -130,13 +134,16 @@ linters-settings:
         disabled: true
       # spots and proposes to remove unreachable code. also helps to spot errors
       - name: unreachable-code
+        disabled: false
       # Functions or methods with unused parameters can be a symptom of an unfinished refactoring or a bug.
       - name: unused-parameter
         disabled: true
       # Since Go 1.18, interface{} has an alias: any. This rule proposes to replace instances of interface{} with any.
       - name: use-any
+        disabled: false
       # report when a variable declaration can be simplified
       - name: var-declaration
+        disabled: false
       # warns when initialism, variable or package naming conventions are not followed.
       - name: var-naming
         disabled: true

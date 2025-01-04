@@ -254,11 +254,10 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			}
 			if index == -1 {
 				log.Fatal("Specified signature key is not configured for project")
-			} else {
-				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 
@@ -352,11 +351,10 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 			if index == -1 {
 				log.Fatal("Specified destination does not exist in project")
-			} else {
-				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 
@@ -456,11 +454,10 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 			}
 			if index == -1 {
 				log.Fatal("Specified resource does not exist in the orphaned ignore of project")
-			} else {
-				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().StringVar(&name, "name", "", "Resource name pattern")

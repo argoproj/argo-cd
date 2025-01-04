@@ -248,12 +248,11 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 					fmt.Println("Yes")
 				}
 				os.Exit(0)
-			} else {
-				if !quiet {
-					fmt.Println("No")
-				}
-				os.Exit(1)
 			}
+			if !quiet {
+				fmt.Println("No")
+			}
+			os.Exit(1)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -321,13 +320,11 @@ argocd admin settings rbac validate --namespace argocd
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
 					os.Exit(0)
-				} else {
-					fmt.Printf("Policy is invalid: %v\n", err)
-					os.Exit(1)
 				}
-			} else {
-				log.Fatalf("Policy is empty or could not be loaded.")
+				fmt.Printf("Policy is invalid: %v\n", err)
+				os.Exit(1)
 			}
+			log.Fatalf("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
