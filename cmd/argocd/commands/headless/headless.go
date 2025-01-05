@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/dynamic"
@@ -88,7 +88,7 @@ func (c *forwardCacheClient) Rename(oldKey string, newKey string, expiration tim
 	})
 }
 
-func (c *forwardCacheClient) Get(key string, obj interface{}) error {
+func (c *forwardCacheClient) Get(key string, obj any) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.Get(key, obj)
 	})
@@ -129,7 +129,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metaV1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return

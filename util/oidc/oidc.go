@@ -17,7 +17,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -33,7 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
+var InvalidRedirectURLError = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"

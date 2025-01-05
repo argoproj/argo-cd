@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"math"
@@ -25,7 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -952,7 +953,7 @@ func (p ApplicationSourcePluginParameter) Equals(other ApplicationSourcePluginPa
 //
 // There are efforts to change things upstream, but nothing has been merged yet. See https://github.com/golang/go/issues/37711
 func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
-	out := map[string]interface{}{}
+	out := map[string]any{}
 	out["name"] = p.Name
 	if p.String_ != nil {
 		out["string"] = p.String_
@@ -1123,7 +1124,7 @@ func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
 type ResourceHealthLocation string
 
 var (
-	ResourceHealthLocationInline  ResourceHealthLocation = ""
+	ResourceHealthLocationInline  ResourceHealthLocation
 	ResourceHealthLocationAppTree ResourceHealthLocation = "appTree"
 )
 
@@ -1789,29 +1790,29 @@ type InfoItem struct {
 // ResourceNetworkingInfo holds networking resource related information
 // TODO: describe members of this type
 type ResourceNetworkingInfo struct {
-	TargetLabels map[string]string        `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
-	TargetRefs   []ResourceRef            `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
-	Labels       map[string]string        `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
-	Ingress      []v1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
+	TargetLabels map[string]string            `json:"targetLabels,omitempty" protobuf:"bytes,1,opt,name=targetLabels"`
+	TargetRefs   []ResourceRef                `json:"targetRefs,omitempty" protobuf:"bytes,2,opt,name=targetRefs"`
+	Labels       map[string]string            `json:"labels,omitempty" protobuf:"bytes,3,opt,name=labels"`
+	Ingress      []corev1.LoadBalancerIngress `json:"ingress,omitempty" protobuf:"bytes,4,opt,name=ingress"`
 	// ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,5,opt,name=externalURLs"`
 }
 
 // TODO: describe this type
 type HostResourceInfo struct {
-	ResourceName         v1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
-	RequestedByApp       int64           `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
-	RequestedByNeighbors int64           `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
-	Capacity             int64           `json:"capacity,omitempty" protobuf:"bytes,4,name=capacity"`
+	ResourceName         corev1.ResourceName `json:"resourceName,omitempty" protobuf:"bytes,1,name=resourceName"`
+	RequestedByApp       int64               `json:"requestedByApp,omitempty" protobuf:"bytes,2,name=requestedByApp"`
+	RequestedByNeighbors int64               `json:"requestedByNeighbors,omitempty" protobuf:"bytes,3,name=requestedByNeighbors"`
+	Capacity             int64               `json:"capacity,omitempty" protobuf:"bytes,4,name=capacity"`
 }
 
 // HostInfo holds host name and resources metrics
 // TODO: describe purpose of this type
 // TODO: describe members of this type
 type HostInfo struct {
-	Name          string             `json:"name,omitempty" protobuf:"bytes,1,name=name"`
-	ResourcesInfo []HostResourceInfo `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
-	SystemInfo    v1.NodeSystemInfo  `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
+	Name          string                `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	ResourcesInfo []HostResourceInfo    `json:"resourcesInfo,omitempty" protobuf:"bytes,2,name=resourcesInfo"`
+	SystemInfo    corev1.NodeSystemInfo `json:"systemInfo,omitempty" protobuf:"bytes,3,opt,name=systemInfo"`
 }
 
 // ApplicationTree holds nodes which belongs to the application
@@ -2659,7 +2660,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 // AddWindow adds a sync window with the given parameters to the AppProject
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
-		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
+		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
 	window := &SyncWindow{
@@ -2866,7 +2867,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
-		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
 
 	if len(s) > 0 {

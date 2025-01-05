@@ -45,7 +45,7 @@ type ArgoCDRepoServer struct {
 }
 
 // The hostnames to generate self-signed issues with
-var tlsHostList []string = []string{"localhost", "reposerver"}
+var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
