@@ -16,7 +16,7 @@ import (
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -684,7 +684,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 
 func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
-	deployment := kube.MustToUnstructured(&v1.Deployment{
+	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -721,7 +721,7 @@ func TestSetHealth(t *testing.T) {
 func TestPreserveStatusTimestamp(t *testing.T) {
 	timestamp := metav1.Now()
 	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
-	deployment := kube.MustToUnstructured(&v1.Deployment{
+	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -758,7 +758,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 func TestSetHealthSelfReferencedApp(t *testing.T) {
 	app := newFakeApp()
 	unstructuredApp := kube.MustToUnstructured(app)
-	deployment := kube.MustToUnstructured(&v1.Deployment{
+	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
