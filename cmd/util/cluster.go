@@ -123,7 +123,7 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 	return &clst
 }
 
-// GetKubePublicEndpoint returns the kubernetes apiserver endpoint as published
+// GetKubePublicEndpoint returns the kubernetes apiserver endpoint and certificate authority data as published
 // in the kube-public.
 func GetKubePublicEndpoint(client kubernetes.Interface) (string, []byte, error) {
 	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(context.TODO(), "cluster-info", metav1.GetOptions{})
@@ -144,7 +144,9 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, []byte, error) 
 		return "", nil, stderrors.New("cluster-info kubeconfig does not have any clusters")
 	}
 
-	return config.Clusters[0].Cluster.Server, config.Clusters[0].Cluster.CertificateAuthorityData, nil
+	endpoint := config.Clusters[0].Cluster.Server
+	certificateAuthorityData := config.Clusters[0].Cluster.CertificateAuthorityData
+	return endpoint, certificateAuthorityData, nil
 }
 
 type ClusterOptions struct {
