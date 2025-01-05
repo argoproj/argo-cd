@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -97,7 +96,7 @@ func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 }
 
 func TestClusterToSecret(t *testing.T) {
-	cluster := &appv1.Cluster{
+	cluster := &v1alpha1.Cluster{
 		Server:      "server",
 		Labels:      map[string]string{"test": "label"},
 		Annotations: map[string]string{"test": "annotation"},
@@ -119,7 +118,7 @@ func TestClusterToSecret(t *testing.T) {
 }
 
 func TestClusterToSecret_LastAppliedConfigurationRejected(t *testing.T) {
-	cluster := &appv1.Cluster{
+	cluster := &v1alpha1.Cluster{
 		Server:      "server",
 		Annotations: map[string]string{corev1.LastAppliedConfigAnnotation: "val2"},
 		Name:        "test",
@@ -247,8 +246,8 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	_, err := db.CreateCluster(context.Background(), &appv1.Cluster{
-		Server: appv1.KubernetesInternalAPIServerAddr,
+	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
+		Server: v1alpha1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
 	require.Error(t, err)
@@ -339,7 +338,7 @@ func TestListClusters(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(appv1.KubernetesInternalAPIServerAddr),
+			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
 			"name":   []byte("in-cluster"),
 		},
 	}

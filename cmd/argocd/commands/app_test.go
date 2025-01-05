@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -2290,10 +2289,10 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName s
 
 	go func() {
 		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
-		modifiedEvent.Type = k8swatch.Modified
+		modifiedEvent.Type = watch.Modified
 		appEventsCh <- modifiedEvent
 		deletedEvent := new(v1alpha1.ApplicationWatchEvent)
-		deletedEvent.Type = k8swatch.Deleted
+		deletedEvent.Type = watch.Deleted
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
