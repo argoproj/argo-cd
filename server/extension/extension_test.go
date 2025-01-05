@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
@@ -258,7 +258,7 @@ func TestCallExtension(t *testing.T) {
 
 		mux := http.NewServeMux()
 		extHandler := http.HandlerFunc(m.CallExtension())
-		mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), extHandler)
+		mux.Handle(extension.URLPrefix+"/", extHandler)
 
 		return &fixture{
 			mux:                mux,
@@ -274,8 +274,8 @@ func TestCallExtension(t *testing.T) {
 
 	getApp := func(destName, destServer, projName string) *v1alpha1.Application {
 		return &v1alpha1.Application{
-			TypeMeta:   v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{},
+			TypeMeta:   metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{},
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Name:   destName,
@@ -312,7 +312,7 @@ func TestCallExtension(t *testing.T) {
 			destinations = append(destinations, destination)
 		}
 		return &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: prjName,
 			},
 			Spec: v1alpha1.AppProjectSpec{
@@ -713,7 +713,7 @@ func TestCallExtension(t *testing.T) {
 		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
-		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
+		r := newExtensionRequest(t, "Get", ts.URL+"/extensions/")
 		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
 
 		// when

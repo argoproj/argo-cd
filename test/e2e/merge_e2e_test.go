@@ -434,7 +434,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2))
 }
 
-func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
+func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {
 	t.Helper()
 	resVal, err := json.Marshal(g)
 	if err != nil {

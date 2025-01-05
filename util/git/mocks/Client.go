@@ -43,21 +43,115 @@ func (_m *Client) ChangedFiles(revision string, targetRevision string) ([]string
 }
 
 // Checkout provides a mock function with given fields: revision, submoduleEnabled
-func (_m *Client) Checkout(revision string, submoduleEnabled bool) error {
+func (_m *Client) Checkout(revision string, submoduleEnabled bool) (string, error) {
 	ret := _m.Called(revision, submoduleEnabled)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Checkout")
 	}
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
+		return rf(revision, submoduleEnabled)
+	}
+	if rf, ok := ret.Get(0).(func(string, bool) string); ok {
 		r0 = rf(revision, submoduleEnabled)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(string)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(revision, submoduleEnabled)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CheckoutOrNew provides a mock function with given fields: branch, base, submoduleEnabled
+func (_m *Client) CheckoutOrNew(branch string, base string, submoduleEnabled bool) (string, error) {
+	ret := _m.Called(branch, base, submoduleEnabled)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckoutOrNew")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string, bool) (string, error)); ok {
+		return rf(branch, base, submoduleEnabled)
+	}
+	if rf, ok := ret.Get(0).(func(string, string, bool) string); ok {
+		r0 = rf(branch, base, submoduleEnabled)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string, bool) error); ok {
+		r1 = rf(branch, base, submoduleEnabled)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CheckoutOrOrphan provides a mock function with given fields: branch, submoduleEnabled
+func (_m *Client) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
+	ret := _m.Called(branch, submoduleEnabled)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckoutOrOrphan")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
+		return rf(branch, submoduleEnabled)
+	}
+	if rf, ok := ret.Get(0).(func(string, bool) string); ok {
+		r0 = rf(branch, submoduleEnabled)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(branch, submoduleEnabled)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CommitAndPush provides a mock function with given fields: branch, message
+func (_m *Client) CommitAndPush(branch string, message string) (string, error) {
+	ret := _m.Called(branch, message)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitAndPush")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return rf(branch, message)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(branch, message)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(branch, message)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // CommitSHA provides a mock function with given fields:
@@ -278,6 +372,34 @@ func (_m *Client) LsRemote(revision string) (string, error) {
 	return r0, r1
 }
 
+// RemoveContents provides a mock function with given fields:
+func (_m *Client) RemoveContents() (string, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveContents")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (string, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RevisionMetadata provides a mock function with given fields: revision
 func (_m *Client) RevisionMetadata(revision string) (*git.RevisionMetadata, error) {
 	ret := _m.Called(revision)
@@ -324,6 +446,34 @@ func (_m *Client) Root() string {
 	}
 
 	return r0
+}
+
+// SetAuthor provides a mock function with given fields: name, email
+func (_m *Client) SetAuthor(name string, email string) (string, error) {
+	ret := _m.Called(name, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetAuthor")
+	}
+
+	var r0 string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return rf(name, email)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(name, email)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(name, email)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Submodule provides a mock function with given fields:

@@ -1,10 +1,11 @@
 package generators
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -16,9 +17,9 @@ import (
 var _ Generator = (*MatrixGenerator)(nil)
 
 var (
-	ErrMoreThanTwoGenerators      = fmt.Errorf("found more than two generators, Matrix support only two")
-	ErrLessThanTwoGenerators      = fmt.Errorf("found less than two generators, Matrix support only two")
-	ErrMoreThenOneInnerGenerators = fmt.Errorf("found more than one generator in matrix.Generators")
+	ErrMoreThanTwoGenerators      = errors.New("found more than two generators, Matrix support only two")
+	ErrLessThanTwoGenerators      = errors.New("found less than two generators, Matrix support only two")
+	ErrMoreThenOneInnerGenerators = errors.New("found more than one generator in matrix.Generators")
 )
 
 type MatrixGenerator struct {
@@ -33,7 +34,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 	return m
 }
 
-func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -46,7 +47,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, ErrMoreThanTwoGenerators
 	}
 
-	res := []map[string]interface{}{}
+	res := []map[string]any{}
 
 	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
 	if err != nil {
@@ -59,7 +60,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		}
 		for _, b := range g1 {
 			if appSet.Spec.GoTemplate {
-				tmp := map[string]interface{}{}
+				tmp := map[string]any{}
 				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
@@ -80,7 +81,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}, client client.Client) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, client client.Client) ([]map[string]any, error) {
 	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 
 	if len(t) == 0 {
-		return nil, fmt.Errorf("child generator generated no parameters")
+		return nil, errors.New("child generator generated no parameters")
 	}
 
 	if len(t) > 1 {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	stderrors "errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -47,7 +47,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 		RootCAs:            tlsConfig.RootCAs,
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
-				return fmt.Errorf("dex server certificate does not match")
+				return stderrors.New("dex server certificate does not match")
 			}
 			return nil
 		},
@@ -88,7 +88,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 			}).Errorf("received error from dex: %s", string(b))
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
-			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
+			resp.Header.Set("Location", path.Join(baseHRef, "login")+"?has_sso_error=true")
 			resp.StatusCode = http.StatusSeeOther
 			resp.Body = io.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil

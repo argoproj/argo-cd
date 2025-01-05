@@ -8,7 +8,7 @@ import (
 	pathpkg "path"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )

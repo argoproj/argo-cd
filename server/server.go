@@ -28,12 +28,13 @@ import (
 
 	// nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
@@ -54,7 +55,6 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -153,7 +153,7 @@ var backoff = wait.Backoff{
 }
 
 var (
-	clientConstraint = fmt.Sprintf(">= %s", common.MinClientVersion)
+	clientConstraint = ">= " + common.MinClientVersion
 	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
 	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
 	maxConcurrentLoginRequestsCount = 50
@@ -237,6 +237,7 @@ type ArgoCDServerOpts struct {
 	EnableProxyExtension    bool
 	WebhookParallelism      int
 	EnableK8sEvent          []string
+	HydratorEnabled         bool
 }
 
 type ApplicationSetOpts struct {
@@ -246,6 +247,9 @@ type ApplicationSetOpts struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 }
+
+// GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
+type GracefulRestartSignal struct{}
 
 // HTTPMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
@@ -258,6 +262,14 @@ type HTTPMetricsRegistry interface {
 	// extension.
 	ObserveExtensionRequestDuration(extension string, duration time.Duration)
 }
+
+// String is a part of os.Signal interface to represent a signal as a string.
+func (g GracefulRestartSignal) String() string {
+	return "GracefulRestartSignal"
+}
+
+// Signal is a part of os.Signal interface doing nothing.
+func (g GracefulRestartSignal) Signal() {}
 
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
@@ -711,8 +723,8 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	select {
 	case signal := <-a.stopCh:
 		log.Infof("API Server received signal: %s", signal.String())
-		// SIGUSR1 is used for triggering a server restart
-		if signal != syscall.SIGUSR1 {
+		gracefulRestartSignal := GracefulRestartSignal{}
+		if signal != gracefulRestartSignal {
 			a.terminateRequested.Store(true)
 		}
 		a.shutdown()
@@ -846,11 +858,11 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
 	// Triggers server restart
-	a.stopCh <- syscall.SIGUSR1
+	a.stopCh <- GracefulRestartSignal{}
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
-	err := a.enf.RunPolicyLoader(ctx, func(cm *v1.ConfigMap) error {
+	err := a.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
 		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
 			scopes = make([]string, 0)
@@ -892,19 +904,24 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		),
 	}
 	sensitiveMethods := map[string]bool{
-		"/cluster.ClusterService/Create":                          true,
-		"/cluster.ClusterService/Update":                          true,
-		"/session.SessionService/Create":                          true,
-		"/account.AccountService/UpdatePassword":                  true,
-		"/gpgkey.GPGKeyService/CreateGnuPGPublicKey":              true,
-		"/repository.RepositoryService/Create":                    true,
-		"/repository.RepositoryService/Update":                    true,
-		"/repository.RepositoryService/CreateRepository":          true,
-		"/repository.RepositoryService/UpdateRepository":          true,
-		"/repository.RepositoryService/ValidateAccess":            true,
-		"/repocreds.RepoCredsService/CreateRepositoryCredentials": true,
-		"/repocreds.RepoCredsService/UpdateRepositoryCredentials": true,
-		"/application.ApplicationService/PatchResource":           true,
+		"/cluster.ClusterService/Create":                               true,
+		"/cluster.ClusterService/Update":                               true,
+		"/session.SessionService/Create":                               true,
+		"/account.AccountService/UpdatePassword":                       true,
+		"/gpgkey.GPGKeyService/CreateGnuPGPublicKey":                   true,
+		"/repository.RepositoryService/Create":                         true,
+		"/repository.RepositoryService/Update":                         true,
+		"/repository.RepositoryService/CreateRepository":               true,
+		"/repository.RepositoryService/UpdateRepository":               true,
+		"/repository.RepositoryService/ValidateAccess":                 true,
+		"/repocreds.RepoCredsService/CreateRepositoryCredentials":      true,
+		"/repocreds.RepoCredsService/UpdateRepositoryCredentials":      true,
+		"/repository.RepositoryService/CreateWriteRepository":          true,
+		"/repository.RepositoryService/UpdateWriteRepository":          true,
+		"/repository.RepositoryService/ValidateWriteAccess":            true,
+		"/repocreds.RepoCredsService/CreateWriteRepositoryCredentials": true,
+		"/repocreds.RepoCredsService/UpdateWriteRepositoryCredentials": true,
+		"/application.ApplicationService/PatchResource":                true,
 		// Remove from logs both because the contents are sensitive and because they may be very large.
 		"/application.ApplicationService/GetManifestsWithFiles": true,
 	}
@@ -916,7 +933,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
@@ -930,7 +947,7 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(a.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
@@ -979,7 +996,7 @@ type ArgoCDServiceSet struct {
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.HydratorEnabled)
 	repoCredsService := repocreds.NewServer(a.RepoClientset, a.db, a.enf, a.settingsMgr)
 	var loginRateLimiter func() (io.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -1031,7 +1048,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
 
 	notificationService := notification.NewServer(a.apiFactory)
@@ -1085,7 +1102,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 }
 
 func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := fmt.Sprintf("path=/%s", strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/"))
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if !a.Insecure {
 		flags = append(flags, "Secure")
@@ -1251,7 +1268,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 
@@ -1609,7 +1626,7 @@ func (bf *bug21955Workaround) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	bf.handler.ServeHTTP(w, r)
 }
 
-func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	if rq, ok := req.(*repositorypkg.RepoQuery); ok {
 		repo, err := url.QueryUnescape(rq.Repo)
 		if err != nil {

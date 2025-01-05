@@ -116,6 +116,10 @@ func TestParseDurationFromEnv(t *testing.T) {
 		env:      "2s",
 		expected: time.Second * 2,
 	}, {
+		name:     "ValidValueSetMs",
+		env:      "2500ms",
+		expected: time.Millisecond * 2500,
+	}, {
 		name:     "MoreThanMaxSet",
 		env:      "6s",
 		expected: def,

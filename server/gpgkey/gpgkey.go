@@ -2,6 +2,7 @@ package gpgkey
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -60,7 +61,7 @@ func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*ap
 
 	keyID := gpg.KeyID(q.KeyID)
 	if keyID == "" {
-		return nil, fmt.Errorf("KeyID is malformed or empty")
+		return nil, errors.New("KeyID is malformed or empty")
 	}
 
 	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
@@ -83,7 +84,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 
 	keyData := strings.TrimSpace(q.Publickey.KeyData)
 	if keyData == "" {
-		return nil, fmt.Errorf("Submitted key data is empty")
+		return nil, errors.New("Submitted key data is empty")
 	}
 
 	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)

@@ -56,7 +56,7 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
@@ -85,13 +85,13 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
 
-	res := []map[string]interface{}{}
+	res := []map[string]any{}
 
 	secretsFound := []corev1.Secret{}
 
 	isFlatMode := appSetGenerator.Clusters.FlatList
 	logCtx.Debugf("Using flat mode = %t for cluster generator", isFlatMode)
-	clustersParams := make([]map[string]interface{}, 0)
+	clustersParams := make([]map[string]any, 0)
 
 	for _, cluster := range clustersFromArgoCD.Items {
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
@@ -100,7 +100,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			secretsFound = append(secretsFound, secretForCluster)
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
-			params := map[string]interface{}{}
+			params := map[string]any{}
 			params["name"] = cluster.Name
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
@@ -123,7 +123,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 	// For each matching cluster secret (non-local clusters only)
 	for _, cluster := range secretsFound {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		params["name"] = string(cluster.Data["name"])
 		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
@@ -137,7 +137,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		}
 
 		if appSet.Spec.GoTemplate {
-			meta := map[string]interface{}{}
+			meta := map[string]any{}
 
 			if len(cluster.ObjectMeta.Annotations) > 0 {
 				meta["annotations"] = cluster.ObjectMeta.Annotations
@@ -149,11 +149,11 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			params["metadata"] = meta
 		} else {
 			for key, value := range cluster.ObjectMeta.Annotations {
-				params[fmt.Sprintf("metadata.annotations.%s", key)] = value
+				params["metadata.annotations."+key] = value
 			}
 
 			for key, value := range cluster.ObjectMeta.Labels {
-				params[fmt.Sprintf("metadata.labels.%s", key)] = value
+				params["metadata.labels."+key] = value
 			}
 		}
 
@@ -172,7 +172,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	}
 
 	if isFlatMode {
-		res = append(res, map[string]interface{}{
+		res = append(res, map[string]any{
 			"clusters": clustersParams,
 		})
 	}

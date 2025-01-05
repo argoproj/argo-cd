@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -31,16 +31,16 @@ const (
 )
 
 // return an AccountServer which returns fake data
-func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
-	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...interface{}) bool {
+func newTestAccountServer(ctx context.Context, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
+	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	}, opts...)
 }
 
-func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
+func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
 	bcrypt, err := password.HashPassword("oldpassword")
 	errors.CheckError(err)
-	cm := &v1.ConfigMap{
+	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -50,7 +50,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 		},
 		Data: map[string]string{},
 	}
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -63,7 +63,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	for i := range opts {
 		opts[i](cm, secret)
 	}
-	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	kubeclientset := fake.NewClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
 	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -140,7 +140,7 @@ func TestUpdatePassword(t *testing.T) {
 }
 
 func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
-	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := adminContext(context.Background())
@@ -153,12 +153,12 @@ func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
 }
 
 func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer := func(claims jwt.Claims, rvals ...any) bool {
 		return false
 	}
 
 	t.Run("LocalAccountUpdatesAnotherAccount", func(t *testing.T) {
-		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 			cm.Data["accounts.anotherUser"] = "login"
 		})
 		ctx := adminContext(context.Background())
@@ -175,7 +175,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 }
 
 func TestUpdatePassword_ProjectToken(t *testing.T) {
-	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := projTokenContext(context.Background())
@@ -184,7 +184,7 @@ func TestUpdatePassword_ProjectToken(t *testing.T) {
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {
-	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := ssoAdminContext(context.Background(), time.Now().Add(-2*common.ChangePasswordSSOTokenMaxAge))
@@ -194,7 +194,7 @@ func TestUpdatePassword_OldSSOToken(t *testing.T) {
 }
 
 func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
-	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, sessionServer := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
 	ctx := ssoAdminContext(context.Background(), time.Now())
@@ -217,7 +217,7 @@ func TestListAccounts_NoAccountsConfigured(t *testing.T) {
 
 func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 		cm.Data["accounts.account2"] = "login, apiKey"
 		cm.Data["accounts.account2.enabled"] = "false"
@@ -235,7 +235,7 @@ func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -255,7 +255,7 @@ func TestGetAccount(t *testing.T) {
 
 func TestCreateToken_SuccessfullyCreated(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -270,7 +270,7 @@ func TestCreateToken_SuccessfullyCreated(t *testing.T) {
 
 func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "login"
 	})
 
@@ -280,7 +280,7 @@ func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 
 func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
@@ -294,7 +294,7 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	ctx := adminContext(context.Background())
-	accountServer, _ := newTestAccountServer(ctx, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 		secret.Data["accounts.account1.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
@@ -309,7 +309,7 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
-	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 	})
 
 	ctx := projTokenContext(context.Background())
@@ -319,11 +319,11 @@ func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
 }
 
 func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer := func(claims jwt.Claims, rvals ...any) bool {
 		return false
 	}
 
-	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServerExt(context.Background(), enforcer, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
 
@@ -334,7 +334,7 @@ func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
-	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
 
@@ -345,7 +345,7 @@ func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
-	accountServer, _ := newTestAccountServer(context.Background(), func(cm *v1.ConfigMap, secret *v1.Secret) {
+	accountServer, _ := newTestAccountServer(context.Background(), func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "false"
 	})
 
