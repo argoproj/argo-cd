@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	argoutils "github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v2/util/workloadidentity/mocks"
 )
 
@@ -19,7 +20,7 @@ func TestWorkLoadIdentityUserNameShouldBeEmptyGuid(t *testing.T) {
 	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
 	username := creds.GetUsername()
 
-	assert.Equal(t, "00000000-0000-0000-0000-000000000000", username, "The username for azure workload identity is not empty Guid")
+	assert.Equal(t, workloadidentity.EmptyGuid, username, "The username for azure workload identity is not empty Guid")
 }
 
 func TestGetAccessTokenShouldReturnTokenFromCacheIfPresent(t *testing.T) {

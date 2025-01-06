@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v2/util/workloadidentity/mocks"
 )
 
@@ -428,7 +429,7 @@ func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 
 	user, email, err := creds.GetUserInfo(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, "00000000-0000-0000-0000-000000000000", user)
+	assert.Equal(t, workloadidentity.EmptyGuid, user)
 	assert.Equal(t, "", email)
 }
 
