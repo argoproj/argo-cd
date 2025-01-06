@@ -1709,6 +1709,9 @@ message RepoCreds {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 24;
 }
 
 // RepositoryList is a collection of Repositories.

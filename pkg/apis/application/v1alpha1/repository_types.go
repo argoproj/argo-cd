@@ -50,6 +50,8 @@ type RepoCreds struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,24,opt,name=insecureOCIForceHttp"`
 }
 
 // Repository is a repository holding application configurations
@@ -197,6 +199,12 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.NoProxy == "" {
 			repo.NoProxy = source.NoProxy
 		}
+		if repo.Type == "" {
+			repo.Type = source.Type
+		}
+
+		repo.EnableOCI = source.EnableOCI
+		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }

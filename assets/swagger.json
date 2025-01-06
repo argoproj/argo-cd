@@ -9011,6 +9011,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
+        },
         "noProxy": {
           "type": "string",
           "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"

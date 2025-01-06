@@ -104,7 +104,8 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI
+                enableOCI: q.enableOCI,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -126,7 +127,8 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI
+                enableOCI: q.enableOCI,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -148,7 +150,8 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI
+                enableOCI: q.enableOCI,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -170,7 +173,8 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI
+                enableOCI: q.enableOCI,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
