@@ -52,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cache"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -2357,7 +2356,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 }
 
 func TestInferResourcesStatusHealth(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	testApp := newTestApp()
 	testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
@@ -2397,7 +2396,7 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 }
 
 func TestRunNewStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	group := "batch"
 	kind := "CronJob"
@@ -2526,7 +2525,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 }
 
 func TestRunOldStyleResourceAction(t *testing.T) {
-	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
 
 	group := "apps"
 	kind := "Deployment"

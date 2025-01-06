@@ -11,7 +11,6 @@ import (
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -55,14 +54,14 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+			FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
 	Given(t).
 		Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
-			FailOnErr(Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
+			FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
 		}).
 		SelectedResource("apps:Deployment:guestbook-ui").
 		When().
@@ -85,14 +84,14 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+			FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
 	Given(t).
 		Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
-			FailOnErr(Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
+			FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
 		}).
 		SelectedResource(fmt.Sprintf("apps:Deployment:%s/guestbook-ui", selectedResourceNamespace)).
 		When().
