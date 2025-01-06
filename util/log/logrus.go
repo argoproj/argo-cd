@@ -9,7 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const (
