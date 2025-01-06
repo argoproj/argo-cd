@@ -86,7 +86,7 @@ func adminContext(ctx context.Context) context.Context {
 		"sub":    "admin",
 		"iss":    sessionutil.SessionManagerClaimsIssuer,
 		"groups": []string{"role:admin"},
-		"federated_claims": map[string]interface{}{
+		"federated_claims": map[string]any{
 			"user_id": "admin",
 		},
 	}
@@ -102,7 +102,7 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 		"iss":    "https://myargocdhost.com/api/dex",
 		"iat":    jwt.NewNumericDate(iat),
 		"groups": []string{"role:admin"}, // Add admin group
-		"federated_claims": map[string]interface{}{
+		"federated_claims": map[string]any{
 			"user_id": "admin",
 		},
 	}

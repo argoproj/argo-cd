@@ -1659,7 +1659,7 @@ func TestGetClaimsWithFederatedIdentity(t *testing.T) {
 				"aud": "argo-cd",
 				"exp": defaultExpiry,
 				"sub": "different-id",
-				"federated_claims": map[string]interface{}{
+				"federated_claims": map[string]any{
 					"connector_id": "github",
 					"user_id":      "federated-user-12345",
 				},
@@ -1683,7 +1683,7 @@ func TestGetClaimsWithFederatedIdentity(t *testing.T) {
 				"aud":              "argo-cd",
 				"exp":              defaultExpiry,
 				"sub":              "fallback-sub-id",
-				"federated_claims": map[string]interface{}{},
+				"federated_claims": map[string]any{},
 			},
 			expectedIdentifier:    "fallback-sub-id",
 			expectedErrorContains: "",
@@ -1694,7 +1694,7 @@ func TestGetClaimsWithFederatedIdentity(t *testing.T) {
 				"aud": "argo-cd",
 				"exp": defaultExpiry,
 				"sub": "fallback-sub-id",
-				"federated_claims": map[string]interface{}{
+				"federated_claims": map[string]any{
 					"connector_id": "github",
 				},
 			},
@@ -1742,7 +1742,7 @@ func TestGetClaimsWithFederatedIdentity(t *testing.T) {
 			require.True(t, ok)
 
 			var actualIdentifier string
-			if fedClaims, ok := mapClaims["federated_claims"].(map[string]interface{}); ok {
+			if fedClaims, ok := mapClaims["federated_claims"].(map[string]any); ok {
 				if userID, exists := fedClaims["user_id"]; exists && userID != "" {
 					actualIdentifier = userID.(string)
 				}

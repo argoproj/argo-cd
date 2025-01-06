@@ -203,7 +203,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 			Subject: claims["sub"].(string),
 		},
 	}
-	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+	if fedClaims, ok := claims["federated_claims"].(map[string]any); ok {
 		argoClaims.FederatedClaims = &utils.FederatedClaims{
 			ConnectorID: fedClaims["connector_id"].(string),
 			UserID:      fedClaims["user_id"].(string),

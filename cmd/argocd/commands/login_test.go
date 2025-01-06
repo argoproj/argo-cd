@@ -68,7 +68,7 @@ func Test_userDisplayName_federatedClaims(t *testing.T) {
 		"iss":    "qux",
 		"sub":    "foo",
 		"groups": []string{"baz"},
-		"federated_claims": map[string]interface{}{
+		"federated_claims": map[string]any{
 			"connector_id": "dex",
 			"user_id":      "ldap-123",
 		},

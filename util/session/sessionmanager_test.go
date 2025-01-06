@@ -157,7 +157,7 @@ func TestSessionManager_TokenIdentifier(t *testing.T) {
 			require.NoError(t, err)
 
 			if tt.fedID != "" {
-				mapClaims["federated_claims"] = map[string]interface{}{
+				mapClaims["federated_claims"] = map[string]any{
 					"user_id": tt.fedID,
 				}
 			}
@@ -427,7 +427,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 var (
 	loggedOutContext = context.Background()
 	// nolint:staticcheck
-	loggedInContext = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]interface{}{"user_id": "foo"}})
+	loggedInContext = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
 	// for testing without federated claims
 	loggedInContextNoFederated = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 )

@@ -286,7 +286,7 @@ func mapClaimsToArgoClaims(claims jwtgo.MapClaims) *utils.ArgoClaims {
 			Subject: sub,
 		},
 	}
-	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+	if fedClaims, ok := claims["federated_claims"].(map[string]any); ok {
 		argoClaims.FederatedClaims = &utils.FederatedClaims{
 			ConnectorID: fmt.Sprint(fedClaims["connector_id"]),
 			UserID:      fmt.Sprint(fedClaims["user_id"]),

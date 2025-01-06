@@ -643,13 +643,8 @@ func TestGetUserInfo(t *testing.T) {
 					expectError: true,
 				},
 			},
-<<<<<<< HEAD
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-=======
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
->>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 				w.WriteHeader(http.StatusNotFound)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -682,13 +677,8 @@ func TestGetUserInfo(t *testing.T) {
 					expectError: true,
 				},
 			},
-<<<<<<< HEAD
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-=======
 			idpClaims: jwt.MapClaims{"sub": "fallbackUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
->>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 				w.WriteHeader(http.StatusUnauthorized)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -721,13 +711,8 @@ func TestGetUserInfo(t *testing.T) {
 					expectError: true,
 				},
 			},
-<<<<<<< HEAD
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-=======
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
->>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 				userInfoBytes := `
 			  notevenJsongarbage	
 				`
@@ -768,13 +753,8 @@ func TestGetUserInfo(t *testing.T) {
 					expectError: true,
 				},
 			},
-<<<<<<< HEAD
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-=======
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
->>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -808,13 +788,8 @@ func TestGetUserInfo(t *testing.T) {
 					expectError:     false,
 				},
 			},
-<<<<<<< HEAD
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-=======
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
->>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -886,9 +861,7 @@ func TestGetUserInfo(t *testing.T) {
 					},
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					t.Errorf("failed to encode response: %v", err)
-				}
+				json.NewEncoder(w).Encode(response)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
 			cacheItems: []struct {
@@ -934,9 +907,7 @@ func TestGetUserInfo(t *testing.T) {
 					"sub":    "sub-only-user",
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					t.Errorf("failed to encode response: %v", err)
-				}
+				json.NewEncoder(w).Encode(response)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
 			cacheItems: []struct {
@@ -993,9 +964,7 @@ func TestGetUserInfo(t *testing.T) {
 					},
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					t.Errorf("failed to encode response: %v", err)
-				}
+				json.NewEncoder(w).Encode(response)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
 			cacheItems: []struct {

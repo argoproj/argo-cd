@@ -3,7 +3,7 @@ package utils
 import (
 	"fmt"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // ArgoClaims defines the claims structure based on Dex's documented claims
@@ -25,7 +25,7 @@ type FederatedClaims struct {
 
 // GetFederatedClaims extracts federated claims from jwt.MapClaims
 func GetFederatedClaims(claims jwt.MapClaims) *FederatedClaims {
-	if federated, ok := claims["federated_claims"].(map[string]interface{}); ok {
+	if federated, ok := claims["federated_claims"].(map[string]any); ok {
 		return &FederatedClaims{
 			ConnectorID: fmt.Sprint(federated["connector_id"]),
 			UserID:      fmt.Sprint(federated["user_id"]),

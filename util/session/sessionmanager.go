@@ -236,7 +236,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 			Subject: jwtutil.StringField(claims, "sub"),
 		},
 	}
-	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+	if fedClaims, ok := claims["federated_claims"].(map[string]any); ok {
 		argoClaims.FederatedClaims = &utils.FederatedClaims{
 			UserID: jwtutil.StringField(fedClaims, "user_id"),
 		}
@@ -678,7 +678,7 @@ type contextKey struct{}
 var claimsKey = contextKey{}
 
 // ClaimsKey returns the context key used for claims
-func ClaimsKey() interface{} {
+func ClaimsKey() any {
 	return claimsKey
 }
 
