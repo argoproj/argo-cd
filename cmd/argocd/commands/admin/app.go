@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -159,7 +159,7 @@ func (r *reconcileResults) getAppsMap() map[string]appReconcileResult {
 	return res
 }
 
-func printLine(format string, a ...interface{}) {
+func printLine(format string, a ...any) {
 	_, _ = fmt.Printf(format+"\n", a...)
 }
 
@@ -186,12 +186,12 @@ func NewDiffReconcileResults() *cobra.Command {
 	return command
 }
 
-func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
+func toUnstructured(val any) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(val)
 	if err != nil {
 		return nil, fmt.Errorf("error while marhsalling value: %w", err)
 	}
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		return nil, fmt.Errorf("error while unmarhsalling data: %w", err)
@@ -384,7 +384,7 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(obj interface{}) bool {
+	server, err := metrics.NewMetricsServer("", appLister, func(obj any) bool {
 		return true
 	}, func(r *http.Request) error {
 		return nil
@@ -453,5 +453,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

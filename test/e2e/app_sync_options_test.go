@@ -6,7 +6,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -48,7 +48,7 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(namespace, func(app *Application, ns *corev1.Namespace) {
 			assert.NotContains(t, ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 		})).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
