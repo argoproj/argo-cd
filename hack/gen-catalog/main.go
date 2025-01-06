@@ -9,19 +9,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra/doc"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/misc"
 	"github.com/olekukonko/tablewriter"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	"github.com/spf13/cobra/doc"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 )
 
 func main() {
@@ -44,7 +43,7 @@ func newCatalogCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "catalog",
 		Run: func(c *cobra.Command, args []string) {
-			cm := v1.ConfigMap{
+			cm := corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",
 					APIVersion: "v1",

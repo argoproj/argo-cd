@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
@@ -99,7 +99,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	i := 0
 	for _, mergedParamSet := range baseParamSetsByMergeKey {
 		mergedParamSets[i] = mergedParamSet
-		i += 1
+		i++
 	}
 
 	return mergedParamSets, nil

@@ -136,9 +136,8 @@ func NewRunDexCommand() *cobra.Command {
 							errors.CheckError(err)
 						}
 						break
-					} else {
-						log.Infof("dex config unmodified")
 					}
+					log.Infof("dex config unmodified")
 				}
 			}
 		},

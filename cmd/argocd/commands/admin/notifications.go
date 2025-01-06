@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/notifications-engine/pkg/cmd"

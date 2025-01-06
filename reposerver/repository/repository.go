@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/app/discovery"
 	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
-	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -360,9 +359,9 @@ func (s *Service) runRepoOperation(
 		}
 		defer io.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(chartPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -390,9 +389,9 @@ func (s *Service) runRepoOperation(
 		defer io.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+			err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -444,7 +443,7 @@ func (s *Service) runRepoOperation(
 					return nil, err
 				}
 			}
-			appPath, err := argopath.Path(gitClient.Root(), source.Path)
+			appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -604,9 +603,9 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		err := apppathutil.CheckOutOfBoundsSymlinks(workDir)
 		if err != nil {
-			oobError := &argopath.OutOfBoundsSymlinkError{}
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
@@ -620,7 +619,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
-		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		appPath, err := apppathutil.Path(workDir, req.ApplicationSource.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
@@ -782,9 +781,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 							// Symlink check must happen after acquiring lock.
 							if !s.initConstants.AllowOutOfBoundsSymlinks {
-								err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+								err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 								if err != nil {
-									oobError := &argopath.OutOfBoundsSymlinkError{}
+									oobError := &apppathutil.OutOfBoundsSymlinkError{}
 									if errors.As(err, &oobError) {
 										log.WithFields(log.Fields{
 											common.SecurityField: common.SecurityHigh,

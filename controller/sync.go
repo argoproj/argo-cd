@@ -38,7 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
-var syncIdPrefix uint64 = 0
+var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between

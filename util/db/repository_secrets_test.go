@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -93,7 +93,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
 		})
 
 		// when
@@ -130,7 +130,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
 		})
 		watcher := watch.NewFakeWithChanSize(1, true)
 		watcher.Add(secret)

@@ -303,7 +303,7 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 	expiredCount := 0
 	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
-			expiredCount += 1
+			expiredCount++
 			delete(failures, key)
 		}
 	}
@@ -362,7 +362,7 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// On login failure, increase fail count and update last failed timestamp.
 	// On login success, remove the entry from the cache.
 	if failed {
-		attempt.FailCount += 1
+		attempt.FailCount++
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
