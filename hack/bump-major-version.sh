@@ -20,7 +20,8 @@ for file in hack/generate-proto.sh hack/update-codegen.sh hack/update-openapi.sh
 done
 
 echo "Incrementing the major version in proto files..."
-find . -name '*.proto' -exec sed -i.bak "s/github.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec sed -i.bak "s/github\.com.\argoproj\.argo_cd\.v${CURRENT_VERSION}/github\.com.\argoproj\.argo_cd\.v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
+find . -name '*.proto' -exec sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
+find . -name '*.proto' -exec sed -i.bak "s/github\.com.\argoproj\.argo_cd\.v${CURRENT_VERSION}/github\.com.\argoproj\.argo_cd\.v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
 
 echo "Incrementing the major version in go files..."
 find . -name '*.go' -exec sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec rm {}.bak \;
