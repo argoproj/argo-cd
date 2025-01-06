@@ -1,6 +1,9 @@
 package util_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,4 +82,60 @@ func TestSecretCopy(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestGenerateCacheKey tests the GenerateCacheKey function
+func TestGenerateCacheKey(t *testing.T) {
+	// Define test cases
+	testCases := []struct {
+		format    string
+		args      []any
+		expected  string
+		shouldErr bool
+	}{
+		{
+			format:    "Hello %s",
+			args:      []any{"World"},
+			expected:  generateExpectedKey("Hello World"),
+			shouldErr: false,
+		},
+		{
+			format:    "",
+			args:      []any{},
+			expected:  generateExpectedKey(""),
+			shouldErr: false,
+		},
+		{
+			format:    "Number: %d",
+			args:      []any{123},
+			expected:  generateExpectedKey("Number: 123"),
+			shouldErr: false,
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("format=%s args=%v", tc.format, tc.args), func(t *testing.T) {
+			key, err := util.GenerateCacheKey(tc.format, tc.args...)
+			if tc.shouldErr {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if key != tc.expected {
+				t.Fatalf("expected %s but got %s", tc.expected, key)
+			}
+		})
+	}
+}
+
+// Helper function to generate the expected key
+func generateExpectedKey(input string) string {
+	h := sha256.New()
+	h.Write([]byte(input))
+	return hex.EncodeToString(h.Sum(nil))
 }

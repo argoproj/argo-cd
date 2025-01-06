@@ -9,8 +9,11 @@ import (
 	"testing"
 	"time"
 
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/util/workloadidentity/mocks"
 )
 
 func runCmd(workingDir string, name string, args ...string) error {
@@ -835,4 +838,18 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	require.NoError(t, err)
 	actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 	require.Equal(t, expectedCommitHash, actualCommitHash)
+}
+
+func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
+	tokenprovider := new(mocks.TokenProvider)
+	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+
+	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
+
+	auth, err := newAuth("", creds)
+	require.NoError(t, err)
+	_, ok := auth.(*githttp.TokenAuth)
+	if !ok {
+		t.Fatalf("expected TokenAuth but got %T", auth)
+	}
 }

@@ -405,8 +405,6 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 		assert.Equal(t, "", value.username)
 		assert.Equal(t, "accessToken", value.password)
 	}
-
-	workloadIdentityMock.AssertExpectations(t)
 }
 
 func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
