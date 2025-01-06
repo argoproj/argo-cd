@@ -28,7 +28,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1696,7 +1696,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 }
 
 func TestUpdateHealthStatusTransitionTime(t *testing.T) {
-	deployment := kube.MustToUnstructured(&v1.Deployment{
+	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -1798,7 +1798,7 @@ apps/Deployment:
 
 func TestUpdateHealthStatusProgression(t *testing.T) {
 	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
-	deployment := kube.MustToUnstructured(&v1.Deployment{
+	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -1807,7 +1807,7 @@ func TestUpdateHealthStatusProgression(t *testing.T) {
 			Name:      "demo",
 			Namespace: "default",
 		},
-		Status: v1.DeploymentStatus{
+		Status: appsv1.DeploymentStatus{
 			ObservedGeneration: 0,
 		},
 	})

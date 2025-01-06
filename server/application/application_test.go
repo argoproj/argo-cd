@@ -24,7 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	k8sappsv1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,8 +41,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -73,13 +72,13 @@ type broadcasterMock struct {
 	objects []runtime.Object
 }
 
-func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func() {
+func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, filters ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
 	go func() {
 		for _, obj := range b.objects {
-			app, ok := obj.(*appsv1.Application)
+			app, ok := obj.(*v1alpha1.Application)
 			if ok {
 				oldVersion, err := strconv.Atoi(app.ResourceVersion)
 				if err != nil {
@@ -87,7 +86,7 @@ func (b broadcasterMock) Subscribe(ch chan *appv1.ApplicationWatchEvent, filters
 				}
 				clonedApp := app.DeepCopy()
 				clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
-				ch <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
+				ch <- &v1alpha1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
 			}
 		}
 	}()
@@ -98,17 +97,17 @@ func (broadcasterMock) OnAdd(any, bool)   {}
 func (broadcasterMock) OnUpdate(any, any) {}
 func (broadcasterMock) OnDelete(any)      {}
 
-func fakeRepo() *appsv1.Repository {
-	return &appsv1.Repository{
+func fakeRepo() *v1alpha1.Repository {
+	return &v1alpha1.Repository{
 		Repo: fakeRepoURL,
 	}
 }
 
-func fakeCluster() *appsv1.Cluster {
-	return &appsv1.Cluster{
+func fakeCluster() *v1alpha1.Cluster {
+	return &v1alpha1.Cluster{
 		Server: "https://cluster-api.example.com",
 		Name:   "fake-cluster",
-		Config: appsv1.ClusterConfig{},
+		Config: v1alpha1.ClusterConfig{},
 	}
 }
 
@@ -140,12 +139,12 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&appsv1.RevisionMetadata{}, nil)
+	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	mockWithFilesClient := &mocks.RepoServerService_GenerateManifestWithFilesClient{}
 	mockWithFilesClient.On("Send", mock.Anything).Return(nil)
 	mockWithFilesClient.On("CloseAndRecv").Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
-	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&appsv1.ChartDetails{}, nil)
+	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
 
 	if isHelm {
 		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
@@ -196,30 +195,30 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
-	defaultProj := &appsv1.AppProject{
+	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 
-	myProj := &appsv1.AppProject{
+	myProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	projWithSyncWindows := &appsv1.AppProject{
+	projWithSyncWindows := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SyncWindows:  appsv1.SyncWindows{},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &appsv1.SyncWindow{
+	matchingWindow := &v1alpha1.SyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -261,16 +260,16 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
-		app, ok := obj.(*appsv1.Application)
+		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(t, err)
 
 			// Pre-populate the resource tree based on the app's resources.
-			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
+			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
-				nodes[i] = appsv1.ResourceNode{
-					ResourceRef: appsv1.ResourceRef{
+				nodes[i] = v1alpha1.ResourceNode{
+					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,
 						Kind:      res.Kind,
 						Version:   res.Version,
@@ -280,7 +279,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(t, err)
@@ -360,29 +359,29 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
-	defaultProj := &appsv1.AppProject{
+	defaultProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	myProj := &appsv1.AppProject{
+	myProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
-	projWithSyncWindows := &appsv1.AppProject{
+	projWithSyncWindows := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
-			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			SyncWindows:  appsv1.SyncWindows{},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &appsv1.SyncWindow{
+	matchingWindow := &v1alpha1.SyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -423,16 +422,16 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	// pre-populate the app cache
 	for _, obj := range objects {
-		app, ok := obj.(*appsv1.Application)
+		app, ok := obj.(*v1alpha1.Application)
 		if ok {
-			err := appStateCache.SetAppManagedResources(app.Name, []*appsv1.ResourceDiff{})
+			err := appStateCache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
 			require.NoError(b, err)
 
 			// Pre-populate the resource tree based on the app's resources.
-			nodes := make([]appsv1.ResourceNode, len(app.Status.Resources))
+			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
-				nodes[i] = appsv1.ResourceNode{
-					ResourceRef: appsv1.ResourceRef{
+				nodes[i] = v1alpha1.ResourceNode{
+					ResourceRef: v1alpha1.ResourceRef{
 						Group:     res.Group,
 						Kind:      res.Kind,
 						Version:   res.Version,
@@ -442,7 +441,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 					},
 				}
 			}
-			err = appStateCache.SetAppResourcesTree(app.Name, &appsv1.ApplicationTree{
+			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
 				Nodes: nodes,
 			})
 			require.NoError(b, err)
@@ -539,20 +538,20 @@ spec:
     server: https://cluster-api.example.com
 `
 
-func newTestAppWithDestName(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestAppWithDestName(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithDestName, opts...)
 }
 
-func newTestApp(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
 }
 
-func newTestAppWithAnnotations(opts ...func(app *appsv1.Application)) *appsv1.Application {
+func newTestAppWithAnnotations(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeAppWithAnnotations, opts...)
 }
 
-func createTestApp(testApp string, opts ...func(app *appsv1.Application)) *appsv1.Application {
-	var app appsv1.Application
+func createTestApp(testApp string, opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
+	var app v1alpha1.Application
 	err := yaml.Unmarshal([]byte(testApp), &app)
 	if err != nil {
 		panic(err)
@@ -618,7 +617,7 @@ type TestResourceTreeServer struct {
 	ctx context.Context
 }
 
-func (t *TestResourceTreeServer) Send(tree *appsv1.ApplicationTree) error {
+func (t *TestResourceTreeServer) Send(tree *v1alpha1.ApplicationTree) error {
 	return nil
 }
 
@@ -692,7 +691,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:none")
 	}
-	deployment := k8sappsv1.Deployment{
+	deployment := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -702,9 +701,9 @@ func TestNoAppEnumeration(t *testing.T) {
 			Namespace: "test",
 		},
 	}
-	testApp := newTestApp(func(app *appsv1.Application) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -714,20 +713,20 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 0,
-				Source: appsv1.ApplicationSource{
+				Source: v1alpha1.ApplicationSource{
 					TargetRevision: "something-old",
 				},
 			},
 		}
 	})
-	testHelmApp := newTestApp(func(app *appsv1.Application) {
+	testHelmApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test-helm"
 		app.Spec.Source.Path = ""
 		app.Spec.Source.Chart = "test"
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -737,26 +736,26 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 0,
-				Source: appsv1.ApplicationSource{
+				Source: v1alpha1.ApplicationSource{
 					TargetRevision: "something-old",
 				},
 			},
 		}
 	})
-	testAppMulti := newTestApp(func(app *appsv1.Application) {
+	testAppMulti := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test-multi"
-		app.Spec.Sources = appsv1.ApplicationSources{
-			appsv1.ApplicationSource{
+		app.Spec.Sources = v1alpha1.ApplicationSources{
+			v1alpha1.ApplicationSource{
 				TargetRevision: "something-old",
 			},
-			appsv1.ApplicationSource{
+			v1alpha1.ApplicationSource{
 				TargetRevision: "something-old",
 			},
 		}
-		app.Status.Resources = []appsv1.ResourceStatus{
+		app.Status.Resources = []v1alpha1.ResourceStatus{
 			{
 				Group:     deployment.GroupVersionKind().Group,
 				Kind:      deployment.GroupVersionKind().Kind,
@@ -766,14 +765,14 @@ func TestNoAppEnumeration(t *testing.T) {
 				Status:    "Synced",
 			},
 		}
-		app.Status.History = []appsv1.RevisionHistory{
+		app.Status.History = []v1alpha1.RevisionHistory{
 			{
 				ID: 1,
-				Sources: appsv1.ApplicationSources{
-					appsv1.ApplicationSource{
+				Sources: v1alpha1.ApplicationSources{
+					v1alpha1.ApplicationSource{
 						TargetRevision: "something-old",
 					},
-					appsv1.ApplicationSource{
+					v1alpha1.ApplicationSource{
 						TargetRevision: "something-old",
 					},
 				},
@@ -825,24 +824,24 @@ func TestNoAppEnumeration(t *testing.T) {
 	})
 
 	t.Run("UpdateSpec", func(t *testing.T) {
-		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err := appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		require.NoError(t, err)
-		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err = appServer.UpdateSpec(noRoleCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), Spec: &appsv1.ApplicationSpec{
-			Destination: appsv1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
-			Source:      &appsv1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
+		_, err = appServer.UpdateSpec(adminCtx, &application.ApplicationUpdateSpecRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test"), Spec: &v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{Namespace: "default", Server: "https://cluster-api.example.com"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://some-fake-source", Path: "."},
 		}})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1090,7 +1089,7 @@ func setSyncRunningOperationState(t *testing.T, appServer *Server) {
 	app, err := appIf.Get(context.Background(), "test", metav1.GetOptions{})
 	require.NoError(t, err)
 	// This sets the status that would be set by the controller usually.
-	app.Status.OperationState = &appsv1.OperationState{Phase: synccommon.OperationRunning, Operation: appsv1.Operation{Sync: &appsv1.SyncOperation{}}}
+	app.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning, Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}}
 	_, err = appIf.Update(context.Background(), app, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
@@ -1108,15 +1107,15 @@ func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
 }
 
 func TestListAppsInNamespaceWithLabels(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
 		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
 		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
 		app.ObjectMeta.Namespace = "test-namespace"
 		app.SetLabels(map[string]string{"key1": "value3"})
@@ -1129,13 +1128,13 @@ func TestListAppsInNamespaceWithLabels(t *testing.T) {
 }
 
 func TestListAppsInDefaultNSWithLabels(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
 		app.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
 		app.SetLabels(map[string]string{"key1": "value2"})
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
@@ -1227,13 +1226,13 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 }
 
 func TestListAppWithProjects(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App1"
 		app.Spec.Project = "test-project1"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App2"
 		app.Spec.Project = "test-project2"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "App3"
 		app.Spec.Project = "test-project3"
 	}))
@@ -1278,11 +1277,11 @@ func TestListAppWithProjects(t *testing.T) {
 }
 
 func TestListApps(t *testing.T) {
-	appServer := newTestAppServer(t, newTestApp(func(app *appsv1.Application) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "bcd"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "abc"
-	}), newTestApp(func(app *appsv1.Application) {
+	}), newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "def"
 	}))
 
@@ -1308,7 +1307,7 @@ func TestCoupleAppsListApps(t *testing.T) {
 	for projectId := 0; projectId < 100; projectId++ {
 		projectName := fmt.Sprintf("proj-%d", projectId)
 		for appId := 0; appId < 100; appId++ {
-			objects = append(objects, newTestApp(func(app *appsv1.Application) {
+			objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
 				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
 				app.Spec.Project = projectName
 			}))
@@ -1338,10 +1337,10 @@ g, group-49, role:test3
 	assert.Len(t, names, 300)
 }
 
-func generateTestApp(num int) []*appsv1.Application {
-	apps := []*appsv1.Application{}
+func generateTestApp(num int) []*v1alpha1.Application {
+	apps := []*v1alpha1.Application{}
 	for i := 0; i < num; i++ {
-		apps = append(apps, newTestApp(func(app *appsv1.Application) {
+		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
 			app.Name = fmt.Sprintf("test-app%.6d", i)
 		}))
 	}
@@ -1498,8 +1497,8 @@ func TestCreateAppWithDestName(t *testing.T) {
 func TestCreateAppWithOperation(t *testing.T) {
 	appServer := newTestAppServer(t)
 	testApp := newTestAppWithDestName()
-	testApp.Operation = &appsv1.Operation{
-		Sync: &appsv1.SyncOperation{
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
 			Manifests: []string{
 				"test",
 			},
@@ -1567,7 +1566,7 @@ func TestDeleteApp(t *testing.T) {
 		return true, nil, nil
 	})
 	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -1778,7 +1777,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	assert.Regexp(t, ".*initiated sync to HEAD \\([0-9A-Fa-f]{40}\\).*", event.Message)
 
 	// set status.operationState to pretend that an operation has started by controller
-	app.Status.OperationState = &appsv1.OperationState{
+	app.Status.OperationState = &v1alpha1.OperationState{
 		Operation: *app.Operation,
 		Phase:     synccommon.OperationRunning,
 		StartedAt: metav1.NewTime(time.Now()),
@@ -1850,7 +1849,7 @@ func TestSyncGit(t *testing.T) {
 
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
-	testApp.Status.History = []appsv1.RevisionHistory{{
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
 		Source:   *testApp.Spec.Source.DeepCopy(),
@@ -2008,7 +2007,7 @@ func TestGetCachedAppState(t *testing.T) {
 	testApp := newTestApp()
 	testApp.ObjectMeta.ResourceVersion = "1"
 	testApp.Spec.Project = "test-proj"
-	testProj := &appsv1.AppProject{
+	testProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-proj",
 			Namespace: testNamespace,
@@ -2017,7 +2016,7 @@ func TestGetCachedAppState(t *testing.T) {
 	appServer := newTestAppServer(t, testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
 	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	t.Run("NoError", func(t *testing.T) {
 		err := appServer.getCachedAppState(context.Background(), testApp, func() error {
@@ -2043,7 +2042,7 @@ func TestGetCachedAppState(t *testing.T) {
 				return true, testApp, nil
 			})
 			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return true, &appsv1.Application{Spec: appsv1.ApplicationSpec{Source: &appsv1.ApplicationSource{}}}, nil
+				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
 			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
@@ -2105,14 +2104,14 @@ func TestSplitStatusPatch(t *testing.T) {
 }
 
 func TestLogsGetSelectedPod(t *testing.T) {
-	deployment := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Deployment", Name: "deployment", UID: "1"}
-	rs := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "ReplicaSet", Name: "rs", UID: "2"}
-	podRS := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "podrs", UID: "3"}
-	pod := appsv1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"}
-	treeNodes := []appsv1.ResourceNode{
+	deployment := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Deployment", Name: "deployment", UID: "1"}
+	rs := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "ReplicaSet", Name: "rs", UID: "2"}
+	podRS := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "podrs", UID: "3"}
+	pod := v1alpha1.ResourceRef{Group: "", Version: "v1", Kind: "Pod", Name: "pod", UID: "4"}
+	treeNodes := []v1alpha1.ResourceNode{
 		{ResourceRef: deployment, ParentRefs: nil},
-		{ResourceRef: rs, ParentRefs: []appsv1.ResourceRef{deployment}},
-		{ResourceRef: podRS, ParentRefs: []appsv1.ResourceRef{rs}},
+		{ResourceRef: rs, ParentRefs: []v1alpha1.ResourceRef{deployment}},
+		{ResourceRef: podRS, ParentRefs: []v1alpha1.ResourceRef{rs}},
 		{ResourceRef: pod, ParentRefs: nil},
 	}
 	appName := "appName"
@@ -2222,7 +2221,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
 	runtimeObjects := make([]runtime.Object, podNumber+1)
-	resources := make([]appsv1.ResourceStatus, podNumber)
+	resources := make([]v1alpha1.ResourceStatus, podNumber)
 
 	for i := 0; i < podNumber; i++ {
 		pod := corev1.Pod{
@@ -2235,7 +2234,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 				Namespace: "test",
 			},
 		}
-		resources[i] = appsv1.ResourceStatus{
+		resources[i] = v1alpha1.ResourceStatus{
 			Group:     pod.GroupVersionKind().Group,
 			Kind:      pod.GroupVersionKind().Kind,
 			Version:   pod.GroupVersionKind().Version,
@@ -2246,7 +2245,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		runtimeObjects[i] = kube.MustToUnstructured(&pod)
 	}
 
-	testApp := newTestApp(func(app *appsv1.Application) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
 		app.Status.Resources = resources
 	})
@@ -2278,7 +2277,7 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
 		a = a.DeepCopy()
-		if a.GetAnnotations() != nil && a.GetAnnotations()[appsv1.AnnotationKeyRefresh] != "" {
+		if a.GetAnnotations() != nil && a.GetAnnotations()[v1alpha1.AnnotationKeyRefresh] != "" {
 			a.SetAnnotations(map[string]string{})
 			a.SetResourceVersion("999")
 			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
@@ -2306,7 +2305,7 @@ func TestGetAppRefresh_NormalRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: ptr.To(string(appsv1.RefreshTypeNormal)),
+		Refresh: ptr.To(string(v1alpha1.RefreshTypeNormal)),
 	})
 	require.NoError(t, err)
 
@@ -2341,7 +2340,7 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 
 	_, err := appServer.Get(context.Background(), &application.ApplicationQuery{
 		Name:    &testApp.Name,
-		Refresh: ptr.To(string(appsv1.RefreshTypeHard)),
+		Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, getAppDetailsQuery)
@@ -2361,8 +2360,8 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
 	testApp := newTestApp()
-	testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
-	testApp.Status.Resources = []appsv1.ResourceStatus{{
+	testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+	testApp.Status.Resources = []v1alpha1.ResourceStatus{{
 		Group:     "apps",
 		Kind:      "Deployment",
 		Name:      "guestbook",
@@ -2375,14 +2374,14 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	}}
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
-	err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     "apps",
 			Kind:      "Deployment",
 			Name:      "guestbook",
 			Namespace: "default",
 		},
-		Health: &appsv1.HealthStatus{
+		Health: &v1alpha1.HealthStatus{
 			Status: health.HealthStatusDegraded,
 		},
 	}}})
@@ -2408,7 +2407,7 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	action := "create-job"
 	uid := "1"
 
-	resources := []appsv1.ResourceStatus{{
+	resources := []v1alpha1.ResourceStatus{{
 		Group:     group,
 		Kind:      kind,
 		Name:      resourceName,
@@ -2418,8 +2417,8 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	nodes := []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     group,
 			Kind:      kind,
 			Version:   version,
@@ -2429,11 +2428,11 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 		},
 	}}
 
-	createJobDenyingProj := &appsv1.AppProject{
+	createJobDenyingProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
-		Spec: appsv1.AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:                []string{"*"},
-			Destinations:               []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			Destinations:               []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "never", Kind: "mind"}},
 		},
 	}
@@ -2475,13 +2474,13 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	t.Run("CreateOperationNotPermitted", func(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Spec.Project = "createJobDenyingProj"
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, createJobDenyingProj, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
@@ -2501,13 +2500,13 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 
 	t.Run("CreateOperationPermitted", func(t *testing.T) {
 		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&cronJob))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
@@ -2537,7 +2536,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 	action := "pause"
 	uid := "2"
 
-	resources := []appsv1.ResourceStatus{{
+	resources := []v1alpha1.ResourceStatus{{
 		Group:     group,
 		Kind:      kind,
 		Name:      resourceName,
@@ -2547,8 +2546,8 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
-	nodes := []appsv1.ResourceNode{{
-		ResourceRef: appsv1.ResourceRef{
+	nodes := []v1alpha1.ResourceNode{{
+		ResourceRef: v1alpha1.ResourceRef{
 			Group:     group,
 			Kind:      kind,
 			Version:   version,
@@ -2558,7 +2557,7 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		},
 	}}
 
-	deployment := k8sappsv1.Deployment{
+	deployment := appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -2571,14 +2570,14 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 
 	t.Run("DefaultPatchOperation", func(t *testing.T) {
 		testApp := newTestApp()
-		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
 		// appServer := newTestAppServer(t, testApp, returnDeployment())
 		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
@@ -2720,11 +2719,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
@@ -2744,11 +2743,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
@@ -2767,11 +2766,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
@@ -2791,11 +2790,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{},
 			},
 		}
@@ -2814,11 +2813,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
@@ -2836,11 +2835,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
@@ -2855,11 +2854,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
@@ -2875,11 +2874,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-2"},
 			},
 		}
@@ -2898,11 +2897,11 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
-		otherNsProj := &appsv1.AppProject{
+		otherNsProj := &v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
-			Spec: appsv1.AppProjectSpec{
+			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
-				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 				SourceNamespaces: []string{"argocd-1"},
 			},
 		}
@@ -2918,9 +2917,9 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 }
 
 func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
-	app := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Sources: []appv1.ApplicationSource{
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: []v1alpha1.ApplicationSource{
 				{
 					TargetRevision: "revision1",
 				},
@@ -2946,8 +2945,8 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 	assert.Equal(t, expected, result, "Expected ambiguous revision to be %s, but got %s", expected, result)
 
 	// Test when app.Spec.HasMultipleSources() is false
-	app.Spec = appv1.ApplicationSpec{
-		Source: &appv1.ApplicationSource{
+	app.Spec = v1alpha1.ApplicationSpec{
+		Source: &v1alpha1.ApplicationSource{
 			TargetRevision: "revision3",
 		},
 		Sources: nil,
@@ -2961,9 +2960,9 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 }
 
 func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
-	app := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Source: &appv1.ApplicationSource{
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
 				TargetRevision: "revision1",
 			},
 		},
@@ -2983,9 +2982,9 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 	s := newTestAppServer(t)
 
 	ctx := context.Background()
-	a := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Sources: []appv1.ApplicationSource{
+	a := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: []v1alpha1.ApplicationSource{
 				{
 					RepoURL: "https://github.com/example/repo.git",
 				},
@@ -3011,9 +3010,9 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	s := newTestAppServer(t)
 
 	ctx := context.Background()
-	a := &appv1.Application{
-		Spec: appv1.ApplicationSpec{
-			Source: &appv1.ApplicationSource{
+	a := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/example/repo.git",
 			},
 		},
@@ -3037,8 +3036,8 @@ func Test_RevisionMetadata(t *testing.T) {
 
 	singleSourceApp := newTestApp()
 	singleSourceApp.Name = "single-source-app"
-	singleSourceApp.Spec = appv1.ApplicationSpec{
-		Source: &appv1.ApplicationSource{
+	singleSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Source: &v1alpha1.ApplicationSource{
 			RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 			Path:           "helm-guestbook",
 			TargetRevision: "HEAD",
@@ -3047,8 +3046,8 @@ func Test_RevisionMetadata(t *testing.T) {
 
 	multiSourceApp := newTestApp()
 	multiSourceApp.Name = "multi-source-app"
-	multiSourceApp.Spec = appv1.ApplicationSpec{
-		Sources: []appv1.ApplicationSource{
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
 			{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				Path:           "helm-guestbook",
@@ -3062,14 +3061,14 @@ func Test_RevisionMetadata(t *testing.T) {
 		},
 	}
 
-	singleSourceHistory := []appv1.RevisionHistory{
+	singleSourceHistory := []v1alpha1.RevisionHistory{
 		{
 			ID:       1,
 			Source:   singleSourceApp.Spec.GetSource(),
 			Revision: "a",
 		},
 	}
-	multiSourceHistory := []appv1.RevisionHistory{
+	multiSourceHistory := []v1alpha1.RevisionHistory{
 		{
 			ID:        1,
 			Sources:   multiSourceApp.Spec.GetSources(),
