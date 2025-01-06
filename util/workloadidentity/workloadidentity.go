@@ -21,7 +21,7 @@ type WorkloadIdentityTokenProvider struct {
 }
 
 // Used to propagate initialization error if any
-var initError error = nil
+var initError error
 
 func NewWorkloadIdentityTokenProvider() TokenProvider {
 	cred, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{})
