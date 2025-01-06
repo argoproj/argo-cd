@@ -118,11 +118,11 @@ func (db *db) GetWriteRepository(ctx context.Context, repoURL, project string) (
 	return repository, err
 }
 
-func (db *db) GetProjectRepositories(_ context.Context, project string) ([]*v1alpha1.Repository, error) {
+func (db *db) GetProjectRepositories(project string) ([]*v1alpha1.Repository, error) {
 	return db.getRepositories(settings.ByProjectRepoIndexer, project)
 }
 
-func (db *db) GetProjectWriteRepositories(_ context.Context, project string) ([]*v1alpha1.Repository, error) {
+func (db *db) GetProjectWriteRepositories(project string) ([]*v1alpha1.Repository, error) {
 	return db.getRepositories(settings.ByProjectRepoWriteIndexer, project)
 }
 

@@ -119,7 +119,7 @@ func NewFakeConfigMap() *corev1.ConfigMap {
 	return &cm
 }
 
-func NewFakeSecret(_ ...string) *corev1.Secret {
+func NewFakeSecret() *corev1.Secret {
 	secret := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Secret",
