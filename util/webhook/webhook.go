@@ -62,7 +62,7 @@ type ArgoCDWebhookHandler struct {
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
-	queue                  chan interface{}
+	queue                  chan any
 	maxWebhookPayloadSizeB int64
 }
 
@@ -106,7 +106,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
-		queue:                  make(chan interface{}, payloadQueueSize),
+		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 	}
 
@@ -138,7 +138,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -205,8 +205,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-				link := l.(map[string]interface{})
+			for _, l := range payload.Repository.Links["clone"].([]any) {
+				link := l.(map[string]any)
 				if link["name"] == "http" {
 					webURLs = append(webURLs, link["href"].(string))
 				}
@@ -250,7 +250,7 @@ type changeInfo struct {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
+func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -408,7 +408,7 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
+	var payload any
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)

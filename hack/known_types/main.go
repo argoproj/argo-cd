@@ -23,7 +23,7 @@ const (
 )
 
 func newCommand() *cobra.Command {
-	var docsOutputPath string = ""
+	var docsOutputPath string
 	command := &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",
@@ -65,7 +65,7 @@ func newCommand() *cobra.Command {
 
 				docs = append(docs, fmt.Sprintf("%s/%s", shortPackagePath, typeName.Name()))
 				mapItems = append(mapItems, fmt.Sprintf(`
-	knownTypes["%s/%s"] = func() interface{} {
+	knownTypes["%s/%s"] = func() any {
 		return &%s.%s{}
 	}`, shortPackagePath, typeName.Name(), alias, typeName.Name()))
 			}

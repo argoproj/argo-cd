@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/app/discovery"
 	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
-	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -360,9 +359,9 @@ func (s *Service) runRepoOperation(
 		}
 		defer io.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(chartPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -390,9 +389,9 @@ func (s *Service) runRepoOperation(
 		defer io.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+			err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -444,7 +443,7 @@ func (s *Service) runRepoOperation(
 					return nil, err
 				}
 			}
-			appPath, err := argopath.Path(gitClient.Root(), source.Path)
+			appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -497,7 +496,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 				return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 			}
 			if refSourceMapping.Chart != "" {
-				return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+				return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 			}
 			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 			_, ok = repoRefs[normalizedRepoURL]
@@ -541,7 +540,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				"source": q.ApplicationSource,
 			}).Debugf("not generating manifests as path and chart fields are empty")
 			res = &apiclient.ManifestResponse{
@@ -604,9 +603,9 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		err := apppathutil.CheckOutOfBoundsSymlinks(workDir)
 		if err != nil {
-			oobError := &argopath.OutOfBoundsSymlinkError{}
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
@@ -620,7 +619,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
-		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		appPath, err := apppathutil.Path(workDir, req.ApplicationSource.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
@@ -743,7 +742,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						if refSourceMapping.Chart != "" {
-							ch.errCh <- fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+							ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 							return
 						}
 						normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
@@ -782,9 +781,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 							// Symlink check must happen after acquiring lock.
 							if !s.initConstants.AllowOutOfBoundsSymlinks {
-								err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+								err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 								if err != nil {
-									oobError := &argopath.OutOfBoundsSymlinkError{}
+									oobError := &apppathutil.OutOfBoundsSymlinkError{}
 									if errors.As(err, &oobError) {
 										log.WithFields(log.Fields{
 											common.SecurityField: common.SecurityHigh,
@@ -1494,7 +1493,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 					targets = append(targets, unstructuredObj)
 					return nil
 				}
-				return fmt.Errorf("resource list item has unexpected type")
+				return errors.New("resource list item has unexpected type")
 			})
 			if err != nil {
 				return nil, err
@@ -1960,7 +1959,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse env vars")
+			return nil, errors.New("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
@@ -2519,7 +2518,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	revisionPresent := gitClient.IsRevisionPresent(revision)
 
-	log.WithFields(map[string]interface{}{
+	log.WithFields(map[string]any{
 		"skipFetch": revisionPresent,
 	}).Debugf("Checking out revision %v", revision)
 

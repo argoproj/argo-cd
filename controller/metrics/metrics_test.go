@@ -175,7 +175,7 @@ var noOpHealthCheck = func(r *http.Request) error {
 	return nil
 }
 
-var appFilter = func(obj interface{}) bool {
+var appFilter = func(obj any) bool {
 	return true
 }
 

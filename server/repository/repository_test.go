@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -14,14 +14,12 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -44,7 +42,7 @@ const testNamespace = "default"
 
 var (
 	argocdCM = corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
 			Labels: map[string]string{
@@ -53,7 +51,7 @@ var (
 		},
 	}
 	argocdSecret = corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
 		},
@@ -348,7 +346,7 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.Equal(t, err, errPermissionDenied)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 	})
 
 	t.Run("Test_GetWithNotExistRepoShouldReturn404", func(t *testing.T) {
@@ -529,7 +527,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Equal(t, err, errPermissionDenied)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 	})
 
 	t.Run("Test_WithAppCreateUpdatePrivileges", func(t *testing.T) {
@@ -834,7 +832,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "mismatch",
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppSourceNotInHistory", func(t *testing.T) {
@@ -855,7 +853,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppSourceInHistory", func(t *testing.T) {
@@ -912,7 +910,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			SourceIndex: 0,
 			VersionId:   1,
 		})
-		assert.Equal(t, errPermissionDenied, err)
+		assert.Equal(t, err, common.PermissionDeniedAPIError)
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingAppMultiSourceInHistory", func(t *testing.T) {
@@ -965,7 +963,7 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	})
 	return enforcer
@@ -997,7 +995,7 @@ func TestGetRepository(t *testing.T) {
 				q: &repository.RepoQuery{},
 			},
 			want:  nil,
-			error: status.Error(codes.PermissionDenied, "permission denied"),
+			error: common.PermissionDeniedAPIError,
 		},
 		{
 			name: "empty project and no matching repos",
@@ -1011,7 +1009,7 @@ func TestGetRepository(t *testing.T) {
 				},
 			},
 			want:  nil,
-			error: status.Error(codes.PermissionDenied, "permission denied"),
+			error: common.PermissionDeniedAPIError,
 		},
 		{
 			name: "empty project + matching repo with an empty project",
@@ -1154,7 +1152,7 @@ func TestDeleteRepository(t *testing.T) {
 			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 			resp, err := s.DeleteRepository(context.TODO(), &repository.RepoQuery{Repo: repo, AppProject: "default"})
 			require.NoError(t, err)
-			assert.Equal(t, repositorypkg.RepoResponse{}, *resp)
+			assert.Equal(t, repository.RepoResponse{}, *resp)
 		})
 	}
 }

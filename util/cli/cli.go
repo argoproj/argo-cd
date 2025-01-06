@@ -5,6 +5,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	stderrors "errors"
 	"flag"
 	"fmt"
 	"os"
@@ -276,11 +277,10 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
+			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
-		} else {
-			data = stripComments(updated)
 		}
+		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {

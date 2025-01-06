@@ -17,7 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -228,8 +228,8 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
-	metadata := map[string]interface{}{
-		"metadata": map[string]interface{}{
+	metadata := map[string]any{
+		"metadata": map[string]any{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
 				argoappv1.AnnotationKeyHydrate: "normal",
@@ -244,7 +244,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	for attempt := 0; attempt < 5; attempt++ {
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
-			if !apierr.IsConflict(err) {
+			if !apierrors.IsConflict(err) {
 				return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
 			}
 		} else {
@@ -465,7 +465,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 				}
 				refKey := "$" + source.Ref
 				if _, ok := refKeys[refKey]; ok {
-					return nil, fmt.Errorf("invalid sources: multiple sources had the same `ref` key")
+					return nil, errors.New("invalid sources: multiple sources had the same `ref` key")
 				}
 				refKeys[refKey] = true
 			}
@@ -823,7 +823,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		if err == nil {
 			return a, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error updating application %q: %w", appName, err)
 		}
 		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
@@ -1056,7 +1056,7 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	return proj
 }
 
-func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string {
+func GenerateSpecIsDifferentErrorMessage(entity string, a, b any) string {
 	basicMsg := fmt.Sprintf("existing %s spec is different; use upsert flag to force update", entity)
 	difference, _ := GetDifferentPathsBetweenStructs(a, b)
 	if len(difference) == 0 {
@@ -1065,7 +1065,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	return fmt.Sprintf("%s; difference in keys %q", basicMsg, strings.Join(difference, ","))
 }
 
-func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
+func GetDifferentPathsBetweenStructs(a, b any) ([]string, error) {
 	var difference []string
 	changelog, err := diff.Diff(a, b)
 	if err != nil {
