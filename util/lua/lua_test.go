@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
@@ -881,4 +882,57 @@ return hs`
 		require.NoError(t, err)
 		assert.Nil(t, status)
 	})
+}
+
+func TestExecuteResourceActionWithParams(t *testing.T) {
+	testObj := StrToUnstructured(`
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: test-deployment
+      namespace: default
+    spec:
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+          - name: test-container
+            image: nginx
+    `)
+
+	actionLua := `
+    function run(obj, params)
+        local replicas = tonumber(params.replicas)
+        if replicas then
+            obj.spec.replicas = replicas
+        end
+        return obj
+    end
+    `
+
+	params := []*applicationpkg.ResourceActionParameters{
+		{
+			Name:  func() *string { s := "replicas"; return &s }(),
+			Value: func() *string { s := "3"; return &s }(),
+		},
+	}
+
+	vm := VM{}
+
+	impactedResources, err := vm.ExecuteResourceAction(testObj, actionLua, params)
+	require.NoError(t, err)
+
+	// Check the modified object in each impacted resource
+	for _, impactedResource := range impactedResources {
+		modifiedObj := impactedResource.UnstructuredObj
+
+		// Check the replicas in the modified object
+		actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+		require.NoError(t, err)
+		assert.True(t, found, "spec.replicas should be found in the modified object")
+		assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
+	}
 }
