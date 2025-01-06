@@ -151,7 +151,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	if argoSettings.InClusterEnabled {
 		localCls, err = db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not get local cluster: %w", err)
 		}
 		handleAddEvent(localCls)
 	}

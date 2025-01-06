@@ -42,8 +42,8 @@ import (
 )
 
 // getDefaultTestClientSet creates a Clientset with the default argo objects
-// To add new objects, use kubeclientset.Tracker().Add(obj)
-func getDefaultTestClientSet() *kubefake.Clientset {
+// and objects specified in parameters
+func getDefaultTestClientSet(obj ...runtime.Object) *kubefake.Clientset {
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      argocommon.ArgoCDSecretName,
@@ -69,8 +69,8 @@ func getDefaultTestClientSet() *kubefake.Clientset {
 		Data: map[string]string{},
 	}
 
-	objects := append([]runtime.Object{}, emptyArgoCDConfigMap, argoCDSecret)
-	kubeclientset := kubefake.NewSimpleClientset(objects...)
+	objects := append(obj, emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := kubefake.NewClientset(objects...)
 	return kubeclientset
 }
 
@@ -1353,9 +1353,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
-			kubeclientset := getDefaultTestClientSet()
-			err := kubeclientset.Tracker().Add(secret)
-			require.NoError(t, err)
+			kubeclientset := getDefaultTestClientSet(secret)
 
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
@@ -2092,9 +2090,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			}
 
-			kubeclientset := getDefaultTestClientSet()
-			err := kubeclientset.Tracker().Add(secret)
-			require.NoError(t, err)
+			kubeclientset := getDefaultTestClientSet(secret)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2443,9 +2439,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	kubeclientset := getDefaultTestClientSet()
-	err = kubeclientset.Tracker().Add(secret)
-	require.NoError(t, err)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
@@ -2620,9 +2614,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	kubeclientset := getDefaultTestClientSet()
-	err = kubeclientset.Tracker().Add(secret)
-	require.NoError(t, err)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
