@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
@@ -1113,7 +1113,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		require.NoError(t, err)
 
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
-			var dep v1.Deployment
+			var dep appsv1.Deployment
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
 			require.NoError(t, err)
 			assert.Equal(t, int32(2), *dep.Spec.Replicas)
@@ -1175,7 +1175,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 		require.NoError(t, err)
 
 		if obj.GetKind() == "Deployment" && obj.GetName() == "production-redis-slave" {
-			var dep v1.Deployment
+			var dep appsv1.Deployment
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
 			require.NoError(t, err)
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
