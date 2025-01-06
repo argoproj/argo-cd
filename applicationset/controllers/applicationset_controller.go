@@ -577,10 +577,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(ignoreWhenAnnotationApplicationSetRefreshIsRemoved())).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
-		WithEventFilter(ignoreWhenAnnotationApplicationSetRefreshIsRemoved()).
 		Watches(
 			&corev1.Secret{},
 			&clusterSecretEventHandler{
