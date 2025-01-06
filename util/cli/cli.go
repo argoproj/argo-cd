@@ -279,9 +279,8 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		if string(updated) == "" || string(updated) == string(data) {
 			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
-		} else {
-			data = stripComments(updated)
 		}
+		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {

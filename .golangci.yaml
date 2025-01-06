@@ -110,6 +110,7 @@ linters-settings:
         disabled: true
       # for better readability, the errors should be last in the list of returned values by a function.
       - name: error-return
+        disabled: false
       # for better readability, error messages should not be capitalized or end with punctuation or a newline.
       - name: error-strings
         disabled: true
@@ -135,7 +136,7 @@ linters-settings:
         disabled: false
       # redundant else-blocks that can be eliminated from the code.
       - name: superfluous-else
-        disabled: true
+        disabled: false
       # prevent confusing name for variables when using `time` package
       - name: time-naming
         disabled: true
