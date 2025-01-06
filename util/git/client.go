@@ -381,9 +381,8 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Fetch fetches latest updates from origin
@@ -438,16 +437,15 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			}
 		}
 		return files, nil
-	} else {
-		// This is the old and default way
-		out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
-		if err != nil {
-			return nil, err
-		}
-		// remove last element, which is blank regardless of whether we're using nullbyte or newline
-		ss := strings.Split(out, "\000")
-		return ss[:len(ss)-1], nil
 	}
+	// This is the old and default way
+	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+	if err != nil {
+		return nil, err
+	}
+	// remove last element, which is blank regardless of whether we're using nullbyte or newline
+	ss := strings.Split(out, "\000")
+	return ss[:len(ss)-1], nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -795,9 +793,8 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out != "" && err == nil {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // ChangedFiles returns a list of files changed between two revisions

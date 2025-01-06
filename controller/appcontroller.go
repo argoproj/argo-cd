@@ -400,9 +400,8 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, err
-		} else {
-			return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %w", app.Spec.Project, err)
 		}
+		return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %w", app.Spec.Project, err)
 	}
 	if !proj.IsAppNamespacePermitted(app, ctrl.namespace) {
 		return nil, argo.ErrProjectNotPermitted(app.GetName(), app.GetNamespace(), proj.GetName())
@@ -1052,12 +1051,12 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	if parts := strings.Split(key, "/"); len(parts) != 3 {
 		log.Warnf("Unexpected key format in appComparisonTypeRefreshTypeQueue. Key should consists of namespace/name/comparisonType but got: %s", key)
 	} else {
-		if compareWith, err := strconv.Atoi(parts[2]); err != nil {
+		compareWith, err := strconv.Atoi(parts[2])
+		if err != nil {
 			log.Warnf("Unable to parse comparison type: %v", err)
 			return
-		} else {
-			ctrl.requestAppRefresh(ctrl.toAppQualifiedName(parts[1], parts[0]), CompareWith(compareWith).Pointer(), nil)
 		}
+		ctrl.requestAppRefresh(ctrl.toAppQualifiedName(parts[1], parts[0]), CompareWith(compareWith).Pointer(), nil)
 	}
 	return
 }
@@ -1112,9 +1111,8 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	}
 	if appsCount == 0 {
 		return ctrl.removeProjectFinalizer(proj)
-	} else {
-		log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
 	}
+	log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
 	return nil
 }
 
@@ -1398,14 +1396,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 				return
-			} else {
-				// retrying operation. remove previous failure time in app since it is used as a trigger
-				// that previous failed and operation should be retried
-				state.FinishedAt = nil
-				ctrl.setOperationState(app, state)
-				// Get rid of sync results and null out previous operation completion time
-				state.SyncResult = nil
 			}
+			// retrying operation. remove previous failure time in app since it is used as a trigger
+			// that previous failed and operation should be retried
+			state.FinishedAt = nil
+			ctrl.setOperationState(app, state)
+			// Get rid of sync results and null out previous operation completion time
+			state.SyncResult = nil
 		} else if ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating {
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
@@ -2169,9 +2166,8 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 		logCtx.Errorf("Failed to initiate auto-sync to %s: %v", desiredCommitSHA, err)
 		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
-	} else {
-		ctrl.writeBackToInformer(updatedApp)
 	}
+	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
 
 	var target string
@@ -2213,9 +2209,8 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 
 	if hasMultipleSources {
 		return reflect.DeepEqual(app.Spec.Sources, app.Status.OperationState.SyncResult.Sources), app.Status.OperationState.Phase
-	} else {
-		return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
 	}
+	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
 }
 
 func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {
@@ -2502,9 +2497,8 @@ func (ctrl *ApplicationController) toAppKey(appName string) string {
 		return ctrl.namespace + "/" + appName
 	} else if strings.Contains(appName, "/") {
 		return appName
-	} else {
-		return strings.ReplaceAll(appName, "_", "/")
 	}
+	return strings.ReplaceAll(appName, "_", "/")
 }
 
 func (ctrl *ApplicationController) toAppQualifiedName(appName, appNamespace string) string {

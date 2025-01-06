@@ -280,9 +280,8 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	client := c.GetClient()
 	if opts.Delete {
 		return client.Delete(fullKey)
-	} else {
-		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
+	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
 func (c *Cache) GetItem(key string, item any) error {

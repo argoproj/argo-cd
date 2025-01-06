@@ -370,86 +370,83 @@ func (s *Service) runRepoOperation(
 						"file":               oobError.File,
 					}).Warn("chart contains out-of-bounds symlink")
 					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-				} else {
-					return err
 				}
+				return err
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
 		})
-	} else {
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
-		})
+	}
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+	})
+	if err != nil {
+		return err
+	}
+
+	defer io.Close(closer)
+
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 		if err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               repo.Repo,
+					"revision":           revision,
+					"file":               oobError.File,
+				}).Warn("repository contains out-of-bounds symlink")
+				return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
 			return err
 		}
+	}
 
-		defer io.Close(closer)
-
-		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
-			if err != nil {
-				oobError := &apppathutil.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("repository contains out-of-bounds symlink")
-					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-				} else {
-					return err
-				}
-			}
+	var commitSHA string
+	if hasMultipleSources {
+		commitSHA = revision
+	} else {
+		commit, err := gitClient.CommitSHA()
+		if err != nil {
+			return fmt.Errorf("failed to get commit SHA: %w", err)
 		}
+		commitSHA = commit
+	}
 
-		var commitSHA string
-		if hasMultipleSources {
-			commitSHA = revision
-		} else {
-			commit, err := gitClient.CommitSHA()
-			if err != nil {
-				return fmt.Errorf("failed to get commit SHA: %w", err)
-			}
-			commitSHA = commit
+	// double-check locking
+	if !settings.noCache {
+		if ok, err := cacheFn(revision, repoRefs, false); ok {
+			return err
 		}
+	}
 
-		// double-check locking
-		if !settings.noCache {
-			if ok, err := cacheFn(revision, repoRefs, false); ok {
-				return err
+	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
+	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
+	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+		var signature string
+		if verifyCommit {
+			// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+			// to the verification routine. For everything else, we work with the SHA that the target revision is
+			// pointing to (i.e. the resolved revision).
+			var rev string
+			if gitClient.IsAnnotatedTag(revision) {
+				rev = unresolvedRevision
+			} else {
+				rev = revision
 			}
-		}
-
-		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
-		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-			var signature string
-			if verifyCommit {
-				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
-				// to the verification routine. For everything else, we work with the SHA that the target revision is
-				// pointing to (i.e. the resolved revision).
-				var rev string
-				if gitClient.IsAnnotatedTag(revision) {
-					rev = unresolvedRevision
-				} else {
-					rev = revision
-				}
-				signature, err = gitClient.VerifyCommitSignature(rev)
-				if err != nil {
-					return nil, err
-				}
-			}
-			appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
+			signature, err = gitClient.VerifyCommitSignature(rev)
 			if err != nil {
 				return nil, err
 			}
-			return &operationContext{appPath, signature}, nil
-		})
-	}
+		}
+		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
+		if err != nil {
+			return nil, err
+		}
+		return &operationContext{appPath, signature}, nil
+	})
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -612,9 +609,8 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 					"file":               oobError.File,
 				}).Warn("streamed files contains out-of-bounds symlink")
 				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
-			} else {
-				return err
 			}
+			return err
 		}
 	}
 
@@ -793,10 +789,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 										}).Warn("repository contains out-of-bounds symlink")
 										ch.errCh <- fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
 										return
-									} else {
-										ch.errCh <- err
-										return
 									}
+									ch.errCh <- err
+									return
 								}
 							}
 
@@ -2370,12 +2365,11 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 	} else {
-		if errors.Is(err, cache.ErrCacheMiss) {
-			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
-		} else {
-			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
-		}
+		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 	}
 	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
 	if err != nil {
@@ -2587,10 +2581,9 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				}
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).TestHelmOCI()
 				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
-				return err
 			}
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
+			return err
 		},
 	}
 	check := checks[repo.Type]
@@ -2618,21 +2611,20 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			Revision:          revision,
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
-	} else {
-		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		revision, err = gitClient.LsRemote(ambiguousRevision)
-		if err != nil {
-			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		return &apiclient.ResolveRevisionResponse{
-			Revision:          revision,
-			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
-		}, nil
 	}
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	if err != nil {
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	revision, err = gitClient.LsRemote(ambiguousRevision)
+	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          revision,
+		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
+	}, nil
 }
 
 func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
@@ -2713,14 +2705,12 @@ func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision str
 
 		if cs == "" {
 			return fmt.Errorf("revision %s is not signed", revision)
-		} else {
-			vr := gpg.ParseGitCommitVerification(cs)
-			if vr.Result == gpg.VerifyResultUnknown {
-				return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
-			} else {
-				log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-			}
 		}
+		vr := gpg.ParseGitCommitVerification(cs)
+		if vr.Result == gpg.VerifyResultUnknown {
+			return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+		}
+		log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 	}
 	return nil
 }

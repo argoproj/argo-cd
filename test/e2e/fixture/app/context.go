@@ -98,17 +98,15 @@ func (c *Context) AppName() string {
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
-	} else {
-		return c.AppName()
 	}
+	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
-	} else {
-		return fixture.TestNamespace()
 	}
+	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {

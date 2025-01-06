@@ -1158,9 +1158,8 @@ func ParseInstanceName(appName string, defaultNs string) (string, string) {
 func AppInstanceName(appName, appNs, defaultNs string) string {
 	if appNs == "" || appNs == defaultNs {
 		return appName
-	} else {
-		return appNs + "_" + appName
 	}
+	return appNs + "_" + appName
 }
 
 // InstanceNameFromQualified returns the value to be used for app

@@ -242,9 +242,8 @@ func redactor(dirtyString string) string {
 	iterateStringFields(config, func(name string, val string) string {
 		if name == "clientSecret" || name == "secret" || name == "bindPW" {
 			return "********"
-		} else {
-			return val
 		}
+		return val
 	})
 	data, err := yaml.Marshal(config)
 	errors.CheckError(err)

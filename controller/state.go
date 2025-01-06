@@ -488,16 +488,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
 			}, nil
-		} else {
-			return &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: app.Spec.BuildComparedToStatus(),
-					Status:     v1alpha1.SyncStatusCodeUnknown,
-					Revision:   revisions[0],
-				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
-			}, nil
 		}
+		return &comparisonResult{
+			syncStatus: &v1alpha1.SyncStatus{
+				ComparedTo: app.Spec.BuildComparedToStatus(),
+				Status:     v1alpha1.SyncStatusCodeUnknown,
+				Revision:   revisions[0],
+			},
+			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision

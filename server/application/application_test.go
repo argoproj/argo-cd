@@ -2262,10 +2262,9 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
 		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
-	} else {
-		appServer := newTestAppServer(t, runtimeObjects...)
-		return appServer, adminCtx
 	}
+	appServer := newTestAppServer(t, runtimeObjects...)
+	return appServer, adminCtx
 }
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done

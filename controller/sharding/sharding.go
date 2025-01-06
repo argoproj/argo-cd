@@ -122,13 +122,12 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 		log.Debugf("Calculating cluster shard for cluster id: %s", id)
 		if id == "" {
 			return 0
-		} else {
-			h := fnv.New32a()
-			_, _ = h.Write([]byte(id))
-			shard := int32(h.Sum32() % uint32(replicas))
-			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
-			return int(shard)
 		}
+		h := fnv.New32a()
+		_, _ = h.Write([]byte(id))
+		shard := int32(h.Sum32() % uint32(replicas))
+		log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
+		return int(shard)
 	}
 }
 
@@ -149,17 +148,16 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 			// then its value is returned otherwise it is the default calculated value
 			if c.Shard != nil && int(*c.Shard) < replicas {
 				return int(*c.Shard)
-			} else {
-				clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
-				clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
-				if !ok {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shard := int(clusterIndex % replicas)
-				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
-				return shard
 			}
+			clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
+			clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
+			if !ok {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			shard := int(clusterIndex % replicas)
+			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			return shard
 		}
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
@@ -181,22 +179,21 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 			// then its value is returned otherwise it is the default calculated value
 			if c.Shard != nil && int(*c.Shard) < replicas {
 				return int(*c.Shard)
-			} else {
-				// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
-				// return the reserved value of -1
-				if !slices.Contains(clusters(), c) {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
-				shard, ok := shardIndexedByCluster[c.ID]
-				if !ok {
-					log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-					return -1
-				}
-				log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
-				return shard
 			}
+			// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
+			// return the reserved value of -1
+			if !slices.Contains(clusters(), c) {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
+			shard, ok := shardIndexedByCluster[c.ID]
+			if !ok {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			return shard
 		}
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
@@ -311,7 +308,6 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 
 	// fetch the shard mapping configMap
 	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
-
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return -1, fmt.Errorf("error getting sharding config map: %w", err)
@@ -331,28 +327,27 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 		}
 		// return 0 as the controller is assigned to shard 0 while generating default shard mapping ConfigMap
 		return shard, nil
-	} else {
-		// Identify the available shard and update the ConfigMap
-		data := shardMappingCM.Data[ShardControllerMappingKey]
-		var shardMappingData []shardApplicationControllerMapping
-		err := json.Unmarshal([]byte(data), &shardMappingData)
-		if err != nil {
-			return -1, fmt.Errorf("error unmarshalling shard config map data: %w", err)
-		}
-
-		shard, shardMappingData := getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
-		updatedShardMappingData, err := json.Marshal(shardMappingData)
-		if err != nil {
-			return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %w", err)
-		}
-		shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
-
-		_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
-		if err != nil {
-			return -1, err
-		}
-		return shard, nil
 	}
+	// Identify the available shard and update the ConfigMap
+	data := shardMappingCM.Data[ShardControllerMappingKey]
+	var shardMappingData []shardApplicationControllerMapping
+	err = json.Unmarshal([]byte(data), &shardMappingData)
+	if err != nil {
+		return -1, fmt.Errorf("error unmarshalling shard config map data: %w", err)
+	}
+
+	shard, shardMappingData = getOrUpdateShardNumberForController(shardMappingData, hostname, replicas, shard)
+	updatedShardMappingData, err := json.Marshal(shardMappingData)
+	if err != nil {
+		return -1, fmt.Errorf("error marshalling data of shard mapping ConfigMap: %w", err)
+	}
+	shardMappingCM.Data[ShardControllerMappingKey] = string(updatedShardMappingData)
+
+	_, err = kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Update(context.Background(), shardMappingCM, metav1.UpdateOptions{})
+	if err != nil {
+		return -1, err
+	}
+	return shard, nil
 }
 
 // getOrUpdateShardNumberForController takes list of shardApplicationControllerMapping and performs computation to find the matching or empty shard number

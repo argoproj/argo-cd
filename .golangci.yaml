@@ -120,9 +120,11 @@ linters-settings:
       # incrementing an integer variable by 1 is recommended to be done using the `++` operator
       - name: increment-decrement
         disabled: false
-      # highlights redundant else-blocks that can be eliminated from the code
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#indent-error-flow
       - name: indent-error-flow
-        disabled: true
+        disabled: false
+        arguments:
+          - "preserveScope"
       # This rule suggests a shorter way of writing ranges that do not use the second value.
       - name: range
         disabled: false
@@ -132,12 +134,15 @@ linters-settings:
       # redefining built in names (true, false, append, make) can lead to bugs very difficult to detect.
       - name: redefines-builtin-id
         disabled: true
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#redundant-import-alias
       - name: redundant-import-alias
         disabled: false
       # redundant else-blocks that can be eliminated from the code.
       - name: superfluous-else
         disabled: false
-      # prevent confusing name for variables when using `time` package
+        arguments:
+          - "preserveScope"
+       # prevent confusing name for variables when using `time` package
       - name: time-naming
         disabled: true
       # warns when an exported function or method returns a value of an un-exported type.

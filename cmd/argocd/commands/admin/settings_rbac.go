@@ -463,9 +463,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 func resolveRBACResourceName(name string) string {
 	if res, ok := resourceMap[name]; ok {
 		return res
-	} else {
-		return name
 	}
+	return name
 }
 
 // validateRBACResourceAction checks whether a given resource is a valid RBAC resource.
