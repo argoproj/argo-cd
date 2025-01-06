@@ -108,7 +108,6 @@ linters-settings:
       - name: errorf
       # incrementing an integer variable by 1 is recommended to be done using the `++` operator
       - name: increment-decrement
-        disabled: true
       # highlights redundant else-blocks that can be eliminated from the code
       - name: indent-error-flow
         disabled: true
@@ -138,7 +137,6 @@ linters-settings:
       - name: use-any
       # report when a variable declaration can be simplified
       - name: var-declaration
-        disabled: true
       # warns when initialism, variable or package naming conventions are not followed.
       - name: var-naming
         disabled: true

@@ -285,7 +285,7 @@ func (f sshPrivateKeyFile) Close() error {
 // Remove a list of files that have been created as temp files while creating
 // HTTPCreds object above.
 func (f authFilePaths) Close() error {
-	var retErr error = nil
+	var retErr error
 	for _, path := range f {
 		err := os.Remove(path)
 		if err != nil {

@@ -151,8 +151,8 @@ func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverN
 // actually created.
 func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
-		saveSSHData bool = false
-		saveTLSData bool = false
+		saveSSHData = false
+		saveTLSData = false
 	)
 
 	sshKnownHostsList, err := db.getSSHKnownHostsData()
@@ -243,7 +243,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				saveSSHData = true
 			}
 		} else if certificate.CertType == "https" {
-			var tlsCertificate *TLSCertificate = nil
+			var tlsCertificate *TLSCertificate
 			newEntry := true
 			upserted := false
 			pemCreated := make([]string, 0)
