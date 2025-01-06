@@ -137,11 +137,11 @@ var (
 
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
-		if cnt, err := strconv.Atoi(countStr); err != nil {
+		cnt, err := strconv.Atoi(countStr)
+		if err != nil {
 			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
-		} else {
-			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
+		maxAttemptsCount = int(math.Max(float64(cnt), 1))
 	}
 
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
