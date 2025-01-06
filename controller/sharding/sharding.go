@@ -8,13 +8,13 @@ import (
 	"hash/fnv"
 	"math"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	slices "golang.org/x/exp/slices"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -23,7 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	log "github.com/sirupsen/logrus"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -313,7 +313,7 @@ func GetOrUpdateShardFromConfigMap(kubeClient kubernetes.Interface, settingsMgr 
 	shardMappingCM, err := kubeClient.CoreV1().ConfigMaps(settingsMgr.GetNamespace()).Get(context.Background(), common.ArgoCDAppControllerShardConfigMapName, metav1.GetOptions{})
 
 	if err != nil {
-		if !kubeerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return -1, fmt.Errorf("error getting sharding config map: %w", err)
 		}
 		log.Infof("shard mapping configmap %s not found. Creating default shard mapping configmap.", common.ArgoCDAppControllerShardConfigMapName)
@@ -420,8 +420,8 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 }
 
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
-func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*v1.ConfigMap, error) {
-	shardingCM := &v1.ConfigMap{
+func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
+	shardingCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: namespace,
@@ -487,7 +487,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			// If we still see conflicts after the retries, wait for next iteration of heartbeat process.
 			for i := 0; i <= common.AppControllerHeartbeatUpdateRetryCount; i++ {
 				shardNumber, err = GetOrUpdateShardFromConfigMap(kubeClient, settingsMgr, replicasCount, shardNumber)
-				if err != nil && !kubeerrors.IsConflict(err) {
+				if err != nil && !apierrors.IsConflict(err) {
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break
 				}

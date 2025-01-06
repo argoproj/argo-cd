@@ -12,13 +12,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-
-	v1 "k8s.io/api/core/v1"
-
 	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -37,20 +45,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -2071,7 +2066,7 @@ func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.Appl
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*corev1.EventList, error) {
 	return nil, nil
 }
 
@@ -2294,10 +2289,10 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName s
 
 	go func() {
 		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
-		modifiedEvent.Type = k8swatch.Modified
+		modifiedEvent.Type = watch.Modified
 		appEventsCh <- modifiedEvent
 		deletedEvent := new(v1alpha1.ApplicationWatchEvent)
-		deletedEvent.Type = k8swatch.Deleted
+		deletedEvent.Type = watch.Deleted
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh

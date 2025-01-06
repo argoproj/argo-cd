@@ -25,8 +25,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -59,8 +59,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/stats"
-
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -277,7 +275,7 @@ func NewApplicationController(
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
 			if err != nil {
-				if kubeerrors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
 					appControllerDeployment = nil
 				} else {
 					return fmt.Errorf("error retrieving Application Controller Deployment: %w", err)
@@ -353,7 +351,7 @@ func (ctrl *ApplicationController) onKubectlRun(command string) (kube.CleanupFun
 	}, nil
 }
 
-func isSelfReferencedApp(app *appv1.Application, ref v1.ObjectReference) bool {
+func isSelfReferencedApp(app *appv1.Application, ref corev1.ObjectReference) bool {
 	gvk := ref.GroupVersionKind()
 	return ref.UID == app.UID &&
 		ref.Name == app.Name &&
@@ -400,7 +398,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	}
 	proj, err := projCache.(*appProjCache).GetAppProject(context.TODO())
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, err
 		} else {
 			return nil, fmt.Errorf("could not retrieve AppProject '%s' from cache: %w", app.Spec.Project, err)
@@ -412,7 +410,7 @@ func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.Ap
 	return proj, nil
 }
 
-func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref v1.ObjectReference) {
+func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]bool, ref corev1.ObjectReference) {
 	// if namespaced resource is not managed by any app it might be orphaned resource of some other apps
 	if len(managedByApp) == 0 && ref.Namespace != "" {
 		// retrieve applications which monitor orphaned resources in the same namespace and refresh them unless resource is denied in app project
@@ -673,10 +671,10 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished getting app hosts")
 	}()
-	supportedResourceNames := map[v1.ResourceName]bool{
-		v1.ResourceCPU:     true,
-		v1.ResourceStorage: true,
-		v1.ResourceMemory:  true,
+	supportedResourceNames := map[corev1.ResourceName]bool{
+		corev1.ResourceCPU:     true,
+		corev1.ResourceStorage: true,
+		corev1.ResourceMemory:  true,
 	}
 	appPods := map[kube.ResourceKey]bool{}
 	for _, node := range appNodes {
@@ -716,7 +714,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 		neighbors := allPodsByNode[nodeName]
 
-		resources := map[v1.ResourceName]appv1.HostResourceInfo{}
+		resources := map[corev1.ResourceName]appv1.HostResourceInfo{}
 		for name, resource := range node.Capacity {
 			info := resources[name]
 			info.ResourceName = name
@@ -738,7 +736,7 @@ func (ctrl *ApplicationController) getAppHosts(a *appv1.Application, appNodes []
 
 		for _, pod := range neighbors {
 			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] || pod.Phase == v1.PodSucceeded || pod.Phase == v1.PodFailed {
+				if !supportedResourceNames[name] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
 					continue
 				}
 				info := resources[name]
@@ -1029,7 +1027,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				Message: err.Error(),
 			})
 			message := fmt.Sprintf("Unable to delete application resources: %v", err.Error())
-			ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: v1.EventTypeWarning}, message, context.TODO())
+			ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonStatusRefreshed, Type: corev1.EventTypeWarning}, message, context.TODO())
 		}
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
@@ -1180,7 +1178,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			logCtx.Errorf("Unable to get refreshed application info prior deleting resources: %v", err)
 		}
 		return nil
@@ -1535,7 +1533,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -1559,10 +1557,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			messages = append(messages, "to", state.SyncResult.Revision)
 		}
 		if state.Phase.Successful() {
-			eventInfo.Type = v1.EventTypeNormal
+			eventInfo.Type = corev1.EventTypeNormal
 			messages = append(messages, "succeeded")
 		} else {
-			eventInfo.Type = v1.EventTypeWarning
+			eventInfo.Type = corev1.EventTypeWarning
 			messages = append(messages, "failed:", state.Message)
 		}
 		ctrl.logAppEvent(app, eventInfo, strings.Join(messages, " "), context.TODO())
@@ -1996,11 +1994,11 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	logCtx := getAppLog(orig)
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
-		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
+		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message, context.TODO())
 	}
 	if orig.Status.Health.Status != newStatus.Health.Status {
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
-		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: v1.EventTypeNormal}, message, context.TODO())
+		ctrl.logAppEvent(orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message, context.TODO())
 	}
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
@@ -2183,7 +2181,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		target = desiredCommitSHA
 	}
 	message := fmt.Sprintf("Initiated automated sync to '%s'", target)
-	ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: v1.EventTypeNormal}, message, context.TODO())
+	ctrl.logAppEvent(app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message, context.TODO())
 	logCtx.Info(message)
 	return nil, setOpTime
 }
@@ -2449,7 +2447,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
 	var condition appv1.ApplicationCondition
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		condition = appv1.ApplicationCondition{
 			Type:    appv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("Application referencing project %s which does not exist", app.Spec.Project),

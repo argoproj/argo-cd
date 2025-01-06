@@ -502,7 +502,7 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	var curKey *appsv1.GnuPGPublicKey = nil
+	var curKey *appsv1.GnuPGPublicKey
 	for scanner.Scan() {
 		if strings.HasPrefix(scanner.Text(), "pub ") {
 			// This is the beginning of a new key, time to store the previously parsed one in our list and start fresh.
@@ -597,7 +597,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 
 	scanner := bufio.NewScanner(strings.NewReader(signature))
 	for scanner.Scan() && linesParsed < MaxVerificationLinesToParse {
-		linesParsed += 1
+		linesParsed++
 
 		// Indicating the beginning of a signature
 		start := verificationStartMatch.FindStringSubmatch(scanner.Text())
@@ -607,7 +607,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
-			linesParsed += 1
+			linesParsed++
 
 			// What key has made the signature?
 			keyID := verificationKeyIDMatch.FindStringSubmatch(scanner.Text())
@@ -626,7 +626,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 				return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 			}
 
-			linesParsed += 1
+			linesParsed++
 
 			// Skip additional fields
 			for verificationAdditionalFields.MatchString(scanner.Text()) {
@@ -634,7 +634,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 					return unknownResult("Unexpected end-of-file while parsing commit verification output.")
 				}
 
-				linesParsed += 1
+				linesParsed++
 			}
 
 			if strings.HasPrefix(scanner.Text(), "gpg: Can't check signature: ") {

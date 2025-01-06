@@ -106,9 +106,8 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				if subjectMap[x509cert.Subject.String()] != nil {
 					fmt.Printf("ERROR: Cert with subject '%s' already seen in the input stream.\n", x509cert.Subject.String())
 					continue
-				} else {
-					subjectMap[x509cert.Subject.String()] = x509cert
 				}
+				subjectMap[x509cert.Subject.String()] = x509cert
 			}
 
 			serverName := args[0]

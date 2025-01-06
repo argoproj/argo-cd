@@ -405,11 +405,11 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			// check for source position if --show-params is set
@@ -840,11 +840,11 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
@@ -953,11 +953,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
@@ -1271,11 +1271,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -2033,11 +2033,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -3004,11 +3004,11 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -3339,11 +3339,11 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if !app.Spec.HasMultipleSources() {
