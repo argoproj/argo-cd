@@ -191,7 +191,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	command := cobra.Command{
 		Use:   "shards",
 		Short: "Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			ctx := cmd.Context()
 
 			log.SetLevel(log.WarnLevel)
@@ -316,12 +316,12 @@ func NewClusterNamespacesCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "namespaces",
 		Short: "Print information namespaces which Argo CD manages in each cluster.",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			ctx := cmd.Context()
 
 			log.SetLevel(log.WarnLevel)
 
-			err := runClusterNamespacesCommand(ctx, clientConfig, func(appClient *versioned.Clientset, _ db.ArgoDB, clusters map[string][]string) error {
+			err := runClusterNamespacesCommand(ctx, clientConfig, func(_ *versioned.Clientset, _ db.ArgoDB, clusters map[string][]string) error {
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 				_, _ = fmt.Fprintf(w, "CLUSTER\tNAMESPACES\n")
 
@@ -481,7 +481,7 @@ argocd admin cluster stats --shard=1
 
 #In a multi-cluster environment to print stats for a specific cluster say(target-cluster)
 argocd admin cluster stats target-cluster`,
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			ctx := cmd.Context()
 
 			log.SetLevel(log.WarnLevel)

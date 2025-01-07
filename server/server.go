@@ -304,8 +304,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
 	}
-	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
-	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 
 	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
@@ -606,7 +606,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			// gRPC clients know we support http2 for their communication.
 			NextProtos: []string{"http/1.1", "h2"},
 		}
-		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+		tlsConfig.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return server.settings.Certificate, nil
 		}
 		if server.TLSConfigCustomizer != nil {
@@ -933,7 +933,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(server.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
+		grpc_util.PayloadStreamServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
@@ -947,7 +947,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		grpc_prometheus.UnaryServerInterceptor,
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
+		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
@@ -1196,19 +1196,19 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		registerExtensions(mux, server, metricsReg)
 	}
 
-	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationsetpkg.RegisterApplicationSetServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(notificationpkg.RegisterNotificationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(ctx, versionpkg.RegisterVersionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, clusterpkg.RegisterClusterServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationpkg.RegisterApplicationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationsetpkg.RegisterApplicationSetServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, notificationpkg.RegisterNotificationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repositorypkg.RegisterRepositoryServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repocredspkg.RegisterRepoCredsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, sessionpkg.RegisterSessionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, settingspkg.RegisterSettingsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, projectpkg.RegisterProjectServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, accountpkg.RegisterAccountServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
 	// Swagger UI
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
@@ -1458,7 +1458,7 @@ func isMainJsBundle(url *url.URL) bool {
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 
 // mustRegisterGWHandler is a convenience function to register a gateway handler
-func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) {
+func mustRegisterGWHandler(ctx context.Context, register registerFunc, mux *runtime.ServeMux, conn *grpc.ClientConn) {
 	err := register(ctx, mux, conn)
 	if err != nil {
 		panic(err)
@@ -1500,10 +1500,9 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
-		} else {
-			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", "")
 		}
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", "")
 	}
 
 	return ctx, nil

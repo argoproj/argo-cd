@@ -1388,14 +1388,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj any) {
+		UpdateFunc: func(_, _ any) {
 			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
-		AddFunc: func(obj any) {
+		AddFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
-		DeleteFunc: func(obj any) {
+		DeleteFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -2176,7 +2176,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 				if err != nil {
 					return err
 				}
-				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
 				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err

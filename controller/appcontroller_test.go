@@ -880,11 +880,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -932,11 +932,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -966,11 +966,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -994,7 +994,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1033,11 +1033,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1077,11 +1077,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1124,11 +1124,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1307,7 +1307,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
@@ -1338,7 +1338,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
 			return true, &v1alpha1.Application{}, errors.New("fake error")
@@ -1935,7 +1935,7 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	patched := false
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, &v1alpha1.Application{}, nil
 	})

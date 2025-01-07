@@ -26,7 +26,7 @@ const (
 var upgrader = func() websocket.Upgrader {
 	upgrader := websocket.Upgrader{}
 	upgrader.HandshakeTimeout = time.Second * 2
-	upgrader.CheckOrigin = func(r *http.Request) bool {
+	upgrader.CheckOrigin = func(_ *http.Request) bool {
 		return true
 	}
 	return upgrader

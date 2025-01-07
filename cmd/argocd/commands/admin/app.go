@@ -371,7 +371,7 @@ func reconcileApplications(
 		appClientset,
 		1*time.Hour,
 		appinformers.WithNamespace(namespace),
-		appinformers.WithTweakListOptions(func(options *metav1.ListOptions) {}),
+		appinformers.WithTweakListOptions(func(_ *metav1.ListOptions) {}),
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
@@ -384,9 +384,9 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(obj any) bool {
+	server, err := metrics.NewMetricsServer("", appLister, func(_ any) bool {
 		return true
-	}, func(r *http.Request) error {
+	}, func(_ *http.Request) error {
 		return nil
 	}, []string{}, []string{})
 	if err != nil {
@@ -458,5 +458,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

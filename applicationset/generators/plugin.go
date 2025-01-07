@@ -32,7 +32,7 @@ type PluginGenerator struct {
 	namespace string
 }
 
-func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
 		ctx:       ctx,
@@ -106,7 +106,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 		}
 	}
 
-	pluginClient, err := plugin.NewPluginService(ctx, appSetName, cm["baseUrl"], token, requestTimeout)
+	pluginClient, err := plugin.NewPluginService(appSetName, cm["baseUrl"], token, requestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plugin client: %w", err)
 	}

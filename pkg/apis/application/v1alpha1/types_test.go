@@ -239,7 +239,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 				Server: data.appDest.Server,
 				Name:   data.appDest.Name,
 			}
-			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(project string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -410,7 +410,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: data.appDest.Server,
 			Name:   data.appDest.Name,
 		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(project string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
