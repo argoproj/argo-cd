@@ -39,8 +39,8 @@ func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGene
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+	return []map[string]any{}, nil
 }
 
 func (g *generatorMock) GetRequeueAfter(appSetGenerator *v1alpha1.ApplicationSetGenerator) time.Duration {
@@ -98,6 +98,15 @@ func TestWebhookHandler(t *testing.T) {
 			desc:               "WebHook from a GitLab repository via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
+			payloadFile:        "gitlab-event.json",
+			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a System Hook via Commit",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "System Hook",
 			payloadFile:        "gitlab-event.json",
 			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,

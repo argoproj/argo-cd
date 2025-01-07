@@ -7,7 +7,7 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

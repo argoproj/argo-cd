@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="20 known vulnerabilities found in 100 vulnerable dependency paths.">
+  <meta name="description" content="21 known vulnerabilities found in 101 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 24th 2024, 12:21:49 am (UTC+00:00)</p>
+                <p class="timestamp">January 5th 2025, 12:20:11 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>20</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>100 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2359</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>101 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2384</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -480,6 +480,89 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                helm.sh/helm/v3@* and golang.org/x/net/html@v0.26.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) through the functions <code>parseDoctype</code>, <code>htmlIntegrationPoint</code>, <code>inBodyIM</code> and <code>inTableIM</code>  due to inefficient usage of the method <code>strings.ToLower</code> combining with the <code>==</code> operator to convert strings to lowercase and then comparing them.</p>
+        <p>An attacker can cause the application to slow down significantly by crafting inputs that are processed non-linearly.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.33.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/8e66b04771e35c4e4125e8c60334b34e2423effb">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/70906">GitHub Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-8535262">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Insecure Storage of Sensitive Information</h2>
             <div class="card__section">
@@ -707,6 +790,9 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-10041">https://access.redhat.com/security/cve/CVE-2024-10041</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2319212">https://bugzilla.redhat.com/show_bug.cgi?id=2319212</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:9941">https://access.redhat.com/errata/RHSA-2024:9941</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:11250">https://access.redhat.com/errata/RHSA-2024:11250</a></li>
         </ul>
         
               <hr/>
@@ -953,170 +1039,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Information Exposure</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:24.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            libgcrypt20
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and libgcrypt20@1.10.3-2build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/dirmngr@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg-agent@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.7.14build2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg6.0t64@2.7.14build2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.7.14build2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpgv@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpgconf@2.4.4-2ubuntu17
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@2.7.14build2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        adduser@3.137ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pam/libpam-modules@1.5.3-5ubuntu5.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@255.4-1ubuntu8.4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libgcrypt20@1.10.3-2build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libgcrypt20</code> package and not the <code>libgcrypt20</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
-        <p>A timing-based side-channel flaw was found in libgcrypt&#39;s RSA implementation. This issue may allow a remote attacker to initiate a Bleichenbacher-style attack, which can lead to the decryption of RSA ciphertexts.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>libgcrypt20</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2024:9404">https://access.redhat.com/errata/RHSA-2024:9404</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-LIBGCRYPT20-6693674">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2024-26462</h2>
             <div class="card__section">
         
@@ -1158,7 +1080,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1173,7 +1095,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1190,7 +1112,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1205,7 +1127,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1222,7 +1144,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1241,7 +1163,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1267,7 +1189,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
@@ -1280,7 +1202,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1709,7 +1631,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@* and github.com/gosimple/slug@v1.14.0
+                                github.com/argoproj/argo-cd/v2@* and github.com/gosimple/slug@v1.15.0
         
                     </li>
                 </ul>
@@ -1724,7 +1646,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@*
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@v1.14.0
+                                        github.com/gosimple/slug@v1.15.0
                                         
                                 </span>
         
@@ -1997,7 +1919,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2012,7 +1934,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2029,7 +1951,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2088,6 +2010,170 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Information Exposure</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libgcrypt20
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and libgcrypt20@1.10.3-2build1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/dirmngr@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg-agent@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0t64@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgconf@2.4.4-2ubuntu17
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@255.4-1ubuntu8.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libgcrypt20@1.10.3-2build1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libgcrypt20</code> package and not the <code>libgcrypt20</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>A timing-based side-channel flaw was found in libgcrypt&#39;s RSA implementation. This issue may allow a remote attacker to initiate a Bleichenbacher-style attack, which can lead to the decryption of RSA ciphertexts.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>libgcrypt20</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:9404">https://access.redhat.com/errata/RHSA-2024:9404</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-LIBGCRYPT20-6693674">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-26458</h2>
             <div class="card__section">
         
@@ -2129,7 +2215,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2144,7 +2230,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2161,7 +2247,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2176,7 +2262,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2193,7 +2279,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2212,7 +2298,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2238,7 +2324,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
@@ -2251,7 +2337,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2337,7 +2423,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2352,7 +2438,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2369,7 +2455,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2384,7 +2470,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2401,7 +2487,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2420,7 +2506,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -2446,7 +2532,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
@@ -2459,7 +2545,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 

@@ -117,6 +117,9 @@ export const ApplicationCreatePanel = (props: {
 
     React.useEffect(() => {
         comboSwitchedFromPanel.current = false;
+    }, []);
+
+    React.useEffect(() => {
         return () => {
             debouncedOnAppChanged.cancel();
         };
