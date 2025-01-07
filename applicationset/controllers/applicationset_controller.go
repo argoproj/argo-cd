@@ -538,8 +538,14 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 func ignoreWhenAnnotationApplicationSetRefreshIsRemoved() predicate.Predicate {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			oldAppset, _ := e.ObjectOld.(*argov1alpha1.ApplicationSet)
-			newAppset, _ := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			oldAppset, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			newAppset, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
 
 			_, oldHasRefreshAnnotation := oldAppset.Annotations[common.AnnotationApplicationSetRefresh]
 			_, newHasRefreshAnnotation := newAppset.Annotations[common.AnnotationApplicationSetRefresh]

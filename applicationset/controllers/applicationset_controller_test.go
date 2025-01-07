@@ -6667,8 +6667,8 @@ func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		oldAppSet         *v1alpha1.ApplicationSet
-		newAppSet         *v1alpha1.ApplicationSet
+		oldAppSet         crtclient.Object
+		newAppSet         crtclient.Object
 		reconcileExpected bool
 	}{
 		{
@@ -6702,6 +6702,18 @@ func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
 			reconcileExpected: true,
+		},
+		{
+			name:              "old object is not an appset",
+			oldAppSet:         &v1alpha1.Application{},
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name:              "new object is not an appset",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         &v1alpha1.Application{},
+			reconcileExpected: false,
 		},
 	}
 
