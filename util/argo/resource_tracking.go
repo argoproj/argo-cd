@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/kube"
-	argokube "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -69,7 +68,7 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
 		return nil
 	}
-	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
+	appInstanceAnnotation, err := kube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
 	}
@@ -91,7 +90,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		label, err := argokube.GetAppInstanceLabel(un, key)
+		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
@@ -101,7 +100,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	case TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
-		label, err := argokube.GetAppInstanceLabel(un, key)
+		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
@@ -145,19 +144,19 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	setAppInstanceAnnotation := func() error {
 		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
 		if instanceID != "" {
-			if err := argokube.SetAppInstanceAnnotation(un, common.AnnotationInstallationID, instanceID); err != nil {
+			if err := kube.SetAppInstanceAnnotation(un, common.AnnotationInstallationID, instanceID); err != nil {
 				return err
 			}
 		} else {
-			if err := argokube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
 				return err
 			}
 		}
-		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
+		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		err := argokube.SetAppInstanceLabel(un, key, val)
+		err := kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
@@ -180,13 +179,13 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 				val = val[:len(val)-1]
 			}
 		}
-		err = argokube.SetAppInstanceLabel(un, key, val)
+		err = kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
 	default:
-		err := argokube.SetAppInstanceLabel(un, key, val)
+		err := kube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
@@ -241,21 +240,21 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	annotation, err := argokube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
 	}
-	err = argokube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
 	if err != nil {
 		return err
 	}
 
-	label, err = argokube.GetAppInstanceLabel(config, labelKey)
+	label, err = kube.GetAppInstanceLabel(config, labelKey)
 	if err != nil {
 		return fmt.Errorf("failed to get app instance label: %w", err)
 	}
 	if label == "" {
-		err = argokube.RemoveLabel(live, labelKey)
+		err = kube.RemoveLabel(live, labelKey)
 		if err != nil {
 			return fmt.Errorf("failed to remove app instance label: %w", err)
 		}

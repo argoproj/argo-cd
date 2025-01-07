@@ -14,7 +14,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_generateParamsFromGitFile(t *testing.T) {
@@ -182,7 +181,7 @@ foo:
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
 	cases := []struct {
 		name            string
-		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		directories     []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix string
 		repoApps        []string
 		repoError       error
@@ -192,7 +191,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 	}{
 		{
 			name:        "happy flow - created apps",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -209,7 +208,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:            "It prefixes path parameters with PathParamPrefix",
-			directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			pathParamPrefix: "myRepo",
 			repoApps: []string{
 				"app1",
@@ -227,7 +226,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:        "It filters application according to the paths",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
 			repoApps: []string{
 				"app1",
 				"p1/app2",
@@ -243,7 +242,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:        "It filters application according to the paths with Exclude",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -261,7 +260,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:        "Expecting same exclude behavior with different order",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -279,7 +278,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:        "Value variable interpolation",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}},
 			repoApps: []string{
 				"app1",
 				"p1/app2",
@@ -298,7 +297,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:          "handles empty response from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     nil,
 			expected:      []map[string]any{},
@@ -306,7 +305,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		},
 		{
 			name:          "handles error from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
@@ -325,13 +324,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
-			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:         "RepoURL",
 							Revision:        "Revision",
 							Directories:     testCaseCopy.directories,
@@ -345,7 +344,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			appProject := argoprojiov1alpha1.AppProject{}
+			appProject := v1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
@@ -366,7 +365,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 	cases := []struct {
 		name            string
-		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		directories     []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix string
 		repoApps        []string
 		repoError       error
@@ -375,7 +374,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 	}{
 		{
 			name:        "happy flow - created apps",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -419,7 +418,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:            "It prefixes path parameters with PathParamPrefix",
-			directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			pathParamPrefix: "myRepo",
 			repoApps: []string{
 				"app1",
@@ -470,7 +469,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:        "It filters application according to the paths",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
 			repoApps: []string{
 				"app1",
 				"p1/app2",
@@ -507,7 +506,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:        "It filters application according to the paths with Exclude",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -553,7 +552,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:        "Expecting same exclude behavior with different order",
-			directories: []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
+			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
 			repoApps: []string{
 				"app1",
 				"app2",
@@ -599,7 +598,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:          "handles empty response from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     nil,
 			expected:      []map[string]any{},
@@ -607,7 +606,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		},
 		{
 			name:          "handles error from repo server",
-			directories:   []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
@@ -626,14 +625,14 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
-			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:         "RepoURL",
 							Revision:        "Revision",
 							Directories:     testCaseCopy.directories,
@@ -646,7 +645,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			appProject := argoprojiov1alpha1.AppProject{}
+			appProject := v1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
@@ -668,7 +667,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
-		files []argoprojiov1alpha1.GitFileGeneratorItem
+		files []v1alpha1.GitFileGeneratorItem
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
@@ -679,7 +678,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 	}{
 		{
 			name:  "happy flow: create params from git files",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`{
    "cluster": {
@@ -739,7 +738,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		},
 		{
 			name:  "Value variable interpolation",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`{
    "cluster": {
@@ -807,7 +806,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		},
 		{
 			name:             "handles error during getting repo paths",
-			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files:            []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]any{},
@@ -815,7 +814,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		},
 		{
 			name:  "test invalid JSON file returns error",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
@@ -825,7 +824,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		},
 		{
 			name:  "test JSON array",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`
 [
@@ -880,7 +879,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		},
 		{
 			name:  "Test YAML flow",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.yaml": []byte(`
 cluster:
@@ -934,7 +933,7 @@ cluster:
 		},
 		{
 			name:  "test YAML array",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.yaml": []byte(`
 - cluster:
@@ -991,13 +990,13 @@ cluster:
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
-			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "RepoURL",
 							Revision: "Revision",
 							Files:    testCaseCopy.files,
@@ -1010,7 +1009,7 @@ cluster:
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			appProject := argoprojiov1alpha1.AppProject{}
+			appProject := v1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
@@ -1033,7 +1032,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
-		files []argoprojiov1alpha1.GitFileGeneratorItem
+		files []v1alpha1.GitFileGeneratorItem
 		// repoFileContents maps repo path to the literal contents of that path
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
@@ -1043,7 +1042,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 	}{
 		{
 			name:  "happy flow: create params from git files",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`{
    "cluster": {
@@ -1119,7 +1118,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		},
 		{
 			name:             "handles error during getting repo paths",
-			files:            []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files:            []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{},
 			repoPathsError:   errors.New("paths error"),
 			expected:         []map[string]any{},
@@ -1127,7 +1126,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		},
 		{
 			name:  "test invalid JSON file returns error",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
@@ -1137,7 +1136,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		},
 		{
 			name:  "test JSON array",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.json": []byte(`
 [
@@ -1206,7 +1205,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		},
 		{
 			name:  "Test YAML flow",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.yaml": []byte(`
 cluster:
@@ -1276,7 +1275,7 @@ cluster:
 		},
 		{
 			name:  "test YAML array",
-			files: []argoprojiov1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
 			repoFileContents: map[string][]byte{
 				"cluster-config/production/config.yaml": []byte(`
 - cluster:
@@ -1347,14 +1346,14 @@ cluster:
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
-			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "RepoURL",
 							Revision: "Revision",
 							Files:    testCaseCopy.files,
@@ -1366,7 +1365,7 @@ cluster:
 			scheme := runtime.NewScheme()
 			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			appProject := argoprojiov1alpha1.AppProject{}
+			appProject := v1alpha1.AppProject{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
@@ -1388,7 +1387,7 @@ cluster:
 func TestGitGenerator_GenerateParams(t *testing.T) {
 	cases := []struct {
 		name               string
-		directories        []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		directories        []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix    string
 		repoApps           []string
 		repoPathsError     error
@@ -1396,7 +1395,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		values             map[string]string
 		expected           []map[string]any
 		expectedError      error
-		appset             argoprojiov1alpha1.ApplicationSet
+		appset             v1alpha1.ApplicationSet
 		callGetDirectories bool
 	}{
 		{
@@ -1405,25 +1404,25 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				"app1",
 			},
 			repoPathsError: nil,
-			appset: argoprojiov1alpha1.ApplicationSet{
+			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "set",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:         "RepoURL",
 							Revision:        "Revision",
-							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 							PathParamPrefix: "",
 							Values: map[string]string{
 								"foo": "bar",
 							},
 						},
 					}},
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
-						Spec: argoprojiov1alpha1.ApplicationSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
 							Project: "{{.project}}",
 						},
 					},
@@ -1439,25 +1438,25 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				"app1",
 			},
 			repoPathsError: nil,
-			appset: argoprojiov1alpha1.ApplicationSet{
+			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "set",
 					Namespace: "namespace",
 				},
-				Spec: argoprojiov1alpha1.ApplicationSetSpec{
-					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-						Git: &argoprojiov1alpha1.GitGenerator{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
 							RepoURL:         "RepoURL",
 							Revision:        "Revision",
-							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 							PathParamPrefix: "",
 							Values: map[string]string{
 								"foo": "bar",
 							},
 						},
 					}},
-					Template: argoprojiov1alpha1.ApplicationSetTemplate{
-						Spec: argoprojiov1alpha1.ApplicationSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
 							Project: "project",
 						},
 					},
@@ -1479,7 +1478,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		scheme := runtime.NewScheme()
 		err := v1alpha1.AddToScheme(scheme)
 		require.NoError(t, err)
-		appProject := argoprojiov1alpha1.AppProject{}
+		appProject := v1alpha1.AppProject{}
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
 
