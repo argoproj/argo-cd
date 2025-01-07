@@ -180,7 +180,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 }
 
 // ListAccounts returns the list of accounts
-func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest) (*account.AccountsList, error) {
+func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
 	accounts, err := s.settingsMgr.GetAccounts()
 	if err != nil {
