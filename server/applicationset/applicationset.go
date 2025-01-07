@@ -508,9 +508,8 @@ func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet,
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 	if appNs == "" {
 		return s.ns
-	} else {
-		return appNs
 	}
+	return appNs
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {

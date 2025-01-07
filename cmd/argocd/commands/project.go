@@ -599,22 +599,21 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
 		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
 		return true
-	} else {
-		index := -1
-		for i, item := range *list {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
-			return false
-		}
-		*list = append((*list)[:index], (*list)[index+1:]...)
-		fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
-		return true
 	}
+	index := -1
+	for i, item := range *list {
+		if item.Group == group && item.Kind == kind {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
+		return false
+	}
+	*list = append((*list)[:index], (*list)[index+1:]...)
+	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+	return true
 }
 
 func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
@@ -1111,12 +1110,11 @@ func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.Clie
 				Namespace:             namespace,
 				DefaultServiceAccount: fmt.Sprintf("%s:%s", serviceAccountNamespace, serviceAccount),
 			}
-		} else {
-			return v1alpha1.ApplicationDestinationServiceAccount{
-				Server:                destination,
-				Namespace:             namespace,
-				DefaultServiceAccount: serviceAccount,
-			}
+		}
+		return v1alpha1.ApplicationDestinationServiceAccount{
+			Server:                destination,
+			Namespace:             namespace,
+			DefaultServiceAccount: serviceAccount,
 		}
 	}
 

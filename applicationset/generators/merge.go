@@ -224,9 +224,8 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
 }
 
 func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MergeGenerator, error) {

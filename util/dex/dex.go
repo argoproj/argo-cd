@@ -129,11 +129,9 @@ func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, e
 func DexServerAddressWithProtocol(orig string, tlsConfig *DexTLSConfig) string {
 	if strings.Contains(orig, "://") {
 		return orig
-	} else {
-		if tlsConfig == nil || tlsConfig.DisableTLS {
-			return "http://" + orig
-		} else {
-			return "https://" + orig
-		}
 	}
+	if tlsConfig == nil || tlsConfig.DisableTLS {
+		return "http://" + orig
+	}
+	return "https://" + orig
 }

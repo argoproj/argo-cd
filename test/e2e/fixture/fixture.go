@@ -220,9 +220,8 @@ func init() {
 	if err != nil {
 		if stderrors.Is(err, os.ErrNotExist) {
 			return
-		} else {
-			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
+		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -1220,9 +1219,8 @@ func RestartAPIServer() {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
-	} else {
-		return base + "/local"
 	}
+	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.

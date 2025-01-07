@@ -204,16 +204,15 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
 					if !upsert && entry.Data != string(certificate.CertData) {
 						return nil, fmt.Errorf("Key for '%s' (subtype: '%s') already exist and upsert was not specified.", entry.Host, entry.SubType)
-					} else {
-						// Do not add an entry on upsert, but remember if we actual did an
-						// upsert.
-						newEntry = false
-						if entry.Data != string(certificate.CertData) {
-							entry.Data = string(certificate.CertData)
-							upserted = true
-						}
-						break
 					}
+					// Do not add an entry on upsert, but remember if we actual did an
+					// upsert.
+					newEntry = false
+					if entry.Data != string(certificate.CertData) {
+						entry.Data = string(certificate.CertData)
+						upserted = true
+					}
+					break
 				}
 			}
 

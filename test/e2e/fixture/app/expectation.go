@@ -53,9 +53,8 @@ func OperationMessageContains(text string) Expectation {
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
-	} else {
-		return pending, message
 	}
+	return pending, message
 }
 
 func SyncStatusIs(expected SyncStatusCode) Expectation {
@@ -176,9 +175,8 @@ func ResourceResultNumbering(num int) Expectation {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
 		} else if actualNum == num {
 			return succeeded, fmt.Sprintf("right number of results, want %d, got %d", num, actualNum)
-		} else {
-			return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 		}
+		return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 	}
 }
 

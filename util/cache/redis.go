@@ -91,11 +91,11 @@ func (r *redisCache) unmarshal(data []byte, obj any) error {
 	buf := bytes.NewReader(data)
 	var reader io.Reader = buf
 	if r.redisCompressionType == RedisCompressionGZip {
-		if gzipReader, err := gzip.NewReader(buf); err != nil {
+		gzipReader, err := gzip.NewReader(buf)
+		if err != nil {
 			return err
-		} else {
-			reader = gzipReader
 		}
+		reader = gzipReader
 	}
 	if err := json.NewDecoder(reader).Decode(obj); err != nil {
 		return fmt.Errorf("failed to decode cached data: %w", err)

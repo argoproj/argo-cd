@@ -1500,10 +1500,9 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
-		} else {
-			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", "")
 		}
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", "")
 	}
 
 	return ctx, nil
