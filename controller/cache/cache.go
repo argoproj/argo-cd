@@ -438,8 +438,7 @@ func isResourceQuotaConflictErr(err error) bool {
 
 func isTransientNetworkErr(err error) bool {
 	var netErr net.Error
-	switch {
-	case errors.As(err, &netErr):
+	if errors.As(err, &netErr) {
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError

@@ -383,8 +383,7 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 	if !stopOperation {
 		return true
 	}
-	switch liveObj.GetKind() {
-	case application.ApplicationKind:
+	if liveObj.GetKind() == application.ApplicationKind {
 		return liveObj.Object["operation"] == nil
 	}
 	return true
