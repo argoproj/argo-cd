@@ -330,6 +330,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+	command.Flags().BoolVar(&enableGithubCache, "enabled-github-cache", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLED_GITHUB_CACHE", false), "Enable caching for GitHub client")
+	command.Flags().IntVar(&githubCacheSize, "github-cache-size", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GITHUB_CACHE_SIZE", 5000, 1000, 100000), "Max items to hold in the cache for github")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
