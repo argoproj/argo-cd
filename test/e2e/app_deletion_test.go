@@ -58,7 +58,7 @@ func TestDeletingAppByLabel(t *testing.T) {
 		Then().
 		// delete is unsuccessful since no selector match
 		AndCLIOutput(
-			func(output string, err error) {
+			func(_ string, err error) {
 				assert.ErrorContains(t, err, "no apps match selector foo=baz")
 			},
 		).

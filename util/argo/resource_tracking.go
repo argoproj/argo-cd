@@ -29,7 +29,7 @@ var (
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) string
-	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue
+	GetAppInstance(un *unstructured.Unstructured, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue
 	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod, instanceID string) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
@@ -111,7 +111,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // GetAppInstance returns the representation of the app instance annotation.
 // If the tracking method does not support metadata, or the annotation could
 // not be parsed, it returns nil.
-func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
+func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
 		return rt.getAppInstanceValue(un, instanceID)

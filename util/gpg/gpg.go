@@ -704,7 +704,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	// Collect configuration, i.e. files in basePath
-	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(basePath, func(_ string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

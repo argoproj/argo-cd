@@ -57,7 +57,7 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap
-func (db *db) ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
+func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1.GnuPGPublicKey, error) {
 	log.Debugf("Loading PGP public keys from config map")
 	result := make(map[string]*appsv1.GnuPGPublicKey)
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)

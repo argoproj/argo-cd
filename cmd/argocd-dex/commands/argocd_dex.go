@@ -52,7 +52,7 @@ func NewRunDexCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -159,7 +159,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
 			cli.SetLogFormat(cmdutil.LogFormat)

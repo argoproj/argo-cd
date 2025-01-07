@@ -18,7 +18,7 @@ func TestGitSubmoduleSSHSupport(t *testing.T) {
 		CustomSSHKnownHostsAdded().
 		SubmoduleSSHRepoURLAdded(true).
 		When().
-		CreateFromFile(func(app *Application) {}).
+		CreateFromFile(func(_ *Application) {}).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -33,7 +33,7 @@ func TestGitSubmoduleHTTPSSupport(t *testing.T) {
 		CustomCACertAdded().
 		SubmoduleHTTPSRepoURLAdded(true).
 		When().
-		CreateFromFile(func(app *Application) {}).
+		CreateFromFile(func(_ *Application) {}).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -48,7 +48,7 @@ func TestGitSubmoduleRemovalSupport(t *testing.T) {
 		CustomSSHKnownHostsAdded().
 		SubmoduleSSHRepoURLAdded(true).
 		When().
-		CreateFromFile(func(app *Application) {}).
+		CreateFromFile(func(_ *Application) {}).
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

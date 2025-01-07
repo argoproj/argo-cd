@@ -211,7 +211,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		// 15 second timeout by default
 		Timeout: gitClientTimeout,
 		// don't follow redirect
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -220,7 +220,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
-	clientCertFunc := func(req *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	clientCertFunc := func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		var err error
 		cert := tls.Certificate{}
 

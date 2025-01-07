@@ -118,7 +118,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
 				return errors.New("Unable to get method name from stream context.")

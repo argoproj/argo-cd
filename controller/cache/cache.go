@@ -618,7 +618,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.onObjectUpdated(toNotify, ref)
 	})
 
-	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
+	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
 		gvk := un.GroupVersionKind()
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 	})

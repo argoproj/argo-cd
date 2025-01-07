@@ -21,7 +21,7 @@ func NewListGenerator() Generator {
 	return g
 }
 
-func (g *ListGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *ListGenerator) GetRequeueAfter(_ *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
 

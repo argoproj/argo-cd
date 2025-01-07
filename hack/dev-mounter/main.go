@@ -34,7 +34,7 @@ func newCommand() *cobra.Command {
 		configMaps   []string
 	)
 	command := cobra.Command{
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			ns, _, err := clientConfig.Namespace()
@@ -99,7 +99,7 @@ func newCommand() *cobra.Command {
 			informer := factory.Core().V1().ConfigMaps().Informer()
 			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
-				UpdateFunc: func(oldObj, newObj any) {
+				UpdateFunc: func(_, newObj any) {
 					handledConfigMap(newObj)
 				},
 			})

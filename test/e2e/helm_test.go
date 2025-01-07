@@ -222,7 +222,7 @@ func TestHelmValuesLiteralFileRemote(t *testing.T) {
 
 		// send back the address so that it can be used
 		c <- listener.Addr().String()
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 			// return the sentinel text at root URL
 			fmt.Fprint(w, sentinel)
 		})
@@ -326,7 +326,7 @@ func TestHelmSetEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Equal(t, fixture.Name(), FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
@@ -341,7 +341,7 @@ func TestHelmSetStringEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Equal(t, fixture.Name(), FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
@@ -356,7 +356,7 @@ func TestKubeVersion(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			kubeVersion := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
@@ -368,7 +368,7 @@ func TestKubeVersion(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Equal(t, "v999.999.999", FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
@@ -384,7 +384,7 @@ func TestApiVersions(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			apiVersions := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
@@ -396,7 +396,7 @@ func TestApiVersions(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			apiVersions := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
