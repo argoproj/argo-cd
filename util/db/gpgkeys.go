@@ -51,9 +51,8 @@ func validatePGPKey(keyData string) (*appsv1.GnuPGPublicKey, error) {
 	if retKey != nil {
 		retKey.KeyData = keyData
 		return retKey, nil
-	} else {
-		return nil, errors.New("Could not find the GPG key")
 	}
+	return nil, errors.New("Could not find the GPG key")
 }
 
 // ListConfiguredGPGPublicKeys returns a list of all configured GPG public keys from the ConfigMap

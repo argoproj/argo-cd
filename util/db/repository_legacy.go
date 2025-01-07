@@ -341,11 +341,10 @@ func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]by
 				return l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
 			return nil
-		} else {
-			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			}
+		}
+		_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			return err
 		}
 	}
 	return nil

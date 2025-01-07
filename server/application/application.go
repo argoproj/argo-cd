@@ -1689,12 +1689,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
-		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+		val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime())
+		if err != nil {
 			return fmt.Errorf("invalid untilTime parameter value: %w", err)
-		} else {
-			untilTimeVal := metav1.NewTime(val)
-			untilTime = &untilTimeVal
 		}
+		untilTimeVal := metav1.NewTime(val)
+		untilTime = &untilTimeVal
 	}
 
 	literal := ""
@@ -1796,36 +1796,34 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if entry.err != nil {
 				done <- entry.err
 				return
-			} else {
-				if q.Filter != nil {
-					lineContainsFilter := strings.Contains(entry.line, literal)
-					if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
-						continue
-					}
+			}
+			if q.Filter != nil {
+				lineContainsFilter := strings.Contains(entry.line, literal)
+				if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+					continue
 				}
-				ts := metav1.NewTime(entry.timeStamp)
-				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
-					done <- ws.Send(&application.LogEntry{
-						Last:         ptr.To(true),
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
-						TimeStamp:    &ts,
-					})
-					return
-				} else {
-					sentCount++
-					if err := ws.Send(&application.LogEntry{
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
-						TimeStamp:    &ts,
-						Last:         ptr.To(false),
-					}); err != nil {
-						done <- err
-						break
-					}
-				}
+			}
+			ts := metav1.NewTime(entry.timeStamp)
+			if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
+				done <- ws.Send(&application.LogEntry{
+					Last:         ptr.To(true),
+					PodName:      &entry.podName,
+					Content:      &entry.line,
+					TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+					TimeStamp:    &ts,
+				})
+				return
+			}
+			sentCount++
+			if err := ws.Send(&application.LogEntry{
+				PodName:      &entry.podName,
+				Content:      &entry.line,
+				TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+				TimeStamp:    &ts,
+				Last:         ptr.To(false),
+			}); err != nil {
+				done <- err
+				break
 			}
 		}
 		now := time.Now()
@@ -2036,19 +2034,18 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			displayRevisions[index] = displayRevision
 		}
 		return "", "", sourceRevisions, displayRevisions, nil
-	} else {
-		source := a.Spec.GetSource()
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
-			if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
-			}
-		}
-		revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
-		if err != nil {
-			return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
-		}
-		return revision, displayRevision, nil, nil, nil
 	}
+	source := a.Spec.GetSource()
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
+		}
+	}
+	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
+	if err != nil {
+		return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	return revision, displayRevision, nil, nil, nil
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
@@ -2700,9 +2697,8 @@ func getPropagationPolicyFinalizer(policy string) string {
 func (s *Server) appNamespaceOrDefault(appNs string) string {
 	if appNs == "" {
 		return s.ns
-	} else {
-		return appNs
 	}
+	return appNs
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
