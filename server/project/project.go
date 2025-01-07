@@ -157,7 +157,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 }
 
@@ -241,7 +241,7 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, "deleted token")
 
 	return &project.EmptyResponse{}, nil
 }
@@ -279,13 +279,13 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		}
 	}
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "created project")
+		s.logEvent(ctx, res, argo.EventReasonResourceCreated, "created project")
 	}
 	return res, err
 }
 
 // List returns list of projects
-func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+func (s *Server) List(ctx context.Context, _ *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
@@ -305,7 +305,7 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +439,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, q.Project, metav1.UpdateOptions{})
 	if err == nil {
-		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
+		s.logEvent(ctx, res, argo.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
 }
@@ -471,7 +471,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	}
 	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
 	if err == nil {
-		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
+		s.logEvent(ctx, p, argo.EventReasonResourceDeleted, "deleted project")
 	}
 	return &project.EmptyResponse{}, err
 }
@@ -492,7 +492,7 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*core
 	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
-func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
+func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {

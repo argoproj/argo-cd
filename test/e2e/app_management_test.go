@@ -53,7 +53,7 @@ const (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestGetLogsAllowNoSwitch(t *testing.T) {
+func TestGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
 func TestGetLogsDenySwitchOn(t *testing.T) {
@@ -608,7 +608,7 @@ func TestAppLabels(t *testing.T) {
 		When().
 		CreateApp("-l", "foo=bar").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
 			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
 			assert.NotContains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
@@ -880,7 +880,7 @@ func TestResourceDiffing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Patch deployment
 			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
@@ -962,13 +962,13 @@ func TestResourceDiffing(t *testing.T) {
 		When().Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
@@ -1585,7 +1585,7 @@ func TestPermissions(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// make sure application resource actiions are failing
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})
 }
@@ -2238,7 +2238,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		When().
 		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Make sure the namespace we are about to update to does not exist
 			_, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.ErrorContains(t, err, "not found")
@@ -2256,7 +2256,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(Success("")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Verify delete app does not delete the namespace auto created
 			output, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			require.NoError(t, err)
@@ -2558,7 +2558,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).

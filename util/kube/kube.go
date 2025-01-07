@@ -78,8 +78,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 			}
 		}
 	case "batch":
-		switch gvk.Kind {
-		case kube.JobKind:
+		if gvk.Kind == kube.JobKind {
 			templateLabels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
 			if err != nil {
 				return err

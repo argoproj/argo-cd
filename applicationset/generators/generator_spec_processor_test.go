@@ -342,7 +342,7 @@ func getMockClusterGenerator() Generator {
 	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(fakeClient, context.Background(), appClientset, "namespace")
+	return NewClusterGenerator(context.Background(), fakeClient, appClientset, "namespace")
 }
 
 func getMockGitGenerator() Generator {
