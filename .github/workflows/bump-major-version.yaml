@@ -63,7 +63,10 @@ jobs:
         run: |
           set -x
           export GOPATH=$(go env GOPATH)
+          git add .
           make codegen-local
+          git diff
+          git add .
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
       - name: Create pull request
