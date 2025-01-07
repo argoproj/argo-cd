@@ -1024,7 +1024,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			projName := args[0]
-			detailedProject := getProject(c, clientOpts, ctx, projName)
+			detailedProject := getProject(ctx, c, clientOpts, projName)
 
 			switch output {
 			case "yaml", "json":
@@ -1041,7 +1041,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
-func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx context.Context, projName string) *projectpkg.DetailedProjectsResponse {
+func getProject(ctx context.Context, c *cobra.Command, clientOpts *argocdclient.ClientOptions, projName string) *projectpkg.DetailedProjectsResponse {
 	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 	defer argoio.Close(conn)
 	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
