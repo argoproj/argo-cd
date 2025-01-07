@@ -114,9 +114,8 @@ func (g *ScmManagerProvider) ListRepos(ctx context.Context, cloneProtocol string
 		if err != nil {
 			if errors.Is(err, scmm.ErrEmptyRepository) || errors.Is(err, scmm.ErrNoDefaultBranchFound) {
 				continue
-			} else {
-				return nil, err
 			}
+			return nil, err
 		}
 
 		repos = append(repos, &Repository{
@@ -144,10 +143,10 @@ func (g *ScmManagerProvider) RepoHasPath(ctx context.Context, repo *Repository, 
 	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	if fmt.Sprint(err) == "expect file, got directory" {
-		return true, nil
-	}
 	if err != nil {
+		if err.Error() == "expect file, got directory" {
+			return true, nil
+		}
 		return false, err
 	}
 	return true, nil

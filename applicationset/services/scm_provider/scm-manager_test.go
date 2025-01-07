@@ -36,7 +36,7 @@ func scmManagerMockHandler(t *testing.T, repositoryName string) func(http.Respon
 			handleBranchesRequestWithExistingBranches(t, w)
 		case "/api/v2/repositories/test-argocd/empty/branches/":
 			handleBranchesRequestWithoutBranches(t, w)
-		case fmt.Sprintf("/api/v2/repositories/test-argocd/%s", repositoryName):
+		case "/api/v2/repositories/test-argocd/" + repositoryName:
 			handleRepositoryRequest(t, w)
 		case "/api/v2/repositories/test-argocd/pr-test/content/master/README.md?ref=master":
 			_, err := io.WriteString(w, `"my readme test"`)
