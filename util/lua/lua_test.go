@@ -885,33 +885,13 @@ return hs`
 }
 
 func TestExecuteResourceActionWithParams(t *testing.T) {
-	testObj := StrToUnstructured(`
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: test-deployment
-      namespace: default
-    spec:
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            app: test
-        spec:
-          containers:
-          - name: test-container
-            image: nginx
-    `)
+	deploymentObj := createMockResource("Deployment", "test-deployment", 1)
+	statefulSetObj := createMockResource("StatefulSet", "test-statefulset", 1)
 
 	actionLua := `
-    function run(obj, params)
-        local replicas = tonumber(params.replicas)
-        if replicas then
-            obj.spec.replicas = replicas
-        end
-        return obj
-    end
-    `
+		obj.spec.replicas = 3
+		return obj
+		`
 
 	params := []*applicationpkg.ResourceActionParameters{
 		{
@@ -922,17 +902,55 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	vm := VM{}
 
-	impactedResources, err := vm.ExecuteResourceAction(testObj, actionLua, params)
-	require.NoError(t, err)
-
-	// Check the modified object in each impacted resource
-	for _, impactedResource := range impactedResources {
-		modifiedObj := impactedResource.UnstructuredObj
-
-		// Check the replicas in the modified object
-		actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+	// Test with Deployment
+	t.Run("Test with Deployment", func(t *testing.T) {
+		impactedResources, err := vm.ExecuteResourceAction(deploymentObj, actionLua, params)
 		require.NoError(t, err)
-		assert.True(t, found, "spec.replicas should be found in the modified object")
-		assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
-	}
+
+		for _, impactedResource := range impactedResources {
+			modifiedObj := impactedResource.UnstructuredObj
+
+			// Check the replicas in the modified object
+			actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.True(t, found, "spec.replicas should be found in the modified object")
+			assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
+		}
+	})
+
+	// Test with StatefulSet
+	t.Run("Test with StatefulSet", func(t *testing.T) {
+		impactedResources, err := vm.ExecuteResourceAction(statefulSetObj, actionLua, params)
+		require.NoError(t, err)
+
+		for _, impactedResource := range impactedResources {
+			modifiedObj := impactedResource.UnstructuredObj
+
+			// Check the replicas in the modified object
+			actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.True(t, found, "spec.replicas should be found in the modified object")
+			assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
+		}
+	})
+}
+
+func createMockResource(kind string, name string, replicas int) *unstructured.Unstructured {
+	return StrToUnstructured(fmt.Sprintf(`
+    apiVersion: apps/v1
+    kind: %s
+    metadata:
+      name: %s
+      namespace: default
+    spec:
+      replicas: %d
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+          - name: test-container
+            image: nginx
+    `, kind, name, replicas))
 }
