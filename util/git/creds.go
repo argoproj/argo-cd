@@ -696,26 +696,26 @@ func NewAzureWorkloadIdentityCreds(store CredsStore, tokenProvider workloadident
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (c AzureWorkloadIdentityCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (creds AzureWorkloadIdentityCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
 	return workloadidentity.EmptyGuid, "", nil
 }
 
-func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
-	token, err := c.GetAzureDevOpsAccessToken()
+func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
+	token, err := creds.GetAzureDevOpsAccessToken()
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
-	nonce := c.store.Add("", token)
-	env := c.store.Environ(nonce)
+	nonce := creds.store.Add("", token)
+	env := creds.store.Environ(nonce)
 
 	return argoioutils.NewCloser(func() error {
-		c.store.Remove(nonce)
+		creds.store.Remove(nonce)
 		return nil
 	}), env, nil
 }
 
-func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error) {
+func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error) {
 	// Compute hash of creds for lookup in cache
 	key, err := argoutils.GenerateCacheKey("%s", scope)
 	if err != nil {
@@ -727,7 +727,7 @@ func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error)
 		return t.(string), nil
 	}
 
-	token, err := c.tokenProvider.GetToken(scope)
+	token, err := creds.tokenProvider.GetToken(scope)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
@@ -736,7 +736,7 @@ func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error)
 	return token, nil
 }
 
-func (c AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
-	accessToken, err := c.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
+func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
+	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
 }

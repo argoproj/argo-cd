@@ -120,8 +120,8 @@ func NewAzureWorkloadIdentityCreds(repoUrl string, caPath string, certData []byt
 	}
 }
 
-func (c AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
-	registryHost := strings.Split(c.repoUrl, "/")[0]
+func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
+	registryHost := strings.Split(creds.repoUrl, "/")[0]
 
 	// Compute hash as key for refresh token in the cache
 	key, err := argoutils.GenerateCacheKey("accesstoken-%s", registryHost)
@@ -136,12 +136,12 @@ func (c AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 		return t.(string), nil
 	}
 
-	tokenParams, err := c.challengeAzureContainerRegistry(registryHost)
+	tokenParams, err := creds.challengeAzureContainerRegistry(registryHost)
 	if err != nil {
 		return "", fmt.Errorf("failed to challenge Azure Container Registry: %w", err)
 	}
 
-	token, err := c.getAccessTokenAfterChallenge(tokenParams)
+	token, err := creds.getAccessTokenAfterChallenge(tokenParams)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token after challenge: %w", err)
 	}
@@ -151,12 +151,12 @@ func (c AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
 	return token, nil
 }
 
-func (c AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
+func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map[string]string) (string, error) {
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
 	armTokenScope := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net")
-	armAccessToken, err := c.tokenProvider.GetToken(armTokenScope + "/.default")
+	armAccessToken, err := creds.tokenProvider.GetToken(armTokenScope + "/.default")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
@@ -169,7 +169,7 @@ func (c AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: c.GetInsecureSkipVerify(),
+				InsecureSkipVerify: creds.GetInsecureSkipVerify(),
 			},
 		},
 	}
@@ -208,14 +208,14 @@ func (c AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams map
 	return res.RefreshToken, nil
 }
 
-func (c AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
+func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
 	requestUrl := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: c.GetInsecureSkipVerify(),
+				InsecureSkipVerify: creds.GetInsecureSkipVerify(),
 			},
 		},
 	}
