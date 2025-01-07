@@ -2477,8 +2477,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		if err != nil {
 			return nil, err
 		}
-		switch impactedResource.K8SOperation {
-		case lua.CreateOperation:
+		if impactedResource.K8SOperation == lua.CreateOperation {
 			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}
 			_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
 			if err != nil {

@@ -288,9 +288,8 @@ func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSo
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
 func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
-	switch {
 	// Kustomize with parameters requires changing kustomization.yaml file
-	case source.Kustomize != nil:
+	if source.Kustomize != nil {
 		return source.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
