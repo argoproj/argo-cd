@@ -8,9 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -41,7 +40,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "redis-initial-password",
 		Short: "Ensure the Redis password exists, creating a new one if necessary.",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
@@ -75,12 +74,12 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				Type: corev1.SecretTypeOpaque,
 			}
 			_, err = kubeClientset.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-			if err != nil && !apierr.IsAlreadyExists(err) {
+			if err != nil && !apierrors.IsAlreadyExists(err) {
 				errors.CheckError(err)
 			}
 
 			fmt.Printf("Argo CD Redis secret state confirmed: secret name %s.\n", redisInitialCredentials)
-			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, v1.GetOptions{})
+			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {

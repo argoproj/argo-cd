@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -88,12 +88,12 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		delete(secret.Labels, common.LabelKeySecretType)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
 		})
 
 		// when
@@ -125,16 +125,16 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
 		})
 		watcher := watch.NewFakeWithChanSize(1, true)
 		watcher.Add(secret)
-		f.clientSet.AddWatchReactor("secrets", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
+		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
 

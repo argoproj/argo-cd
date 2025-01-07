@@ -110,7 +110,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", &repoServerClientset, "",
-		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
+		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
 		false,

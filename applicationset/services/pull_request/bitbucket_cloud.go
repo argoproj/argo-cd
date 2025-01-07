@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -112,14 +113,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
 	}
 
-	resp, ok := response.(map[string]interface{})
+	resp, ok := response.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from bitbucket pull requests")
+		return nil, errors.New("unknown type returned from bitbucket pull requests")
 	}
 
-	repoArray, ok := resp["values"].([]interface{})
+	repoArray, ok := resp["values"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from response values")
+		return nil, errors.New("unknown type returned from response values")
 	}
 
 	jsonStr, err := json.Marshal(repoArray)

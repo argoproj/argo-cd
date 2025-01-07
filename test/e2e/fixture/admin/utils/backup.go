@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	kube "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	yaml "gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -21,7 +21,7 @@ func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 			continue
 		}
 
-		var resourceData map[string]interface{}
+		var resourceData map[string]any
 
 		if err := yaml.Unmarshal([]byte(doc), &resourceData); err != nil {
 			return nil, fmt.Errorf("error unmarshaling YAML: %w", err)
