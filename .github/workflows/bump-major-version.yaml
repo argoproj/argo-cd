@@ -36,6 +36,7 @@ jobs:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
         run: |
+          mkdir -p ~/go/src/github.com/argoproj
           ln -s ~/go/src/github.com/argoproj/argo-cd ../argo-cd
       - name: Add ~/go/bin to PATH
         run: |
