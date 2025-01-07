@@ -37,7 +37,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: |
           mkdir -p ~/go/src/github.com/argoproj
-          ln -s ~/go/src/github.com/argoproj/argo-cd ../argo-cd
+          ln -s ../argo-cd ~/go/src/github.com/argoproj/argo-cd
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
