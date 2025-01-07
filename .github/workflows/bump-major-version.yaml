@@ -64,6 +64,8 @@ jobs:
           set -x
           export GOPATH=$(go env GOPATH)
           git status
+          ls .
+          cat reposerver/repository/repository.proto
           make codegen-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
