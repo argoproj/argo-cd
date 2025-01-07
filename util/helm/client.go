@@ -104,9 +104,8 @@ func fileExist(filePath string) (bool, error) {
 	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
-		} else {
-			return false, fmt.Errorf("error checking file existence for %s: %w", filePath, err)
 		}
+		return false, fmt.Errorf("error checking file existence for %s: %w", filePath, err)
 	}
 	return true, nil
 }

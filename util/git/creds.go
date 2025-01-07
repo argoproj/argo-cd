@@ -68,14 +68,14 @@ func init() {
 
 type NoopCredsStore struct{}
 
-func (d NoopCredsStore) Add(username string, password string) string {
+func (d NoopCredsStore) Add(_ string, _ string) string {
 	return ""
 }
 
-func (d NoopCredsStore) Remove(id string) {
+func (d NoopCredsStore) Remove(_ string) {
 }
 
-func (d NoopCredsStore) Environ(id string) []string {
+func (d NoopCredsStore) Environ(_ string) []string {
 	return []string{}
 }
 
@@ -108,7 +108,7 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 }
 
 // GetUserInfo returns empty strings for user info
-func (c NopCreds) GetUserInfo(ctx context.Context) (name string, email string, err error) {
+func (c NopCreds) GetUserInfo(_ context.Context) (name string, email string, err error) {
 	return "", "", nil
 }
 
@@ -163,7 +163,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (creds HTTPSCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (creds HTTPSCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
 	return creds.username, "", nil
 }
@@ -276,7 +276,7 @@ func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool
 
 // GetUserInfo returns empty strings for user info.
 // TODO: Implement this method to return the username and email address for the credentials, if they're available.
-func (c SSHCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (c SSHCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	// User info not implemented for SSH creds.
 	return "", "", nil
 }
@@ -593,7 +593,7 @@ func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
 // TODO: implement getting email instead of just username.
-func (c GoogleCloudCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (c GoogleCloudCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	username, err := c.getUsername()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get username from creds: %w", err)

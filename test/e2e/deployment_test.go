@@ -67,7 +67,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
@@ -90,7 +90,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -113,7 +113,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:

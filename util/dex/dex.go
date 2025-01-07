@@ -45,7 +45,7 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: false,
 		RootCAs:            tlsConfig.RootCAs,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
 				return stderrors.New("dex server certificate does not match")
 			}
@@ -129,11 +129,9 @@ func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, e
 func DexServerAddressWithProtocol(orig string, tlsConfig *DexTLSConfig) string {
 	if strings.Contains(orig, "://") {
 		return orig
-	} else {
-		if tlsConfig == nil || tlsConfig.DisableTLS {
-			return "http://" + orig
-		} else {
-			return "https://" + orig
-		}
 	}
+	if tlsConfig == nil || tlsConfig.DisableTLS {
+		return "http://" + orig
+	}
+	return "https://" + orig
 }

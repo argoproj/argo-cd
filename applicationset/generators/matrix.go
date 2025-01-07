@@ -169,9 +169,8 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
 }
 
 func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MatrixGenerator, error) {

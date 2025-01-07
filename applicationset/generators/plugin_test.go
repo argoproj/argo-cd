@@ -671,7 +671,7 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(ctx, fakeClientWithCache, fakeClient, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
