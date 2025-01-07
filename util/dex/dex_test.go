@@ -481,7 +481,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
-		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer fakeDex.Close()
@@ -490,7 +490,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}
@@ -511,7 +511,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Round Tripper", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 			assert.Equal(t, "/", req.URL.String())
 		}))
 		defer server.Close()

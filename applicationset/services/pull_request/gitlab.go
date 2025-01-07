@@ -21,7 +21,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -74,7 +74,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	pullRequests := []*PullRequest{}
 	for {
-		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts)
+		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts, gitlab.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}

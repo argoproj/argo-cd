@@ -246,7 +246,7 @@ func DoesNotExistNow() Expectation {
 }
 
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -261,7 +261,7 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -282,7 +282,7 @@ func pods() (*corev1.PodList, error) {
 }
 
 func NoNamespace(name string) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		_, err := namespace(name)
 		if err != nil {
 			return succeeded, "namespace not found"

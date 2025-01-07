@@ -307,11 +307,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
-	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
-	if err != nil {
-		log.Errorf("Could not get appInstanceLabelKey: %v", err)
-		return
-	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
@@ -368,7 +363,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -572,7 +567,7 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 // Note, this is not foolproof, since a proper fix would require the CRD record
 // status.observedGeneration coupled with a health.lua that verifies
 // status.observedGeneration == metadata.generation
-func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) error {
+func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	if !finalWave {
 		delaySec := 2
 		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
