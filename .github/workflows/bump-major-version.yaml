@@ -82,3 +82,4 @@ jobs:
           branch: bump-major-version
           branch-suffix: random
           signoff: true
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
