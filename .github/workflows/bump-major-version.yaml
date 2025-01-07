@@ -38,6 +38,7 @@ jobs:
         run: |
           mkdir -p ~/go/src/github.com/argoproj
           ln -s ../argo-cd ~/go/src/github.com/argoproj/argo-cd
+          ls ~/go/src/github.com/argoproj/argo-cd
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
