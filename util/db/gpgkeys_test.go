@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -18,7 +18,7 @@ import (
 )
 
 // GPG config map with a single key and good mapping
-var gpgCMEmpty = v1.ConfigMap{
+var gpgCMEmpty = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -29,7 +29,7 @@ var gpgCMEmpty = v1.ConfigMap{
 }
 
 // GPG config map with a single key and good mapping
-var gpgCMSingleGoodPubkey = v1.ConfigMap{
+var gpgCMSingleGoodPubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -43,7 +43,7 @@ var gpgCMSingleGoodPubkey = v1.ConfigMap{
 }
 
 // GPG config map with two keys and good mapping
-var gpgCMMultiGoodPubkey = v1.ConfigMap{
+var gpgCMMultiGoodPubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -58,7 +58,7 @@ var gpgCMMultiGoodPubkey = v1.ConfigMap{
 }
 
 // GPG config map with a single key and bad mapping
-var gpgCMSingleKeyWrongId = v1.ConfigMap{
+var gpgCMSingleKeyWrongId = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -72,7 +72,7 @@ var gpgCMSingleKeyWrongId = v1.ConfigMap{
 }
 
 // GPG config map with a garbage pub key
-var gpgCMGarbagePubkey = v1.ConfigMap{
+var gpgCMGarbagePubkey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -86,7 +86,7 @@ var gpgCMGarbagePubkey = v1.ConfigMap{
 }
 
 // GPG config map with a wrong key
-var gpgCMGarbageCMKey = v1.ConfigMap{
+var gpgCMGarbageCMKey = corev1.ConfigMap{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      common.ArgoCDGPGKeysConfigMapName,
 		Namespace: testNamespace,
@@ -100,8 +100,8 @@ var gpgCMGarbageCMKey = v1.ConfigMap{
 }
 
 // Returns a fake client set for use in tests
-func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
-	cm := v1.ConfigMap{
+func getGPGKeysClientset(gpgCM corev1.ConfigMap) *fake.Clientset {
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -112,7 +112,7 @@ func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
 		Data: nil,
 	}
 
-	return fake.NewSimpleClientset([]runtime.Object{&cm, &gpgCM}...)
+	return fake.NewClientset([]runtime.Object{&cm, &gpgCM}...)
 }
 
 func Test_ValidatePGPKey(t *testing.T) {

@@ -1,0 +1,50 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/commitserver/apiclient";
+
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// CommitHydratedManifestsRequest is the request to commit hydrated manifests to a repository.
+message CommitHydratedManifestsRequest {
+  // Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
+  // repo credentials.
+  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+  // SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch.
+  string syncBranch = 2;
+  // TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated.
+  string targetBranch = 3;
+  // DrySha is the commit SHA from the dry branch, i.e. pre-rendered manifest branch.
+  string drySha = 4;
+  // CommitMessage is the commit message to use when committing changes.
+  string commitMessage = 5;
+  // Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
+  repeated PathDetails paths = 6;
+}
+
+// PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
+// commit.
+message PathDetails {
+  // Path is the path to write the hydrated manifests to.
+  string path = 1;
+  // Manifests contains the manifests to write to the path.
+  repeated HydratedManifestDetails manifests = 2;
+  // Commands contains the commands executed when hydrating the manifests.
+  repeated string commands = 3;
+}
+
+// ManifestDetails contains the hydrated manifests.
+message HydratedManifestDetails {
+  // ManifestJSON is the hydrated manifest as JSON.
+  string manifestJSON = 1;
+}
+
+// ManifestsResponse is the response to the ManifestsRequest.
+message CommitHydratedManifestsResponse {
+  // HydratedSha is the commit SHA of the hydrated manifests commit.
+  string hydratedSha = 1;
+}
+
+// CommitService is the service for committing hydrated manifests to a repository.
+service CommitService {
+  // Commit commits hydrated manifests to a repository.
+  rpc CommitHydratedManifests (CommitHydratedManifestsRequest) returns (CommitHydratedManifestsResponse);
+}

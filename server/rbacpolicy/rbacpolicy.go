@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -14,17 +14,18 @@ import (
 
 const (
 	// please add new items to Resources
-	ResourceClusters        = "clusters"
-	ResourceProjects        = "projects"
-	ResourceApplications    = "applications"
-	ResourceApplicationSets = "applicationsets"
-	ResourceRepositories    = "repositories"
-	ResourceCertificates    = "certificates"
-	ResourceAccounts        = "accounts"
-	ResourceGPGKeys         = "gpgkeys"
-	ResourceLogs            = "logs"
-	ResourceExec            = "exec"
-	ResourceExtensions      = "extensions"
+	ResourceClusters          = "clusters"
+	ResourceProjects          = "projects"
+	ResourceApplications      = "applications"
+	ResourceApplicationSets   = "applicationsets"
+	ResourceRepositories      = "repositories"
+	ResourceWriteRepositories = "write-repositories"
+	ResourceCertificates      = "certificates"
+	ResourceAccounts          = "accounts"
+	ResourceGPGKeys           = "gpgkeys"
+	ResourceLogs              = "logs"
+	ResourceExec              = "exec"
+	ResourceExtensions        = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -45,6 +46,7 @@ var (
 		ResourceApplications,
 		ResourceApplicationSets,
 		ResourceRepositories,
+		ResourceWriteRepositories,
 		ResourceCertificates,
 		ResourceAccounts,
 		ResourceGPGKeys,
@@ -108,7 +110,7 @@ func GetProjectRoleFromSubject(subject string) (string, string, bool) {
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
-func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface{}) bool {
+func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return false
@@ -133,7 +135,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 
 	// Check the subject. This is typically the 'admin' case.
 	// NOTE: the call to EnforceWithCustomEnforcer will also consider the default role
-	vals := append([]interface{}{subject}, rvals[1:]...)
+	vals := append([]any{subject}, rvals[1:]...)
 	if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
 		return true
 	}
@@ -155,7 +157,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 		for gpidx := range groupingPolicies {
 			// Prefilter user groups by groups defined in the model
 			if groupingPolicies[gpidx][0] == groups[gidx] {
-				vals := append([]interface{}{groups[gidx]}, rvals[1:]...)
+				vals := append([]any{groups[gidx]}, rvals[1:]...)
 				if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
 					return true
 				}
@@ -170,7 +172,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 
 // getProjectFromRequest parses the project name from the RBAC request and returns the associated
 // project (if it exists)
-func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alpha1.AppProject {
+func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppProject {
 	if len(rvals) != 4 {
 		return nil
 	}
@@ -198,7 +200,7 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...interface{}) *v1alph
 }
 
 // enforceProjectToken will check to see the valid token has not yet been revoked in the project
-func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.AppProject, rvals ...interface{}) bool {
+func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.AppProject, rvals ...any) bool {
 	subjectSplit := strings.Split(subject, ":")
 	if len(subjectSplit) != 3 {
 		return false
@@ -209,6 +211,6 @@ func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.
 		return false
 	}
 
-	vals := append([]interface{}{subject}, rvals[1:]...)
+	vals := append([]any{subject}, rvals[1:]...)
 	return p.enf.EnforceRuntimePolicy(proj.Name, proj.ProjectPoliciesString(), vals...)
 }

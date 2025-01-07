@@ -2,6 +2,7 @@ package commands
 
 import (
 	"crypto/x509"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -105,9 +106,8 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				if subjectMap[x509cert.Subject.String()] != nil {
 					fmt.Printf("ERROR: Cert with subject '%s' already seen in the input stream.\n", x509cert.Subject.String())
 					continue
-				} else {
-					subjectMap[x509cert.Subject.String()] = x509cert
 				}
+				subjectMap[x509cert.Subject.String()] = x509cert
 			}
 
 			serverName := args[0]
@@ -167,13 +167,13 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
 			} else {
-				err = fmt.Errorf("You need to specify --batch or specify --help for usage instructions")
+				err = stderrors.New("You need to specify --batch or specify --help for usage instructions")
 			}
 
 			errors.CheckError(err)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckError(fmt.Errorf("No valid SSH known hosts data found."))
+				errors.CheckError(stderrors.New("No valid SSH known hosts data found."))
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
@@ -234,7 +234,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// remove all certificates, but it's less likely that it happens by
 			// accident.
 			if hostNamePattern == "*" {
-				err := fmt.Errorf("A single wildcard is not allowed as REPOSERVER name.")
+				err := stderrors.New("A single wildcard is not allowed as REPOSERVER name.")
 				errors.CheckError(err)
 			}
 

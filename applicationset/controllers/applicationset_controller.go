@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -465,7 +465,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			updatedAppset.DeepCopyInto(applicationSet)
 			return nil
 		})
-		if err != nil && !apierr.IsNotFound(err) {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
@@ -489,14 +489,14 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		appProject := &argov1alpha1.AppProject{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
 				continue
 			}
 			return nil, err
 		}
 
-		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+		if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
@@ -783,7 +783,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	var validDestination bool
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
-	if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
+	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {
@@ -1162,10 +1162,10 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 		// populate updateCountMap with counts of existing Pending and Progressing Applications
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
-			totalCountMap[appStepMap[appStatus.Application]] += 1
+			totalCountMap[appStepMap[appStatus.Application]]++
 
 			if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
-				updateCountMap[appStepMap[appStatus.Application]] += 1
+				updateCountMap[appStepMap[appStatus.Application]]++
 			}
 		}
 
@@ -1201,7 +1201,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing."
 				appStatus.Step = strconv.Itoa(getAppStep(appStatus.Application, appStepMap))
 
-				updateCountMap[appStepMap[appStatus.Application]] += 1
+				updateCountMap[appStepMap[appStatus.Application]]++
 			}
 
 			appStatuses = append(appStatuses, appStatus)
@@ -1302,7 +1302,7 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 			updatedAppset.DeepCopyInto(appset)
 			return nil
 		})
-		if err != nil && !apierr.IsNotFound(err) {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
