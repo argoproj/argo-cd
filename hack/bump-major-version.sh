@@ -21,7 +21,7 @@ done
 
 echo "Incrementing the major version in proto files..."
 find . -name '*.proto' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
-find . -name '*.proto' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "s/github\.com.\argoproj\.argo_cd\.v${CURRENT_VERSION}/github\.com.\argoproj\.argo_cd\.v$((CURRENT_VERSION + 1))/g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
+find . -name '*.proto' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "s/github\.com\.argoproj\.argo_cd\.v${CURRENT_VERSION}/github\.com\.argoproj\.argo_cd\.v$((CURRENT_VERSION + 1))/g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
 
 echo "Incrementing the major version in go files..."
 find . -name '*.go' -not -path "./vendor/*" -not -path "./dist/*" -exec sed -i.bak "s/github\.com\/argoproj\/argo-cd\/v${CURRENT_VERSION}/github\.com\/argoproj\/argo-cd\/v$((CURRENT_VERSION + 1))/g" {} \; -exec echo "  Updated" {} \; -exec rm {}.bak \;
