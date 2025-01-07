@@ -52,18 +52,17 @@ func (l *legacyRepositoryBackend) ListRepositories(_ context.Context, repoType *
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := l.tryGetRepository(inRepo.URL)
 			if err != nil {
-				if r != nil && errors.IsCredentialsConfigurationError(err) {
-					modifiedTime := metav1.Now()
-					r.ConnectionState = appsv1.ConnectionState{
-						Status:     appsv1.ConnectionStatusFailed,
-						Message:    "Configuration error - please check the server logs",
-						ModifiedAt: &modifiedTime,
-					}
-
-					log.Warnf("could not retrieve repo: %s", err.Error())
-				} else {
+				if r == nil || !errors.IsCredentialsConfigurationError(err) {
 					return nil, err
 				}
+				modifiedTime := metav1.Now()
+				r.ConnectionState = appsv1.ConnectionState{
+					Status:     appsv1.ConnectionStatusFailed,
+					Message:    "Configuration error - please check the server logs",
+					ModifiedAt: &modifiedTime,
+				}
+
+				log.Warnf("could not retrieve repo: %s", err.Error())
 			}
 			repos = append(repos, r)
 		}

@@ -243,13 +243,12 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	}
 	for attempt := 0; attempt < 5; attempt++ {
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			if !apierrors.IsConflict(err) {
-				return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
-			}
-		} else {
+		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app, nil
+		}
+		if !apierrors.IsConflict(err) {
+			return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -656,14 +655,14 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
 		_, err = db.GetCluster(ctx, spec.Destination.Server)
 		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
-				})
-			} else {
+			errStatus, ok := status.FromError(err)
+			if !(ok && errStatus.Code() == codes.NotFound) {
 				return nil, fmt.Errorf("error getting cluster: %w", err)
 			}
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
+			})
 		}
 	} else if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})

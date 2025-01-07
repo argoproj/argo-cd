@@ -105,6 +105,11 @@ linters-settings:
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#duplicated-imports
       - name: duplicated-imports
         disabled: false
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#early-return
+      - name: early-return
+        disabled: false
+        arguments:
+          - "preserveScope"
       # Empty blocks make code less readable and could be a symptom of a bug or unfinished refactoring.
       - name: empty-block
         disabled: true
