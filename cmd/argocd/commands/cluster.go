@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -88,7 +87,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
-		Short: cliName + " cluster add CONTEXT",
+		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -107,11 +106,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
-			if clusterOpts.ProxyUrl != "" {
-				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
-				errors.CheckError(err)
-				conf.Proxy = http.ProxyURL(u)
-			}
 			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			managerBearerToken := ""
@@ -192,12 +186,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
-	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default %q SA will be created", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be created", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
-	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -380,8 +373,6 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
-		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
-		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
 		fmt.Println()
 	}
 }
@@ -404,7 +395,7 @@ argocd cluster rm cluster-name`,
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			numOfClusters := len(args)
-			var isConfirmAll bool
+			var isConfirmAll bool = false
 
 			for _, clusterSelector := range args {
 				clusterQuery := getQueryBySelector(clusterSelector)
@@ -496,7 +487,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
@@ -541,7 +532,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
+		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {

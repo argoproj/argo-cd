@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -64,16 +64,16 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		logCtx = logCtx.WithField("name", objMeta.Name)
 	}
 	t := metav1.Time{Time: time.Now()}
-	event := corev1.Event{
+	event := v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
 			Labels:      eventLabels,
 			Annotations: logFields,
 		},
-		Source: corev1.EventSource{
+		Source: v1.EventSource{
 			Component: l.component,
 		},
-		InvolvedObject: corev1.ObjectReference{
+		InvolvedObject: v1.ObjectReference{
 			Kind:            gvk.Kind,
 			Name:            objMeta.Name,
 			Namespace:       objMeta.Namespace,

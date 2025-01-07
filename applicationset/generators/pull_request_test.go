@@ -2,7 +2,7 @@ package generators
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected       []map[string]any
+		expected       []map[string]interface{}
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
@@ -38,7 +38,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -71,7 +71,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "2",
 					"title":              "title2",
@@ -104,7 +104,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -125,11 +125,11 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					nil,
-					errors.New("fake error"),
+					fmt.Errorf("fake error"),
 				)
 			},
 			expected:    nil,
-			expectedErr: errors.New("error listing repos: fake error"),
+			expectedErr: fmt.Errorf("error listing repos: fake error"),
 		},
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -149,7 +149,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -190,7 +190,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -283,7 +283,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true, nil, true))
+			}, true, nil))
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -306,7 +306,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil, true))
+	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil))
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{

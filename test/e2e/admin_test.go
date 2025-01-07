@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -69,11 +69,11 @@ func TestBackupExportImport(t *testing.T) {
 		When().
 		RunImport(exportRawOutput).
 		Then().
-		AndCLIOutput(func(_ string, err error) {
+		AndCLIOutput(func(output string, err error) {
 			require.NoError(t, err, "import finished with error")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), "exported-app1", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), "exported-app1", v1.GetOptions{})
 			require.NoError(t, err, "failed getting test namespace application after import")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(context.Background(), "exported-app-other-namespace", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(context.Background(), "exported-app-other-namespace", v1.GetOptions{})
 			require.NoError(t, err, "failed getting app namespace application after import")
 		})
 }

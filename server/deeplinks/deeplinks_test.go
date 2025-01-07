@@ -8,7 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
@@ -43,7 +43,7 @@ func TestDeepLinks(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	resourceObj, err := kube.ToUnstructured(&corev1.ConfigMap{
+	resourceObj, err := kube.ToUnstructured(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cm",
 			Namespace: "test-cm",

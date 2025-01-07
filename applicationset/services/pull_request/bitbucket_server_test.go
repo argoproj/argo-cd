@@ -16,7 +16,6 @@ import (
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -303,7 +302,7 @@ func TestListPullRequestTLS(t *testing.T) {
 }
 
 func TestListResponseError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()

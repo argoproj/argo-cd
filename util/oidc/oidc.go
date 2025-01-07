@@ -17,7 +17,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -33,7 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-var InvalidRedirectURLError = errors.New("invalid return URL")
+var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -383,7 +383,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
 	}
-	cookiePath := "path=/" + path
+	cookiePath := fmt.Sprintf("path=/%s", path)
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
@@ -590,7 +590,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err

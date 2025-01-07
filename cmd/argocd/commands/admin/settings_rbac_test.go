@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
@@ -147,7 +147,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, err)
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",
@@ -280,7 +280,7 @@ p, role:user, logs, get, .*/.*, allow
 p, role:user, exec, create, .*/.*, allow
 `
 
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",

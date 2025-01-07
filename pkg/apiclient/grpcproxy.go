@@ -31,11 +31,11 @@ const (
 
 type noopCodec struct{}
 
-func (noopCodec) Marshal(v any) ([]byte, error) {
+func (noopCodec) Marshal(v interface{}) ([]byte, error) {
 	return v.([]byte), nil
 }
 
-func (noopCodec) Unmarshal(data []byte, v any) error {
+func (noopCodec) Unmarshal(data []byte, v interface{}) error {
 	pointer := v.(*[]byte)
 	*pointer = data
 	return nil
@@ -118,10 +118,10 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
+		grpc.UnknownServiceHandler(func(srv interface{}, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
-				return errors.New("Unable to get method name from stream context.")
+				return fmt.Errorf("Unable to get method name from stream context.")
 			}
 			msg := make([]byte, 0)
 			err := stream.RecvMsg(&msg)
@@ -169,8 +169,9 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
+					} else {
+						return nil
 					}
-					return nil
 				}
 
 				if err := stream.SendMsg(data); err != nil {

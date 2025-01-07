@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/helm"
@@ -112,8 +111,8 @@ func (repo *Repository) IsLFSEnabled() bool {
 }
 
 // HasCredentials returns true when the repository has been configured with any credentials
-func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != ""
+func (m *Repository) HasCredentials() bool {
+	return m.Username != "" || m.Password != "" || m.SSHPrivateKey != "" || m.TLSClientCertData != "" || m.GithubAppPrivateKey != ""
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -267,49 +266,21 @@ func getCAPath(repoURL string) string {
 }
 
 // CopySettingsFrom copies all repository settings from source to receiver
-func (repo *Repository) CopySettingsFrom(source *Repository) {
+func (m *Repository) CopySettingsFrom(source *Repository) {
 	if source != nil {
-		repo.EnableLFS = source.EnableLFS
-		repo.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
-		repo.Insecure = source.Insecure
-		repo.InheritedCreds = source.InheritedCreds
+		m.EnableLFS = source.EnableLFS
+		m.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
+		m.Insecure = source.Insecure
+		m.InheritedCreds = source.InheritedCreds
 	}
 }
 
 // StringForLogging gets a string representation of the Repository which is safe to log or return to the user.
-func (repo *Repository) StringForLogging() string {
-	if repo == nil {
+func (m *Repository) StringForLogging() string {
+	if m == nil {
 		return ""
 	}
-	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", repo.Repo, repo.Type, repo.Name, repo.Project)
-}
-
-// Sanitized returns a copy of the Repository with sensitive information removed.
-func (repo *Repository) Sanitized() *Repository {
-	return &Repository{
-		Repo:                       repo.Repo,
-		Type:                       repo.Type,
-		Name:                       repo.Name,
-		Username:                   repo.Username,
-		Insecure:                   repo.IsInsecure(),
-		EnableLFS:                  repo.EnableLFS,
-		EnableOCI:                  repo.EnableOCI,
-		Proxy:                      repo.Proxy,
-		NoProxy:                    repo.NoProxy,
-		Project:                    repo.Project,
-		ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
-		InheritedCreds:             repo.InheritedCreds,
-		GithubAppId:                repo.GithubAppId,
-		GithubAppInstallationId:    repo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
-	}
-}
-
-func (repo *Repository) Normalize() *Repository {
-	if repo.Type == "" {
-		repo.Type = common.DefaultRepoType
-	}
-	return repo
+	return fmt.Sprintf("&Repository{Repo: %q, Type: %q, Name: %q, Project: %q}", m.Repo, m.Type, m.Name, m.Project)
 }
 
 // Repositories defines a list of Repository configurations

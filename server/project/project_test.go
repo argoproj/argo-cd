@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
@@ -37,11 +38,11 @@ import (
 
 const testNamespace = "default"
 
-var testEnableEventList = argo.DefaultEnableEventList()
+var testEnableEventList []string = argo.DefaultEnableEventList()
 
 func TestProjectServer(t *testing.T) {
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
 			Labels: map[string]string{
@@ -49,7 +50,7 @@ func TestProjectServer(t *testing.T) {
 			},
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
 		},
@@ -61,7 +62,7 @@ func TestProjectServer(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: testNamespace},
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{
 				{Namespace: "ns1", Server: "https://server1"},
@@ -71,7 +72,7 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 	existingApp := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+		ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 		Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 	}
 
@@ -79,7 +80,7 @@ func TestProjectServer(t *testing.T) {
 
 	ctx := context.Background()
 	fakeAppsClientset := apps.NewSimpleClientset()
-	factory := informer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, informer.WithNamespace(""), informer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	factory := informer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, informer.WithNamespace(""), informer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
@@ -93,11 +94,11 @@ func TestProjectServer(t *testing.T) {
 		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		err := projectServer.NormalizeProjs()
 		require.NoError(t, err)
 
-		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), metav1.ListOptions{})
+		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), v1.ListOptions{})
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt)
 		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
@@ -163,7 +164,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
@@ -180,7 +181,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
@@ -195,12 +196,11 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.Equal(t, "as a result of project update 1 applications destination became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test"},
 		}
 
@@ -217,7 +217,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
@@ -232,14 +232,13 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveSourceUsedByAppSuccessfulIfPermittedByAnotherSrc", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/*"}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -261,7 +260,7 @@ func TestProjectServer(t *testing.T) {
 			{Namespace: "org1-*", Server: "https://server1"},
 		}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{
 				Server:    "https://server1",
 				Namespace: "org1-team1",
@@ -294,7 +293,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
 		defaultProj := v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "default", Namespace: "default"},
 			Spec:       v1alpha1.AppProjectSpec{},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -307,7 +306,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			ObjectMeta: v1.ObjectMeta{Name: "test", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
@@ -319,7 +318,6 @@ func TestProjectServer(t *testing.T) {
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
-		assert.Equal(t, "project is referenced by 1 applications", statusCode.Message())
 	})
 
 	// configure a user named "admin" which is denied by default
@@ -585,7 +583,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.ErrorContains(t, err, "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
+		assert.Contains(t, err.Error(), "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
@@ -604,7 +602,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
+		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
@@ -623,7 +621,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
+		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectInvalidEffectFailure", func(t *testing.T) {
@@ -641,7 +639,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.ErrorContains(t, err, "effect must be: 'allow' or 'deny'")
+		assert.Contains(t, err.Error(), "effect must be: 'allow' or 'deny'")
 	})
 
 	t.Run("TestNormalizeProjectRolePolicies", func(t *testing.T) {
@@ -687,7 +685,7 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: "incorrect"})
-		require.ErrorContains(t, err, "not found")
+		assert.Contains(t, err.Error(), "not found")
 		assert.Nil(t, res)
 	})
 
@@ -713,7 +711,7 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	return enforcer

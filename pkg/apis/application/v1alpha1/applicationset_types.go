@@ -379,9 +379,6 @@ type ClusterGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
-
-	// returns the clusters a single 'clusters' value in the template
-	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -908,7 +905,7 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
 	applicationSetConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
 	for i := range conditions {
@@ -960,6 +957,7 @@ func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSe
 func (a *ApplicationSet) QualifiedName() string {
 	if a.Namespace == "" {
 		return a.Name
+	} else {
+		return a.Namespace + "/" + a.Name
 	}
-	return a.Namespace + "/" + a.Name
 }

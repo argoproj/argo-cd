@@ -162,14 +162,14 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
+	return fmt.Sprintf("helm-index|%s", repo)
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return errors.New("helm index data is nil, skipping cache")
+		return fmt.Errorf("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
@@ -183,7 +183,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 }
 
 func gitRefsKey(repo string) string {
-	return "git-refs|" + repo
+	return fmt.Sprintf("git-refs|%s", repo)
 }
 
 // SetGitReferences saves resolved Git repository references to cache

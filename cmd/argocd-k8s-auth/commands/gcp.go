@@ -24,7 +24,7 @@ var defaultGCPScopes = []string{
 func newGCPCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "gcp",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			// Preferred way to retrieve GCP credentials

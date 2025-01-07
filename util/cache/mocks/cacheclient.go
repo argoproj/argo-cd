@@ -35,7 +35,7 @@ func (c *MockCacheClient) Set(item *cache.Item) error {
 	return c.BaseCache.Set(item)
 }
 
-func (c *MockCacheClient) Get(key string, obj any) error {
+func (c *MockCacheClient) Get(key string, obj interface{}) error {
 	args := c.Called(key, obj)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)

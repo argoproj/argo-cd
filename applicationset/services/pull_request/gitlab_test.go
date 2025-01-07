@@ -15,12 +15,14 @@ import (
 )
 
 func writeMRListResponse(t *testing.T, w io.Writer) {
-	t.Helper()
 	f, err := os.Open("fixtures/gitlab_mr_list_response.json")
-	require.NoErrorf(t, err, "error opening fixture file: %v", err)
+	if err != nil {
+		t.Fatalf("error opening fixture file: %v", err)
+	}
 
-	_, err = io.Copy(w, f)
-	require.NoErrorf(t, err, "error writing response: %v", err)
+	if _, err = io.Copy(w, f); err != nil {
+		t.Fatalf("error writing response: %v", err)
+	}
 }
 
 func TestGitLabServiceCustomBaseURL(t *testing.T) {
@@ -35,7 +37,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -54,7 +56,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -73,7 +75,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false, nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(context.Background())
@@ -99,7 +101,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -118,7 +120,7 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -161,7 +163,7 @@ func TestListWithStateTLS(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				writeMRListResponse(t, w)
 			}))
 			defer ts.Close()
@@ -180,7 +182,7 @@ func TestListWithStateTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
+			svc, err := NewGitLabService(context.Background(), "", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
 			require.NoError(t, err)
 
 			_, err = svc.List(context.Background())

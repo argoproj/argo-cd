@@ -45,7 +45,7 @@ type ArgoCDRepoServer struct {
 }
 
 // The hostnames to generate self-signed issues with
-var tlsHostList = []string{"localhost", "reposerver"}
+var tlsHostList []string = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
@@ -55,8 +55,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	// repository server.
 	if tlsConfCustomizer != nil {
 		var err error
-		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
-		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
+		certPath := fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
+		keyPath := fmt.Sprintf("%s/reposerver/tls/tls.key", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
 		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
 		if err != nil {
 			return nil, fmt.Errorf("error creating server TLS config: %w", err)

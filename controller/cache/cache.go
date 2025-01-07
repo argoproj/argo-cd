@@ -20,8 +20,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -69,12 +69,6 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
-	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
-	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
-
-	// EnvClusterCacheEventProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
-	EnvClusterCacheEventProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENT_PROCESSING_INTERVAL"
-
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -108,13 +102,7 @@ var (
 	clusterCacheAttemptLimit int32 = 1
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
-	clusterCacheRetryUseBackoff = false
-
-	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
-	clusterCacheBatchEventsProcessing = false
-
-	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventProcessingInterval = 100 * time.Millisecond
+	clusterCacheRetryUseBackoff bool = false
 )
 
 func init() {
@@ -126,8 +114,6 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
-	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
-	clusterCacheEventProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventProcessingInterval, clusterCacheEventProcessingInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -155,18 +141,18 @@ type LiveStateCache interface {
 	Init() error
 }
 
-type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
+type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref v1.ObjectReference)
 
 type PodInfo struct {
 	NodeName         string
-	ResourceRequests corev1.ResourceList
-	Phase            corev1.PodPhase
+	ResourceRequests v1.ResourceList
+	Phase            v1.PodPhase
 }
 
 type NodeInfo struct {
 	Name       string
-	Capacity   corev1.ResourceList
-	SystemInfo corev1.NodeSystemInfo
+	Capacity   v1.ResourceList
+	SystemInfo v1.NodeSystemInfo
 }
 
 type ResourceInfo struct {
@@ -409,14 +395,14 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return apierrors.IsInternalError(err) ||
-		apierrors.IsInvalid(err) ||
-		apierrors.IsTooManyRequests(err) ||
-		apierrors.IsServerTimeout(err) ||
-		apierrors.IsServiceUnavailable(err) ||
-		apierrors.IsTimeout(err) ||
-		apierrors.IsUnexpectedObjectError(err) ||
-		apierrors.IsUnexpectedServerError(err) ||
+	return kerrors.IsInternalError(err) ||
+		kerrors.IsInvalid(err) ||
+		kerrors.IsTooManyRequests(err) ||
+		kerrors.IsServerTimeout(err) ||
+		kerrors.IsServiceUnavailable(err) ||
+		kerrors.IsTimeout(err) ||
+		kerrors.IsUnexpectedObjectError(err) ||
+		kerrors.IsUnexpectedServerError(err) ||
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
@@ -429,16 +415,17 @@ func isHTTP2GoawayErr(err error) bool {
 }
 
 func isExceededQuotaErr(err error) bool {
-	return apierrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
+	return kerrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
 }
 
 func isResourceQuotaConflictErr(err error) bool {
-	return apierrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
+	return kerrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
 }
 
 func isTransientNetworkErr(err error) bool {
 	var netErr net.Error
-	if errors.As(err, &netErr) {
+	switch {
+	case errors.As(err, &netErr):
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError
@@ -508,10 +495,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig, err := cluster.RESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
-	}
+	clusterCacheConfig := cluster.RESTConfig()
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
 	// This causes log flooding when managing a large number of clusters.
@@ -535,7 +519,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
-		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (any, bool) {
+		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (interface{}, bool) {
 			res := &ResourceInfo{}
 			populateNodeInfo(un, res, resourceCustomLabels)
 			c.lock.RLock()
@@ -567,15 +551,13 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
-		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
-		clustercache.SetEventProcessingInterval(clusterCacheEventProcessingInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
-		var ref corev1.ObjectReference
+		var ref v1.ObjectReference
 		if newRes != nil {
 			ref = newRes.Ref
 		} else {
@@ -618,13 +600,9 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.onObjectUpdated(toNotify, ref)
 	})
 
-	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
+	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
 		gvk := un.GroupVersionKind()
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
-	})
-
-	_ = clusterCache.OnProcessEventsHandler(func(duration time.Duration, processedEventsNumber int) {
-		c.metricsServer.ObserveResourceEventsProcessingDuration(cluster.Server, duration, processedEventsNumber)
 	})
 
 	c.clusters[server] = clusterCache
@@ -732,7 +710,7 @@ func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIRe
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
 
-func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bool {
+func (c *liveStateCache) isClusterHasApps(apps []interface{}, cluster *appv1.Cluster) bool {
 	for _, obj := range apps {
 		app, ok := obj.(*appv1.Application)
 		if !ok {
@@ -848,12 +826,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			newClusterRESTConfig, err := newCluster.RESTConfig()
-			if err == nil {
-				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
-			} else {
-				log.Errorf("error getting cluster REST config: %v", err)
-			}
+			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))

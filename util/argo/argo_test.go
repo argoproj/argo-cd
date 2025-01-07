@@ -78,10 +78,10 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
-	kubeClient := fake.NewClientset(&cm)
+	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
+	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
 	require.NoError(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -366,7 +366,7 @@ func TestValidateRepo(t *testing.T) {
 	}}
 	kubeVersion := "v1.16"
 	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: ""}
-	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 	cluster := &argoappv1.Cluster{Server: "sample server"}
 	app := &argoappv1.Application{
 		Spec: argoappv1.ApplicationSpec{
@@ -446,7 +446,7 @@ func TestValidateRepo(t *testing.T) {
 		},
 	}
 
-	kubeClient := fake.NewClientset(&cm)
+	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
 	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
@@ -475,7 +475,7 @@ func TestFormatAppConditions(t *testing.T) {
 	t.Run("Single Condition", func(t *testing.T) {
 		res := FormatAppConditions(conditions[0:1])
 		assert.NotEmpty(t, res)
-		assert.Equal(t, EventReasonOperationCompleted+": Foo", res)
+		assert.Equal(t, fmt.Sprintf("%s: Foo", EventReasonOperationCompleted), res)
 	})
 
 	t.Run("Multiple Conditions", func(t *testing.T) {
@@ -833,7 +833,7 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, errors.New("Unknown error occurred"))
+		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
@@ -895,7 +895,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		require.ErrorContains(t, err, "operation is already in progress")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
@@ -908,7 +909,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		require.ErrorContains(t, err, "Operation unspecified")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
@@ -970,10 +972,10 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, errors.New("an error occurred"))
+		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		require.ErrorContains(t, err, "an error occurred")
+		assert.Contains(t, err.Error(), "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -1294,15 +1296,15 @@ func Test_GetRefSources(t *testing.T) {
 		}
 	}
 
-	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
+	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
 
 	t.Run("target ref exists", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
-			{RepoURL: "file://" + repoPath, Ref: "source-1_2"},
-			{RepoURL: "file://" + repoPath},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source-1_2"},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return repo, nil
 		}, []string{}, false)
 
@@ -1319,10 +1321,10 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("target ref does not exist", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
-			{RepoURL: "file://" + repoPath},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, errors.New("repo does not exist")
 		}, []string{}, false)
 
@@ -1333,10 +1335,10 @@ func Test_GetRefSources(t *testing.T) {
 	t.Run("invalid ref", func(t *testing.T) {
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
-			{RepoURL: "file://" + repoPath},
+			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
@@ -1350,7 +1352,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(ctx context.Context, url string, project string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
@@ -1699,7 +1701,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
-			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
+			eventLabels := GetAppEventLabels(&app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB, ctx)
 			assert.Equal(t, len(tt.expectedEventLabels), len(eventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]

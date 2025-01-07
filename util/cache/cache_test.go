@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -73,9 +74,11 @@ func TestCacheClient(t *testing.T) {
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
 			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
-			require.ErrorContains(t, err, "cannot set nil item")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot set nil item")
 			err = cache.GetItem("foo", nil)
-			assert.ErrorContains(t, err, "cannot get item")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot get item")
 		})
 	}
 }
@@ -85,5 +88,5 @@ func TestGenerateCacheKey(t *testing.T) {
 	client := NewInMemoryCache(60 * time.Second)
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
-	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
+	assert.Equal(t, fmt.Sprintf("testkey|%s", common.CacheVersion), testKey)
 }

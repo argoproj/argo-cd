@@ -357,7 +357,7 @@ func Test_GetProjectRepositories(t *testing.T) {
 	clientset := getClientset(map[string]string{}, repoSecretWithProject, repoSecretWithoutProject)
 	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
-	repos, err := argoDB.GetProjectRepositories("some-project")
+	repos, err := argoDB.GetProjectRepositories(context.TODO(), "some-project")
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)

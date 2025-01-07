@@ -2,7 +2,7 @@ package repos
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -46,7 +46,7 @@ func (c *Consequences) get() (*v1alpha1.Repository, error) {
 		}
 	}
 
-	return nil, errors.New("repo not found")
+	return nil, fmt.Errorf("repo not found")
 }
 
 func (c *Consequences) Given() *Context {

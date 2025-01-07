@@ -73,7 +73,7 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 }
 
 // AuthFuncOverride allows the version to be returned without auth
-func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	if s.authenticator != nil {
 		// this authenticates the user, but ignores any error, so that we have claims populated
 		ctx, _ = s.authenticator.Authenticate(ctx)

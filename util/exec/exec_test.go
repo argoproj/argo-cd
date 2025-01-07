@@ -32,13 +32,13 @@ func TestRun(t *testing.T) {
 
 func TestHideUsernamePassword(t *testing.T) {
 	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
-	require.Error(t, err)
+	assert.NotEmpty(t, err)
 
 	redactor := func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 	}
 	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
-	require.Error(t, err)
+	assert.NotEmpty(t, err)
 }
 
 func TestRunWithExecRunOpts(t *testing.T) {
@@ -52,7 +52,7 @@ func TestRunWithExecRunOpts(t *testing.T) {
 		},
 	}
 	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
-	assert.ErrorContains(t, err, "failed timeout after 200ms")
+	assert.Contains(t, err.Error(), "failed timeout after 200ms")
 }
 
 func Test_getCommandArgsToLog(t *testing.T) {

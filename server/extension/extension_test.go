@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
@@ -27,8 +27,10 @@ import (
 func TestValidateHeaders(t *testing.T) {
 	t.Run("will build RequestResources successfully", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -44,8 +46,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if application is malformatted", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "no-namespace")
 
 		// when
@@ -57,8 +61,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if application header is missing", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
 		// when
@@ -70,8 +76,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if project header is missing", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 
 		// when
@@ -83,8 +91,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "bad%namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -97,8 +107,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid app name", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:bad@app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -111,8 +123,10 @@ func TestValidateHeaders(t *testing.T) {
 	})
 	t.Run("will return error if invalid project name", func(t *testing.T) {
 		// given
-		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		require.NoError(t, err, "error initializing request")
+		r, err := http.NewRequest("Get", "http://null", nil)
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "bad^project")
 
@@ -258,7 +272,7 @@ func TestCallExtension(t *testing.T) {
 
 		mux := http.NewServeMux()
 		extHandler := http.HandlerFunc(m.CallExtension())
-		mux.Handle(extension.URLPrefix+"/", extHandler)
+		mux.Handle(fmt.Sprintf("%s/", extension.URLPrefix), extHandler)
 
 		return &fixture{
 			mux:                mux,
@@ -274,8 +288,8 @@ func TestCallExtension(t *testing.T) {
 
 	getApp := func(destName, destServer, projName string) *v1alpha1.Application {
 		return &v1alpha1.Application{
-			TypeMeta:   metav1.TypeMeta{},
-			ObjectMeta: metav1.ObjectMeta{},
+			TypeMeta:   v1.TypeMeta{},
+			ObjectMeta: v1.ObjectMeta{},
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Name:   destName,
@@ -312,7 +326,7 @@ func TestCallExtension(t *testing.T) {
 			destinations = append(destinations, destination)
 		}
 		return &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name: prjName,
 			},
 			Spec: v1alpha1.AppProjectSpec{
@@ -365,7 +379,9 @@ func TestCallExtension(t *testing.T) {
 	startTestServer := func(t *testing.T, f *fixture) *httptest.Server {
 		t.Helper()
 		err := f.manager.RegisterExtensions()
-		require.NoError(t, err, "error starting test server")
+		if err != nil {
+			t.Fatalf("error starting test server: %s", err)
+		}
 		return httptest.NewServer(f.mux)
 	}
 
@@ -380,7 +396,9 @@ func TestCallExtension(t *testing.T) {
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
 		r, err := http.NewRequest(method, url, nil)
-		require.NoError(t, err, "error initializing request")
+		if err != nil {
+			t.Fatalf("error initializing request: %s", err)
+		}
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, defaultProjectName)
 		return r
@@ -415,12 +433,12 @@ func TestCallExtension(t *testing.T) {
 		wg.Add(2)
 		f.metricsMock.
 			On("IncExtensionRequestCounter", mock.Anything, mock.Anything).
-			Run(func(_ mock.Arguments) {
+			Run(func(args mock.Arguments) {
 				wg.Done()
 			})
 		f.metricsMock.
 			On("ObserveExtensionRequestDuration", mock.Anything, mock.Anything).
-			Run(func(_ mock.Arguments) {
+			Run(func(args mock.Arguments) {
 				wg.Done()
 			})
 
@@ -713,7 +731,7 @@ func TestCallExtension(t *testing.T) {
 		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
-		r := newExtensionRequest(t, "Get", ts.URL+"/extensions/")
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
 		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(getApp("", "", differentProject), nil)
 
 		// when

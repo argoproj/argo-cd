@@ -3,7 +3,6 @@ package generators
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,18 +26,18 @@ import (
 func TestPluginGenerateParams(t *testing.T) {
 	testCases := []struct {
 		name            string
-		configmap       *corev1.ConfigMap
-		secret          *corev1.Secret
+		configmap       *v1.ConfigMap
+		secret          *v1.Secret
 		inputParameters map[string]apiextensionsv1.JSON
 		values          map[string]string
 		gotemplate      bool
-		expected        []map[string]any
+		expected        []map[string]interface{}
 		content         []byte
 		expectedError   error
 	}{
 		{
 			name: "simple case",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -48,7 +47,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -74,13 +73,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -94,7 +93,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "simple case with values",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -104,7 +103,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -134,7 +133,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
@@ -142,7 +141,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3":                 "123",
 					"values.valuekey1":     "valuevalue1",
 					"values.valuekey2":     "templated-val1",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -156,7 +155,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "simple case with gotemplate",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -166,7 +165,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -192,17 +191,17 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1": "val1",
-					"key2": map[string]any{
+					"key2": map[string]interface{}{
 						"key2_1": "val2_1",
-						"key2_2": map[string]any{
+						"key2_2": map[string]interface{}{
 							"key2_2_1": "val2_2_1",
 						},
 					},
 					"key3": float64(123),
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -216,7 +215,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "simple case with appended params",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -226,7 +225,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -251,14 +250,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				"key3": 123,
 				"pkey2": "valplugin"
 			 }]}}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
 					"pkey2":                "valplugin",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -272,7 +271,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "no params",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -282,7 +281,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -305,14 +304,14 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
-						"input": map[string]map[string]any{
+					"generator": map[string]interface{}{
+						"input": map[string]map[string]interface{}{
 							"parameters": {},
 						},
 					},
@@ -322,7 +321,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "empty return",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -332,7 +331,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -344,12 +343,12 @@ func TestPluginGenerateParams(t *testing.T) {
 			inputParameters: map[string]apiextensionsv1.JSON{},
 			gotemplate:      false,
 			content:         []byte(`{"input": {"parameters": []}}`),
-			expected:        []map[string]any{},
+			expected:        []map[string]interface{}{},
 			expectedError:   nil,
 		},
 		{
 			name: "wrong return",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -359,7 +358,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -371,12 +370,12 @@ func TestPluginGenerateParams(t *testing.T) {
 			inputParameters: map[string]apiextensionsv1.JSON{},
 			gotemplate:      false,
 			content:         []byte(`wrong body ...`),
-			expected:        []map[string]any{},
-			expectedError:   errors.New("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
+			expected:        []map[string]interface{}{},
+			expectedError:   fmt.Errorf("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
 		},
 		{
 			name: "external secret",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -386,7 +385,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin-secret:plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "plugin-secret",
 					Namespace: "default",
@@ -411,14 +410,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				"key3": 123,
 				"pkey2": "valplugin"
 			 }]}}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
 					"pkey2":                "valplugin",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -432,7 +431,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 		{
 			name: "no secret",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -442,7 +441,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token":   "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{},
+			secret: &v1.Secret{},
 			inputParameters: map[string]apiextensionsv1.JSON{
 				"pkey1": {Raw: []byte(`"val1"`)},
 				"pkey2": {Raw: []byte(`"val2"`)},
@@ -460,13 +459,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -476,12 +475,12 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
 		},
 		{
 			name:      "no configmap",
-			configmap: &corev1.ConfigMap{},
-			secret: &corev1.Secret{
+			configmap: &v1.ConfigMap{},
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -507,13 +506,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -523,11 +522,11 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
 		},
 		{
 			name: "no baseUrl",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -536,7 +535,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"token": "$plugin.token",
 				},
 			},
-			secret: &corev1.Secret{
+			secret: &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-secret",
 					Namespace: "default",
@@ -562,13 +561,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -578,11 +577,11 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
 		},
 		{
 			name: "no token",
-			configmap: &corev1.ConfigMap{
+			configmap: &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "first-plugin-cm",
 					Namespace: "default",
@@ -591,7 +590,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					"baseUrl": "http://127.0.0.1",
 				},
 			},
-			secret: &corev1.Secret{},
+			secret: &v1.Secret{},
 			inputParameters: map[string]apiextensionsv1.JSON{
 				"pkey1": {Raw: []byte(`"val1"`)},
 				"pkey2": {Raw: []byte(`"val2"`)},
@@ -609,13 +608,13 @@ func TestPluginGenerateParams(t *testing.T) {
 					"key3": 123
                 }]
 			 }}`),
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"key1":                 "val1",
 					"key2.key2_1":          "val2_1",
 					"key2.key2_2.key2_2_1": "val2_2_1",
 					"key3":                 "123",
-					"generator": map[string]any{
+					"generator": map[string]interface{}{
 						"input": argoprojiov1alpha1.PluginInput{
 							Parameters: argoprojiov1alpha1.PluginParameters{
 								"pkey1": {Raw: []byte(`"val1"`)},
@@ -625,7 +624,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
+			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
 		},
 	}
 
@@ -671,7 +670,7 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(ctx, fakeClientWithCache, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -695,7 +694,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				require.NoError(t, err)
 				gotJson, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.JSONEq(t, string(expectedJson), string(gotJson))
+				assert.Equal(t, string(expectedJson), string(gotJson))
 			}
 		})
 	}

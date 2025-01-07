@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -115,7 +114,7 @@ func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Applicati
 		logCtx.Errorf("failed to generate patch: %v", err)
 	}
 	// Get the patch as a plain object so it is easier to work with in json logs.
-	var patchObj map[string]any
+	var patchObj map[string]interface{}
 	err = json.Unmarshal(patchBytes, &patchObj)
 	if err != nil {
 		logCtx.Errorf("failed to unmarshal patch: %v", err)
@@ -129,7 +128,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 		return fmt.Errorf("error while wrapping using MutateFn: %w", err)
 	}
 	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
-		return stderrors.New("MutateFn cannot mutate object name and/or object namespace")
+		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
 }

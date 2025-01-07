@@ -15,7 +15,6 @@ import (
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -304,7 +303,7 @@ func TestGiteaListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false)
+			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -334,7 +333,7 @@ func TestGiteaHasPath(t *testing.T) {
 		giteaMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGiteaProvider("gitea", "", ts.URL, false, false)
+	host, _ := NewGiteaProvider(context.Background(), "gitea", "", ts.URL, false, false)
 	repo := &Repository{
 		Organization: "gitea",
 		Repository:   "go-sdk",

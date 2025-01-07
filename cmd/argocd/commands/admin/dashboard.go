@@ -27,7 +27,7 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
 			compression, err := cache.CompressionTypeFromString(compressionStr)

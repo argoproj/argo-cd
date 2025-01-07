@@ -151,10 +151,10 @@ The default polling interval is 3 minutes (180 seconds) with a configurable jitt
 You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
-## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
+## Why Are My Resource Limits `Out Of Sync`?
 
-Kubernetes has normalized your resource limits when they are applied, and then Argo CD has compared the version in
-your generated manifests from git to the normalized ones in the Kubernetes cluster - they may not match.
+Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
+your generated manifests to the normalized one is Kubernetes - they won't match.
 
 E.g.
 
@@ -162,9 +162,9 @@ E.g.
 * `'0.1'` normalized to `'100m'`
 * `'3072Mi'` normalized to `'3Gi'`
 * `3072` normalized to `'3072'` (quotes added)
-* `8760h` normalized to `8760h0m0s`
 
-To fix this use [diffing customizations](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
+To fix this use diffing
+customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
 ## How Do I Fix `invalid cookie, longer than max length 4093`?
 
