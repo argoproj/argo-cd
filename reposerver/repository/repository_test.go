@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -34,20 +34,20 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	repositorymocks "github.com/argoproj/argo-cd/v2/reposerver/cache/mocks"
-	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
-	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	helmmocks "github.com/argoproj/argo-cd/v2/util/helm/mocks"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	iomocks "github.com/argoproj/argo-cd/v2/util/io/mocks"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
+	repositorymocks "github.com/argoproj/argo-cd/v3/reposerver/cache/mocks"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
+	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	helmmocks "github.com/argoproj/argo-cd/v3/util/helm/mocks"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
