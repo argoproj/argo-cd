@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -44,14 +45,9 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			// redisInitialCredentials is the kubernetes secret containing
-			// the redis password
-			redisInitialCredentials := common.RedisInitialCredentials
-
-			// redisInitialCredentialsKey is the key in the redisInitialCredentials
-			// secret which maps to the redis password
-			redisInitialCredentialsKey := common.RedisInitialCredentialsKey
-			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialCredentials, redisInitialCredentialsKey)
+			redisInitialPasswordSecretName := common.DefaultRedisInitialPasswordSecretName
+			redisInitialPasswordKey := common.DefaultRedisInitialPasswordKey
+			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialPasswordSecretName, redisInitialPasswordKey)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -63,11 +59,11 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			data := map[string][]byte{
-				redisInitialCredentialsKey: []byte(randomPassword),
+				redisInitialPasswordKey: []byte(randomPassword),
 			}
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      redisInitialCredentials,
+					Name:      redisInitialPasswordSecretName,
 					Namespace: namespace,
 				},
 				Data: data,
@@ -78,14 +74,14 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				errors.CheckError(err)
 			}
 
-			fmt.Printf("Argo CD Redis secret state confirmed: secret name %s.\n", redisInitialCredentials)
-			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, metav1.GetOptions{})
+			fmt.Println("Argo CD Redis secret state confirmed: secret name argocd-redis.")
+			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialPasswordSecretName, v1.GetOptions{})
 			errors.CheckError(err)
 
-			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {
+			if _, ok := secret.Data[redisInitialPasswordKey]; ok {
 				fmt.Println("Password secret is configured properly.")
 			} else {
-				err := fmt.Errorf("key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials)
+				err := fmt.Errorf("key %s doesn't exist in secret %s. \n", redisInitialPasswordKey, redisInitialPasswordSecretName)
 				errors.CheckError(err)
 			}
 		},

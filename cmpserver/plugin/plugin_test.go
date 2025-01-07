@@ -451,7 +451,8 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Args:    []string{`[`},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.ErrorContains(t, err, "unexpected end of JSON input")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
 
 func Test_getParametersAnnouncement_bad_command(t *testing.T) {
@@ -460,7 +461,8 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Args:    []string{"1"},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
 }
 
 func Test_getTempDirMustCleanup(t *testing.T) {
@@ -806,11 +808,11 @@ func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
 }
 
-func (m *MockParametersAnnouncementStream) SendMsg(any) error {
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
 	return nil
 }
 

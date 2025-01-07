@@ -13,12 +13,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -93,6 +93,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 			case "wide", "":
 				printAppSetSummaryTable(appSet)
+
 				if len(appSet.Status.Conditions) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -257,7 +258,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			switch output {
 			case "yaml", "json":
-				var resources []any
+				var resources []interface{}
 				for i := range appsList {
 					app := appsList[i]
 					// backfill api version and kind because k8s client always return empty values for these fields
@@ -344,21 +345,12 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			var isConfirmAll bool = false
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
-
-			var (
-				confirmAll = false
-				confirm    = false
-			)
-
-			// This is for backward compatibility,
-			// before we showed the prompts only when condition isTerminal && !noPrompt is true
-			promptUtil := utils.NewPrompt(isTerminal && !noPrompt)
-
 			for _, appSetQualifiedName := range args {
 				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
 
@@ -366,17 +358,32 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					Name:            appSetName,
 					AppsetNamespace: appSetNs,
 				}
-				messageForSingle := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] "
-				messageForAll := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/a] where 'a' is to delete all specified ApplicationSets and their Applications without prompting"
-				if !confirmAll {
-					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
-				}
-				if confirm || confirmAll {
+
+				if isTerminal && !noPrompt {
+					var lowercaseAnswer string
+					if numOfApps == 1 {
+						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] ")
+					} else {
+						if !isConfirmAll {
+							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/A] where 'A' is to delete all specified ApplicationSets and their Applications without prompting")
+							if lowercaseAnswer == "a" || lowercaseAnswer == "all" {
+								lowercaseAnswer = "y"
+								isConfirmAll = true
+							}
+						} else {
+							lowercaseAnswer = "y"
+						}
+					}
+					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
+						_, err := appIf.Delete(ctx, &appsetDeleteReq)
+						errors.CheckError(err)
+						fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
+					} else {
+						fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
+					}
+				} else {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
-					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
-				} else {
-					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
 				}
 			}
 		},
@@ -396,7 +403,7 @@ func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []any{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
+	headers := []interface{}{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
@@ -411,7 +418,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 				conditions = append(conditions, condition)
 			}
 		}
-		vals := []any{
+		vals := []interface{}{
 			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
@@ -434,6 +441,7 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
+	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
@@ -443,17 +451,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	} else {
 		fmt.Println("Sources:")
 	}
-
-	// if no source has been defined, print the default value for a source
-	if len(appSet.Spec.Template.Spec.GetSources()) == 0 {
-		src := appSet.Spec.Template.Spec.GetSource()
-		printAppSourceDetails(&src)
-	} else {
-		// otherwise range over the sources and print each source details
-		for _, source := range appSet.Spec.Template.Spec.GetSources() {
-			printAppSourceDetails(&source)
-		}
-	}
+	printAppSourceDetails(&source)
 
 	var (
 		syncPolicyStr string

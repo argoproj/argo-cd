@@ -166,8 +166,6 @@ func TestHelmArgCleaner(t *testing.T) {
 		`not, clean`: `not\, clean`,
 		`a\,b,c`:     `a\,b\,c`,
 		`{a,b,c}`:    `{a,b,c}`,
-		`,,,,,\,`:    `\,\,\,\,\,\,`,
-		`\,,\\,,`:    `\,\,\\,\,`,
 	} {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)
@@ -184,21 +182,21 @@ func Test_flatVals(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]any{"foo": map[string]any{"bar": "baz"}}, output)
+		flatVals(map[string]interface{}{"foo": map[string]interface{}{"bar": "baz"}}, output)
 
 		assert.Equal(t, map[string]string{"foo.bar": "baz"}, output)
 	})
 	t.Run("Array", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]any{"foo": []any{"bar", "baz"}}, output)
+		flatVals(map[string]interface{}{"foo": []interface{}{"bar", "baz"}}, output)
 
 		assert.Equal(t, map[string]string{"foo[0]": "bar", "foo[1]": "baz"}, output)
 	})
 	t.Run("Val", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]any{"foo": 1}, output)
+		flatVals(map[string]interface{}{"foo": 1}, output)
 
 		assert.Equal(t, map[string]string{"foo": "1"}, output)
 	})
@@ -232,23 +230,6 @@ func TestSkipCrds(t *testing.T) {
 	require.Len(t, objs, 1)
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
-	require.NoError(t, err)
-	require.Empty(t, objs)
-}
-
-func TestSkipTests(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
-	require.NoError(t, err)
-
-	objs, err := template(h, &TemplateOpts{SkipTests: false})
-	require.NoError(t, err)
-	require.Len(t, objs, 1)
-
-	objs, err = template(h, &TemplateOpts{})
-	require.NoError(t, err)
-	require.Len(t, objs, 1)
-
-	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
 }

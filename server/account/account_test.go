@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -32,7 +32,7 @@ const (
 
 // return an AccountServer which returns fake data
 func newTestAccountServer(ctx context.Context, opts ...func(cm *v1.ConfigMap, secret *v1.Secret)) (*Server, *session.Server) {
-	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...any) bool {
+	return newTestAccountServerExt(ctx, func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	}, opts...)
 }
@@ -63,7 +63,7 @@ func newTestAccountServerExt(ctx context.Context, enforceFn rbac.ClaimsEnforcerF
 	for i := range opts {
 		opts[i](cm, secret)
 	}
-	kubeclientset := fake.NewClientset(cm, secret)
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, testNamespace)
 	sessionMgr := sessionutil.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, sessionutil.NewUserStateStorage(nil))
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -153,7 +153,7 @@ func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
 }
 
 func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...any) bool {
+	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
 		return false
 	}
 
@@ -163,14 +163,16 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 		})
 		ctx := adminContext(context.Background())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
-		assert.ErrorContains(t, err, "permission denied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
 	})
 
 	t.Run("SSOAccountWithTheSameName", func(t *testing.T) {
 		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer)
 		ctx := ssoAdminContext(context.Background(), time.Now())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "admin"})
-		assert.ErrorContains(t, err, "permission denied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
 	})
 }
 
@@ -180,7 +182,8 @@ func TestUpdatePassword_ProjectToken(t *testing.T) {
 	})
 	ctx := projTokenContext(context.Background())
 	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword"})
-	assert.ErrorContains(t, err, "password can only be changed for local users")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password can only be changed for local users")
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {
@@ -288,8 +291,9 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
-	require.ErrorContains(t, err, "failed to update account with new token:")
-	assert.ErrorContains(t, err, "account already has token with id 'test'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update account with new token:")
+	assert.Contains(t, err.Error(), "account already has token with id 'test'")
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
@@ -319,7 +323,7 @@ func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
 }
 
 func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
-	enforcer := func(claims jwt.Claims, rvals ...any) bool {
+	enforcer := func(claims jwt.Claims, rvals ...interface{}) bool {
 		return false
 	}
 

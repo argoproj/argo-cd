@@ -2,7 +2,7 @@ package commands
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -35,7 +35,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		mock := &signedRequestMock{
 			returnFunc: func(m *signedRequestMock) (string, error) {
 				if m.getSignedRequestCalls < 3 {
-					return "", errors.New("some error")
+					return "", fmt.Errorf("some error")
 				}
 				return "token", nil
 			},
@@ -53,7 +53,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		t.Parallel()
 		mock := &signedRequestMock{
 			returnFunc: func(m *signedRequestMock) (string, error) {
-				return "", errors.New("some error")
+				return "", fmt.Errorf("some error")
 			},
 		}
 

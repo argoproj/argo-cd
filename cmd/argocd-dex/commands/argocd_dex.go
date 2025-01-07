@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime/debug"
 	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -67,14 +66,6 @@ func NewRunDexCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-
-			// Recover from panic and log the error using the configured logger instead of the default.
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
-				}
-			}()
-
 			_, err = exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()
@@ -181,14 +172,14 @@ func NewGenDexConfigCommand() *cobra.Command {
 				return nil
 			}
 			if out == "" {
-				dexCfg := make(map[string]any)
+				dexCfg := make(map[string]interface{})
 				err := yaml.Unmarshal(dexCfgBytes, &dexCfg)
 				errors.CheckError(err)
 				if staticClientsInterface, ok := dexCfg["staticClients"]; ok {
-					if staticClients, ok := staticClientsInterface.([]any); ok {
+					if staticClients, ok := staticClientsInterface.([]interface{}); ok {
 						for i := range staticClients {
 							staticClient := staticClients[i]
-							if mappings, ok := staticClient.(map[string]any); ok {
+							if mappings, ok := staticClient.(map[string]interface{}); ok {
 								for key := range mappings {
 									if key == "secret" {
 										mappings[key] = "******"
@@ -220,8 +211,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 	return &command
 }
 
-func iterateStringFields(obj any, callback func(name string, val string) string) {
-	if mapField, ok := obj.(map[string]any); ok {
+func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
+	if mapField, ok := obj.(map[string]interface{}); ok {
 		for field, val := range mapField {
 			if strVal, ok := val.(string); ok {
 				mapField[field] = callback(field, strVal)
@@ -229,7 +220,7 @@ func iterateStringFields(obj any, callback func(name string, val string) string)
 				iterateStringFields(val, callback)
 			}
 		}
-	} else if arrayField, ok := obj.([]any); ok {
+	} else if arrayField, ok := obj.([]interface{}); ok {
 		for i := range arrayField {
 			iterateStringFields(arrayField[i], callback)
 		}
@@ -237,7 +228,7 @@ func iterateStringFields(obj any, callback func(name string, val string) string)
 }
 
 func redactor(dirtyString string) string {
-	config := make(map[string]any)
+	config := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(dirtyString), &config)
 	errors.CheckError(err)
 	iterateStringFields(config, func(name string, val string) string {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -269,9 +268,9 @@ func (c *Cache) generateFullKey(key string) string {
 }
 
 // Sets or deletes an item in cache
-func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
+func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) error {
 	if item == nil {
-		return errors.New("cannot set nil item in cache")
+		return fmt.Errorf("cannot set nil item in cache")
 	}
 	if opts == nil {
 		opts = &CacheActionOpts{}
@@ -285,7 +284,7 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	}
 }
 
-func (c *Cache) GetItem(key string, item any) error {
+func (c *Cache) GetItem(key string, item interface{}) error {
 	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)

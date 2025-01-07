@@ -16,7 +16,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 		name          string
 		repos         []*scm_provider.Repository
 		values        map[string]string
-		expected      []map[string]any
+		expected      []map[string]interface{}
 		expectedError error
 	}{
 		{
@@ -38,7 +38,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 					SHA:          "59d0",
 				},
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"organization":     "myorg",
 					"repository":       "repo1",
@@ -79,7 +79,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				"foo":                    "bar",
 				"should_i_force_push_to": "{{ branch }}?",
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"organization":                  "myorg",
 					"repository":                    "repo3",

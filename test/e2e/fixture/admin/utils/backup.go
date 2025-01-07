@@ -21,7 +21,7 @@ func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 			continue
 		}
 
-		var resourceData map[string]any
+		var resourceData map[string]interface{}
 
 		if err := yaml.Unmarshal([]byte(doc), &resourceData); err != nil {
 			return nil, fmt.Errorf("error unmarshaling YAML: %w", err)

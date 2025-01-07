@@ -1,7 +1,6 @@
 package commands
 
 import (
-	stderrors "errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -10,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -26,7 +24,7 @@ import (
 func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "repocreds",
-		Short: "Manage credential templates for repositories",
+		Short: "Manage repository connection parameters",
 		Example: templates.Examples(`
 			# Add credentials with user/pass authentication to use for all repositories under the specified URL
 			argocd repocreds add URL --username USERNAME --password PASSWORD
@@ -105,7 +103,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
+					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
 					errors.CheckError(err)
 				}
 			}
@@ -113,7 +111,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
-				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -127,7 +125,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					repo.TLSClientCertData = string(tlsCertData)
 					repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -139,7 +137,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
-					err := stderrors.New("--github-app-private-key-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -151,7 +149,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					errors.CheckError(err)
 					repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
 				} else {
-					err := stderrors.New("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -211,18 +209,10 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
-
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-
 			for _, repoURL := range args {
-				canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", repoURL))
-				if canDelete {
-					_, err := repoIf.DeleteRepositoryCredentials(ctx, &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
-					errors.CheckError(err)
-					fmt.Printf("Repository credentials for '%s' removed\n", repoURL)
-				} else {
-					fmt.Printf("The command to remove '%s' was cancelled.\n", repoURL)
-				}
+				_, err := repoIf.DeleteRepositoryCredentials(ctx, &repocredspkg.RepoCredsDeleteRequest{Url: repoURL})
+				errors.CheckError(err)
+				fmt.Printf("Repository credentials for '%s' removed\n", repoURL)
 			}
 		},
 	}

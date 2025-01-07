@@ -1,7 +1,6 @@
 package commands
 
 import (
-	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -97,7 +95,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
@@ -137,7 +135,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if fromFile == "" {
-				errors.CheckError(stderrors.New("--from is mandatory"))
+				errors.CheckError(fmt.Errorf("--from is mandatory"))
 			}
 			keyData, err := os.ReadFile(fromFile)
 			if err != nil {
@@ -167,23 +165,13 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
-
-			keyId := args[0]
-
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", keyId))
-			if canDelete {
-				_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: keyId})
-				errors.CheckError(err)
-				fmt.Printf("Deleted key with key ID %s\n", keyId)
-			} else {
-				fmt.Printf("The command to delete key with key ID '%s' was cancelled.\n", keyId)
-			}
+			_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
+			errors.CheckError(err)
+			fmt.Printf("Deleted key with key ID %s\n", args[0])
 		},
 	}
 	return command

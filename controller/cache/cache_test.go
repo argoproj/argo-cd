@@ -12,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -141,7 +140,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	}
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
-	fakeClient := fake.NewClientset()
+	fakeClient := fake.NewSimpleClientset()
 	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
@@ -727,7 +726,9 @@ func TestShouldHashManifest(t *testing.T) {
 				test.un.SetAnnotations(test.annotations)
 			}
 			got := shouldHashManifest(test.appName, test.gvk, test.un)
-			require.Equalf(t, test.want, got, "test=%v", test.name)
+			if test.want != got {
+				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
+			}
 		})
 	}
 }

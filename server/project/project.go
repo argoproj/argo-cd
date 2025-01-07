@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -165,7 +165,7 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 	projName := q.GetName()
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
-		log.WithFields(map[string]any{
+		log.WithFields(map[string]interface{}{
 			"project": projName,
 		}).Warnf("unauthorized access to project, error=%v", err.Error())
 		return nil, fmt.Errorf("unauthorized access to project %v", projName)
@@ -398,16 +398,15 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 
+	var srcValidatedApps []v1alpha1.Application
+	var dstValidatedApps []v1alpha1.Application
 	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	invalidSrcCount := 0
-	invalidDstCount := 0
-
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
-			invalidSrcCount++
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
+			srcValidatedApps = append(srcValidatedApps, a)
 		}
 
 		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
@@ -416,13 +415,26 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 
 		if dstPermitted {
-			dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
-			if err != nil {
-				return nil, err
-			}
-			if !dstPermitted {
-				invalidDstCount++
-			}
+			dstValidatedApps = append(dstValidatedApps, a)
+		}
+	}
+
+	invalidSrcCount := 0
+	invalidDstCount := 0
+
+	for _, a := range srcValidatedApps {
+		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
+			invalidSrcCount++
+		}
+	}
+	for _, a := range dstValidatedApps {
+		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if !dstPermitted {
+			invalidDstCount++
 		}
 	}
 

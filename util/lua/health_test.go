@@ -26,7 +26,7 @@ type IndividualTest struct {
 func getObj(path string) *unstructured.Unstructured {
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	errors.CheckError(err)
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )
@@ -130,10 +130,10 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
+				TypeMeta: v1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: metav1.ObjectMeta{
+				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
 				Spec: PluginConfigSpec{
@@ -177,10 +177,10 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
+				TypeMeta: v1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: metav1.ObjectMeta{
+				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
 			},
@@ -189,10 +189,10 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
+				TypeMeta: v1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
 				},
-				Metadata: metav1.ObjectMeta{
+				Metadata: v1.ObjectMeta{
 					Name: "name",
 				},
 				Spec: PluginConfigSpec{

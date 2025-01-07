@@ -45,7 +45,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 			cv := common.GetVersion()
 			switch output {
 			case "yaml", "json":
-				v := make(map[string]any)
+				v := make(map[string]interface{})
 
 				if short {
 					v["client"] = map[string]string{cliName: cv.Version}

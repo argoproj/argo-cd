@@ -65,7 +65,7 @@ func newClient(baseURL string, options ...ClientOptionFunc) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) NewRequest(method, path string, body any, options []ClientOptionFunc) (*http.Request, error) {
+func (c *Client) NewRequest(method, path string, body interface{}, options []ClientOptionFunc) (*http.Request, error) {
 	// Make sure the given URL end with a slash
 	if !strings.HasSuffix(c.baseURL, "/") {
 		c.baseURL += "/"
@@ -102,7 +102,7 @@ func (c *Client) NewRequest(method, path string, body any, options []ClientOptio
 	return req, nil
 }
 
-func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*http.Response, error) {
+func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*http.Response, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v any) (*http.Respon
 
 // CheckResponse checks the API response for errors, and returns them if present.
 func CheckResponse(resp *http.Response) error {
-	if c := resp.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
+	if c := resp.StatusCode; 200 <= c && c <= 299 {
 		return nil
 	}
 
@@ -143,7 +143,7 @@ func CheckResponse(resp *http.Response) error {
 		return fmt.Errorf("API error with status code %d: %w", resp.StatusCode, err)
 	}
 
-	var raw map[string]any
+	var raw map[string]interface{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return fmt.Errorf("API error with status code %d: %s", resp.StatusCode, string(data))
 	}

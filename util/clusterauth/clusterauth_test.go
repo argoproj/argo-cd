@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -28,14 +27,12 @@ const (
 )
 
 var testClaims = ServiceAccountClaims{
-	"kube-system",
-	"argocd-manager-token-tj79r",
-	"argocd-manager",
-	"91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
-	jwt.RegisteredClaims{
-		Subject: "system:serviceaccount:kube-system:argocd-manager",
-		Issuer:  "kubernetes/serviceaccount",
-	},
+	Sub:                "system:serviceaccount:kube-system:argocd-manager",
+	Iss:                "kubernetes/serviceaccount",
+	Namespace:          "kube-system",
+	SecretName:         "argocd-manager-token-tj79r",
+	ServiceAccountName: "argocd-manager",
+	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
 }
 
 func newServiceAccount() *corev1.ServiceAccount {

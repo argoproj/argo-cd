@@ -3,7 +3,6 @@ package admin
 import (
 	"bytes"
 	"context"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -16,7 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -52,7 +51,7 @@ func collectLogs(callback func()) string {
 	return out.String()
 }
 
-func setSettingsMeta(obj metav1.Object) {
+func setSettingsMeta(obj v1.Object) {
 	obj.SetNamespace("default")
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -65,14 +64,14 @@ func setSettingsMeta(obj metav1.Object) {
 func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
-		return nil, stderrors.New("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
+		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
 	} else if opts.argocdCMPath == "" {
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -104,13 +103,13 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, metav1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, v1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		argocdSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
 			Data: map[string][]byte{
@@ -120,7 +119,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	}
 	setSettingsMeta(argocdSecret)
-	clientset := fake.NewClientset(argocdSecret, argocdCM)
+	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
 
 	manager := settings.NewSettingsManager(ctx, clientset, "default")
 	errors.CheckError(manager.ResyncInformers())
@@ -212,7 +211,7 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		var summary string
 		if ssoProvider != "" {
-			summary = ssoProvider + " is configured"
+			summary = fmt.Sprintf("%s is configured", ssoProvider)
 			if general.URL == "" {
 				summary = summary + " ('url' field is missing)"
 			}
@@ -580,7 +579,7 @@ func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
 		Short:   "Executes resource action",
 		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

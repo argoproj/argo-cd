@@ -1,15 +1,13 @@
 package localconfig
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 
-	"github.com/argoproj/argo-cd/v2/util/config"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -19,7 +17,6 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
-	PromptsEnabled bool         `json:"prompts-enabled"`
 }
 
 // ContextRef is a reference to a Server and User for an API client
@@ -132,7 +129,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, errors.New("Local config: current-context unset")
+			return nil, fmt.Errorf("Local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}
@@ -308,28 +305,4 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
-}
-
-func GetPromptsEnabled(useCLIOpts bool) bool {
-	if useCLIOpts {
-		forcePromptsEnabled := config.GetFlag("prompts-enabled", "")
-
-		if forcePromptsEnabled != "" {
-			return forcePromptsEnabled == "true"
-		}
-	}
-
-	defaultLocalConfigPath, err := DefaultLocalConfigPath()
-	if err != nil {
-		return false
-	}
-
-	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
-
-	localConfig, err := ReadLocalConfig(localConfigPath)
-	if localConfig == nil || err != nil {
-		return false
-	}
-
-	return localConfig.PromptsEnabled
 }

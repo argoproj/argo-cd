@@ -89,5 +89,3 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
-      nodeSelector:
-        kubernetes.io/os: linux

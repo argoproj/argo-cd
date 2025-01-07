@@ -59,7 +59,7 @@ var (
 
 func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
-		return nil, errors.New("no access token provided")
+		return nil, fmt.Errorf("no access token provided")
 	}
 
 	devOpsURL, err := getValidDevOpsURL(url, org)

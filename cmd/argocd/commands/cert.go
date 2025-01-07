@@ -2,7 +2,6 @@ package commands
 
 import (
 	"crypto/x509"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -12,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -168,13 +166,13 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
 			} else {
-				err = stderrors.New("You need to specify --batch or specify --help for usage instructions")
+				err = fmt.Errorf("You need to specify --batch or specify --help for usage instructions")
 			}
 
 			errors.CheckError(err)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckError(stderrors.New("No valid SSH known hosts data found."))
+				errors.CheckError(fmt.Errorf("No valid SSH known hosts data found."))
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
@@ -235,29 +233,22 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// remove all certificates, but it's less likely that it happens by
 			// accident.
 			if hostNamePattern == "*" {
-				err := stderrors.New("A single wildcard is not allowed as REPOSERVER name.")
+				err := fmt.Errorf("A single wildcard is not allowed as REPOSERVER name.")
 				errors.CheckError(err)
 			}
-
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove all certificates for '%s'? [y/n]", hostNamePattern))
-			if canDelete {
-				certQuery = certificatepkg.RepositoryCertificateQuery{
-					HostNamePattern: hostNamePattern,
-					CertType:        certType,
-					CertSubType:     certSubType,
-				}
-				removed, err := certIf.DeleteCertificate(ctx, &certQuery)
-				errors.CheckError(err)
-				if len(removed.Items) > 0 {
-					for _, cert := range removed.Items {
-						fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
-					}
-				} else {
-					fmt.Println("No certificates were removed (none matched the given pattern)")
+			certQuery = certificatepkg.RepositoryCertificateQuery{
+				HostNamePattern: hostNamePattern,
+				CertType:        certType,
+				CertSubType:     certSubType,
+			}
+			removed, err := certIf.DeleteCertificate(ctx, &certQuery)
+			errors.CheckError(err)
+			if len(removed.Items) > 0 {
+				for _, cert := range removed.Items {
+					fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
 				}
 			} else {
-				fmt.Printf("The command to remove all certificates for '%s' was cancelled.\n", hostNamePattern)
+				fmt.Println("No certificates were removed (none matched the given patterns)")
 			}
 		},
 	}

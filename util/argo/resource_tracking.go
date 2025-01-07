@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	WrongResourceTrackingFormat = errors.New("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
+	WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
 	LabelMaxLength              = 63
 	OkEndPattern                = regexp.MustCompile("[a-zA-Z0-9]$")
 )

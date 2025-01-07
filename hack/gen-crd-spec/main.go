@@ -94,13 +94,13 @@ func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.Custom
 	return &crd
 }
 
-func removeDescription(v any) {
+func removeDescription(v interface{}) {
 	switch v := v.(type) {
-	case []any:
+	case []interface{}:
 		for _, v := range v {
 			removeDescription(v)
 		}
-	case map[string]any:
+	case map[string]interface{}:
 		if _, ok := v["description"]; ok {
 			_, ok := v["description"].(string)
 			if ok {

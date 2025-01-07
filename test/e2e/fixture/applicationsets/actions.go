@@ -333,14 +333,14 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 	}
 
 	placementDecision := &unstructured.Unstructured{
-		Object: map[string]any{
-			"metadata": map[string]any{
+		Object: map[string]interface{}{
+			"metadata": map[string]interface{}{
 				"name":      placementDecisionName,
 				"namespace": fixture.TestNamespace(),
 			},
 			"kind":       "PlacementDecision",
 			"apiVersion": "cluster.open-cluster-management.io/v1alpha1",
-			"status":     map[string]any{},
+			"status":     map[string]interface{}{},
 		},
 	}
 
@@ -356,7 +356,7 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 	return a
 }
 
-func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, clusterList []any) *Actions {
+func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, clusterList []interface{}) *Actions {
 	a.context.t.Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient().DynamicClientset
@@ -365,7 +365,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 		placementDecisionName,
 		metav1.GetOptions{})
 
-	placementDecision.Object["status"] = map[string]any{
+	placementDecision.Object["status"] = map[string]interface{}{
 		"decisions": clusterList,
 	}
 
@@ -455,21 +455,7 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 	var mostRecentError error
 
-	sleepIntervals := []time.Duration{
-		10 * time.Millisecond,
-		20 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		200 * time.Millisecond,
-		300 * time.Millisecond,
-		500 * time.Millisecond,
-		1 * time.Second,
-	}
-	sleepIntervalsIdx := -1
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		appSet, err := a.get()
 		mostRecentError = err
 		if err == nil {

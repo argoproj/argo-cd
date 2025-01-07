@@ -246,7 +246,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 func TokenizeSSHKnownHostsEntry(knownHostsEntry string) (string, string, []byte, error) {
 	knownHostsToken := strings.SplitN(knownHostsEntry, " ", 3)
 	if len(knownHostsToken) != 3 {
-		return "", "", nil, errors.New("error while tokenizing input data")
+		return "", "", nil, fmt.Errorf("error while tokenizing input data")
 	}
 	return knownHostsToken[0], knownHostsToken[1], []byte(knownHostsToken[2]), nil
 }
@@ -332,7 +332,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	}
 
 	if len(certificates) == 0 {
-		return nil, errors.New("no certificates found in existing file")
+		return nil, fmt.Errorf("no certificates found in existing file")
 	}
 
 	return certificates, nil

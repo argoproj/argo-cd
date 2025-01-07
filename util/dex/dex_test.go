@@ -258,15 +258,15 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]any)
+		connectors, ok := dexCfg["connectors"].([]interface{})
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]any)["config"].(map[string]any)
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
@@ -284,15 +284,15 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]any)
+		connectors, ok := dexCfg["connectors"].([]interface{})
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]any)["config"].(map[string]any)
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
@@ -312,12 +312,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]any)
+		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
 		assert.True(t, ok)
 
 		level, ok := loggerCfg["level"].(string)
@@ -340,12 +340,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]any)
+		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
 		assert.True(t, ok)
 
 		level, ok := loggerCfg["level"].(string)
@@ -377,18 +377,18 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]any)
+		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]any)
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
-		assert.Len(t, customClient["redirectURIs"].([]any), 1)
+		assert.Len(t, customClient["redirectURIs"].([]interface{}), 1)
 	})
 	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
@@ -399,16 +399,16 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]any)
+		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]any)
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
@@ -419,12 +419,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)
@@ -442,12 +442,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)

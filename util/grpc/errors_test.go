@@ -51,7 +51,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			Group:    "apps",
 			Resource: "Deployment",
 		}
-		return apierr.NewForbidden(gr, "some-app", errors.New("authentication error"))
+		return apierr.NewForbidden(gr, "some-app", fmt.Errorf("authentication error"))
 	}
 	newUnauthorizedError := func() error {
 		return apierr.NewUnauthorized("unauthenticated")
@@ -60,10 +60,10 @@ func Test_kubeErrToGRPC(t *testing.T) {
 		{
 			name: "will return standard error if not grpc status",
 			givenErrFn: func() error {
-				return errors.New("standard error")
+				return fmt.Errorf("standard error")
 			},
 			expectedErrFn: func() error {
-				return errors.New("standard error")
+				return fmt.Errorf("standard error")
 			},
 			expectedGRPCStatus: nil,
 		},

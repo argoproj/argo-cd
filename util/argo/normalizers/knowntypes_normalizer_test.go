@@ -50,7 +50,7 @@ func mustUnmarshalYAML(yamlStr string) *unstructured.Unstructured {
 }
 
 // nolint:unparam
-func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, error) {
+func nestedSliceMap(obj map[string]interface{}, i int, path ...string) (map[string]interface{}, error) {
 	items, ok, err := unstructured.NestedSlice(obj, path...)
 	if err != nil {
 		return nil, err
@@ -61,7 +61,7 @@ func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, 
 	if len(items) < i {
 		return nil, fmt.Errorf("field %s has less than %d items", strings.Join(path, "."), i)
 	}
-	if item, ok := items[i].(map[string]any); !ok {
+	if item, ok := items[i].(map[string]interface{}); !ok {
 		return nil, fmt.Errorf("field %s[%d] is not map", strings.Join(path, "."), i)
 	} else {
 		return item, nil

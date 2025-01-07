@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util"
 )
 
 func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
@@ -39,10 +38,6 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
 	return secrets, nil
 }
 
@@ -123,17 +118,17 @@ func (db *db) watchSecrets(ctx context.Context,
 		options.LabelSelector = labelSelector.String()
 	}
 	secretEventHandler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
+		AddFunc: func(obj interface{}) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				handleAddEvent(secretObj)
 			}
 		},
-		DeleteFunc: func(obj any) {
+		DeleteFunc: func(obj interface{}) {
 			if secretObj, ok := obj.(*apiv1.Secret); ok {
 				handleDeleteEvent(secretObj)
 			}
 		},
-		UpdateFunc: func(oldObj, newObj any) {
+		UpdateFunc: func(oldObj, newObj interface{}) {
 			if oldSecretObj, ok := oldObj.(*apiv1.Secret); ok {
 				if newSecretObj, ok := newObj.(*apiv1.Secret); ok {
 					handleModEvent(oldSecretObj, newSecretObj)

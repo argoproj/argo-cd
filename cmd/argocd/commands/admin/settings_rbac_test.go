@@ -147,7 +147,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, err)
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",
@@ -280,7 +280,7 @@ p, role:user, logs, get, .*/.*, allow
 p, role:user, exec, create, .*/.*, allow
 `
 
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",

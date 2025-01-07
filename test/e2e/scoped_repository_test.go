@@ -23,7 +23,7 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Then()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.Given(t, true).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -48,7 +48,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Login()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.Given(t, true).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -56,7 +56,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -75,7 +75,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.Given(t, true).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -83,7 +83,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -112,7 +112,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.Given(t, true).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -155,7 +155,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.Given(t, true).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -170,13 +170,13 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, delete")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, delete")
 		})
 }
 
 func TestDeleteRepository(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t).
+	repoFixture.Given(t, false).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -195,7 +195,7 @@ func TestDeleteRepository(t *testing.T) {
 
 func TestListRepoCLIOutput(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t).
+	repoFixture.Given(t, false).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -215,7 +215,7 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 
 func TestGetRepoCLIOutput(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t).
+	repoFixture.Given(t, false).
 		When().
 		Path(path).
 		Project("argo-project").

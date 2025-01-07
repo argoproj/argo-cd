@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -77,7 +77,7 @@ func CreateServiceAccount(
 	return nil
 }
 
-func upsert(kind string, name string, create func() (any, error), update func() (any, error)) error {
+func upsert(kind string, name string, create func() (interface{}, error), update func() (interface{}, error)) error {
 	_, err := create()
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
@@ -105,9 +105,9 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 		},
 		Rules: rules,
 	}
-	return upsert("ClusterRole", name, func() (any, error) {
+	return upsert("ClusterRole", name, func() (interface{}, error) {
 		return clientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
-	}, func() (any, error) {
+	}, func() (interface{}, error) {
 		return clientset.RbacV1().ClusterRoles().Update(context.Background(), &clusterRole, metav1.UpdateOptions{})
 	})
 }
@@ -123,9 +123,9 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 		},
 		Rules: rules,
 	}
-	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
+	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
 		return clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-	}, func() (any, error) {
+	}, func() (interface{}, error) {
 		return clientset.RbacV1().Roles(namespace).Update(context.Background(), &role, metav1.UpdateOptions{})
 	})
 }
@@ -146,9 +146,9 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 		},
 		Subjects: []rbacv1.Subject{subject},
 	}
-	return upsert("ClusterRoleBinding", name, func() (any, error) {
+	return upsert("ClusterRoleBinding", name, func() (interface{}, error) {
 		return clientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	}, func() (any, error) {
+	}, func() (interface{}, error) {
 		return clientset.RbacV1().ClusterRoleBindings().Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
 	})
 }
@@ -169,9 +169,9 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 		},
 		Subjects: []rbacv1.Subject{subject},
 	}
-	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
+	return upsert("RoleBinding", fmt.Sprintf("%s/%s", namespace, name), func() (interface{}, error) {
 		return clientset.RbacV1().RoleBindings(namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	}, func() (any, error) {
+	}, func() (interface{}, error) {
 		return clientset.RbacV1().RoleBindings(namespace).Update(context.Background(), &roleBinding, metav1.UpdateOptions{})
 	})
 }
@@ -368,11 +368,17 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 }
 
 type ServiceAccountClaims struct {
+	Sub                string `json:"sub"`
+	Iss                string `json:"iss"`
 	Namespace          string `json:"kubernetes.io/serviceaccount/namespace"`
 	SecretName         string `json:"kubernetes.io/serviceaccount/secret.name"`
 	ServiceAccountName string `json:"kubernetes.io/serviceaccount/service-account.name"`
 	ServiceAccountUID  string `json:"kubernetes.io/serviceaccount/service-account.uid"`
-	jwt.RegisteredClaims
+}
+
+// Valid satisfies the jwt.Claims interface to enable JWT parsing
+func (sac *ServiceAccountClaims) Valid() error {
+	return nil
 }
 
 // ParseServiceAccountToken parses a Kubernetes service account token

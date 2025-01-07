@@ -49,7 +49,7 @@ func newCommand() *cobra.Command {
 				cmNameToPath[parts[0]] = parts[1]
 			}
 
-			handledConfigMap := func(obj any) {
+			handledConfigMap := func(obj interface{}) {
 				cm, ok := obj.(*v1.ConfigMap)
 				if !ok {
 					return
@@ -99,7 +99,7 @@ func newCommand() *cobra.Command {
 			informer := factory.Core().V1().ConfigMaps().Informer()
 			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
-				UpdateFunc: func(oldObj, newObj any) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					handledConfigMap(newObj)
 				},
 			})

@@ -17,11 +17,11 @@ import (
 )
 
 //go:generate go run github.com/argoproj/argo-cd/v2/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go --docs diffing_known_types.txt
-var knownTypes = map[string]func() any{}
+var knownTypes = map[string]func() interface{}{}
 
 type knownTypeField struct {
 	fieldPath  []string
-	newFieldFn func() any
+	newFieldFn func() interface{}
 }
 
 type knownTypesNormalizer struct {
@@ -30,10 +30,10 @@ type knownTypesNormalizer struct {
 
 // Register some non-code-generated types here. The bulk of them are in corev1_known_types.go
 func init() {
-	knownTypes["core/Quantity"] = func() any {
+	knownTypes["core/Quantity"] = func() interface{} {
 		return &resource.Quantity{}
 	}
-	knownTypes["meta/v1/Duration"] = func() any {
+	knownTypes["meta/v1/Duration"] = func() interface{} {
 		return &metav1.Duration{}
 	}
 }
@@ -62,7 +62,7 @@ func (n *knownTypesNormalizer) ensureDefaultCRDsConfigured() {
 	if _, ok := n.typeFields[rolloutGK]; !ok {
 		n.typeFields[rolloutGK] = []knownTypeField{{
 			fieldPath: []string{"spec", "template", "spec"},
-			newFieldFn: func() any {
+			newFieldFn: func() interface{} {
 				return &v1.PodSpec{}
 			},
 		}}
@@ -81,15 +81,15 @@ func (n *knownTypesNormalizer) addKnownField(gk schema.GroupKind, fieldPath stri
 	return nil
 }
 
-func normalize(obj map[string]any, field knownTypeField, fieldPath []string) error {
+func normalize(obj map[string]interface{}, field knownTypeField, fieldPath []string) error {
 	for i := range fieldPath {
 		if nestedField, ok, err := unstructured.NestedFieldNoCopy(obj, fieldPath[:i+1]...); err == nil && ok {
-			items, ok := nestedField.([]any)
+			items, ok := nestedField.([]interface{})
 			if !ok {
 				continue
 			}
 			for j := range items {
-				item, ok := items[j].(map[string]any)
+				item, ok := items[j].(map[string]interface{})
 				if !ok {
 					continue
 				}
@@ -125,7 +125,7 @@ func normalize(obj map[string]any, field knownTypeField, fieldPath []string) err
 	return nil
 }
 
-func remarshal(fieldVal any, field knownTypeField) (any, error) {
+func remarshal(fieldVal interface{}, field knownTypeField) (interface{}, error) {
 	data, err := json.Marshal(fieldVal)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func remarshal(fieldVal any, field knownTypeField) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	var newFieldVal any
+	var newFieldVal interface{}
 	err = json.Unmarshal(data, &newFieldVal)
 	if err != nil {
 		return nil, err

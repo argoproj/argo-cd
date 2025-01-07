@@ -14,7 +14,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -79,7 +79,7 @@ func TestIDTokenClaims(t *testing.T) {
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
 	require.NoError(t, err)
 
-	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}
@@ -608,7 +608,7 @@ func TestGetUserInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
 		userInfoPath          string
-		expectedOutput        any
+		expectedOutput        interface{}
 		expectError           bool
 		expectUnauthenticated bool
 		expectedCacheItems    []struct { // items to check in cache after function call
@@ -772,7 +772,7 @@ func TestGetUserInfo(t *testing.T) {
 		{
 			name:                  "call UserInfo with valid accessToken in cache",
 			userInfoPath:          "/user-info",
-			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:engineers"}},
+			expectedOutput:        jwt.MapClaims{"groups": []interface{}{"githubOrg:engineers"}},
 			expectError:           false,
 			expectUnauthenticated: false,
 			expectedCacheItems: []struct {

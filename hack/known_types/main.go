@@ -42,7 +42,7 @@ func newCommand() *cobra.Command {
 			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
-				return fmt.Errorf("error while importing the package at: %s : %w", packagePath, err)
+				return err
 			}
 
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
@@ -65,7 +65,7 @@ func newCommand() *cobra.Command {
 
 				docs = append(docs, fmt.Sprintf("%s/%s", shortPackagePath, typeName.Name()))
 				mapItems = append(mapItems, fmt.Sprintf(`
-	knownTypes["%s/%s"] = func() any {
+	knownTypes["%s/%s"] = func() interface{} {
 		return &%s.%s{}
 	}`, shortPackagePath, typeName.Name(), alias, typeName.Name()))
 			}
@@ -78,7 +78,7 @@ func init() {%s
 }`, strings.Join(mapItems, ""))
 			if docsOutputPath != "" {
 				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0o644); err != nil {
-					return fmt.Errorf("error while writing to the %s: %w", docsOutputPath, err)
+					return err
 				}
 			}
 

@@ -21,13 +21,13 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 		if err != nil {
 			return fmt.Errorf("failed converting yaml to json: %w", err)
 		}
-		var v any
+		var v interface{}
 		if err := json.Unmarshal(data, &v); err != nil {
 			return fmt.Errorf("failed to unmarshal json: %w", err)
 		}
 		switch v.(type) {
 		case string:
-		case map[string]any:
+		case map[string]interface{}:
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}

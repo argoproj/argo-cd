@@ -31,8 +31,6 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -115,7 +113,6 @@ type RepoServerInitConstants struct {
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
-	CMPUseManifestGeneratePaths                  bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -497,7 +494,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 				return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 			}
 			if refSourceMapping.Chart != "" {
-				return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+				return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 			}
 			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 			_, ok = repoRefs[normalizedRepoURL]
@@ -541,7 +538,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]any{
+			log.WithFields(map[string]interface{}{
 				"source": q.ApplicationSource,
 			}).Debugf("not generating manifests as path and chart fields are empty")
 			res = &apiclient.ManifestResponse{
@@ -743,7 +740,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						if refSourceMapping.Chart != "" {
-							ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+							ch.errCh <- fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 							return
 						}
 						normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
@@ -808,7 +805,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1138,9 +1135,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
-		if appHelm.Namespace != "" {
-			templateOpts.Namespace = appHelm.Namespace
-		}
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
@@ -1194,8 +1188,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 		passCredentials = appHelm.PassCredentials
 		templateOpts.SkipCrds = appHelm.SkipCrds
-		templateOpts.SkipSchemaValidation = appHelm.SkipSchemaValidation
-		templateOpts.SkipTests = appHelm.SkipTests
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName
@@ -1384,9 +1376,8 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 type (
 	GenerateManifestOpt func(*generateManifestOpt)
 	generateManifestOpt struct {
-		cmpTarDoneCh                chan<- bool
-		cmpTarExcludedGlobs         []string
-		cmpUseManifestGeneratePaths bool
+		cmpTarDoneCh        chan<- bool
+		cmpTarExcludedGlobs []string
 	}
 )
 
@@ -1412,14 +1403,6 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpTarExcludedGlobs = excludedGlobs
-	}
-}
-
-// WithCMPUseManifestGeneratePaths enables or disables the use of the
-// 'argocd.argoproj.io/manifest-generate-paths' annotation for manifest generation instead of transmit the whole repository.
-func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
-	return func(o *generateManifestOpt) {
-		o.cmpUseManifestGeneratePaths = enabled
 	}
 }
 
@@ -1464,7 +1447,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1494,7 +1477,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 					targets = append(targets, unstructuredObj)
 					return nil
 				}
-				return errors.New("resource list item has unexpected type")
+				return fmt.Errorf("resource list item has unexpected type")
 			})
 			if err != nil {
 				return nil, err
@@ -1528,25 +1511,19 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 }
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
-	shortRevision := shortenRevision(revision, 7)
-	shortRevision8 := shortenRevision(revision, 8)
+	shortRevision := revision
+	if len(shortRevision) > 7 {
+		shortRevision = shortRevision[:7]
+	}
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
-}
-
-func shortenRevision(revision string, length int) string {
-	if len(revision) > length {
-		return revision[:length]
-	}
-	return revision
 }
 
 func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v1alpha1.Env {
@@ -1960,7 +1937,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, errors.New("failed to parse env vars")
+			return nil, fmt.Errorf("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
@@ -1981,7 +1958,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1995,31 +1972,8 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 	defer io.Close(conn)
 
-	rootPath := repoPath
-	if useManifestGeneratePaths {
-		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
-		rootPath = getApplicationRootPath(q, appPath, repoPath)
-		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
-	}
-
-	pluginConfigResponse, err := cmpClient.CheckPluginConfiguration(ctx, &emptypb.Empty{})
-	if err != nil {
-		return nil, fmt.Errorf("error calling cmp-server checkPluginConfiguration: %w", err)
-	}
-
-	if pluginConfigResponse.ProvideGitCreds {
-		if creds != nil {
-			closer, environ, err := creds.Environ()
-			if err != nil {
-				return nil, fmt.Errorf("failed to retrieve git creds environment variables: %w", err)
-			}
-			defer func() { _ = closer.Close() }()
-			env = append(env, environ...)
-		}
-	}
-
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
@@ -2042,7 +1996,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
@@ -2051,7 +2005,7 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
@@ -2246,10 +2200,10 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
-		"ARGOCD_APP_NAME=" + q.AppName,
-		"ARGOCD_APP_SOURCE_REPO_URL=" + q.Repo.Repo,
-		"ARGOCD_APP_SOURCE_PATH=" + q.Source.Path,
-		"ARGOCD_APP_SOURCE_TARGET_REVISION=" + q.Source.TargetRevision,
+		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_PATH=%s", q.Source.Path),
+		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
 	}
 
 	env, err := getPluginParamEnvs(envVars, q.Source.Plugin)
@@ -2351,7 +2305,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		if cs != "" {
 			vr := gpg.ParseGitCommitVerification(cs)
 			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = "UNKNOWN signature: " + vr.Message
+				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
 			} else {
 				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}
@@ -2519,7 +2473,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	revisionPresent := gitClient.IsRevisionPresent(revision)
 
-	log.WithFields(map[string]any{
+	log.WithFields(map[string]interface{}{
 		"skipFetch": revisionPresent,
 	}).Debugf("Checking out revision %v", revision)
 
@@ -2532,7 +2486,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	_, err = gitClient.Checkout(revision, submoduleEnabled)
+	err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2544,7 +2498,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}

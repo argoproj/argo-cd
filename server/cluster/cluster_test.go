@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/assets"
@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
@@ -38,74 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-const (
-	rootCACert = `-----BEGIN CERTIFICATE-----
-MIIC4DCCAcqgAwIBAgIBATALBgkqhkiG9w0BAQswIzEhMB8GA1UEAwwYMTAuMTMu
-MTI5LjEwNkAxNDIxMzU5MDU4MB4XDTE1MDExNTIxNTczN1oXDTE2MDExNTIxNTcz
-OFowIzEhMB8GA1UEAwwYMTAuMTMuMTI5LjEwNkAxNDIxMzU5MDU4MIIBIjANBgkq
-hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAunDRXGwsiYWGFDlWH6kjGun+PshDGeZX
-xtx9lUnL8pIRWH3wX6f13PO9sktaOWW0T0mlo6k2bMlSLlSZgG9H6og0W6gLS3vq
-s4VavZ6DbXIwemZG2vbRwsvR+t4G6Nbwelm6F8RFnA1Fwt428pavmNQ/wgYzo+T1
-1eS+HiN4ACnSoDSx3QRWcgBkB1g6VReofVjx63i0J+w8Q/41L9GUuLqquFxu6ZnH
-60vTB55lHgFiDLjA1FkEz2dGvGh/wtnFlRvjaPC54JH2K1mPYAUXTreoeJtLJKX0
-ycoiyB24+zGCniUmgIsmQWRPaOPircexCp1BOeze82BT1LCZNTVaxQIDAQABoyMw
-ITAOBgNVHQ8BAf8EBAMCAKQwDwYDVR0TAQH/BAUwAwEB/zALBgkqhkiG9w0BAQsD
-ggEBADMxsUuAFlsYDpF4fRCzXXwrhbtj4oQwcHpbu+rnOPHCZupiafzZpDu+rw4x
-YGPnCb594bRTQn4pAu3Ac18NbLD5pV3uioAkv8oPkgr8aUhXqiv7KdDiaWm6sbAL
-EHiXVBBAFvQws10HMqMoKtO8f1XDNAUkWduakR/U6yMgvOPwS7xl0eUTqyRB6zGb
-K55q2dejiFWaFqB/y78txzvz6UlOZKE44g2JAVoJVM6kGaxh33q8/FmrL4kuN3ut
-W+MmJCVDvd4eEqPwbp7146ZWTqpIJ8lvA6wuChtqV8lhAPka2hD/LMqY8iXNmfXD
-uml0obOEy+ON91k+SWTJ3ggmF/U=
------END CERTIFICATE-----`
-
-	certData = `-----BEGIN CERTIFICATE-----
-MIIC6jCCAdSgAwIBAgIBCzALBgkqhkiG9w0BAQswIzEhMB8GA1UEAwwYMTAuMTMu
-MTI5LjEwNkAxNDIxMzU5MDU4MB4XDTE1MDExNTIyMDEzMVoXDTE2MDExNTIyMDEz
-MlowGzEZMBcGA1UEAxMQb3BlbnNoaWZ0LWNsaWVudDCCASIwDQYJKoZIhvcNAQEB
-BQADggEPADCCAQoCggEBAKtdhz0+uCLXw5cSYns9rU/XifFSpb/x24WDdrm72S/v
-b9BPYsAStiP148buylr1SOuNi8sTAZmlVDDIpIVwMLff+o2rKYDicn9fjbrTxTOj
-lI4pHJBH+JU3AJ0tbajupioh70jwFS0oYpwtneg2zcnE2Z4l6mhrj2okrc5Q1/X2
-I2HChtIU4JYTisObtin10QKJX01CLfYXJLa8upWzKZ4/GOcHG+eAV3jXWoXidtjb
-1Usw70amoTZ6mIVCkiu1QwCoa8+ycojGfZhvqMsAp1536ZcCul+Na+AbCv4zKS7F
-kQQaImVrXdUiFansIoofGlw/JNuoKK6ssVpS5Ic3pgcCAwEAAaM1MDMwDgYDVR0P
-AQH/BAQDAgCgMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwCwYJ
-KoZIhvcNAQELA4IBAQCKLREH7bXtXtZ+8vI6cjD7W3QikiArGqbl36bAhhWsJLp/
-p/ndKz39iFNaiZ3GlwIURWOOKx3y3GA0x9m8FR+Llthf0EQ8sUjnwaknWs0Y6DQ3
-jjPFZOpV3KPCFrdMJ3++E3MgwFC/Ih/N2ebFX9EcV9Vcc6oVWMdwT0fsrhu683rq
-6GSR/3iVX1G/pmOiuaR0fNUaCyCfYrnI4zHBDgSfnlm3vIvN2lrsR/DQBakNL8DJ
-HBgKxMGeUPoneBv+c8DMXIL0EhaFXRlBv9QW45/GiAIOuyFJ0i6hCtGZpJjq4OpQ
-BRjCI+izPzFTjsxD4aORE+WOkyWFCGPWKfNejfw0
------END CERTIFICATE-----`
-
-	keyData = `-----BEGIN RSA PRIVATE KEY-----
-MIIEowIBAAKCAQEAq12HPT64ItfDlxJiez2tT9eJ8VKlv/HbhYN2ubvZL+9v0E9i
-wBK2I/Xjxu7KWvVI642LyxMBmaVUMMikhXAwt9/6jaspgOJyf1+NutPFM6OUjikc
-kEf4lTcAnS1tqO6mKiHvSPAVLShinC2d6DbNycTZniXqaGuPaiStzlDX9fYjYcKG
-0hTglhOKw5u2KfXRAolfTUIt9hcktry6lbMpnj8Y5wcb54BXeNdaheJ22NvVSzDv
-RqahNnqYhUKSK7VDAKhrz7JyiMZ9mG+oywCnXnfplwK6X41r4BsK/jMpLsWRBBoi
-ZWtd1SIVqewiih8aXD8k26gorqyxWlLkhzemBwIDAQABAoIBAD2XYRs3JrGHQUpU
-FkdbVKZkvrSY0vAZOqBTLuH0zUv4UATb8487anGkWBjRDLQCgxH+jucPTrztekQK
-aW94clo0S3aNtV4YhbSYIHWs1a0It0UdK6ID7CmdWkAj6s0T8W8lQT7C46mWYVLm
-5mFnCTHi6aB42jZrqmEpC7sivWwuU0xqj3Ml8kkxQCGmyc9JjmCB4OrFFC8NNt6M
-ObvQkUI6Z3nO4phTbpxkE1/9dT0MmPIF7GhHVzJMS+EyyRYUDllZ0wvVSOM3qZT0
-JMUaBerkNwm9foKJ1+dv2nMKZZbJajv7suUDCfU44mVeaEO+4kmTKSGCGjjTBGkr
-7L1ySDECgYEA5ElIMhpdBzIivCuBIH8LlUeuzd93pqssO1G2Xg0jHtfM4tz7fyeI
-cr90dc8gpli24dkSxzLeg3Tn3wIj/Bu64m2TpZPZEIlukYvgdgArmRIPQVxerYey
-OkrfTNkxU1HXsYjLCdGcGXs5lmb+K/kuTcFxaMOs7jZi7La+jEONwf8CgYEAwCs/
-rUOOA0klDsWWisbivOiNPII79c9McZCNBqncCBfMUoiGe8uWDEO4TFHN60vFuVk9
-8PkwpCfvaBUX+ajvbafIfHxsnfk1M04WLGCeqQ/ym5Q4sQoQOcC1b1y9qc/xEWfg
-nIUuia0ukYRpl7qQa3tNg+BNFyjypW8zukUAC/kCgYB1/Kojuxx5q5/oQVPrx73k
-2bevD+B3c+DYh9MJqSCNwFtUpYIWpggPxoQan4LwdsmO0PKzocb/ilyNFj4i/vII
-NToqSc/WjDFpaDIKyuu9oWfhECye45NqLWhb/6VOuu4QA/Nsj7luMhIBehnEAHW+
-GkzTKM8oD1PxpEG3nPKXYQKBgQC6AuMPRt3XBl1NkCrpSBy/uObFlFaP2Enpf39S
-3OZ0Gv0XQrnSaL1kP8TMcz68rMrGX8DaWYsgytstR4W+jyy7WvZwsUu+GjTJ5aMG
-77uEcEBpIi9CBzivfn7hPccE8ZgqPf+n4i6q66yxBJflW5xhvafJqDtW2LcPNbW/
-bvzdmQKBgExALRUXpq+5dbmkdXBHtvXdRDZ6rVmrnjy4nI5bPw+1GqQqk6uAR6B/
-F6NmLCQOO4PDG/cuatNHIr2FrwTmGdEL6ObLUGWn9Oer9gJhHVqqsY5I4sEPo4XX
-stR0Yiw0buV6DL/moUO0HIM9Bjh96HJp+LxiIS6UCdIhMPp5HoQa
------END RSA PRIVATE KEY-----`
-)
-
 func newServerInMemoryCache() *servercache.Cache {
 	return servercache.NewCache(
 		appstatecache.NewCache(
@@ -119,16 +52,16 @@ func newServerInMemoryCache() *servercache.Cache {
 }
 
 func newNoopEnforcer() *rbac.Enforcer {
-	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
 }
 
 func newEnforcer() *rbac.Enforcer {
-	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
 		return true
 	})
 	return enforcer
@@ -183,7 +116,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	db.On("ListClusters", mock.Anything).Return(
 		func(ctx context.Context) *v1alpha1.ClusterList {
 			return &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    clusters,
 			}
 		},
@@ -228,7 +161,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 
-	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
@@ -254,7 +187,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: metav1.ListMeta{},
+		ListMeta: v1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -284,7 +217,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: metav1.ListMeta{},
+		ListMeta: v1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -305,42 +238,6 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 	assert.Equal(t, "test%2fing", cluster.Name)
 }
 
-func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
-	testNamespace := "default"
-	cluster := &v1alpha1.Cluster{
-		Name:       "my-cluster-name",
-		Server:     "https://my-cluster-server",
-		Namespaces: []string{testNamespace},
-		Config: v1alpha1.ClusterConfig{
-			TLSClientConfig: v1alpha1.TLSClientConfig{
-				Insecure: true,
-				CAData:   []byte(rootCACert),
-				CertData: []byte(certData),
-				KeyData:  []byte(keyData),
-			},
-		},
-	}
-	clientset := getClientset(nil, testNamespace)
-	db := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
-
-	t.Run("Create Fails When CAData is Set and Insecure is True", func(t *testing.T) {
-		_, err := server.Create(context.Background(), &clusterapi.ClusterCreateRequest{
-			Cluster: cluster,
-		})
-
-		assert.EqualError(t, err, `error getting REST config: Unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
-	})
-
-	cluster.Config.TLSClientConfig.CAData = nil
-	t.Run("Create Succeeds When CAData is nil and Insecure is True", func(t *testing.T) {
-		_, err := server.Create(context.Background(), &clusterapi.ClusterCreateRequest{
-			Cluster: cluster,
-		})
-		require.NoError(t, err)
-	})
-}
-
 func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	var updated *v1alpha1.Cluster
@@ -354,7 +251,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	}
 
 	clusterList := v1alpha1.ClusterList{
-		ListMeta: metav1.ListMeta{},
+		ListMeta: v1.ListMeta{},
 		Items:    clusters,
 	}
 
@@ -484,7 +381,7 @@ func TestDeleteClusterByName(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
+		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
@@ -506,7 +403,9 @@ func TestRotateAuth(t *testing.T) {
 	}
 
 	configMarshal, err := json.Marshal(config)
-	require.NoError(t, err, "failed to marshal config for test")
+	if err != nil {
+		t.Errorf("failed to marshal config for test: %v", err)
+	}
 
 	clientset := getClientset(nil, testNamespace,
 		&corev1.Secret{
@@ -561,7 +460,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
+		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	// While the tests results for the next two tests result in an error, they do
@@ -572,7 +471,8 @@ func TestRotateAuth(t *testing.T) {
 			Name: "my-cluster-name",
 		})
 
-		assert.ErrorContains(t, err, "Get \"https://my-cluster-name/")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 
 	t.Run("RotateAuth by Server - Error from no such host", func(t *testing.T) {
@@ -580,7 +480,8 @@ func TestRotateAuth(t *testing.T) {
 			Server: "https://my-cluster-name",
 		})
 
-		assert.ErrorContains(t, err, "Get \"https://my-cluster-name/")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
 	})
 }
 
@@ -605,7 +506,7 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		},
 		Data: config,
 	}
-	return fake.NewClientset(append(objects, &cm, &secret)...)
+	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
 }
 
 func TestListCluster(t *testing.T) {
@@ -628,7 +529,7 @@ func TestListCluster(t *testing.T) {
 	}
 
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: metav1.ListMeta{},
+		ListMeta: v1.ListMeta{},
 		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
 	}
 
@@ -648,7 +549,7 @@ func TestListCluster(t *testing.T) {
 				Name: fooCluster.Name,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -658,7 +559,7 @@ func TestListCluster(t *testing.T) {
 				Server: barCluster.Server,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -671,7 +572,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -684,7 +585,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    []v1alpha1.Cluster{bazCluster},
 			},
 		},
@@ -697,7 +598,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: metav1.ListMeta{},
+				ListMeta: v1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -713,7 +614,9 @@ func TestListCluster(t *testing.T) {
 				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Server.List() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -728,7 +631,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: metav1.ListMeta{},
+			ListMeta: v1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -754,7 +657,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: metav1.ListMeta{},
+			ListMeta: v1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -781,7 +684,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: metav1.ListMeta{},
+		ListMeta: v1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -796,12 +699,14 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "cluster-not-exists",
 		})
-		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "test/ing",
 		})
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("Update", func(t *testing.T) {
@@ -810,49 +715,57 @@ func TestNoClusterEnumeration(t *testing.T) {
 				Name: "cluster-not-exists",
 			},
 		})
-		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 			Cluster: &v1alpha1.Cluster{
 				Name: "test/ing",
 			},
 		})
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("Delete", func(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("RotateAuth", func(t *testing.T) {
 		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("InvalidateCache", func(t *testing.T) {
 		_, err := server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.Error(t, err)
+		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 }

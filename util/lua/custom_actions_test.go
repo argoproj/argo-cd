@@ -28,7 +28,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	}
 	switch un.GetKind() {
 	case "Job":
-		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
+		err := unstructured.SetNestedField(un.Object, map[string]interface{}{"name": "not sure why this works"}, "metadata")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Job: %w", err)
 		}
@@ -110,14 +110,15 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
+		// TODO: Change to path
+		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
 		require.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
 		require.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
-			testName := "discovery/" + test.InputPath
+			testName := fmt.Sprintf("discovery/%s", test.InputPath)
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
@@ -208,20 +209,19 @@ func TestLuaResourceActionsScript(t *testing.T) {
 // Handling backward compatibility.
 // The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
-	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	unstructuredList := &unstructured.UnstructuredList{}
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
 		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
-		objList := make([]map[string]any, 5)
+		objList := make([]map[string]interface{}, 5)
 		err = yaml.Unmarshal(yamlBytes, &objList)
 		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
-			unstructuredObj, ok := obj["unstructuredObj"].(map[string]any)
+			unstructuredObj, ok := obj["unstructuredObj"].(map[string]interface{})
 			if !ok {
 				t.Error("Wrong type of unstructuredObj")
 			}
@@ -229,7 +229,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 		}
 	} else {
 		// The string represents an old-style action object output, which is a k8s unstructured resource
-		obj := make(map[string]any)
+		obj := make(map[string]interface{})
 		err = yaml.Unmarshal(yamlBytes, &obj)
 		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)

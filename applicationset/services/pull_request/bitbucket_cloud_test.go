@@ -15,7 +15,6 @@ import (
 )
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -242,7 +241,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 
 func TestListResponseErrorCloud(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(500)
 	}))
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")

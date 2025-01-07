@@ -29,7 +29,6 @@ const (
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
-	tb.Helper()
 	res := tb.TempDir()
 	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {
@@ -489,14 +488,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]any),
+		ports[0].(map[string]interface{}),
 		"containerPort",
 	)
 
@@ -505,7 +504,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"name",
 	)
 	assert.True(t, found)

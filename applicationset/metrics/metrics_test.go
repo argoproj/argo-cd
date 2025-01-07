@@ -178,7 +178,7 @@ func TestApplicationsetCollector(t *testing.T) {
 	appsetCollector := newAppsetCollector(utils.NewAppsetLister(client), collectedLabels, filter)
 
 	metrics.Registry.MustRegister(appsetCollector)
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
@@ -220,7 +220,7 @@ func TestObserveReconcile(t *testing.T) {
 
 	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})

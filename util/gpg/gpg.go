@@ -3,7 +3,6 @@ package gpg
 import (
 	"bufio"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -151,7 +150,7 @@ const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	return append(os.Environ(), "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
+	return append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
 }
 
 // Helper function to write some data to a temp file and return its path
@@ -522,12 +521,12 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be the key ID, no prefix
 			if !scanner.Scan() {
-				return nil, errors.New("Invalid output from gpg, end of text after primary key")
+				return nil, fmt.Errorf("Invalid output from gpg, end of text after primary key")
 			}
 
 			token = keyIdMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, errors.New("Invalid output from gpg, no key ID for primary key")
+				return nil, fmt.Errorf("Invalid output from gpg, no key ID for primary key")
 			}
 
 			key.Fingerprint = token[1]
@@ -540,11 +539,11 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be UID
 			if !scanner.Scan() {
-				return nil, errors.New("Invalid output from gpg, end of text after key ID")
+				return nil, fmt.Errorf("Invalid output from gpg, end of text after key ID")
 			}
 
 			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, errors.New("Invalid output from gpg, no identity for primary key")
+				return nil, fmt.Errorf("Invalid output from gpg, no identity for primary key")
 			}
 
 			token = uidMatch.FindStringSubmatch(scanner.Text())
@@ -618,7 +617,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 			result.Cipher = keyID[1]
 			result.KeyID = KeyID(keyID[2])
 			if result.KeyID == "" {
-				return unknownResult("Invalid PGP key ID found in verification result: " + result.KeyID)
+				return unknownResult(fmt.Sprintf("Invalid PGP key ID found in verification result: %s", result.KeyID))
 			}
 
 			// What was the result of signature verification?
@@ -691,7 +690,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 // in the keyring will be installed to the keyring, files that exist in the keyring but do not exist in
 // the directory will be deleted.
 func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
-	configured := make(map[string]any)
+	configured := make(map[string]interface{})
 	newKeys := make([]string, 0)
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)

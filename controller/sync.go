@@ -2,7 +2,7 @@ package controller
 
 import (
 	"context"
-	stderrors "errors"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
@@ -80,12 +80,7 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-
-	rawConfig, err := cluster.RawRestConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
-	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -117,7 +112,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: " + sharedResourceMessage
+		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
 		return
 	}
 
@@ -200,7 +195,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
 	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
-	if err != nil && !stderrors.Is(err, CompareStateRepoError) {
+	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
@@ -228,20 +223,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-
-	clusterRESTConfig, err := clst.RESTConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
+	rawConfig := clst.RawRestConfig()
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -275,14 +258,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		})
 	}
 
-	prunePropagationPolicy := metav1.DeletePropagationForeground
+	prunePropagationPolicy := v1.DeletePropagationForeground
 	switch {
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=background"):
-		prunePropagationPolicy = metav1.DeletePropagationBackground
+		prunePropagationPolicy = v1.DeletePropagationBackground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=foreground"):
-		prunePropagationPolicy = metav1.DeletePropagationForeground
+		prunePropagationPolicy = v1.DeletePropagationForeground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
-		prunePropagationPolicy = metav1.DeletePropagationOrphan
+		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
 	openAPISchema, err := m.getOpenAPISchema(clst.Server)
@@ -344,7 +327,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
-		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
+		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
@@ -378,7 +361,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
-		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
@@ -529,7 +511,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 
 // applyMergePatch will apply the given patch in the obj and return the patched
 // unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject interface{}) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -625,7 +607,7 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
-				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
+				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
 			} else {
 				// service account needs to be prefixed with a namespace
 				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil

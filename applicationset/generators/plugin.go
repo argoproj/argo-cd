@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -56,7 +55,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -113,11 +112,11 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 	return pluginClient, nil
 }
 
-func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]any, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]any, error) {
-	res := []map[string]any{}
+func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]interface{}, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]interface{}, error) {
+	res := []map[string]interface{}{}
 
 	for _, objectFound := range objectsFound {
-		params := map[string]any{}
+		params := map[string]interface{}{}
 
 		if useGoTemplate {
 			for k, v := range objectFound {
@@ -133,7 +132,7 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 			}
 		}
 
-		params["generator"] = map[string]any{
+		params["generator"] = map[string]interface{}{
 			"input": map[string]argoprojiov1alpha1.PluginParameters{
 				"parameters": pluginParams,
 			},
@@ -195,12 +194,12 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 
 	baseUrl, ok := cm.Data["baseUrl"]
 	if !ok || baseUrl == "" {
-		return nil, errors.New("baseUrl not found in ConfigMap")
+		return nil, fmt.Errorf("baseUrl not found in ConfigMap")
 	}
 
 	token, ok := cm.Data["token"]
 	if !ok || token == "" {
-		return nil, errors.New("token not found in ConfigMap")
+		return nil, fmt.Errorf("token not found in ConfigMap")
 	}
 
 	return cm.Data, nil

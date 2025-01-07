@@ -290,7 +290,7 @@ exports[`ResourceResultIcon.Hook.Terminating 1`] = `
 
 exports[`ResourceResultIcon.Pruned 1`] = `
 <i
-  className="fa fa-trash"
+  className="fa fa-heart"
   style={
     {
       "color": "#CCD6DD",

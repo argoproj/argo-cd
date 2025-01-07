@@ -41,7 +41,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	}{
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
-		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
 	emptyArgoCDConfigMap := &v1.ConfigMap{
@@ -67,7 +67,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := fake.NewSimpleClientset(emptyArgoCDConfigMap, argoCDSecret)
 	appclientset := appsfake.NewSimpleClientset()
 	appInformer := appinformers.NewApplicationInformer(appclientset, "", time.Minute, cache.Indexers{})
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)

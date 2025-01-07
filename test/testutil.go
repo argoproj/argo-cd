@@ -78,7 +78,7 @@ func MustLoadFileToString(path string) string {
 }
 
 func YamlToUnstructured(yamlStr string) *unstructured.Unstructured {
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)
 	if err != nil {
 		panic(err)
@@ -95,13 +95,13 @@ func YamlToApplication(yamlStr string) *v1alpha1.Application {
 	return &app
 }
 
-// ToMap converts any object to a map[string]any
-func ToMap(obj any) map[string]any {
+// ToMap converts any object to a map[string]interface{}
+func ToMap(obj interface{}) map[string]interface{} {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
-	var res map[string]any
+	var res map[string]interface{}
 	err = json.Unmarshal(data, &res)
 	if err != nil {
 		panic(err)
