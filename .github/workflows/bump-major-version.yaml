@@ -68,6 +68,10 @@ jobs:
           make codegen-local
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
+      - name: Copy changes back
+        run: |
+          cp -a /home/runner/go/src/github.com/argoproj/argo-cd/. ../argo-cd
+
       - name: Create pull request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
         with:
@@ -81,5 +85,3 @@ jobs:
             - [ ] Add an upgrade guide to the docs for this version
           branch: bump-major-version
           branch-suffix: random
-          signoff: true
-        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
