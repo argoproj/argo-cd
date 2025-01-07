@@ -696,7 +696,7 @@ func NewAzureWorkloadIdentityCreds(store CredsStore, tokenProvider workloadident
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (creds AzureWorkloadIdentityCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (creds AzureWorkloadIdentityCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
 	return workloadidentity.EmptyGuid, "", nil
 }

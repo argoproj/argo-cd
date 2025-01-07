@@ -16,7 +16,7 @@ type MockTokenCredential struct {
 	mockedError error
 }
 
-func (c MockTokenCredential) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
+func (c MockTokenCredential) GetToken(_ context.Context, _ policy.TokenRequestOptions) (azcore.AccessToken, error) {
 	return azcore.AccessToken{Token: c.mockedToken}, c.mockedError
 }
 
