@@ -119,9 +119,8 @@ func ResolveValueFilePathOrUrl(appPath, repoRoot, valueFile string, allowedURLSc
 		if url.Scheme != "" {
 			if isURLSchemeAllowed(url.Scheme, allowedURLSchemes) {
 				return ResolvedFilePath(valueFile), true, nil
-			} else {
-				return "", false, fmt.Errorf("the URL scheme '%s' is not allowed", url.Scheme)
 			}
+			return "", false, fmt.Errorf("the URL scheme '%s' is not allowed", url.Scheme)
 		}
 	}
 

@@ -621,10 +621,9 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
-			} else {
-				// service account needs to be prefixed with a namespace
-				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 			}
+			// service account needs to be prefixed with a namespace
+			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 		}
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.

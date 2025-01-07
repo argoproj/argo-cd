@@ -169,9 +169,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
-					} else {
-						return nil
 					}
+					return nil
 				}
 
 				if err := stream.SendMsg(data); err != nil {
