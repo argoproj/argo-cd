@@ -119,8 +119,7 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		switch image {
-		case "nginx":
+		if image == "nginx" {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}

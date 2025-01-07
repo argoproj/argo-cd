@@ -296,7 +296,7 @@ argocd admin settings validate --argocd-cm-path ./argocd-cm.yaml
 
 #Validates accounts and plugins settings in Kubernetes cluster of current kubeconfig context
 argocd admin settings validate --group accounts --group plugins --load-cluster-settings`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			settingsManager, err := cmdCtx.createSettingsManager(ctx)
@@ -512,7 +512,7 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
 

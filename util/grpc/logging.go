@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func logRequest(entry *logrus.Entry, info string, pbMsg any, ctx context.Context, logClaims bool) {
+func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any, logClaims bool) {
 	if logClaims {
 		claims := ctx.Value("claims")
 		mapClaims, ok := claims.(jwt.MapClaims)
@@ -65,7 +65,7 @@ func (l *loggingServerStream) SendMsg(m any) error {
 func (l *loggingServerStream) RecvMsg(m any) error {
 	err := l.ServerStream.RecvMsg(m)
 	if err == nil {
-		logRequest(l.entry, l.info, m, l.ServerStream.Context(), l.logClaims)
+		logRequest(l.ServerStream.Context(), l.entry, l.info, m, l.logClaims)
 	}
 	return err
 }
@@ -87,7 +87,7 @@ func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider 
 			return handler(ctx, req)
 		}
 		logEntry := entry.WithFields(ctx_logrus.Extract(ctx).Data)
-		logRequest(logEntry, "received unary call "+info.FullMethod, req, ctx, logClaims)
+		logRequest(ctx, logEntry, "received unary call "+info.FullMethod, req, logClaims)
 		resp, err := handler(ctx, req)
 		return resp, err
 	}

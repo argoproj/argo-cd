@@ -28,8 +28,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	switch un.GetKind() {
-	case "Job":
+	if un.GetKind() == "Job" {
 		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Job: %w", err)
@@ -107,7 +106,7 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
-	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
@@ -186,9 +185,8 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
 						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
-						} else {
-							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 						}
+						return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 					})
 
 					assert.NotNil(t, expectedObj)

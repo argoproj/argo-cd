@@ -225,7 +225,7 @@ type tokenVerifierMock struct {
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -238,7 +238,7 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, r *http.Request) {
+		return func(w http.ResponseWriter, _ *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")

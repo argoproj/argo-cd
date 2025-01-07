@@ -351,7 +351,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	created, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Create(ctx, a, metav1.CreateOptions{})
 	if err == nil {
-		s.logAppEvent(created, ctx, argo.EventReasonResourceCreated, "created application")
+		s.logAppEvent(ctx, created, argo.EventReasonResourceCreated, "created application")
 		s.waitSync(created)
 		return created, nil
 	}
@@ -384,7 +384,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
-	updated, err := s.updateApp(existing, a, ctx, true)
+	updated, err := s.updateApp(ctx, existing, a, true)
 	if err != nil {
 		return nil, fmt.Errorf("error updating application: %w", err)
 	}
@@ -617,7 +617,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
-		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
 		}
@@ -888,7 +888,7 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Appl
 		return nil, fmt.Errorf("error validating and normalizing app: %w", err)
 	}
 
-	a, err := s.updateApp(app, newApp, ctx, merge)
+	a, err := s.updateApp(ctx, app, newApp, merge)
 	if err != nil {
 		return nil, fmt.Errorf("error updating application: %w", err)
 	}
@@ -928,7 +928,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) updateApp(app *v1alpha1.Application, newApp *v1alpha1.Application, ctx context.Context, merge bool) (*v1alpha1.Application, error) {
+func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
@@ -943,7 +943,7 @@ func (s *Server) updateApp(app *v1alpha1.Application, newApp *v1alpha1.Applicati
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
 			s.waitSync(res)
 			return res, nil
 		}
@@ -1045,7 +1045,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 }
 
 func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, logCtx *log.Entry) (*v1alpha1.AppProject, error) {
-	proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 	if err == nil {
 		return proj, nil
 	}
@@ -1127,7 +1127,7 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	if err != nil {
 		return nil, fmt.Errorf("error deleting application: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, "deleted application")
+	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, "deleted application")
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1445,7 +1445,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if err != nil {
 		return nil, fmt.Errorf("erro marshaling manifest object: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	m := string(data)
 	return &application.ApplicationResourceResponse{
 		Manifest: &m,
@@ -1484,7 +1484,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
+	s.logAppEvent(ctx, a, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	return &application.ApplicationResponse{}, nil
 }
 
@@ -1689,12 +1689,12 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
-		if val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime()); err != nil {
+		val, err := time.Parse(time.RFC3339Nano, q.GetUntilTime())
+		if err != nil {
 			return fmt.Errorf("invalid untilTime parameter value: %w", err)
-		} else {
-			untilTimeVal := metav1.NewTime(val)
-			untilTime = &untilTimeVal
 		}
+		untilTimeVal := metav1.NewTime(val)
+		untilTime = &untilTimeVal
 	}
 
 	literal := ""
@@ -1796,36 +1796,34 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if entry.err != nil {
 				done <- entry.err
 				return
-			} else {
-				if q.Filter != nil {
-					lineContainsFilter := strings.Contains(entry.line, literal)
-					if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
-						continue
-					}
+			}
+			if q.Filter != nil {
+				lineContainsFilter := strings.Contains(entry.line, literal)
+				if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
+					continue
 				}
-				ts := metav1.NewTime(entry.timeStamp)
-				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
-					done <- ws.Send(&application.LogEntry{
-						Last:         ptr.To(true),
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
-						TimeStamp:    &ts,
-					})
-					return
-				} else {
-					sentCount++
-					if err := ws.Send(&application.LogEntry{
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
-						TimeStamp:    &ts,
-						Last:         ptr.To(false),
-					}); err != nil {
-						done <- err
-						break
-					}
-				}
+			}
+			ts := metav1.NewTime(entry.timeStamp)
+			if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
+				done <- ws.Send(&application.LogEntry{
+					Last:         ptr.To(true),
+					PodName:      &entry.podName,
+					Content:      &entry.line,
+					TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+					TimeStamp:    &ts,
+				})
+				return
+			}
+			sentCount++
+			if err := ws.Send(&application.LogEntry{
+				PodName:      &entry.podName,
+				Content:      &entry.line,
+				TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+				TimeStamp:    &ts,
+				Last:         ptr.To(false),
+			}); err != nil {
+				done <- err
+				break
 			}
 		}
 		now := time.Now()
@@ -2005,7 +2003,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
+	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, reason)
 	return a, nil
 }
 
@@ -2036,19 +2034,18 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			displayRevisions[index] = displayRevision
 		}
 		return "", "", sourceRevisions, displayRevisions, nil
-	} else {
-		source := a.Spec.GetSource()
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
-			if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
-			}
-		}
-		revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
-		if err != nil {
-			return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
-		}
-		return revision, displayRevision, nil, nil, nil
 	}
+	source := a.Spec.GetSource()
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
+		}
+	}
+	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
+	if err != nil {
+		return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
+	}
+	return revision, displayRevision, nil, nil, nil
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
@@ -2109,7 +2106,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
-	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
+	s.logAppEvent(ctx, a, argo.EventReasonOperationStarted, fmt.Sprintf("initiated rollback to %d", rollbackReq.GetId()))
 	return a, nil
 }
 
@@ -2306,7 +2303,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
 			s.waitSync(updated)
-			s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, "terminated running operation")
+			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
 		if !apierrors.IsConflict(err) {
@@ -2322,18 +2319,18 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
-func (s *Server) logAppEvent(a *v1alpha1.Application, ctx context.Context, reason string, action string) {
+func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	eventLabels := argo.GetAppEventLabels(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
-func (s *Server) logResourceEvent(res *v1alpha1.ResourceNode, ctx context.Context, reason string, action string) {
+func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
 	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
@@ -2477,8 +2474,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		if err != nil {
 			return nil, err
 		}
-		switch impactedResource.K8SOperation {
-		case lua.CreateOperation:
+		if impactedResource.K8SOperation == lua.CreateOperation {
 			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}
 			_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
 			if err != nil {
@@ -2515,10 +2511,10 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	}
 
 	if res == nil {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
+		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	} else {
-		s.logAppEvent(a, ctx, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
-		s.logResourceEvent(res, ctx, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
+		s.logAppEvent(ctx, a, argo.EventReasonResourceActionRan, fmt.Sprintf("ran action %s on resource %s/%s/%s", q.GetAction(), res.Group, res.Kind, res.Name))
+		s.logResourceEvent(ctx, res, argo.EventReasonResourceActionRan, "ran action "+q.GetAction())
 	}
 	return &application.ApplicationResponse{}, nil
 }
@@ -2701,9 +2697,8 @@ func getPropagationPolicyFinalizer(policy string) string {
 func (s *Server) appNamespaceOrDefault(appNs string) string {
 	if appNs == "" {
 		return s.ns
-	} else {
-		return appNs
 	}
+	return appNs
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {

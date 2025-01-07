@@ -71,7 +71,7 @@ type broadcasterMock struct {
 	objects []runtime.Object
 }
 
-func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, filters ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
+func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
@@ -228,7 +228,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -391,7 +391,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -582,15 +582,15 @@ func (t *TestServerStream) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestServerStream) SendMsg(m any) error {
+func (t *TestServerStream) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) RecvMsg(m any) error {
+func (t *TestServerStream) RecvMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) SendAndClose(r *apiclient.ManifestResponse) error {
+func (t *TestServerStream) SendAndClose(_ *apiclient.ManifestResponse) error {
 	return nil
 }
 
@@ -616,7 +616,7 @@ type TestResourceTreeServer struct {
 	ctx context.Context
 }
 
-func (t *TestResourceTreeServer) Send(tree *v1alpha1.ApplicationTree) error {
+func (t *TestResourceTreeServer) Send(_ *v1alpha1.ApplicationTree) error {
 	return nil
 }
 
@@ -634,11 +634,11 @@ func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestResourceTreeServer) SendMsg(m any) error {
+func (t *TestResourceTreeServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) RecvMsg(m any) error {
+func (t *TestResourceTreeServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -646,7 +646,7 @@ type TestPodLogsServer struct {
 	ctx context.Context
 }
 
-func (t *TestPodLogsServer) Send(log *application.LogEntry) error {
+func (t *TestPodLogsServer) Send(_ *application.LogEntry) error {
 	return nil
 }
 
@@ -664,11 +664,11 @@ func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestPodLogsServer) SendMsg(m any) error {
+func (t *TestPodLogsServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) RecvMsg(m any) error {
+func (t *TestPodLogsServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -1556,15 +1556,15 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.ReactionChain = nil
 	patched := false
 	deleted := false
-	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		deleted = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
@@ -2014,7 +2014,7 @@ func TestGetCachedAppState(t *testing.T) {
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	t.Run("NoError", func(t *testing.T) {
@@ -2033,18 +2033,18 @@ func TestGetCachedAppState(t *testing.T) {
 			fakeClientSet.Lock()
 			fakeClientSet.ReactionChain = nil
 			fakeClientSet.WatchReactionChain = nil
-			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				patched = true
 				updated := testApp.DeepCopy()
 				updated.ResourceVersion = "2"
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
 			})
-			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
-			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 				return true, watcher, nil
 			})
 		}
@@ -2262,10 +2262,9 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
 		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
-	} else {
-		appServer := newTestAppServer(t, runtimeObjects...)
-		return appServer, adminCtx
 	}
+	appServer := newTestAppServer(t, runtimeObjects...)
+	return appServer, adminCtx
 }
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done

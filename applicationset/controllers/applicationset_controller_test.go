@@ -1055,7 +1055,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1163,7 +1163,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -1322,7 +1322,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -1409,7 +1409,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			initObjs := []crtclient.Object{&app, &appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1608,7 +1608,7 @@ func TestCreateApplications(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1750,7 +1750,7 @@ func TestDeleteInCluster(t *testing.T) {
 		}
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1796,7 +1796,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		List:     &v1alpha1.ListGenerator{},
@@ -1867,7 +1867,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 		Return([]map[string]any{}, errors.New("Simulated error generating params that could be related to an external service/API call"))
 
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -1919,7 +1919,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(myProject).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	// Test a subset of the validations that 'validateGeneratedApplications' performs
 	for _, cc := range []struct {
@@ -2123,7 +2123,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	kubeclientset := kubefake.NewSimpleClientset()
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2322,7 +2322,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 
 	for _, testCase := range testCases {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).WithStatusSubresource(&testCase.appset).Build()
-		metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2411,7 +2411,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2587,7 +2587,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2776,7 +2776,7 @@ func TestPolicies(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2935,7 +2935,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2966,7 +2966,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	for _, cc := range []struct {
 		name            string
@@ -3722,7 +3722,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 	for _, cc := range []struct {
 		name              string
@@ -5312,7 +5312,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -6062,7 +6062,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -6274,7 +6274,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -6365,7 +6365,7 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 

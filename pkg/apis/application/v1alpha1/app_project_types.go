@@ -152,10 +152,9 @@ func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) 
 	if err1 == nil || err2 == nil {
 		// If we find this token from either places, we can say there are no error
 		return nil
-	} else {
-		// If we could not locate this taken from either places, we can return any of the errors
-		return err2
 	}
+	// If we could not locate this taken from either places, we can return any of the errors
+	return err2
 }
 
 // TODO: document this method

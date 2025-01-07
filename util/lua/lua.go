@@ -367,8 +367,7 @@ func isActionDisabled(actionsMap any) bool {
 		return false
 	}
 	for key, val := range actions {
-		switch vv := val.(type) {
-		case bool:
+		if vv, ok := val.(bool); ok {
 			if key == "disabled" {
 				return vv
 			}

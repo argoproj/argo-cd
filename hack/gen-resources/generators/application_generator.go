@@ -40,8 +40,7 @@ func (generator *ApplicationGenerator) buildRandomSource(repositories []*v1alpha
 }
 
 func (generator *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
-	switch opts.ApplicationOpts.SourceOpts.Strategy {
-	case "Random":
+	if opts.ApplicationOpts.SourceOpts.Strategy == "Random" {
 		return generator.buildRandomSource(repositories)
 	}
 	return generator.buildRandomSource(repositories)
@@ -57,8 +56,7 @@ func (generator *ApplicationGenerator) buildRandomDestination(opts *util.Generat
 }
 
 func (generator *ApplicationGenerator) buildDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
-	switch opts.ApplicationOpts.DestinationOpts.Strategy {
-	case "Random":
+	if opts.ApplicationOpts.DestinationOpts.Strategy == "Random" {
 		return generator.buildRandomDestination(opts, clusters)
 	}
 	return generator.buildRandomDestination(opts, clusters)

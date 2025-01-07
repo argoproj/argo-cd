@@ -415,12 +415,12 @@ func TestCallExtension(t *testing.T) {
 		wg.Add(2)
 		f.metricsMock.
 			On("IncExtensionRequestCounter", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
+			Run(func(_ mock.Arguments) {
 				wg.Done()
 			})
 		f.metricsMock.
 			On("ObserveExtensionRequestDuration", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
+			Run(func(_ mock.Arguments) {
 				wg.Done()
 			})
 
