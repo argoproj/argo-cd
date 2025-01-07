@@ -86,3 +86,4 @@ jobs:
             - [ ] Add an upgrade guide to the docs for this version
           branch: bump-major-version
           branch-suffix: random
+          signoff: true
