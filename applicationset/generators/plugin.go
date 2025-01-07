@@ -32,7 +32,7 @@ type PluginGenerator struct {
 	namespace string
 }
 
-func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
 		ctx:       ctx,
