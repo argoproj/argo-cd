@@ -22,7 +22,6 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-
 	httpClient := &http.Client{}
 	var client *github.Client
 	if url == "" {
