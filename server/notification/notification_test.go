@@ -5,19 +5,18 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/notifications-engine/pkg/api"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/pointer"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/scheme"
@@ -26,6 +25,7 @@ import (
 const testNamespace = "default"
 
 func TestNotificationServer(t *testing.T) {
+
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")
 	b, err := os.ReadFile("../../notifications_catalog/install.yaml")
 	require.NoError(t, err)
@@ -35,8 +35,8 @@ func TestNotificationServer(t *testing.T) {
 	require.NoError(t, err)
 	cm.Namespace = testNamespace
 
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -47,7 +47,7 @@ func TestNotificationServer(t *testing.T) {
 		},
 	},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},
@@ -75,25 +75,25 @@ func TestNotificationServer(t *testing.T) {
 	t.Run("TestListServices", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, services.Items, 1)
-		assert.Equal(t, services.Items[0].Name, ptr.To("test"))
+		assert.Equal(t, services.Items[0].Name, pointer.String("test"))
 		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, triggers.Items, 1)
-		assert.Equal(t, triggers.Items[0].Name, ptr.To("on-created"))
+		assert.Equal(t, triggers.Items[0].Name, pointer.String("on-created"))
 		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
 		server := NewServer(apiFactory)
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, templates.Items, 1)
-		assert.Equal(t, templates.Items[0].Name, ptr.To("app-created"))
+		assert.Equal(t, templates.Items[0].Name, pointer.String("app-created"))
 		assert.NotEmpty(t, templates.Items[0])
 	})
 }

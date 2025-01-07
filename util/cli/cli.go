@@ -5,7 +5,6 @@ package cli
 import (
 	"bufio"
 	"bytes"
-	stderrors "errors"
 	"flag"
 	"fmt"
 	"os"
@@ -38,7 +37,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	versionCmd := cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
@@ -277,10 +276,11 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
 		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
+			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
 			break
+		} else {
+			data = stripComments(updated)
 		}
-		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {
@@ -305,11 +305,11 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(targetFile, targetData, 0o644)
+	err = os.WriteFile(targetFile, targetData, 0644)
 	if err != nil {
 		return err
 	}
-	liveFile := path.Join(tempDir, name+"-live.yaml")
+	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
 	liveData := []byte("")
 	if live != nil {
 		liveData, err = yaml.Marshal(live)
@@ -317,7 +317,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(liveFile, liveData, 0o644)
+	err = os.WriteFile(liveFile, liveData, 0644)
 	if err != nil {
 		return err
 	}

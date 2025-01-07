@@ -26,9 +26,9 @@ func (s *subscriber) matches(event *appv1.ApplicationWatchEvent) bool {
 // Broadcaster is an interface for broadcasting application informer watch events to multiple subscribers.
 type Broadcaster interface {
 	Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func()
-	OnAdd(any, bool)
-	OnUpdate(any, any)
-	OnDelete(any)
+	OnAdd(interface{})
+	OnUpdate(interface{}, interface{})
+	OnDelete(interface{})
 }
 
 type broadcasterHandler struct {
@@ -76,19 +76,19 @@ func (b *broadcasterHandler) Subscribe(ch chan *appv1.ApplicationWatchEvent, fil
 	}
 }
 
-func (b *broadcasterHandler) OnAdd(obj any, _ bool) {
+func (b *broadcasterHandler) OnAdd(obj interface{}) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Added})
 	}
 }
 
-func (b *broadcasterHandler) OnUpdate(_, newObj any) {
+func (b *broadcasterHandler) OnUpdate(_, newObj interface{}) {
 	if app, ok := newObj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Modified})
 	}
 }
 
-func (b *broadcasterHandler) OnDelete(obj any) {
+func (b *broadcasterHandler) OnDelete(obj interface{}) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Deleted})
 	}

@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 
@@ -15,8 +16,8 @@ import (
 )
 
 func TestListMatrixGenerator(t *testing.T) {
-	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -26,14 +27,14 @@ func TestListMatrixGenerator(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -41,7 +42,7 @@ func TestListMatrixGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 		generateExpectedApp("cluster1", "ksonnet-guestbook"),
@@ -51,27 +52,26 @@ func TestListMatrixGenerator(t *testing.T) {
 		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "matrix-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{values.name}}-{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -140,8 +140,8 @@ func TestListMatrixGenerator(t *testing.T) {
 }
 
 func TestClusterMatrixGenerator(t *testing.T) {
-	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -151,14 +151,14 @@ func TestClusterMatrixGenerator(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Name:      cluster,
 					Namespace: name,
 				},
@@ -166,7 +166,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 		generateExpectedApp("cluster1", "ksonnet-guestbook"),
@@ -176,29 +176,28 @@ func TestClusterMatrixGenerator(t *testing.T) {
 		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "matrix-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Name:      "{{name}}",
 							Namespace: "{{path.basename}}",
 						},
@@ -268,8 +267,8 @@ func TestClusterMatrixGenerator(t *testing.T) {
 }
 
 func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
-	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(cluster, name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -279,14 +278,14 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -294,12 +293,12 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 		}
 	}
 
-	expectedApps1 := []v1alpha1.Application{
+	expectedApps1 := []argov1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
 		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 	}
-	expectedApps2 := []v1alpha1.Application{
+	expectedApps2 := []argov1alpha1.Application{
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
 		generateExpectedApp("cluster2", "ksonnet-guestbook"),
@@ -308,22 +307,21 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 	Given(t).
 		// Create ApplicationSet with LabelSelector on an ApplicationSetTerminalGenerator
 		When().
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator-nested-matrix",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "matrix-generator-nested-matrix",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{values.name}}-{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -420,8 +418,8 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 }
 
 func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
-	generateExpectedApp := func(name, nameSuffix string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name, nameSuffix string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -431,14 +429,14 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 				Namespace:  utils.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -446,32 +444,31 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 		}
 	}
 
-	expectedApps1 := []v1alpha1.Application{
+	expectedApps1 := []argov1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook", "1"),
 	}
-	expectedApps2 := []v1alpha1.Application{
+	expectedApps2 := []argov1alpha1.Application{
 		generateExpectedApp("helm-guestbook", "2"),
 	}
 
 	Given(t).
 		// Create ApplicationSet with LabelSelector on an ApplicationSetTerminalGenerator
 		When().
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "matrix-generator-nested-merge",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "matrix-generator-nested-merge",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -528,6 +525,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 		// Update the ApplicationSetTerminalGenerator LabelSelector, and verify the Applications are deleted and created
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
+
 			appset.Spec.Generators[0].Matrix.Generators[0].Merge = toAPIExtensionsJSON(t, &v1alpha1.NestedMergeGenerator{
 				MergeKeys: []string{"path.basename"},
 				Generators: []v1alpha1.ApplicationSetTerminalGenerator{

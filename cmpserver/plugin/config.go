@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -29,7 +28,6 @@ type PluginConfigSpec struct {
 	Discover         Discover   `json:"discover"`
 	Parameters       Parameters `yaml:"parameters"`
 	PreserveFileMode bool       `json:"preserveFileMode,omitempty"`
-	ProvideGitCreds  bool       `json:"provideGitCreds,omitempty"`
 }
 
 // Discover holds find and fileName
@@ -83,13 +81,13 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 
 func ValidatePluginConfig(config PluginConfig) error {
 	if config.Metadata.Name == "" {
-		return errors.New("invalid plugin configuration file. metadata.name should be non-empty.")
+		return fmt.Errorf("invalid plugin configuration file. metadata.name should be non-empty.")
 	}
 	if config.TypeMeta.Kind != ConfigManagementPluginKind {
 		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.TypeMeta.Kind)
 	}
 	if len(config.Spec.Generate.Command) == 0 {
-		return errors.New("invalid plugin configuration file. spec.generate command should be non-empty")
+		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
 	// discovery field is optional as apps can now specify plugin names directly
 	return nil

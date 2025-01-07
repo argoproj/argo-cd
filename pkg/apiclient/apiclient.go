@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -62,10 +62,14 @@ const (
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
+	// EnvArgoCDgRPCMaxSizeMB is the environment variable to look for a max gRPC message size
+	EnvArgoCDgRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
-// MaxGRPCMessageSize contains max grpc message size
-var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+var (
+	// MaxGRPCMessageSize contains max grpc message size
+	MaxGRPCMessageSize = env.ParseNumFromEnv(EnvArgoCDgRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
+)
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
@@ -126,7 +130,6 @@ type ClientOptions struct {
 	RedisHaProxyName     string
 	RedisName            string
 	RepoServerName       string
-	PromptsEnabled       bool
 }
 
 type client struct {
@@ -335,11 +338,11 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %w", issuerURL, err)
+		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
+		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
 	}
 	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
@@ -402,8 +405,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	validator := jwt.NewValidator()
-	if validator.Validate(claims) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -559,7 +561,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, errors.New("credentials: failed to append certificates")
+			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}
@@ -847,7 +849,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err != nil && errors.Is(err, context.Canceled) {
+	if err == context.Canceled {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

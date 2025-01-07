@@ -4,27 +4,24 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
 )
 
-const (
-	testNamespace       = "default"
-	testContextKey      = "test-context-key"
-	testContextKeyValue = "test-context-key-value"
-)
+const testNamespace = "default"
+const testContextKey = "test-context-key"
+const testContextKeyValue = "test-context-key-value"
 
 func TestInitGetVars(t *testing.T) {
 	notificationsCm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -36,7 +33,7 @@ func TestInitGetVars(t *testing.T) {
 		},
 	}
 	notificationsSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      "argocd-notifications-secret",
 			Namespace: testNamespace,
 		},
@@ -44,15 +41,15 @@ func TestInitGetVars(t *testing.T) {
 			"notification-secret": []byte("secret-value"),
 		},
 	}
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
 		Data: notificationsCm.Data,
 	},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},
@@ -66,12 +63,12 @@ func TestInitGetVars(t *testing.T) {
 	testDestination := services.Destination{
 		Service: "webhook",
 	}
-	emptyAppData := map[string]any{}
+	emptyAppData := map[string]interface{}{}
 
 	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
-		appData := map[string]any{
+		appData := map[string]interface{}{
 			"name": "app-name",
 		}
 		result := varsProvider(appData, testDestination)
@@ -85,7 +82,7 @@ func TestInitGetVars(t *testing.T) {
 		}
 		result := varsProvider(emptyAppData, testDestination)
 		assert.NotNil(t, result["context"])
-		assert.Equal(t, expectedContext, result["context"])
+		assert.Equal(t, result["context"], expectedContext)
 	})
 	t.Run("Vars provider serves notification secrets on secrets key", func(t *testing.T) {
 		result := varsProvider(emptyAppData, testDestination)

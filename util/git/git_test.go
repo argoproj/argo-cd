@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/test/fixture/log"
@@ -87,6 +87,7 @@ func TestIsSSHURLUserName(t *testing.T) {
 	isSSH, user = IsSSHURL("john@doe.org@john-server.org:29418/project")
 	assert.True(t, isSSH)
 	assert.Equal(t, "john@doe.org", user)
+
 }
 
 func TestSameURL(t *testing.T) {
@@ -118,224 +119,168 @@ func TestSameURL(t *testing.T) {
 
 func TestCustomHTTPClient(t *testing.T) {
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, "", certFile)
 
 	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, "", keyFile)
 
 	certData, err := os.ReadFile(certFile)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, "", string(certData))
 
 	keyData, err := os.ReadFile(keyFile)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
-	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000", "")
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", &NoopCredsStore{}, false)
+	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.True(t, transport.DisableKeepAlives)
-		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
 		assert.Nil(t, transport.TLSClientConfig.RootCAs)
 		if transport.TLSClientConfig.GetClientCertificate != nil {
 			cert, err := transport.TLSClientConfig.GetClientCertificate(nil)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
-				assert.NotEmpty(t, cert.Certificate)
+				assert.NotEqual(t, 0, len(cert.Certificate))
 				assert.NotNil(t, cert.PrivateKey)
 			}
 		}
 		proxy, err := transport.Proxy(nil)
-		require.NoError(t, err)
-		assert.NotNil(t, proxy) // nil would mean no proxy is used
+		assert.Nil(t, err)
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
 	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", true, "", "", &NoopCredsStore{}, false)
-	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "", "")
+	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
+	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.True(t, transport.DisableKeepAlives)
-		assert.True(t, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, true, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.GetClientCertificate)
 		assert.Nil(t, transport.TLSClientConfig.RootCAs)
 		if transport.TLSClientConfig.GetClientCertificate != nil {
 			cert, err := transport.TLSClientConfig.GetClientCertificate(nil)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if err == nil {
 				assert.NotNil(t, cert)
-				assert.Empty(t, cert.Certificate)
+				assert.Equal(t, 0, len(cert.Certificate))
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
 		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
-		require.NoError(t, err)
+		assert.Nil(t, err)
 		proxy, err := transport.Proxy(req)
-		require.NoError(t, err)
+		assert.Nil(t, err)
 		assert.Equal(t, "http://proxy-from-env:7878", proxy.String())
 	}
 	// GetRepoHTTPClient with root ca
 	cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	temppath := t.TempDir()
 	defer os.RemoveAll(temppath)
-	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0o666)
-	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0666)
+	assert.NoError(t, err)
 	t.Setenv(common.EnvVarTLSDataPath, temppath)
-	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "", "")
+	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
 		transport := client.Transport.(*http.Transport)
 		assert.NotNil(t, transport.TLSClientConfig)
-		assert.True(t, transport.DisableKeepAlives)
-		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
+		assert.Equal(t, true, transport.DisableKeepAlives)
+		assert.Equal(t, false, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.RootCAs)
 	}
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name           string
-		revision       string
-		expectedCommit string
-	}{
-		{
-			name:     "should resolve symbolic link reference",
-			revision: "HEAD",
-		},
-		{
-			name:     "should resolve branch name",
-			revision: "master",
-		},
-		{
-			name:           "should resolve tag without semantic versioning",
-			revision:       "release-0.8",
-			expectedCommit: "ff87d8cb9e669d3738434733ecba3c6dd2c64d70",
-		},
-		{
-			name:           "should resolve a pinned tag with semantic versioning",
-			revision:       "v0.8.0",
-			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
-		},
-		{
-			name:           "should resolve a range tag with semantic versioning",
-			revision:       "v0.8.*", // it should resolve to v0.8.2
-			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
-		},
-		{
-			name:           "should resolve a range tag with semantic versioning without the 'v' prefix",
-			revision:       "0.8.*", // it should resolve to v0.8.2
-			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
-		},
-		{
-			name:           "should resolve a conditional range tag with semantic versioning",
-			revision:       ">=v2.9.0 <2.10.4", // it should resolve to v2.10.3
-			expectedCommit: "0fd6344537eb948cff602824a1d060421ceff40e",
-		},
-		{
-			name:     "should resolve a star range tag with semantic versioning",
-			revision: "*",
-		},
-		{
-			name:     "should resolve a star range suffixed tag with semantic versioning",
-			revision: "*-0",
-		},
-		{
-			name:           "should resolve commit sha",
-			revision:       "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
-			expectedCommit: "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
-		},
+	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "")
+	assert.NoError(t, err)
+	xpass := []string{
+		"HEAD",
+		"master",
+		"release-0.8",
+		"v0.8.0",
+		"4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+		//"4e22a3c",
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := clnt.LsRemote(tc.revision)
-			require.NoError(t, err)
-			assert.True(t, IsCommitSHA(commitSHA))
-			if tc.expectedCommit != "" {
-				assert.Equal(t, tc.expectedCommit, commitSHA)
-			}
-		})
+	for _, revision := range xpass {
+		commitSHA, err := clnt.LsRemote(revision)
+		assert.NoError(t, err)
+		assert.True(t, IsCommitSHA(commitSHA))
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
-	t.Run("truncated commit", func(t *testing.T) {
-		commitSHA, err := clnt.LsRemote("4e22a3c")
-		require.NoError(t, err)
-		assert.False(t, IsCommitSHA(commitSHA))
-		assert.True(t, IsTruncatedCommitSHA(commitSHA))
-	})
+	commitSHA, err := clnt.LsRemote("4e22a3c")
+	assert.NoError(t, err)
+	assert.False(t, IsCommitSHA(commitSHA))
+	assert.True(t, IsTruncatedCommitSHA(commitSHA))
 
-	t.Run("unresolvable revisions", func(t *testing.T) {
-		xfail := []string{
-			"unresolvable",
-			"4e22a3", // too short (6 characters)
-		}
-
-		for _, revision := range xfail {
-			_, err := clnt.LsRemote(revision)
-			assert.ErrorContains(t, err, "unable to resolve")
-		}
-	})
+	xfail := []string{
+		"unresolvable",
+		"4e22a3", // too short (6 characters)
+	}
+	for _, revision := range xfail {
+		_, err := clnt.LsRemote(revision)
+		assert.Error(t, err)
+	}
 }
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
+
 	// temporary disable LFS test
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
 
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", "")
-	require.NoError(t, err)
+	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "")
+	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEqual(t, "", commitSHA)
 
 	err = client.Init()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = client.Fetch("")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
-	require.NoError(t, err)
+	err = client.Checkout(commitSHA, true)
+	assert.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
-	require.NoError(t, err)
-	assert.Len(t, largeFiles, 3)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(largeFiles))
 
-	fileHandle, err := os.Open(tempDir + "/test3.yaml")
-	require.NoError(t, err)
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
+	assert.NoError(t, err)
 	if err == nil {
 		defer func() {
 			if err = fileHandle.Close(); err != nil {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		}()
 		text, err := io.ReadAll(fileHandle)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		if err == nil {
 			assert.Equal(t, "This is not a YAML, sorry.\n", string(text))
 		}
@@ -345,26 +290,26 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "")
+	assert.NoError(t, err)
 
 	err = client.Init()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = client.Fetch("")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
-	require.NoError(t, err)
+	err = client.Checkout(commitSHA, true)
+	assert.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
 		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
 	}
@@ -372,7 +317,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
 		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, out)
 	}
 }
@@ -393,40 +338,41 @@ func TestNewFactory(t *testing.T) {
 		{"GitHub", args{url: "https://github.com/argoproj/argocd-example-apps"}},
 	}
 	for _, tt := range tests {
+
 		if tt.name == "PrivateSSHRepo" {
 			test.Flaky(t)
 		}
 
 		dirName := t.TempDir()
 
-		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", "")
-		require.NoError(t, err)
+		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "")
+		assert.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		err = client.Init()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		err = client.Fetch("")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
 		err = client.Fetch("")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
-		require.NoError(t, err)
+		err = client.Checkout(commitSHA, true)
+		assert.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
-		assert.Empty(t, revisionMetadata.Tags)
+		assert.Len(t, revisionMetadata.Tags, 0)
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
 		commitSHA2, err := client.CommitSHA()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)
 	}
@@ -436,11 +382,11 @@ func TestListRevisions(t *testing.T) {
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
-	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "")
+	assert.NoError(t, err)
 
 	lsResult, err := client.LsRefs()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	testBranch := "master"
 	testTag := "v1.0.0"
@@ -455,49 +401,49 @@ func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
-	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
+	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "")
+	assert.NoError(t, err)
 
 	err = runCmd(tmpDir1, "git", "init")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Prepare files
 	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	a.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755)
-	require.NoError(t, err)
+	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0755)
+	assert.NoError(t, err)
 	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	b.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
-	require.NoError(t, err)
+	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0755)
+	assert.NoError(t, err)
 	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	c.Close()
 	err = os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml"))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	err = runCmd(tmpDir1, "git", "add", ".")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	// Old and default globbing
 	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
 	lsResult, err := client.LsFiles("*.yaml", false)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, expectedResult)
 
 	// New and safer globbing, do not return symlinks resolving outside of the repo
 	expectedResult = []string{"a.yaml"}
 	lsResult, err = client.LsFiles("*.yaml", true)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, expectedResult)
 
 	// New globbing, do not return files outside of the repo
 	var nilResult []string
 	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
-	require.NoError(t, err)
-	assert.Equal(t, nilResult, lsResult)
+	assert.NoError(t, err)
+	assert.Equal(t, lsResult, nilResult)
 }

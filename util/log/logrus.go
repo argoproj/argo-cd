@@ -18,7 +18,7 @@ const (
 )
 
 func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
-	return adapter.New(fieldLogger, adapter.WithFormatter(func(val any) string {
+	return adapter.New(fieldLogger, adapter.WithFormatter(func(val interface{}) string {
 		return fmt.Sprintf("%v", val)
 	}))
 }

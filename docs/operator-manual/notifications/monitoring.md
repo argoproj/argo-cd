@@ -13,8 +13,8 @@ The following metrics are available:
  Number of delivered notifications.
  Labels:
 
-* `trigger` - trigger name
-* `service` - notification service name
+* `template` - notification template name 
+* `notifier` - notification service name
 * `succeeded` - flag that indicates if notification was successfully sent or failed
 
 ### `argocd_notifications_trigger_eval_total`

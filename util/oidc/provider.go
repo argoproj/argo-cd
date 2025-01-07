@@ -66,7 +66,7 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	ctx := gooidc.ClientContext(context.Background(), p.client)
 	prov, err := gooidc.NewProvider(ctx, p.issuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query provider %q: %w", p.issuerURL, err)
+		return nil, fmt.Errorf("Failed to query provider %q: %v", p.issuerURL, err)
 	}
 	s, _ := ParseConfig(prov)
 	log.Infof("OIDC supported scopes: %v", s.ScopesSupported)
@@ -82,7 +82,7 @@ func (t tokenVerificationError) Error() string {
 	for aud, err := range t.errorsByAudience {
 		errorStrings = append(errorStrings, fmt.Sprintf("error for aud %q: %v", aud, err))
 	}
-	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
+	return fmt.Sprintf("token verification failed for all audiences: %s", strings.Join(errorStrings, ", "))
 }
 
 func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {

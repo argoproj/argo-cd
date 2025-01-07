@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -95,8 +95,8 @@ func (a *Account) HasCapability(capability AccountCapability) bool {
 }
 
 func (mgr *SettingsManager) saveAccount(name string, account Account) error {
-	return mgr.updateSecret(func(secret *corev1.Secret) error {
-		return mgr.updateConfigMap(func(cm *corev1.ConfigMap) error {
+	return mgr.updateSecret(func(secret *v1.Secret) error {
+		return mgr.updateConfigMap(func(cm *v1.ConfigMap) error {
 			return saveAccount(secret, cm, name, account)
 		})
 	})
@@ -145,18 +145,22 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 
 // GetAccounts returns list of configured accounts
 func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
-	cm, err := mgr.getConfigMap()
+	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.getSecret()
+	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
 		return nil, err
 	}
 	return parseAccounts(secret, cm)
 }
 
-func updateAccountMap(cm *corev1.ConfigMap, key string, val string, defVal string) {
+func updateAccountMap(cm *v1.ConfigMap, key string, val string, defVal string) {
 	existingVal := cm.Data[key]
 	if existingVal != val {
 		if val == "" || val == defVal {
@@ -167,7 +171,7 @@ func updateAccountMap(cm *corev1.ConfigMap, key string, val string, defVal strin
 	}
 }
 
-func updateAccountSecret(secret *corev1.Secret, key string, val string, defVal string) {
+func updateAccountSecret(secret *v1.Secret, key string, val string, defVal string) {
 	existingVal := string(secret.Data[key])
 	if existingVal != val {
 		if val == "" || val == defVal {
@@ -178,7 +182,7 @@ func updateAccountSecret(secret *corev1.Secret, key string, val string, defVal s
 	}
 }
 
-func saveAccount(secret *corev1.Secret, cm *corev1.ConfigMap, name string, account Account) error {
+func saveAccount(secret *v1.Secret, cm *v1.ConfigMap, name string, account Account) error {
 	tokens, err := json.Marshal(account.Tokens)
 	if err != nil {
 		return err
@@ -198,7 +202,7 @@ func saveAccount(secret *corev1.Secret, cm *corev1.ConfigMap, name string, accou
 	return nil
 }
 
-func parseAdminAccount(secret *corev1.Secret, cm *corev1.ConfigMap) (*Account, error) {
+func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
 	adminAccount := &Account{Enabled: true, Capabilities: []AccountCapability{AccountCapabilityLogin}}
 	if adminPasswordHash, ok := secret.Data[settingAdminPasswordHashKey]; ok {
 		adminAccount.PasswordHash = string(adminPasswordHash)
@@ -227,7 +231,7 @@ func parseAdminAccount(secret *corev1.Secret, cm *corev1.ConfigMap) (*Account, e
 	return adminAccount, nil
 }
 
-func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Account, error) {
+func parseAccounts(secret *v1.Secret, cm *v1.ConfigMap) (map[string]Account, error) {
 	adminAccount, err := parseAdminAccount(secret, cm)
 	if err != nil {
 		return nil, err
@@ -237,7 +241,7 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 	}
 
 	for key, v := range cm.Data {
-		if !strings.HasPrefix(key, accountsKeyPrefix+".") {
+		if !strings.HasPrefix(key, fmt.Sprintf("%s.", accountsKeyPrefix)) {
 			continue
 		}
 
@@ -296,11 +300,11 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 			account.PasswordHash = string(passwordHash)
 		}
 		if passwordMtime, ok := secret.Data[fmt.Sprintf("%s.%s.%s", accountsKeyPrefix, name, accountPasswordMtimeSuffix)]; ok {
-			mTime, err := time.Parse(time.RFC3339, string(passwordMtime))
-			if err != nil {
+			if mTime, err := time.Parse(time.RFC3339, string(passwordMtime)); err != nil {
 				return nil, err
+			} else {
+				account.PasswordMtime = &mTime
 			}
-			account.PasswordMtime = &mTime
 		}
 		if tokensStr, ok := secret.Data[fmt.Sprintf("%s.%s.%s", accountsKeyPrefix, name, accountTokensSuffix)]; ok {
 			account.Tokens = make([]Token, 0)

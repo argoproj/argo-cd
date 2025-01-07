@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -17,18 +17,21 @@ const initialPasswordSecretName = "argocd-initial-admin-secret"
 
 // NewInitialPasswordCommand defines a new command to retrieve Argo CD initial password.
 func NewInitialPasswordCommand() *cobra.Command {
-	var clientConfig clientcmd.ClientConfig
-	command := cobra.Command{
+	var (
+		clientConfig clientcmd.ClientConfig
+	)
+	var command = cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, metav1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, v1.GetOptions{})
 			errors.CheckError(err)
 
 			if initialPass, ok := secret.Data["password"]; ok {

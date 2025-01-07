@@ -80,8 +80,9 @@ var validFQDNRegexp = regexp.MustCompile(`^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]{
 func IsValidHostname(hostname string, fqdn bool) bool {
 	if !fqdn {
 		return validHostNameRegexp.Match([]byte(hostname)) || validIPv6Regexp.Match([]byte(hostname))
+	} else {
+		return validFQDNRegexp.Match([]byte(hostname))
 	}
-	return validFQDNRegexp.Match([]byte(hostname))
 }
 
 // Get the configured path to where TLS certificates are stored on the local
@@ -90,8 +91,9 @@ func IsValidHostname(hostname string, fqdn bool) bool {
 func GetTLSCertificateDataPath() string {
 	if envPath := os.Getenv(common.EnvVarTLSDataPath); envPath != "" {
 		return envPath
+	} else {
+		return common.DefaultPathTLSConfig
 	}
-	return common.DefaultPathTLSConfig
 }
 
 // Get the configured path to where SSH certificates are stored on the local
@@ -100,8 +102,9 @@ func GetTLSCertificateDataPath() string {
 func GetSSHKnownHostsDataPath() string {
 	if envPath := os.Getenv(common.EnvVarSSHDataPath); envPath != "" {
 		return filepath.Join(envPath, common.DefaultSSHKnownHostsName)
+	} else {
+		return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 	}
-	return filepath.Join(common.DefaultPathSSHConfig, common.DefaultSSHKnownHostsName)
 }
 
 // Decode a certificate in PEM format to X509 data structure
@@ -156,7 +159,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 	// TODO: Implement error heuristics
 
 	for scanner.Scan() {
-		curLine++
+		curLine += 1
 		if !inCertData {
 			if strings.HasPrefix(scanner.Text(), CertificateBeginMarker) {
 				certLine = 1
@@ -164,7 +167,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 				pemData += scanner.Text() + "\n"
 			}
 		} else {
-			certLine++
+			certLine += 1
 			pemData += scanner.Text() + "\n"
 			if strings.HasPrefix(scanner.Text(), CertificateEndMarker) {
 				inCertData = false
@@ -212,10 +215,10 @@ func ParseSSHKnownHostsFromStream(stream io.Reader) ([]string, error) {
 	numEntries := 0
 
 	for scanner.Scan() {
-		curLine++
+		curLine += 1
 		lineData := scanner.Text()
 		if IsValidSSHKnownHostsEntry(lineData) {
-			numEntries++
+			numEntries += 1
 			knownHostsLists = append(knownHostsLists, lineData)
 		}
 	}
@@ -243,7 +246,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 func TokenizeSSHKnownHostsEntry(knownHostsEntry string) (string, string, []byte, error) {
 	knownHostsToken := strings.SplitN(knownHostsEntry, " ", 3)
 	if len(knownHostsToken) != 3 {
-		return "", "", nil, errors.New("error while tokenizing input data")
+		return "", "", nil, fmt.Errorf("error while tokenizing input data")
 	}
 	return knownHostsToken[0], knownHostsToken[1], []byte(knownHostsToken[2]), nil
 }
@@ -268,8 +271,8 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 
 // Returns the requested pattern with all possible square brackets escaped
 func nonBracketedPattern(pattern string) string {
-	ret := strings.ReplaceAll(pattern, "[", `\[`)
-	return strings.ReplaceAll(ret, "]", `\]`)
+	ret := strings.Replace(pattern, "[", `\[`, -1)
+	return strings.Replace(ret, "]", `\]`, -1)
 }
 
 // We do not use full fledged regular expression for matching the hostname.
@@ -323,12 +326,13 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 
 	if len(certificates) == 0 {
-		return nil, errors.New("no certificates found in existing file")
+		return nil, fmt.Errorf("no certificates found in existing file")
 	}
 
 	return certificates, nil

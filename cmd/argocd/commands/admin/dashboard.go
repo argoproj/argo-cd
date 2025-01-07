@@ -3,10 +3,9 @@ package admin
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
@@ -27,7 +26,7 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			ctx := cmd.Context()
 
 			compression, err := cache.CompressionTypeFromString(compressionStr)

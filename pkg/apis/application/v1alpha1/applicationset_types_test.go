@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -72,6 +72,7 @@ func TestApplicationSetRBACName(t *testing.T) {
 		a.Spec.Template.Spec.Project = "test"
 		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
 	})
+
 }
 
 func TestApplicationSetSetConditions(t *testing.T) {
@@ -101,7 +102,6 @@ func TestApplicationSetSetConditions(t *testing.T) {
 				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
-				t.Helper()
 				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
 				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
 			},
@@ -121,7 +121,6 @@ func TestApplicationSetSetConditions(t *testing.T) {
 				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", nil, ApplicationSetConditionStatusFalse, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
-				t.Helper()
 				// SetConditions should add timestamps for new conditions.
 				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
 				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
@@ -143,7 +142,6 @@ func TestApplicationSetSetConditions(t *testing.T) {
 				testAppSetCond(ApplicationSetConditionResourcesUpToDate, "bar", tenMinsAgo, ApplicationSetConditionStatusTrue, ApplicationSetReasonApplicationSetUpToDate),
 			},
 			validate: func(t *testing.T, a *ApplicationSet) {
-				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -164,7 +162,6 @@ func TestApplicationSetSetConditions(t *testing.T) {
 }
 
 func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
-	t.Helper()
 	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
@@ -176,9 +173,9 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings := SCMProviderGeneratorGitlab{}
 	assert.True(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(false)
+	settings.IncludeSharedProjects = pointer.Bool(false)
 	assert.False(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(true)
+	settings.IncludeSharedProjects = pointer.Bool(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }

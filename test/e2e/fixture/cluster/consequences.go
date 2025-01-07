@@ -2,7 +2,7 @@ package cluster
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -46,7 +46,7 @@ func (c *Consequences) get() (*v1alpha1.Cluster, error) {
 		}
 	}
 
-	return nil, errors.New("cluster not found")
+	return nil, fmt.Errorf("cluster not found")
 }
 
 func (c *Consequences) Given() *Context {

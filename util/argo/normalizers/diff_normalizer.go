@@ -3,7 +3,6 @@ package normalizers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -70,7 +69,7 @@ type jqNormalizerPatch struct {
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	dataJson := make(map[string]any)
+	dataJson := make(map[string]interface{})
 	err := json.Unmarshal(data, &dataJson)
 	if err != nil {
 		return nil, err
@@ -82,17 +81,17 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	iter := np.code.RunWithContext(ctx, dataJson)
 	first, ok := iter.Next()
 	if !ok {
-		return nil, errors.New("JQ patch did not return any data")
+		return nil, fmt.Errorf("JQ patch did not return any data")
 	}
 	if err, ok = first.(error); ok {
-		if errors.Is(err, context.DeadlineExceeded) {
+		if err == context.DeadlineExceeded {
 			return nil, fmt.Errorf("JQ patch execution timed out (%v)", np.jqExecutionTimeout.String())
 		}
 		return nil, fmt.Errorf("JQ patch returned error: %w", err)
 	}
 	_, ok = iter.Next()
 	if ok {
-		return nil, errors.New("JQ patch returned multiple objects")
+		return nil, fmt.Errorf("JQ patch returned multiple objects")
 	}
 
 	patchedData, err := json.Marshal(first)
@@ -184,7 +183,7 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
-		return errors.New("invalid argument: unstructured is nil")
+		return fmt.Errorf("invalid argument: unstructured is nil")
 	}
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
@@ -194,6 +193,7 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			glob.Match(patch.GetGroupKind().Kind, groupKind.Kind) &&
 			(patch.GetName() == "" || patch.GetName() == un.GetName()) &&
 			(patch.GetNamespace() == "" || patch.GetNamespace() == un.GetNamespace()) {
+
 			matched = append(matched, patch)
 		}
 	}

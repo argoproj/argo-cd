@@ -1,12 +1,11 @@
 package db
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"context"
 	"golang.org/x/crypto/ssh"
 
 	log "github.com/sirupsen/logrus"
@@ -56,7 +55,8 @@ type CertificateListSelector struct {
 //   - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
-func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
+func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
+
 	// selector may be given as nil, but we need at least an empty data structure
 	// so we create it if necessary.
 	if selector == nil {
@@ -123,7 +123,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 }
 
 // Get a single certificate from the datastore
-func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
+func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
 		sshKnownHostsList, err := db.getSSHKnownHostsData()
 		if err != nil {
@@ -151,8 +151,8 @@ func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverNam
 // actually created.
 func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
-		saveSSHData = false
-		saveTLSData = false
+		saveSSHData bool = false
+		saveTLSData bool = false
 	)
 
 	sshKnownHostsList, err := db.getSSHKnownHostsData()
@@ -204,15 +204,16 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
 					if !upsert && entry.Data != string(certificate.CertData) {
 						return nil, fmt.Errorf("Key for '%s' (subtype: '%s') already exist and upsert was not specified.", entry.Host, entry.SubType)
+					} else {
+						// Do not add an entry on upsert, but remember if we actual did an
+						// upsert.
+						newEntry = false
+						if entry.Data != string(certificate.CertData) {
+							entry.Data = string(certificate.CertData)
+							upserted = true
+						}
+						break
 					}
-					// Do not add an entry on upsert, but remember if we actual did an
-					// upsert.
-					newEntry = false
-					if entry.Data != string(certificate.CertData) {
-						entry.Data = string(certificate.CertData)
-						upserted = true
-					}
-					break
 				}
 			}
 
@@ -241,8 +242,9 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				created = append(created, certificate)
 				saveSSHData = true
 			}
+
 		} else if certificate.CertType == "https" {
-			var tlsCertificate *TLSCertificate
+			var tlsCertificate *TLSCertificate = nil
 			newEntry := true
 			upserted := false
 			pemCreated := make([]string, 0)
@@ -270,7 +272,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 
 			// We should have at least one valid PEM entry
 			if len(pemData) == 0 {
-				return nil, errors.New("No valid PEM data received.")
+				return nil, fmt.Errorf("No valid PEM data received.")
 			}
 
 			// Make sure we have valid X509 certificates in the data
@@ -289,11 +291,13 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 					Data:    string(certificate.CertData),
 				}
 				tlsCertificates = append(tlsCertificates, tlsCertificate)
-			} else if tlsCertificate.Data != string(certificate.CertData) {
+			} else {
 				// We have made sure the upsert flag was set above. Now just figure out
 				// again if we have to actually update the data in the existing cert.
-				tlsCertificate.Data = string(certificate.CertData)
-				upserted = true
+				if tlsCertificate.Data != string(certificate.CertData) {
+					tlsCertificate.Data = string(certificate.CertData)
+					upserted = true
+				}
 			}
 
 			if newEntry || upserted {

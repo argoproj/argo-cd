@@ -3,14 +3,14 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	corev1 "k8s.io/api/core/v1"
-
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+
+	"github.com/argoproj/gitops-engine/pkg/health"
+	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestFixingDegradedApp(t *testing.T) {
@@ -20,11 +20,11 @@ func TestFixingDegradedApp(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.metadata.annotations and obj.metadata.annotations['health'] or 'Degraded' }`,
 				},
-			}))
+			})
 		}).
 		Sync().
 		Then().
@@ -142,6 +142,6 @@ func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod-with-finalizers" })).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers" })).
 		Expect(ResourceResultNumbering(4))
 }

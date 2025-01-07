@@ -3,7 +3,6 @@ package pull_request
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 
@@ -18,9 +17,7 @@ type BitbucketCloudService struct {
 
 type BitbucketCloudPullRequest struct {
 	ID     int                             `json:"id"`
-	Title  string                          `json:"title"`
 	Source BitbucketCloudPullRequestSource `json:"source"`
-	Author BitbucketCloudPullRequestAuthor `json:"author"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -34,11 +31,6 @@ type BitbucketCloudPullRequestSourceBranch struct {
 
 type BitbucketCloudPullRequestSourceCommit struct {
 	Hash string `json:"hash"`
-}
-
-// Also have display_name and uuid, but don't plan to use them.
-type BitbucketCloudPullRequestAuthor struct {
-	Nickname string `json:"nickname"`
 }
 
 type PullRequestResponse struct {
@@ -68,7 +60,7 @@ func parseUrl(uri string) (*url.URL, error) {
 func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repositorySlug string) (PullRequestService, error) {
 	url, err := parseUrl(baseUrl)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %v", baseUrl, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewBasicAuth(username, password)
@@ -84,7 +76,7 @@ func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repos
 func NewBitbucketCloudServiceBearerToken(baseUrl, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
 	url, err := parseUrl(baseUrl)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %v", baseUrl, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewOAuthbearerToken(bearerToken)
@@ -110,37 +102,35 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 
 	response, err := b.client.Repositories.PullRequests.Gets(opts)
 	if err != nil {
-		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
+		return nil, fmt.Errorf("error listing pull requests for %s/%s: %v", b.owner, b.repositorySlug, err)
 	}
 
-	resp, ok := response.(map[string]any)
+	resp, ok := response.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("unknown type returned from bitbucket pull requests")
+		return nil, fmt.Errorf("unknown type returned from bitbucket pull requests")
 	}
 
-	repoArray, ok := resp["values"].([]any)
+	repoArray, ok := resp["values"].([]interface{})
 	if !ok {
-		return nil, errors.New("unknown type returned from response values")
+		return nil, fmt.Errorf("unknown type returned from response values")
 	}
 
 	jsonStr, err := json.Marshal(repoArray)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling response body to json: %w", err)
+		return nil, fmt.Errorf("error marshalling response body to json: %v", err)
 	}
 
 	var pulls []BitbucketCloudPullRequest
 	if err := json.Unmarshal(jsonStr, &pulls); err != nil {
-		return nil, fmt.Errorf("error unmarshalling json to type '[]BitbucketCloudPullRequest': %w", err)
+		return nil, fmt.Errorf("error unmarshalling json to type '[]BitbucketCloudPullRequest': %v", err)
 	}
 
 	pullRequests := []*PullRequest{}
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:  pull.ID,
-			Title:   pull.Title,
 			Branch:  pull.Source.Branch.Name,
 			HeadSHA: pull.Source.Commit.Hash,
-			Author:  pull.Author.Nickname,
 		})
 	}
 

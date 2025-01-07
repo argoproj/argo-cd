@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -12,8 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -35,6 +35,7 @@ func captureStdout(callback func()) (string, error) {
 	utils.Close(w)
 
 	data, err := io.ReadAll(r)
+
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +45,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewClientset(&corev1.ConfigMap{
+	clientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -53,7 +54,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			},
 		},
 		Data: data,
-	}, &corev1.Secret{
+	}, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDSecretName,
@@ -96,16 +97,22 @@ metadata:
   name: argocd-cm
 data:
   url: https://myargocd.com`)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager(ctx)
 
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	argoCDSettings, err := settingsManager.GetSettings()
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	assert.Equal(t, "https://myargocd.com", argoCDSettings.URL)
 }
@@ -196,10 +203,12 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 			}
 			summary, err := validator(newSettingsManager(tc.data))
 			if tc.containsSummary != "" {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
 			} else if tc.containsError != "" {
-				assert.ErrorContains(t, err, tc.containsError)
+				if assert.Error(t, err) {
+					assert.Contains(t, err.Error(), tc.containsError)
+				}
 			}
 		})
 	}
@@ -264,18 +273,20 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 	cmd := NewValidateSettingsCommand(newCmdContext(map[string]string{}))
 	out, err := captureStdout(func() {
 		err := cmd.Execute()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, "✅ "+k)
+		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
 	}
 }
 
 func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer utils.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
@@ -283,9 +294,9 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "Ignore differences are not configured for 'apps/Deployment'\n")
 	})
 
@@ -294,33 +305,33 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 			"resource.customizations": `apps/Deployment:
   ignoreDifferences: |
     jsonPointers:
-    - /spec`,
-		}))
+    - /spec`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "< spec:")
 	})
 }
 
 func TestResourceOverrideHealth(t *testing.T) {
 	f, closer, err := tempFile(testCustomResourceYAML)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer utils.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `example.com/ExampleResource: {}`,
-		}))
+			"resource.customizations": `example.com/ExampleResource: {}`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "Health script is not configured for 'example.com/ExampleResource'\n")
 	})
 
@@ -329,14 +340,13 @@ func TestResourceOverrideHealth(t *testing.T) {
 			"resource.customizations": `example.com/ExampleResource:
   health.lua: |
     return { status = "Progressing" }
-`,
-		}))
+`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "Progressing")
 	})
 
@@ -345,37 +355,39 @@ func TestResourceOverrideHealth(t *testing.T) {
 			"resource.customizations": `example.com/*:
   health.lua: |
     return { status = "Progressing" }
-`,
-		}))
+`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "Progressing")
 	})
 }
 
 func TestResourceOverrideAction(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer utils.Close(closer)
 
 	cronJobFile, closer, err := tempFile(testCronJobYAML)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	defer utils.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment: {}`,
-		}))
+			"resource.customizations": `apps/Deployment: {}`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "Actions are not configured")
 	})
 
@@ -393,22 +405,21 @@ func TestResourceOverrideAction(t *testing.T) {
       action.lua: |
         obj.metadata.labels["test"] = 'updated'
         return obj
-`,
-		}))
+`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "test: updated")
 
 		out, err = captureStdout(func() {
 			cmd.SetArgs([]string{"list-actions", f})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, `NAME     DISABLED
 restart  false
 resume   false
@@ -438,24 +449,23 @@ resume   false
         result = {}
         result[1] = impactedResource1
         return result
-`,
-		}))
+`}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", cronJobFile, "test"})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "resource was created:")
 		assert.Contains(t, out, "hello-1")
 
 		out, err = captureStdout(func() {
 			cmd.SetArgs([]string{"list-actions", cronJobFile})
 			err := cmd.Execute()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		})
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Contains(t, out, "NAME")
 		assert.Contains(t, out, "DISABLED")
 		assert.Contains(t, out, "create-a-job")

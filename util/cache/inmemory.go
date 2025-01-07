@@ -17,10 +17,10 @@ func NewInMemoryCache(expiration time.Duration) *InMemoryCache {
 }
 
 func init() {
-	gob.Register([]any{})
+	gob.Register([]interface{}{})
 }
 
-// compile-time validation of adherence of the CacheClient contract
+// compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &InMemoryCache{}
 
 type InMemoryCache struct {
@@ -53,7 +53,7 @@ func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Dur
 }
 
 // HasSame returns true if key with the same value already present in cache
-func (i *InMemoryCache) HasSame(key string, obj any) (bool, error) {
+func (i *InMemoryCache) HasSame(key string, obj interface{}) (bool, error) {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(obj)
 	if err != nil {
@@ -71,7 +71,7 @@ func (i *InMemoryCache) HasSame(key string, obj any) (bool, error) {
 	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
 }
 
-func (i *InMemoryCache) Get(key string, obj any) error {
+func (i *InMemoryCache) Get(key string, obj interface{}) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {
 		return ErrCacheMiss
@@ -89,20 +89,22 @@ func (i *InMemoryCache) Flush() {
 	i.memCache.Flush()
 }
 
-func (i *InMemoryCache) OnUpdated(_ context.Context, _ string, _ func() error) error {
+func (i *InMemoryCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return nil
 }
 
-func (i *InMemoryCache) NotifyUpdated(_ string) error {
+func (i *InMemoryCache) NotifyUpdated(key string) error {
 	return nil
 }
 
 // Items return a list of items in the cache; requires passing a constructor function
 // so that the items can be decoded from gob format.
-func (i *InMemoryCache) Items(createNewObject func() any) (map[string]any, error) {
-	result := map[string]any{}
+func (i *InMemoryCache) Items(createNewObject func() interface{}) (map[string]interface{}, error) {
+
+	result := map[string]interface{}{}
 
 	for key, value := range i.memCache.Items() {
+
 		buf := value.Object.(bytes.Buffer)
 		obj := createNewObject()
 		err := gob.NewDecoder(&buf).Decode(obj)
@@ -111,6 +113,7 @@ func (i *InMemoryCache) Items(createNewObject func() any) (map[string]any, error
 		}
 
 		result[key] = obj
+
 	}
 
 	return result, nil

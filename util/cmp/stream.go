@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -41,7 +40,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
 	}
 	if header == nil || header.GetMetadata() == nil {
-		return nil, errors.New("error getting stream metadata: metadata is nil")
+		return nil, fmt.Errorf("error getting stream metadata: metadata is nil")
 	}
 	metadata := header.GetMetadata()
 
@@ -84,12 +83,12 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 	}
 }
 
-// SendRepoStream will compress the files under the given rootPath and send
+// SendRepoStream will compress the files under the given repoPath and send
 // them using the plugin stream sender.
-func SendRepoStream(ctx context.Context, appPath, rootPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
+func SendRepoStream(ctx context.Context, appPath, repoPath string, sender StreamSender, env []string, excludedGlobs []string, opts ...SenderOption) error {
 	opt := newSenderOption(opts...)
 
-	tgz, mr, err := GetCompressedRepoAndMetadata(rootPath, appPath, env, excludedGlobs, opt)
+	tgz, mr, err := GetCompressedRepoAndMetadata(repoPath, appPath, env, excludedGlobs, opt)
 	if err != nil {
 		return err
 	}
@@ -107,14 +106,14 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	return nil
 }
 
-func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
-	// compress all files in rootPath in tgz
-	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs)
+func GetCompressedRepoAndMetadata(repoPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
+	// compress all files in repoPath in tgz
+	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(repoPath, nil, excludedGlobs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
 	if filesWritten == 0 {
-		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
+		return nil, nil, fmt.Errorf("no files to send")
 	}
 	if opt != nil && opt.tarDoneChan != nil {
 		opt.tarDoneChan <- true
@@ -125,7 +124,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
 	}
-	appRelPath, err := files.RelativePath(appPath, rootPath)
+	appRelPath, err := files.RelativePath(appPath, repoPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
@@ -179,14 +178,14 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 		req, err := receiver.Recv()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
+			if err == io.EOF {
 				break
 			}
 			return nil, fmt.Errorf("stream Recv error: %w", err)
 		}
 		f := req.GetFile()
 		if f == nil {
-			return nil, errors.New("stream request file is nil")
+			return nil, fmt.Errorf("stream request file is nil")
 		}
 		_, err = file.Write(f.Chunk)
 		if err != nil {
@@ -198,7 +197,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 	}
 	if hex.EncodeToString(hasher.Sum(nil)) != checksum {
-		return nil, errors.New("file checksum validation error")
+		return nil, fmt.Errorf("file checksum validation error")
 	}
 
 	_, err = file.Seek(0, io.SeekStart)

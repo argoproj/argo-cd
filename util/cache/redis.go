@@ -5,11 +5,9 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"sync"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -44,7 +42,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 	}
 }
 
-// compile-time validation of adherence of the CacheClient contract
+// compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
@@ -63,7 +61,7 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
-func (r *redisCache) marshal(obj any) ([]byte, error) {
+func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
 	if r.redisCompressionType == RedisCompressionGZip {
@@ -79,23 +77,18 @@ func (r *redisCache) marshal(obj any) ([]byte, error) {
 			return nil, err
 		}
 	}
-	if closer, ok := w.(interface{ Close() error }); ok {
-		if err := closer.Close(); err != nil {
-			return nil, err
-		}
-	}
 	return buf.Bytes(), nil
 }
 
-func (r *redisCache) unmarshal(data []byte, obj any) error {
+func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	buf := bytes.NewReader(data)
 	var reader io.Reader = buf
 	if r.redisCompressionType == RedisCompressionGZip {
-		gzipReader, err := gzip.NewReader(buf)
-		if err != nil {
+		if gzipReader, err := gzip.NewReader(buf); err != nil {
 			return err
+		} else {
+			reader = gzipReader
 		}
-		reader = gzipReader
 	}
 	if err := json.NewDecoder(reader).Decode(obj); err != nil {
 		return fmt.Errorf("failed to decode cached data: %w", err)
@@ -131,10 +124,10 @@ func (r *redisCache) Set(item *Item) error {
 	})
 }
 
-func (r *redisCache) Get(key string, obj any) error {
+func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
-	if errors.Is(err, rediscache.ErrCacheMiss) {
+	if err == rediscache.ErrCacheMiss {
 		err = ErrCacheMiss
 	}
 	if err != nil {
@@ -189,23 +182,18 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		startTime := time.Now()
 
 		err := next(ctx, cmd)
-		rh.registry.IncRedisRequest(err != nil && !errors.Is(err, redis.Nil))
+		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
 		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
 		return err
 	}
 }
 
-func (redisHook) ProcessPipelineHook(_ redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
-// Lock should be shared between functions that can add/process a Redis hook.
-func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
-	if lock != nil {
-		lock.Lock()
-		defer lock.Unlock()
-	}
+func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
 	client.AddHook(&redisHook{registry: registry})
 }

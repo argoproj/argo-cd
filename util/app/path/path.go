@@ -1,7 +1,6 @@
 package path
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -48,28 +47,23 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 func CheckOutOfBoundsSymlinks(basePath string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path: %w", err)
+		return fmt.Errorf("failed to get absolute path: %v", err)
 	}
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			// Ignore "no such file or directory" errors than can happen with
-			// temporary files such as .git/*.lock
-			if errors.Is(err, os.ErrNotExist) {
-				return nil
-			}
-			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
+			return fmt.Errorf("failed to walk for symlinks in %s: %v", absBasePath, err)
 		}
 		if files.IsSymlink(info) {
 			// We don't use filepath.EvalSymlinks because it fails without returning a path
 			// if the target doesn't exist.
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
-				return fmt.Errorf("failed to read link %s: %w", path, err)
+				return fmt.Errorf("failed to read link %s: %v", path, err)
 			}
 			// get the path of the symlink relative to basePath, used for error description
 			linkRelPath, err := filepath.Rel(absBasePath, path)
 			if err != nil {
-				return fmt.Errorf("failed to get relative path for symlink: %w", err)
+				return fmt.Errorf("failed to get relative path for symlink: %v", err)
 			}
 			// deny all absolute symlinks
 			if filepath.IsAbs(linkTarget) {
@@ -84,7 +78,7 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 				newDir := filepath.Join(currentDir, part)
 				rel, err := filepath.Rel(absBasePath, newDir)
 				if err != nil {
-					return fmt.Errorf("failed to get relative path for symlink target: %w", err)
+					return fmt.Errorf("failed to get relative path for symlink target: %v", err)
 				}
 				if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 					// return an error so we don't keep traversing the tree
@@ -137,11 +131,13 @@ func AppFilesHaveChanged(refreshPaths []string, changedFiles []string) bool {
 		f = ensureAbsPath(f)
 		for _, item := range refreshPaths {
 			item = ensureAbsPath(item)
+			changed := false
 			if f == item {
-				return true
+				changed = true
 			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
-				return true
-			} else if matched, err := filepath.Match(item, f); err == nil && matched {
+				changed = true
+			}
+			if changed {
 				return true
 			}
 		}
