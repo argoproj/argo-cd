@@ -26,20 +26,20 @@ jobs:
           CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
           echo "TARGET_VERSION=$((CURRENT_VERSION + 1))" >> $GITHUB_OUTPUT
 
+      - name: Copy source code to GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          cp -a ../argo-cd ~/go/src/github.com/argoproj
+
       - name: Run script to bump the version
         run: |
           hack/bump-major-version.sh
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
 
       - name: Setup Golang
         uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
-      - name: Create symlink in GOPATH
-        run: |
-          mkdir -p ~/go/src/github.com/argoproj
-          ln -s ../argo-cd ~/go/src/github.com/argoproj/argo-cd
-          ls ../argo-cd/*
-          ls ~/go/src/github.com/argoproj/argo-cd/*
       - name: Add ~/go/bin to PATH
         run: |
           echo "/home/runner/go/bin" >> $GITHUB_PATH
