@@ -94,6 +94,8 @@ func NewCommand() *cobra.Command {
 		scmRootCAPath            string
 		allowedScmProviders      []string
 		enableScmProviders       bool
+		enableGithubCache        bool
+		githubCacheSize          int
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
