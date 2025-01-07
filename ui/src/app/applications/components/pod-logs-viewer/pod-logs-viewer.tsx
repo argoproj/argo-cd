@@ -241,7 +241,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
-                                <PodHighlightButton pods={uniquePods} selectedPod={selectedPod} setSelectedPod={setSelectedPod} />
+                                <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />

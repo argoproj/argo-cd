@@ -234,6 +234,12 @@ $pod-background-dark: $dark-theme-background-2;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1000;
     min-width: 200px;  // Ensure dropdown is wide enough for pod names
+
+    &.dark-mode {
+        background: #333; /* Dark background for dark mode */
+        border: 1px solid #555; /* Subtle border for dark mode */
+        color: #eee; /* Light text for dark mode */
+    }
 }
 
 .select-options {
@@ -248,9 +254,19 @@ $pod-background-dark: $dark-theme-background-2;
         &:hover {
             background-color: #f5f5f5;
         }
+
+        &.dark-mode {
+            background-color: #444; /* Hover effect in dark mode */
+            &:hover {
+                background-color: #555;
+            }
+        }
         
         &.selected {
             background-color: #e6f3ff;
+        }
+        &.dark-mode.selected {
+            background-color: #666; /* Selection highlight in dark mode */
         }
     }
 }
@@ -264,6 +280,14 @@ $pod-background-dark: $dark-theme-background-2;
     
     &:hover {
         background-color: #f0f0f0;
+    }
+
+    &.dark-mode {
+        border-top: 1px solid #555;
+        color: #5a9bd3;
+        &:hover {
+            background-color: #333;
+        }
     }
 }
 
