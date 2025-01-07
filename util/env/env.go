@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -131,12 +133,13 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	if str == "" {
 		return defaultValue
 	}
-	dur, err := time.ParseDuration(str)
+	durPtr, err := timeutil.ParseDuration(str)
 	if err != nil {
 		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
 		return defaultValue
 	}
 
+	dur := *durPtr
 	if dur < min {
 		log.Warnf("Value in %s is %s, which is less than minimum %s allowed", env, dur, min)
 		return defaultValue

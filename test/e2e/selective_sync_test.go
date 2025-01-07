@@ -111,10 +111,9 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 }
 
 func getNewNamespace(t *testing.T) string {
-	t.Helper()
 	randStr, err := rand.String(5)
 	require.NoError(t, err)
 	postFix := "-" + strings.ToLower(randStr)
 	name := fixture.DnsFriendly(t.Name(), "")
-	return fixture.DnsFriendly("argocd-e2e-"+name, postFix)
+	return fixture.DnsFriendly(fmt.Sprintf("argocd-e2e-%s", name), postFix)
 }

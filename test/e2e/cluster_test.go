@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 		When().
 		CreateApp()
 
-	tries := 25
+	tries := 5
 	for i := 0; i <= tries; i += 1 {
 		clusterFixture.GivenWithSameState(t).
 			When().
@@ -50,7 +51,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 			break
 		} else if i < tries {
 			// We retry with a simple backoff
-			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
+			time.Sleep(time.Duration(i+1) * time.Second)
 		}
 	}
 	assert.Equal(t, expected, last)
@@ -90,7 +91,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
 		})
 }
 
@@ -170,8 +171,8 @@ func TestClusterSet(t *testing.T) {
 		GetByName("in-cluster").
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "namespace-edit-1")
-			assert.Contains(t, output, "namespace-edit-2")
+			assert.True(t, strings.Contains(output, "namespace-edit-1"))
+			assert.True(t, strings.Contains(output, "namespace-edit-2"))
 		})
 }
 
@@ -213,7 +214,7 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	clusterURL := url.QueryEscape(KubernetesInternalAPIServerAddr)
 
 	var cluster Cluster
-	err := DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
+	err := DoHttpJsonRequest("GET", fmt.Sprintf("/api/v1/clusters/%s", clusterURL), &cluster)
 	require.NoError(t, err)
 
 	assert.Equal(t, "in-cluster", cluster.Name)
@@ -255,7 +256,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByName().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
 		})
 
 	// Attempt to remove cluster creds by server
@@ -269,7 +270,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByServer().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
 		})
 }
 
@@ -308,13 +309,19 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	require.NoError(t, err, "Expected no error from not finding serviceaccount argocd-manager")
+	if err != nil {
+		t.Errorf("Expected no error from not finding serviceaccount argocd-manager but got:\n%s", err.Error())
+	}
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	require.NoError(t, err, "Expected no error from not finding clusterrole argocd-manager-role")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+	}
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	require.NoError(t, err, "Expected no error from not finding clusterrolebinding argocd-manager-role-binding")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", err.Error())
+	}
 
 	clstAction.DeleteByName().
 		Then().
@@ -324,11 +331,17 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is removed after delete
 	output, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	require.Error(t, err, "Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
+	}
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	require.Error(t, err, "Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	}
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	assert.Error(t, err, "Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
+	}
 }

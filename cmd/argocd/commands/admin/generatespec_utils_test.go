@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -24,7 +25,7 @@ func TestGetOutWriter_InlineOff(t *testing.T) {
 func TestGetOutWriter_InlineOn(t *testing.T) {
 	tmpFile := t.TempDir()
 	defer func() {
-		_ = os.Remove(tmpFile + ".back")
+		_ = os.Remove(fmt.Sprintf("%s.back", tmpFile))
 	}()
 
 	out, closer, err := getOutWriter(true, tmpFile)
@@ -32,7 +33,7 @@ func TestGetOutWriter_InlineOn(t *testing.T) {
 	defer io.Close(closer)
 
 	assert.Equal(t, tmpFile, out.(*os.File).Name())
-	_, err = os.Stat(tmpFile + ".back")
+	_, err = os.Stat(fmt.Sprintf("%s.back", tmpFile))
 	require.NoError(t, err, "Back file must be created")
 }
 

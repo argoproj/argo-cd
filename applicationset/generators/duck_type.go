@@ -52,7 +52,7 @@ func (g *DuckTypeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.
 		return time.Duration(*appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds) * time.Second
 	}
 
-	return getDefaultRequeueAfter()
+	return DefaultRequeueAfterSeconds
 }
 
 func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -125,7 +125,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(g.ctx, listOptions)
 	if err != nil {
 		log.WithField("GVK", duckGVR).Warning("resources were not found")
-		return nil, fmt.Errorf("failed to get dynamic resources: %w", err)
+		return nil, err
 	}
 
 	if len(duckResources.Items) == 0 {
@@ -211,14 +211,14 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 					}
 					params["values"].(map[string]string)[key] = value
 				} else {
-					params["values."+key] = value
+					params[fmt.Sprintf("values.%s", key)] = value
 				}
 			}
 
 			res = append(res, params)
 		}
 	} else {
-		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
+		log.Warningf("clusterDecisionResource status." + statusListKey + " missing")
 		return nil, nil
 	}
 

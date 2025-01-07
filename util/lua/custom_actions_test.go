@@ -77,11 +77,6 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		if err != nil {
 			return fmt.Errorf("failed to normalize Rollout: %w", err)
 		}
-	case "HelmRelease", "ImageRepository", "ImageUpdateAutomation", "Kustomization", "Receiver", "Bucket", "GitRepository", "HelmChart", "HelmRepository", "OCIRepository":
-		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
 	}
 	return nil
 }
@@ -110,14 +105,15 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
+		// TODO: Change to path
+		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
 		require.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
 		require.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
-			testName := "discovery/" + test.InputPath
+			testName := fmt.Sprintf("discovery/%s", test.InputPath)
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
@@ -208,7 +204,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 // Handling backward compatibility.
 // The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
-	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	unstructuredList := &unstructured.UnstructuredList{}

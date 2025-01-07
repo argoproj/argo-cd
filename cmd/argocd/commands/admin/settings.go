@@ -119,7 +119,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	}
 	setSettingsMeta(argocdSecret)
-	clientset := fake.NewClientset(argocdSecret, argocdCM)
+	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
 
 	manager := settings.NewSettingsManager(ctx, clientset, "default")
 	errors.CheckError(manager.ResyncInformers())
@@ -159,7 +159,7 @@ func NewSettingsCommand() *cobra.Command {
 
 	command.AddCommand(NewValidateSettingsCommand(&opts))
 	command.AddCommand(NewResourceOverridesCommand(&opts))
-	command.AddCommand(NewRBACCommand(&opts))
+	command.AddCommand(NewRBACCommand())
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
@@ -211,7 +211,7 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		var summary string
 		if ssoProvider != "" {
-			summary = ssoProvider + " is configured"
+			summary = fmt.Sprintf("%s is configured", ssoProvider)
 			if general.URL == "" {
 				summary = summary + " ('url' field is missing)"
 			}
@@ -579,7 +579,7 @@ func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
 		Short:   "Executes resource action",
 		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

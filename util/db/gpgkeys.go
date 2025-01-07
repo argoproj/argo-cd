@@ -101,6 +101,10 @@ func (db *db) AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*
 		return nil, nil, err
 	}
 
+	if keysCM.Data == nil {
+		keysCM.Data = make(map[string]string)
+	}
+
 	for kid, key := range keys {
 		if _, ok := keysCM.Data[kid]; ok {
 			skipped = append(skipped, kid)
@@ -125,6 +129,10 @@ func (db *db) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	keysCM, err := db.settingsMgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return err
+	}
+
+	if keysCM.Data == nil {
+		return fmt.Errorf("No such key configured: %s", keyID)
 	}
 
 	if _, ok := keysCM.Data[keyID]; !ok {

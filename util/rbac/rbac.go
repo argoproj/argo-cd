@@ -14,10 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 
+	"github.com/Knetic/govaluate"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
-	"github.com/casbin/govaluate"
 	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +50,7 @@ type CasbinEnforcer interface {
 	LoadPolicy() error
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
-	GetGroupingPolicy() ([][]string, error)
+	GetGroupingPolicy() [][]string
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -256,10 +256,10 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 					break
 				}
 				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", issuedAtTime.Format(time.RFC3339)))
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
@@ -337,7 +337,7 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 // newInformers returns an informer which watches updates on the rbac configmap
 func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	tweakConfigMap := func(options *metav1.ListOptions) {
-		cmFieldSelector := fields.ParseSelectorOrDie("metadata.name=" + e.configmap)
+		cmFieldSelector := fields.ParseSelectorOrDie(fmt.Sprintf("metadata.name=%s", e.configmap))
 		options.FieldSelector = cmFieldSelector.String()
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}

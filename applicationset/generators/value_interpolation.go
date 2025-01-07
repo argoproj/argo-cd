@@ -22,7 +22,7 @@ func appendTemplatedValues(values map[string]string, params map[string]interface
 			}
 			tmp["values"].(map[string]string)[key] = result
 		} else {
-			tmp["values."+key] = result
+			tmp[fmt.Sprintf("values.%s", key)] = result
 		}
 	}
 

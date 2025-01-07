@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -164,22 +162,6 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 			common.SecurityField:    common.SecurityMedium,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("error dialing to cmp-server for plugin %s, %v", fileName, err)
-		return nil, nil, false
-	}
-
-	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
-	if err != nil {
-		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
-		io.Close(conn)
-		return nil, nil, false
-	}
-
-	if !cfg.IsDiscoveryConfigured {
-		// If discovery isn't configured but the plugin is named, then the plugin supports the repo.
-		if namedPlugin {
-			return conn, cmpClient, true
-		}
-		io.Close(conn)
 		return nil, nil, false
 	}
 

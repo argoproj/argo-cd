@@ -112,7 +112,7 @@ func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expe
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
 		if err != nil {
-			return failed, "namespace not found " + err.Error()
+			return failed, fmt.Sprintf("namespace not found %s", err.Error())
 		}
 
 		block(c.app(), ns)
@@ -143,28 +143,14 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		var actual health.HealthStatusCode
-		resourceHealth := c.resource(kind, resource, "").Health
-		if resourceHealth != nil {
-			actual = resourceHealth.Status
-		} else {
-			// Some resources like ConfigMap may not have health status when they are okay
-			actual = health.HealthStatusHealthy
-		}
+		actual := c.resource(kind, resource, "").Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		var actual health.HealthStatusCode
-		resourceHealth := c.resource(kind, resource, namespace).Health
-		if resourceHealth != nil {
-			actual = resourceHealth.Status
-		} else {
-			// Some resources like ConfigMap may not have health status when they are okay
-			actual = health.HealthStatusHealthy
-		}
+		actual := c.resource(kind, resource, namespace).Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
@@ -288,7 +274,7 @@ func NoNamespace(name string) Expectation {
 			return succeeded, "namespace not found"
 		}
 
-		return failed, "found namespace " + name
+		return failed, fmt.Sprintf("found namespace %s", name)
 	}
 }
 

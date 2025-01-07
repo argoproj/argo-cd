@@ -52,7 +52,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
 	}
 
-	return fake.NewClientset(&corev1.ConfigMap{
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -101,7 +101,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
-		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
+		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
 	}
 }
 
@@ -160,7 +160,8 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin is disabled")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin is disabled")
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
@@ -173,7 +174,8 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
@@ -216,7 +218,9 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		assert.ErrorContains(t, err, "does not exist in project 'default'")
+		require.Error(t, err)
+
+		assert.Contains(t, err.Error(), "does not exist in project 'default'")
 	})
 }
 
@@ -251,7 +255,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
 			_, err := w.Write([]byte("Ok"))
-			require.NoError(t, err, "error writing response: %s", err)
+			if err != nil {
+				t.Fatalf("error writing response: %s", err)
+			}
 		}
 	}
 	type testCase struct {
@@ -271,7 +277,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -280,7 +286,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -289,7 +295,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusBadRequest,
+			expectedStatusCode:   400,
 			expectedResponseBody: nil,
 		},
 		{
@@ -298,7 +304,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
-			expectedStatusCode:   http.StatusUnauthorized,
+			expectedStatusCode:   401,
 			expectedResponseBody: nil,
 		},
 		{
@@ -307,7 +313,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   http.StatusOK,
+			expectedStatusCode:   200,
 			expectedResponseBody: strPointer("Ok"),
 		},
 	}
@@ -324,7 +330,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
-			require.NoErrorf(t, err, "error creating request: %s", err)
+			if err != nil {
+				t.Fatalf("error creating request: %s", err)
+			}
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
 			}
@@ -474,8 +482,8 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, strconv.Itoa(math.MaxInt32+1))
-		t.Setenv(envLoginMaxCacheSize, strconv.Itoa(math.MaxInt32+1))
+		t.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
@@ -530,7 +538,8 @@ func TestMaxUsernameLength(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
-	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
@@ -577,7 +586,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 		mergedSecretConfig[key] = value
 	}
 
-	return fake.NewClientset(&corev1.ConfigMap{
+	return fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -689,7 +698,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -759,7 +768,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)

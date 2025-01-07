@@ -44,7 +44,7 @@ func TestInitGetVars(t *testing.T) {
 			"notification-secret": []byte("secret-value"),
 		},
 	}
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
