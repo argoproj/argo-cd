@@ -26,8 +26,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	switch un.GetKind() {
-	case "Job":
+	if un.GetKind() == "Job" {
 		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Job: %w", err)

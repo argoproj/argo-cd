@@ -249,17 +249,15 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			switch s := rvals[0].(type) {
-			case jwt.Claims:
+			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
-				if err != nil {
-					break
-				}
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
-				}
-				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+				if err == nil {
+					if sub := jwtutil.StringField(claims, "sub"); sub != "" {
+						rvalsStrs = append(rvalsStrs, "sub: "+sub)
+					}
+					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))

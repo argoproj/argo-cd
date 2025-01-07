@@ -24,8 +24,7 @@ func gitErrToGRPC(err error) error {
 		errMsg = grpcStatus.Message()
 	}
 
-	switch errMsg {
-	case giterr.ErrRepositoryNotFound.Error():
+	if errMsg == giterr.ErrRepositoryNotFound.Error() {
 		err = rewrapError(errors.New(errMsg), codes.NotFound)
 	}
 	return err

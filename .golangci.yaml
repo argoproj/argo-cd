@@ -143,6 +143,9 @@ linters-settings:
       # warns when an exported function or method returns a value of an un-exported type.
       - name: unexported-return
         disabled: true
+      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unnecessary-stmt
+      - name: unnecessary-stmt
+        disabled: false
       # spots and proposes to remove unreachable code. also helps to spot errors
       - name: unreachable-code
         disabled: false

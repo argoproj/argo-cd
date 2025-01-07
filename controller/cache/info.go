@@ -58,8 +58,7 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populateHostNodeInfo(un, res)
 		}
 	case "extensions", "networking.k8s.io":
-		switch gvk.Kind {
-		case kube.IngressKind:
+		if gvk.Kind == kube.IngressKind {
 			populateIngressInfo(un, res)
 		}
 	case "networking.istio.io":
