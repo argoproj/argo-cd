@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/notifications-engine/pkg/cmd"
@@ -34,8 +35,7 @@ func NewNotificationsCommand() *cobra.Command {
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(&argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
-		func(clientConfig clientcmd.ClientConfig) {
+		settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
@@ -50,8 +50,8 @@ func NewNotificationsCommand() *cobra.Command {
 			}
 			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
 				pool, err := tls.LoadX509CertPool(
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
 					log.Fatalf("Failed to load tls certs: %v", err)

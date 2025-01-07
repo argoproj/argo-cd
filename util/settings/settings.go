@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -20,12 +19,13 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	informersv1 "k8s.io/client-go/informers/core/v1"
+	v1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -49,9 +49,6 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
-	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
-	// The value here is used when configuring SSO reachable from multiple domains.
-	AdditionalURLs []string `json:"additionalUrls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -122,12 +119,9 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
-	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
-	// The value is a yaml string defined in extension.ExtensionConfigs struct.
-	ExtensionConfig map[string]string `json:"extensionConfig,omitempty"`
-	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
-	// privileges using impersonation
-	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
+	// is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig string `json:"extensionConfig,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -201,12 +195,12 @@ type OIDCConfig struct {
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
 type HelmRepoCredentials struct {
-	URL            string                    `json:"url,omitempty"`
-	Name           string                    `json:"name,omitempty"`
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CertSecret     *corev1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
+	URL            string                   `json:"url,omitempty"`
+	Name           string                   `json:"name,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	CertSecret     *apiv1.SecretKeySelector `json:"certSecret,omitempty"`
+	KeySecret      *apiv1.SecretKeySelector `json:"keySecret,omitempty"`
 }
 
 // KustomizeVersion holds information about additional Kustomize version
@@ -227,8 +221,8 @@ type KustomizeSettings struct {
 
 var (
 	ByClusterURLIndexer     = "byClusterURL"
-	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
+	byClusterURLIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
 		if !ok {
 			return nil, nil
 		}
@@ -244,8 +238,8 @@ var (
 		return nil, nil
 	}
 	ByClusterNameIndexer     = "byClusterName"
-	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
+	byClusterNameIndexerFunc = func(obj interface{}) ([]string, error) {
+		s, ok := obj.(*apiv1.Secret)
 		if !ok {
 			return nil, nil
 		}
@@ -260,12 +254,11 @@ var (
 		}
 		return nil, nil
 	}
-	ByProjectClusterIndexer   = "byProjectCluster"
-	ByProjectRepoIndexer      = "byProjectRepo"
-	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
-	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
-		return func(obj any) ([]string, error) {
-			s, ok := obj.(*corev1.Secret)
+	ByProjectClusterIndexer = "byProjectCluster"
+	ByProjectRepoIndexer    = "byProjectRepo"
+	byProjectIndexerFunc    = func(secretType string) func(obj interface{}) ([]string, error) {
+		return func(obj interface{}) ([]string, error) {
+			s, ok := obj.(*apiv1.Secret)
 			if !ok {
 				return nil, nil
 			}
@@ -317,11 +310,11 @@ type Repository struct {
 	// helm only
 	Name string `json:"name,omitempty"`
 	// Name of the secret storing the username used to access the repo
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	// Name of the secret storing the SSH private key used to access the repo. Git only
-	SSHPrivateKeySecret *corev1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Whether to connect the repository in an insecure way (deprecated)
 	InsecureIgnoreHostKey bool `json:"insecureIgnoreHostKey,omitempty"`
 	// Whether to connect the repository in an insecure way
@@ -329,13 +322,13 @@ type Repository struct {
 	// Whether the repo is git-lfs enabled. Git only.
 	EnableLFS bool `json:"enableLfs,omitempty"`
 	// Name of the secret storing the TLS client cert data
-	TLSClientCertDataSecret *corev1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
-	TLSClientCertKeySecret *corev1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Whether the repo is helm-oci enabled. Git only.
 	EnableOci bool `json:"enableOci,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
@@ -344,10 +337,8 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
-	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
-	NoProxy string `json:"noProxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
@@ -357,17 +348,17 @@ type RepositoryCredentials struct {
 	// The URL pattern the repository URL has to match
 	URL string `json:"url,omitempty"`
 	// Name of the secret storing the username used to access the repo
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
+	UsernameSecret *apiv1.SecretKeySelector `json:"usernameSecret,omitempty"`
 	// Name of the secret storing the password used to access the repo
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
+	PasswordSecret *apiv1.SecretKeySelector `json:"passwordSecret,omitempty"`
 	// Name of the secret storing the SSH private key used to access the repo. Git only
-	SSHPrivateKeySecret *corev1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
+	SSHPrivateKeySecret *apiv1.SecretKeySelector `json:"sshPrivateKeySecret,omitempty"`
 	// Name of the secret storing the TLS client cert data
-	TLSClientCertDataSecret *corev1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
+	TLSClientCertDataSecret *apiv1.SecretKeySelector `json:"tlsClientCertDataSecret,omitempty"`
 	// Name of the secret storing the TLS client cert's key data
-	TLSClientCertKeySecret *corev1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
+	TLSClientCertKeySecret *apiv1.SecretKeySelector `json:"tlsClientCertKeySecret,omitempty"`
 	// Github App Private Key PEM data
-	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
+	GithubAppPrivateKeySecret *apiv1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
 	GithubAppId int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
@@ -379,7 +370,7 @@ type RepositoryCredentials struct {
 	// the type of the repositoryCredentials, "git" or "helm", assumed to be "git" if empty or absent
 	Type string `json:"type,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
+	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
 }
@@ -415,8 +406,6 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
-	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
-	settingAdditionalUrlsKey = "additionalUrls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -461,8 +450,6 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
-	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
-	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
 	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
@@ -532,16 +519,11 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
-	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
-	impersonationEnabledKey = "application.sync.impersonation.enabled"
 )
 
 const (
-	// default max webhook payload size is 50MB
-	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
-
-	// application sync with impersonation feature is disabled by default.
-	defaultImpersonationEnabledFlag = false
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -637,14 +619,18 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	return mgr.secretsInformer, nil
 }
 
-func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
-	argoCDSecret, err := mgr.getSecret()
+func (mgr *SettingsManager) updateSecret(callback func(*apiv1.Secret) error) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	createSecret := false
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if !apierr.IsNotFound(err) {
 			return err
 		}
-		argoCDSecret = &corev1.Secret{
+		argoCDSecret = &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
@@ -652,21 +638,24 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 		}
 		createSecret = true
 	}
+	if argoCDSecret.Data == nil {
+		argoCDSecret.Data = make(map[string][]byte)
+	}
 
-	beforeUpdate := argoCDSecret.DeepCopy()
-	err = callback(argoCDSecret)
+	updatedSecret := argoCDSecret.DeepCopy()
+	err = callback(updatedSecret)
 	if err != nil {
 		return err
 	}
 
-	if !createSecret && reflect.DeepEqual(beforeUpdate.Data, argoCDSecret.Data) {
+	if !createSecret && reflect.DeepEqual(argoCDSecret.Data, updatedSecret.Data) {
 		return nil
 	}
 
 	if createSecret {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), argoCDSecret, metav1.CreateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Create(context.Background(), updatedSecret, metav1.CreateOptions{})
 	} else {
-		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), argoCDSecret, metav1.UpdateOptions{})
+		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), updatedSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		return err
@@ -675,28 +664,29 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) error) error {
+func (mgr *SettingsManager) updateConfigMap(callback func(*apiv1.ConfigMap) error) error {
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if !apierr.IsNotFound(err) {
 			return err
 		}
-		argoCDCM = &corev1.ConfigMap{
+		argoCDCM = &apiv1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDConfigMapName,
 			},
-			Data: make(map[string]string),
 		}
 		createCM = true
 	}
-
+	if argoCDCM.Data == nil {
+		argoCDCM.Data = make(map[string]string)
+	}
 	beforeUpdate := argoCDCM.DeepCopy()
 	err = callback(argoCDCM)
 	if err != nil {
 		return err
 	}
-	if !createCM && reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
+	if reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
 		return nil
 	}
 
@@ -715,14 +705,25 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	return mgr.ResyncInformers()
 }
 
-func (mgr *SettingsManager) getConfigMap() (*corev1.ConfigMap, error) {
-	return mgr.GetConfigMapByName(common.ArgoCDConfigMapName)
+func (mgr *SettingsManager) getConfigMap() (*apiv1.ConfigMap, error) {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
+	if err != nil {
+		return nil, err
+	}
+	if argoCDCM.Data == nil {
+		argoCDCM.Data = make(map[string]string)
+	}
+	return argoCDCM, err
 }
 
 // Returns the ConfigMap with the given name from the cluster.
 // The ConfigMap must be labeled with "app.kubernetes.io/part-of: argocd" in
 // order to be retrievable.
-func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.ConfigMap, error) {
+func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*apiv1.ConfigMap, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
@@ -731,53 +732,7 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.Co
 	if err != nil {
 		return nil, err
 	}
-	cmCopy := configMap.DeepCopy()
-	if cmCopy.Data == nil {
-		cmCopy.Data = make(map[string]string)
-	}
-	return cmCopy, err
-}
-
-func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
-	return mgr.GetSecretByName(common.ArgoCDSecretName)
-}
-
-// Returns the Secret with the given name from the cluster.
-func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return nil, err
-	}
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(secretName)
-	if err != nil {
-		return nil, err
-	}
-	secretCopy := secret.DeepCopy()
-	if secretCopy.Data == nil {
-		secretCopy.Data = make(map[string][]byte)
-	}
-	return secretCopy, err
-}
-
-func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
-	err := mgr.ensureSynced(false)
-	if err != nil {
-		return nil, err
-	}
-
-	selector, err := labels.Parse(partOfArgoCDSelector)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
-	}
-	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
-	if err != nil {
-		return nil, err
-	}
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
-	return secrets, nil
+	return configMap, err
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
@@ -948,7 +903,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return true, nil
+		return false, nil
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
@@ -1255,7 +1210,7 @@ func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
 }
 
 func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
+	return mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
 		if len(repos) > 0 {
 			yamlStr, err := yaml.Marshal(repos)
 			if err != nil {
@@ -1270,7 +1225,7 @@ func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
 }
 
 func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
+	return mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
 		if len(creds) > 0 {
 			yamlStr, err := yaml.Marshal(creds)
 			if err != nil {
@@ -1346,19 +1301,26 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
-	argoCDCM, err := mgr.getConfigMap()
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return nil, err
+	}
+	argoCDCM, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(common.ArgoCDConfigMapName)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	argoCDSecret, err := mgr.getSecret()
+	argoCDSecret, err := mgr.secrets.Secrets(mgr.namespace).Get(common.ArgoCDSecretName)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-secret: %w", err)
 	}
-	secrets, err := mgr.getSecrets()
+	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving argocd secrets: %w", err)
+		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
-
+	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	if err != nil {
+		return nil, err
+	}
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
@@ -1388,27 +1350,26 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, _ any) {
+		UpdateFunc: func(oldObj, newObj interface{}) {
 			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
-		AddFunc: func(_ any) {
+		AddFunc: func(obj interface{}) {
 			mgr.onRepoOrClusterChanged()
 		},
-		DeleteFunc: func(_ any) {
+		DeleteFunc: func(obj interface{}) {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
 	indexers := cache.Indexers{
-		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:       byClusterURLIndexerFunc,
-		ByClusterNameIndexer:      byClusterNameIndexerFunc,
-		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
-		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
-		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
+		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
+		ByClusterURLIndexer:     byClusterURLIndexerFunc,
+		ByClusterNameIndexer:    byClusterNameIndexerFunc,
+		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
+		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 	}
-	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
-	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
+	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
+	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
 	_, err := cmInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
@@ -1430,7 +1391,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("Timed out waiting for settings cache to sync")
+		return fmt.Errorf("Timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1444,14 +1405,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	now := time.Now()
 	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
+		AddFunc: func(obj interface{}) {
 			if metaObj, ok := obj.(metav1.Object); ok {
 				if metaObj.GetCreationTimestamp().After(now) {
 					tryNotify()
 				}
 			}
 		},
-		UpdateFunc: func(oldObj, newObj any) {
+		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta, oldOk := oldObj.(metav1.Common)
 			newMeta, newOk := newObj.(metav1.Common)
 			if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
@@ -1488,7 +1449,7 @@ func (mgr *SettingsManager) ensureSynced(forceResync bool) error {
 	return mgr.initialize(ctx)
 }
 
-func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]string {
+func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]string {
 	binaryUrls := map[string]string{}
 	for _, archType := range []string{"darwin-amd64", "darwin-arm64", "windows-amd64", "linux-amd64", "linux-arm64", "linux-ppc64le", "linux-s390x"} {
 		if val, ok := argoCDCM.Data[settingsBinaryUrlsKey+"."+archType]; ok {
@@ -1499,7 +1460,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 }
 
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
-func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
+func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -1518,16 +1479,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.URL = argoCDCM.Data[settingURLKey]
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
-	}
-	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
-		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
-			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
-		}
-	}
-	for _, url := range settings.AdditionalURLs {
-		if err := validateExternalURL(url); err != nil {
-			log.Warnf("Failed to validate external URL in configmap: %v", err)
-		}
 	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
@@ -1560,19 +1511,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
-	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
-	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
-}
-
-func getExtensionConfigs(cmData map[string]string) map[string]string {
-	result := make(map[string]string)
-	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
-			result[extName] = v
-		}
-	}
-	return result
+	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1585,13 +1524,13 @@ func validateExternalURL(u string) error {
 		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
-		return errors.New("URL must include http or https protocol")
+		return fmt.Errorf("URL must include http or https protocol")
 	}
 	return nil
 }
 
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
-func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *corev1.Secret, secrets []*corev1.Secret) error {
+func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *apiv1.Secret, secrets []*apiv1.Secret) error {
 	var errs []error
 	secretKey, ok := argoCDSecret.Data[settingServerSignatureKey]
 	if ok {
@@ -1655,9 +1594,9 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
 	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(externalServerTLSSecretName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if apierr.IsNotFound(err) {
 			return nil, nil
 		}
 	}
@@ -1674,7 +1613,7 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 
 // SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
 func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
+	err := mgr.updateConfigMap(func(argoCDCM *apiv1.ConfigMap) error {
 		if settings.URL != "" {
 			argoCDCM.Data[settingURLKey] = settings.URL
 		} else {
@@ -1709,7 +1648,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		return err
 	}
 
-	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
+	return mgr.updateSecret(func(argoCDSecret *apiv1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
 		if settings.WebhookGitHubSecret != "" {
 			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
@@ -1748,9 +1687,18 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 
 // Save the SSH known host data into the corresponding ConfigMap
 func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
 		return err
+	}
+
+	if certCM.Data == nil {
+		certCM.Data = make(map[string]string)
 	}
 
 	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
@@ -1764,6 +1712,11 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 }
 
 func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
 	if err != nil {
 		return err
@@ -1779,6 +1732,11 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 }
 
 func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicKeys map[string]string) error {
+	err := mgr.ensureSynced(false)
+	if err != nil {
+		return err
+	}
+
 	keysCM, err := mgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
 		return err
@@ -1848,8 +1806,8 @@ func (a *ArgoCDSettings) GetServerEncryptionKey() ([]byte, error) {
 	return crypto.KeyFromPassphrase(string(a.ServerSignature))
 }
 
-func UnmarshalDexConfig(config string) (map[string]any, error) {
-	var dexCfg map[string]any
+func UnmarshalDexConfig(config string) (map[string]interface{}, error) {
+	var dexCfg map[string]interface{}
 	err := yaml.Unmarshal([]byte(config), &dexCfg)
 	return dexCfg, err
 }
@@ -1858,7 +1816,7 @@ func (a *ArgoCDSettings) oidcConfig() *oidcConfig {
 	if a.OIDCConfigRAW == "" {
 		return nil
 	}
-	configMap := map[string]any{}
+	configMap := map[string]interface{}{}
 	err := yaml.Unmarshal([]byte(a.OIDCConfigRAW), &configMap)
 	if err != nil {
 		log.Warnf("invalid oidc config: %v", err)
@@ -2045,39 +2003,6 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
-func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
-	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
-		u, err := url.Parse(candidateURL)
-		if err != nil {
-			return "", err
-		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
-			return candidateURL, nil
-		}
-	}
-	return a.URL, nil
-}
-
-func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
-	base, err := a.ArgoURLForRequest(r)
-	if err != nil {
-		return "", err
-	}
-	return appendURLPath(base, common.CallbackEndpoint)
-}
-
-func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {
-	RedirectAdditionalURLs := []string{}
-	for _, url := range a.AdditionalURLs {
-		redirectURL, err := appendURLPath(url, common.CallbackEndpoint)
-		if err != nil {
-			return []string{}, err
-		}
-		RedirectAdditionalURLs = append(RedirectAdditionalURLs, redirectURL)
-	}
-	return RedirectAdditionalURLs, nil
-}
-
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
@@ -2176,7 +2101,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 				if err != nil {
 					return err
 				}
-				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
+				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
 				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err
@@ -2203,7 +2128,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		hosts := []string{
 			"localhost",
 			"argocd-server",
-			"argocd-server." + mgr.namespace,
+			fmt.Sprintf("argocd-server.%s", mgr.namespace),
 			fmt.Sprintf("argocd-server.%s.svc", mgr.namespace),
 			fmt.Sprintf("argocd-server.%s.svc.cluster.local", mgr.namespace),
 		}
@@ -2231,13 +2156,13 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 
 // ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
 // object and replaces the value with the secret value
-func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[string]any {
-	newObj := make(map[string]any)
+func ReplaceMapSecrets(obj map[string]interface{}, secretValues map[string]string) map[string]interface{} {
+	newObj := make(map[string]interface{})
 	for k, v := range obj {
 		switch val := v.(type) {
-		case map[string]any:
+		case map[string]interface{}:
 			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []any:
+		case []interface{}:
 			newObj[k] = replaceListSecrets(val, secretValues)
 		case string:
 			newObj[k] = ReplaceStringSecret(val, secretValues)
@@ -2248,13 +2173,13 @@ func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[s
 	return newObj
 }
 
-func replaceListSecrets(obj []any, secretValues map[string]string) []any {
-	newObj := make([]any, len(obj))
+func replaceListSecrets(obj []interface{}, secretValues map[string]string) []interface{} {
+	newObj := make([]interface{}, len(obj))
 	for i, v := range obj {
 		switch val := v.(type) {
-		case map[string]any:
+		case map[string]interface{}:
 			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []any:
+		case []interface{}:
 			newObj[i] = replaceListSecrets(val, secretValues)
 		case string:
 			newObj[i] = ReplaceStringSecret(val, secretValues)
@@ -2345,28 +2270,6 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	return labelKeys
 }
 
-func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
-	annotationKeys := make(map[string]bool)
-
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %w", err))
-		return annotationKeys
-	}
-
-	value, ok := argoCDCM.Data[resourceSensitiveAnnotationsKey]
-	if !ok || value == "" {
-		return annotationKeys
-	}
-
-	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
-		annotationKeys[k] = true
-	}
-	return annotationKeys
-}
-
 func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2384,13 +2287,4 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	}
 
 	return maxPayloadSizeMB * 1024 * 1024
-}
-
-// IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
-func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
-	cm, err := mgr.getConfigMap()
-	if err != nil {
-		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
-	}
-	return cm.Data[impersonationEnabledKey] == "true", nil
 }

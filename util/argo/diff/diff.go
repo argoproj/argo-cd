@@ -1,7 +1,6 @@
 package diff
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -341,7 +340,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
-		return nil, errors.New("left and right arrays have mismatched lengths")
+		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
 	}
 
 	diffByKey := map[kube.ResourceKey]*v1alpha1.ResourceDiff{}
@@ -412,7 +411,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 // the diff. None of the attributes in the lives and targets params will be modified.
 func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	if diffConfig == nil {
-		return nil, errors.New("preDiffNormalize error: diffConfig can not be nil")
+		return nil, fmt.Errorf("preDiffNormalize error: diffConfig can not be nil")
 	}
 	err := diffConfig.Validate()
 	if err != nil {

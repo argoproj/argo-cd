@@ -130,19 +130,6 @@ stringData:
   count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
   be buffered in memory -- no api server request will be blocked by processing.
 
-* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
-  for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of resources,
-  and the controller is overwhelmed by the number of events. The default value is `false`, which means that the controller
-  processes events one by one.
-
-* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing events in a batch.
-  The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`.
-  The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
-
-* `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one Redis
-  key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and Redis.
-  The default value is 0, which means that the application tree is stored in a single Redis key. The reasonable value is 100.
-
 **metrics**
 
 * `argocd_app_reconcile` - reports application reconciliation duration in seconds. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
@@ -286,9 +273,6 @@ spec:
 # ...
 ```
 
-!!! note
-    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
-
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the timeout expires.
@@ -387,17 +371,3 @@ Not all HTTP responses are eligible for retries. The following conditions will n
 
 * Responses with a status code indicating client errors (4xx) except for 429 Too Many Requests.
 * Responses with the status code 501 Not Implemented.
-
-
-## CPU/Memory Profiling
-
-Argo CD optionally exposes a profiling endpoint that can be used to profile the CPU and memory usage of the Argo CD component.
-The profiling endpoint is available on metrics port of each component. See [metrics](./metrics.md) for more information about the port.
-For security reasons the profiling endpoint is disabled by default. The endpoint can be enabled by setting the `server.profile.enabled`
-or `controller.profile.enabled` key of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
-Once the endpoint is enabled you can use go profile tool to collect the CPU and memory profiles. Example:
-
-```bash
-$ kubectl port-forward svc/argocd-metrics 8082:8082
-$ go tool pprof http://localhost:8082/debug/pprof/heap
-```

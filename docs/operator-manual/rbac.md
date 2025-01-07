@@ -42,7 +42,7 @@ The anonymous access to Argo CD can be enabled using the `users.anonymous.enable
 
 ## RBAC Model Structure
 
-The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open source ACL/ACLs). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
+The model syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
 
 **Group**: Allows to assign authenticated users/groups to internal roles.
 
@@ -163,8 +163,6 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 The `action` action corresponds to either built-in resource customizations defined
 [in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
-
-See the [resource actions documentation](resource_actions.md#built-in-actions) for a list of built-in actions.
 
 The `<action>` has the `action/<group>/<kind>/<action-name>` format.
 

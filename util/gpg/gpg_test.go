@@ -28,7 +28,6 @@ var syncTestSources = map[string]string{
 
 // Helper function to create temporary GNUPGHOME
 func initTempDir(t *testing.T) string {
-	t.Helper()
 	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
 	// path length on some OSes. The GPG tests rely on sockets.
 	p, err := os.MkdirTemp(os.TempDir(), "")
@@ -79,7 +78,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
 	cmd := exec.Command("gpgconf", "--kill", "gpg-agent")
-	cmd.Env = []string{"GNUPGHOME=" + p}
+	cmd.Env = []string{fmt.Sprintf("GNUPGHOME=%s", p)}
 	err = cmd.Run()
 	require.NoError(t, err)
 
@@ -99,12 +98,13 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 		// we need to error out
 		t.Setenv(common.EnvGnuPGHome, f.Name())
 		err = InitializeGnuPG()
-		assert.ErrorContains(t, err, "does not point to a directory")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "does not point to a directory")
 	})
 
 	t.Run("Unaccessible GNUPGHOME", func(t *testing.T) {
 		p := initTempDir(t)
-		fp := p + "/gpg"
+		fp := fmt.Sprintf("%s/gpg", p)
 		err = os.Mkdir(fp, 0o000)
 		if err != nil {
 			panic(err.Error())

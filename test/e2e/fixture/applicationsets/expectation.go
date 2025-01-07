@@ -116,7 +116,7 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 
 // Pod checks whether a specified condition is true for any of the pods in the namespace
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(_ *Consequences) (state, string) {
+	return func(c *Consequences) (state, string) {
 		pods, err := pods(utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()

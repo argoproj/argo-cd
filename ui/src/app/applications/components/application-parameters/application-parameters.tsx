@@ -1,4 +1,4 @@
-import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
+import {AutocompleteField, DataLoader, FormField, FormSelect, getNestedField} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
 import {cloneDeep} from 'lodash-es';
@@ -18,8 +18,7 @@ import {
     Revision,
     Repo,
     EditablePanel,
-    EditablePanelItem,
-    Spinner
+    EditablePanelItem
 } from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ApplicationSourceDirectory, Plugin} from '../../../shared/models';
@@ -28,15 +27,13 @@ import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import {concatMaps} from '../../../shared/utils';
-import {deleteSourceAction, getAppDefaultSource, helpTip} from '../utils';
+import {getAppDefaultSource} from '../utils';
 import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
 
 import './application-parameters.scss';
-import {AppContext} from '../../../shared/context';
-import {SourcePanel} from './source-panel';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
     const {
@@ -151,30 +148,17 @@ export const ApplicationParameters = (props: {
     setPageNumber?: (x: number) => any;
     collapsedSources?: boolean[];
     handleCollapse?: (i: number, isCollapsed: boolean) => void;
-    appContext?: AppContext;
-    tempSource?: models.ApplicationSource;
 }) => {
     const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app); // For source field
     const appSources = app?.spec.sources;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
     const collapsible = props.collapsedSources !== undefined && props.handleCollapse !== undefined;
-    const [createApi, setCreateApi] = React.useState(null);
-    const [isAddingSource, setIsAddingSource] = React.useState(false);
-    const [isSavingSource, setIsSavingSource] = React.useState(false);
     const [appParamsDeletedState, setAppParamsDeletedState] = React.useState([]);
 
     if (app.spec.sources?.length > 0 && !props.details) {
-        // For multi-source case only
         return (
             <div className='application-parameters'>
-                <div className='source-panel-buttons'>
-                    <button key={'add_source_button'} onClick={() => setIsAddingSource(true)} disabled={false} className='argo-button argo-button--base'>
-                        {helpTip('Add a new source and append it to the sources field')}
-                        <span style={{marginRight: '8px'}} />
-                        Add Source
-                    </button>
-                </div>
                 <Paginate
                     showHeader={false}
                     data={app.spec.sources}
@@ -192,83 +176,18 @@ export const ApplicationParameters = (props: {
                         return listOfPanels;
                     }}
                 </Paginate>
-                <SlidingPanel
-                    isShown={isAddingSource}
-                    onClose={() => setIsAddingSource(false)}
-                    header={
-                        <div>
-                            <button
-                                key={'source_panel_save_button'}
-                                className='argo-button argo-button--base'
-                                disabled={isSavingSource}
-                                onClick={() => createApi && createApi.submitForm(null)}>
-                                <Spinner show={isSavingSource} style={{marginRight: '5px'}} />
-                                Save
-                            </button>{' '}
-                            <button
-                                key={'source_panel_cancel_button_'}
-                                onClick={() => {
-                                    setIsAddingSource(false);
-                                    setIsSavingSource(false);
-                                }}
-                                className='argo-button argo-button--base-o'>
-                                Cancel
-                            </button>
-                        </div>
-                    }>
-                    <SourcePanel
-                        appCurrent={props.application}
-                        getFormApi={api => {
-                            setCreateApi(api);
-                        }}
-                        onSubmitFailure={errors => {
-                            props.appContext.apis.notifications.show({
-                                content: 'Cannot add source: ' + errors.toString(),
-                                type: NotificationType.Warning
-                            });
-                        }}
-                        updateApp={async updatedAppSource => {
-                            setIsSavingSource(true);
-                            props.application.spec.sources.push(updatedAppSource.spec.source);
-                            try {
-                                await services.applications.update(props.application);
-                                setIsAddingSource(false);
-                            } catch (e) {
-                                props.application.spec.sources.pop();
-                                props.appContext.apis.notifications.show({
-                                    content: <ErrorNotification title='Unable to create source' e={e} />,
-                                    type: NotificationType.Error
-                                });
-                            } finally {
-                                setIsSavingSource(false);
-                            }
-                        }}
-                    />
-                </SlidingPanel>
             </div>
         );
     } else {
-        // For the three other references of ApplicationParameters. They are single source.
-        // Create App, Add source, Rollback and History
+        // For the other old/existings references of ApplicationParameters that have details already loaded. They are single source
         let attributes: EditablePanelItem[] = [];
         if (props.details) {
             return getEditablePanel(
-                gatherDetails(
-                    0,
-                    props.details,
-                    attributes,
-                    props.tempSource ? props.tempSource : source,
-                    app,
-                    setRemovedOverrides,
-                    removedOverrides,
-                    appParamsDeletedState,
-                    setAppParamsDeletedState,
-                    false
-                ),
+                gatherDetails(0, props.details, attributes, source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false),
                 props.details
             );
         } else {
-            // For single source field, details page where we have to do the load to retrieve repo details
+            // For single source field, for resource details where we have to do the load.
             return (
                 <DataLoader input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
@@ -304,10 +223,10 @@ export const ApplicationParameters = (props: {
                     props.handleCollapse(index, !currentState);
                 }}>
                 <div className='editable-panel__collapsible-button'>
-                    <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
+                    <i className={`fa fa-angle-down filter__collapse`} />
                 </div>
                 <div className='settings-overview__redirect-panel__content'>
-                    <div className='settings-overview__redirect-panel__title'>Source {index + 1 + (appSource.name ? ' - ' + appSource.name : '') + ': ' + appSource.repoURL}</div>
+                    <div className='settings-overview__redirect-panel__title'>Source {index + 1 + ': ' + appSource.repoURL}</div>
                     <div className='settings-overview__redirect-panel__description'>
                         {(appSource.path ? 'PATH=' + appSource.path : '') + (appSource.targetRevision ? (appSource.path ? ', ' : '') + 'REVISION=' + appSource.targetRevision : '')}
                     </div>
@@ -320,7 +239,7 @@ export const ApplicationParameters = (props: {
                         <React.Fragment>
                             <div className='editable-panel__collapsible-button'>
                                 <i
-                                    className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
+                                    className={`fa fa-angle-up filter__collapse`}
                                     onClick={() => {
                                         props.handleCollapse(index, !props.collapsedSources[index]);
                                     }}
@@ -328,10 +247,7 @@ export const ApplicationParameters = (props: {
                             </div>
                         </React.Fragment>
                     )}
-                    <DataLoader
-                        key={'app_params_source_' + index}
-                        input={app.spec.sources[index]}
-                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                    <DataLoader input={app.spec.sources[index]} load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
                         {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                     </DataLoader>
                 </div>
@@ -354,10 +270,10 @@ export const ApplicationParameters = (props: {
                             function isDefinedWithVersion(item: any) {
                                 return item !== null && item !== undefined && item.match(/:/);
                             }
-                            if (updatedSrc && updatedSrc.helm?.parameters) {
+                            if (updatedSrc.helm && updatedSrc.helm.parameters) {
                                 updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                             }
-                            if (updatedSrc && updatedSrc.kustomize?.images) {
+                            if (updatedSrc.kustomize && updatedSrc.kustomize.images) {
                                 updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
                             }
 
@@ -379,7 +295,7 @@ export const ApplicationParameters = (props: {
                                 params = params.filter(param => !appParamsDeletedState.includes(param.name));
                                 input.spec.source.plugin.parameters = params;
                             }
-                            if (input.spec.source && input.spec.source.helm?.valuesObject) {
+                            if (input.spec.source.helm && input.spec.source.helm.valuesObject) {
                                 input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
                                 input.spec.source.helm.values = '';
                             }
@@ -387,7 +303,7 @@ export const ApplicationParameters = (props: {
                             setRemovedOverrides(new Array<boolean>());
                         })
                     }
-                    values={((repoAppDetails?.plugin || app?.spec?.source?.plugin) && cloneDeep(app)) || app}
+                    values={((repoAppDetails.plugin || app?.spec?.source?.plugin) && cloneDeep(app)) || app}
                     validate={updatedApp => {
                         const errors = {} as any;
 
@@ -396,7 +312,7 @@ export const ApplicationParameters = (props: {
                             errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
                         }
 
-                        if (updatedApp.spec.source && updatedApp.spec.source.helm?.values) {
+                        if (updatedApp.spec.source.helm && updatedApp.spec.source.helm.values) {
                             const parsedValues = jsYaml.load(updatedApp.spec.source.helm.values);
                             errors['spec.source.helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
                         }
@@ -404,12 +320,12 @@ export const ApplicationParameters = (props: {
                         return errors;
                     }}
                     onModeSwitch={
-                        repoAppDetails?.plugin &&
+                        repoAppDetails.plugin &&
                         (() => {
                             setAppParamsDeletedState([]);
                         })
                     }
-                    title={repoAppDetails?.type?.toLocaleUpperCase()}
+                    title={repoAppDetails.type.toLocaleUpperCase()}
                     items={items as EditablePanelItem[]}
                     noReadonlyMode={props.noReadonlyMode}
                     hasMultipleSources={false}
@@ -486,7 +402,7 @@ export const ApplicationParameters = (props: {
                 saveBottom={
                     props.save &&
                     (async (input: models.Application) => {
-                        const appSrc = input.spec.sources[ind];
+                        const updatedSrc = input.spec.sources[ind];
 
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
@@ -495,11 +411,11 @@ export const ApplicationParameters = (props: {
                             return item !== null && item !== undefined && item.match(/:/);
                         }
 
-                        if (appSrc.helm && appSrc.helm.parameters) {
-                            appSrc.helm.parameters = appSrc.helm.parameters.filter(isDefined);
+                        if (updatedSrc.helm && updatedSrc.helm.parameters) {
+                            updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                         }
-                        if (appSrc.kustomize && appSrc.kustomize.images) {
-                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isDefinedWithVersion);
+                        if (updatedSrc.kustomize && updatedSrc.kustomize.images) {
+                            updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
                         }
 
                         let params = input.spec?.sources[ind]?.plugin?.parameters;
@@ -519,11 +435,11 @@ export const ApplicationParameters = (props: {
                             }
 
                             params = params.filter(param => !appParamsDeletedState.includes(param.name));
-                            appSrc.plugin.parameters = params;
+                            updatedSrc.plugin.parameters = params;
                         }
-                        if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            appSrc.helm.values = '';
+                        if (updatedSrc.helm && updatedSrc.helm.valuesObject) {
+                            updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
+                            updatedSrc.helm.values = '';
                         }
 
                         await props.save(input, {});
@@ -570,10 +486,6 @@ export const ApplicationParameters = (props: {
                 itemsTop={upperPanel as EditablePanelItem[]}
                 noReadonlyMode={props.noReadonlyMode}
                 collapsible={collapsible}
-                numberOfSources={app?.spec?.sources.length}
-                deleteSource={() => {
-                    deleteSourceAction(app, app.spec.sources.at(ind), props.appContext);
-                }}
             />
         );
     }
@@ -586,7 +498,6 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
     const repoUrlField = 'spec.sources[' + i + '].repoURL';
     const sourcesPathField = 'spec.sources[' + i + '].path';
     const refField = 'spec.sources[' + i + '].ref';
-    const nameField = 'spec.sources[' + i + '].name';
     const chartField = 'spec.sources[' + i + '].chart';
     const revisionField = 'spec.sources[' + i + '].targetRevision';
     // For single source apps using the source field, these fields are shown in the Summary tab.
@@ -595,11 +506,6 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field={repoUrlField} component={Text} />
-        });
-        attributes.push({
-            title: 'NAME',
-            view: <span>{source?.name}</span>,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field={nameField} component={Text} />
         });
         if (isHelm) {
             attributes.push({

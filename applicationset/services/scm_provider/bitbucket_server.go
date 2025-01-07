@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
@@ -21,7 +20,7 @@ type BitbucketServerProvider struct {
 
 var _ SCMProviderService = &BitbucketServerProvider{}
 
-func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
+func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password, url, projectKey string, allBranches bool) (*BitbucketServerProvider, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
@@ -31,29 +30,15 @@ func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password
 		UserName: username,
 		Password: password,
 	})
-	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts)
+	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches)
 }
 
-func NewBitbucketServerProviderBearerToken(ctx context.Context, bearerToken, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
-	bitbucketConfig := bitbucketv1.NewConfiguration(url)
-	// Avoid the XSRF check
-	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
-	bitbucketConfig.AddDefaultHeader("x-requested-with", "XMLHttpRequest")
-
-	ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, bearerToken)
-	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts)
+func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey string, allBranches bool) (*BitbucketServerProvider, error) {
+	return newBitbucketServerProvider(ctx, bitbucketv1.NewConfiguration(url), projectKey, allBranches)
 }
 
-func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
-	return newBitbucketServerProvider(ctx, bitbucketv1.NewConfiguration(url), projectKey, allBranches, scmRootCAPath, insecure, caCerts)
-}
-
-func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
+func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool) (*BitbucketServerProvider, error) {
 	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
-	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	bitbucketConfig.HTTPClient = &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
 	bitbucketClient := bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
 
 	return &BitbucketServerProvider{
@@ -64,7 +49,7 @@ func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv
 }
 
 func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
-	paged := map[string]any{
+	paged := map[string]interface{}{
 		"limit": 100,
 	}
 	repos := []*Repository{}
@@ -122,14 +107,14 @@ func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol str
 }
 
 func (b *BitbucketServerProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	opts := map[string]any{
+	opts := map[string]interface{}{
 		"limit": 100,
 		"at":    repo.Branch,
 		"type_": true,
 	}
 	// No need to query for all pages here
 	response, err := b.client.DefaultApi.GetContent_0(repo.Organization, repo.Repository, path, opts)
-	if response != nil && response.StatusCode == http.StatusNotFound {
+	if response != nil && response.StatusCode == 404 {
 		// File/directory not found
 		return false, nil
 	}
@@ -174,7 +159,7 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 	}
 	// Otherwise, scrape the GetBranches API.
 	branches := []bitbucketv1.Branch{}
-	paged := map[string]any{
+	paged := map[string]interface{}{
 		"limit": 100,
 	}
 	for {
@@ -203,7 +188,7 @@ func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bi
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
 	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
 	// we will get an EOF and a nil response.
-	if (response != nil && response.StatusCode == http.StatusNotFound) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
+	if (response != nil && response.StatusCode == 404) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
 		return nil, nil
 	}
 	if err != nil {

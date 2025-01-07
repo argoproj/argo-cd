@@ -41,7 +41,7 @@ func newAWSCommand() *cobra.Command {
 	)
 	command := &cobra.Command{
 		Use: "aws",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)

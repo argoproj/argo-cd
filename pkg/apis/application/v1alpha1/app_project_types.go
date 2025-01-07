@@ -6,22 +6,15 @@ import (
 	"strconv"
 	"strings"
 
-	globutil "github.com/gobwas/glob"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-)
-
-const (
-	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
-	// in a DefaultServiceAccount configured for a DestinationServiceAccount
-	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
 type ErrApplicationNotAllowedToUseProject struct {
@@ -74,19 +67,19 @@ type AppProjectStatus struct {
 }
 
 // GetRoleByName returns the role in a project by the name with its index
-func (proj *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
-	for i, role := range proj.Spec.Roles {
+func (p *AppProject) GetRoleByName(name string) (*ProjectRole, int, error) {
+	for i, role := range p.Spec.Roles {
 		if name == role.Name {
 			return &role, i, nil
 		}
 	}
-	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, proj.Name)
+	return nil, -1, fmt.Errorf("role '%s' does not exist in project '%s'", name, p.Name)
 }
 
 // GetJWTTokenFromSpec looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (proj *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+func (p *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for backward compatibility. In the oder version, JWTTokens are stored under spec.role
-	role, _, err := proj.GetRoleByName(roleName)
+	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return nil, -1, err
 	}
@@ -107,14 +100,14 @@ func (proj *AppProject) GetJWTTokenFromSpec(roleName string, issuedAt int64, id 
 		}
 	}
 
-	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, proj.Name)
+	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", role.Name, issuedAt, p.Name)
 }
 
 // GetJWTToken looks up the index of a JWTToken in a project by id (new token), if not then by the issue at time (old token)
-func (proj *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
+func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*JWTToken, int, error) {
 	// This is for newer version, JWTTokens are stored under status
 	if id != "" {
-		for i, token := range proj.Status.JWTTokensByRole[roleName].Items {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
 			if id == token.ID {
 				return &token, i, nil
 			}
@@ -122,44 +115,45 @@ func (proj *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) 
 	}
 
 	if issuedAt != -1 {
-		for i, token := range proj.Status.JWTTokensByRole[roleName].Items {
+		for i, token := range p.Status.JWTTokensByRole[roleName].Items {
 			if issuedAt == token.IssuedAt {
 				return &token, i, nil
 			}
 		}
 	}
 
-	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, proj.Name)
+	return nil, -1, fmt.Errorf("JWT token for role '%s' issued at '%d' does not exist in project '%s'", roleName, issuedAt, p.Name)
 }
 
 // RemoveJWTToken removes the specified JWT from an AppProject
-func (proj AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
-	roleName := proj.Spec.Roles[roleIndex].Name
+func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) error {
+	roleName := p.Spec.Roles[roleIndex].Name
 	// For backward compatibility
-	_, jwtTokenIndex, err1 := proj.GetJWTTokenFromSpec(roleName, issuedAt, id)
+	_, jwtTokenIndex, err1 := p.GetJWTTokenFromSpec(roleName, issuedAt, id)
 	if err1 == nil {
-		proj.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = proj.Spec.Roles[roleIndex].JWTTokens[len(proj.Spec.Roles[roleIndex].JWTTokens)-1]
-		proj.Spec.Roles[roleIndex].JWTTokens = proj.Spec.Roles[roleIndex].JWTTokens[:len(proj.Spec.Roles[roleIndex].JWTTokens)-1]
+		p.Spec.Roles[roleIndex].JWTTokens[jwtTokenIndex] = p.Spec.Roles[roleIndex].JWTTokens[len(p.Spec.Roles[roleIndex].JWTTokens)-1]
+		p.Spec.Roles[roleIndex].JWTTokens = p.Spec.Roles[roleIndex].JWTTokens[:len(p.Spec.Roles[roleIndex].JWTTokens)-1]
 	}
 
 	// New location for storing JWTToken
-	_, jwtTokenIndex, err2 := proj.GetJWTToken(roleName, issuedAt, id)
+	_, jwtTokenIndex, err2 := p.GetJWTToken(roleName, issuedAt, id)
 	if err2 == nil {
-		proj.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = proj.Status.JWTTokensByRole[roleName].Items[len(proj.Status.JWTTokensByRole[roleName].Items)-1]
-		proj.Status.JWTTokensByRole[roleName] = JWTTokens{Items: proj.Status.JWTTokensByRole[roleName].Items[:len(proj.Status.JWTTokensByRole[roleName].Items)-1]}
+		p.Status.JWTTokensByRole[roleName].Items[jwtTokenIndex] = p.Status.JWTTokensByRole[roleName].Items[len(p.Status.JWTTokensByRole[roleName].Items)-1]
+		p.Status.JWTTokensByRole[roleName] = JWTTokens{Items: p.Status.JWTTokensByRole[roleName].Items[:len(p.Status.JWTTokensByRole[roleName].Items)-1]}
 	}
 
 	if err1 == nil || err2 == nil {
 		// If we find this token from either places, we can say there are no error
 		return nil
+	} else {
+		// If we could not locate this taken from either places, we can return any of the errors
+		return err2
 	}
-	// If we could not locate this taken from either places, we can return any of the errors
-	return err2
 }
 
 // TODO: document this method
-func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
-	role, _, err := proj.GetRoleByName(roleName)
+func (p *AppProject) ValidateJWTTokenID(roleName string, id string) error {
+	role, _, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return err
 	}
@@ -174,9 +168,9 @@ func (proj *AppProject) ValidateJWTTokenID(roleName string, id string) error {
 	return nil
 }
 
-func (proj *AppProject) ValidateProject() error {
+func (p *AppProject) ValidateProject() error {
 	destKeys := make(map[string]bool)
-	for _, dest := range proj.Spec.Destinations {
+	for _, dest := range p.Spec.Destinations {
 		if dest.Name == "!*" {
 			return status.Errorf(codes.InvalidArgument, "name has an invalid format, '!*'")
 		}
@@ -201,7 +195,7 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	srcNamespaces := make(map[string]bool)
-	for _, ns := range proj.Spec.SourceNamespaces {
+	for _, ns := range p.Spec.SourceNamespaces {
 		if _, ok := srcNamespaces[ns]; ok {
 			return status.Errorf(codes.InvalidArgument, "source namespace '%s' already added", ns)
 		}
@@ -209,7 +203,7 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	srcRepos := make(map[string]bool)
-	for _, src := range proj.Spec.SourceRepos {
+	for _, src := range p.Spec.SourceRepos {
 		if src == "!*" {
 			return status.Errorf(codes.InvalidArgument, "source repository has an invalid format, '!*'")
 		}
@@ -221,7 +215,7 @@ func (proj *AppProject) ValidateProject() error {
 	}
 
 	roleNames := make(map[string]bool)
-	for _, role := range proj.Spec.Roles {
+	for _, role := range p.Spec.Roles {
 		if _, ok := roleNames[role.Name]; ok {
 			return status.Errorf(codes.AlreadyExists, "role '%s' already exists", role.Name)
 		}
@@ -233,7 +227,7 @@ func (proj *AppProject) ValidateProject() error {
 			if _, ok := existingPolicies[policy]; ok {
 				return status.Errorf(codes.AlreadyExists, "policy '%s' already exists for role '%s'", policy, role.Name)
 			}
-			if err := validatePolicy(proj.Name, role.Name, policy); err != nil {
+			if err := validatePolicy(p.Name, role.Name, policy); err != nil {
 				return err
 			}
 			existingPolicies[policy] = true
@@ -251,9 +245,9 @@ func (proj *AppProject) ValidateProject() error {
 		roleNames[role.Name] = true
 	}
 
-	if proj.Spec.SyncWindows.HasWindows() {
+	if p.Spec.SyncWindows.HasWindows() {
 		existingWindows := make(map[string]bool)
-		for _, window := range proj.Spec.SyncWindows {
+		for _, window := range p.Spec.SyncWindows {
 			if window == nil {
 				continue
 			}
@@ -271,44 +265,12 @@ func (proj *AppProject) ValidateProject() error {
 		}
 	}
 
-	destServiceAccts := make(map[string]bool)
-	for _, destServiceAcct := range proj.Spec.DestinationServiceAccounts {
-		if strings.Contains(destServiceAcct.Server, "!") {
-			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
-		}
-
-		if strings.Contains(destServiceAcct.Namespace, "!") {
-			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
-		}
-
-		if strings.Trim(destServiceAcct.DefaultServiceAccount, " ") == "" ||
-			strings.ContainsAny(destServiceAcct.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
-			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount has an invalid format, '%s'", destServiceAcct.DefaultServiceAccount)
-		}
-
-		_, err := globutil.Compile(destServiceAcct.Server)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
-		}
-
-		_, err = globutil.Compile(destServiceAcct.Namespace)
-		if err != nil {
-			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
-		}
-
-		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)
-		if _, ok := destServiceAccts[key]; ok {
-			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
-		}
-		destServiceAccts[key] = true
-	}
-
 	return nil
 }
 
 // AddGroupToRole adds an OIDC group to a role
-func (proj *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
-	role, roleIndex, err := proj.GetRoleByName(roleName)
+func (p *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
+	role, roleIndex, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return false, err
 	}
@@ -318,20 +280,20 @@ func (proj *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
 		}
 	}
 	role.Groups = append(role.Groups, group)
-	proj.Spec.Roles[roleIndex] = *role
+	p.Spec.Roles[roleIndex] = *role
 	return true, nil
 }
 
 // RemoveGroupFromRole removes an OIDC group from a role
-func (proj *AppProject) RemoveGroupFromRole(roleName, group string) (bool, error) {
-	role, roleIndex, err := proj.GetRoleByName(roleName)
+func (p *AppProject) RemoveGroupFromRole(roleName, group string) (bool, error) {
+	role, roleIndex, err := p.GetRoleByName(roleName)
 	if err != nil {
 		return false, err
 	}
 	for i, roleGroup := range role.Groups {
 		if group == roleGroup {
 			role.Groups = append(role.Groups[:i], role.Groups[i+1:]...)
-			proj.Spec.Roles[roleIndex] = *role
+			p.Spec.Roles[roleIndex] = *role
 			return true, nil
 		}
 	}
@@ -339,17 +301,17 @@ func (proj *AppProject) RemoveGroupFromRole(roleName, group string) (bool, error
 }
 
 // NormalizePolicies normalizes the policies in the project
-func (proj *AppProject) NormalizePolicies() {
-	for i, role := range proj.Spec.Roles {
+func (p *AppProject) NormalizePolicies() {
+	for i, role := range p.Spec.Roles {
 		var normalizedPolicies []string
 		for _, policy := range role.Policies {
-			normalizedPolicies = append(normalizedPolicies, proj.normalizePolicy(policy))
+			normalizedPolicies = append(normalizedPolicies, p.normalizePolicy(policy))
 		}
-		proj.Spec.Roles[i].Policies = normalizedPolicies
+		p.Spec.Roles[i].Policies = normalizedPolicies
 	}
 }
 
-func (proj *AppProject) normalizePolicy(policy string) string {
+func (p *AppProject) normalizePolicy(policy string) string {
 	policyComponents := strings.Split(policy, ",")
 	normalizedPolicy := ""
 	for _, component := range policyComponents {
@@ -482,6 +444,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 
 func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	anyDestinationMatched := false
+	noDenyDestinationsMatched := true
 
 	for _, item := range proj.Spec.Destinations {
 		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name, true)
@@ -491,14 +454,12 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		if matched {
 			anyDestinationMatched = true
-		} else if (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched {
-			return false
-		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched {
-			return false
+		} else if ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) || (!dstNamespaceMatched && isDenyPattern(item.Namespace)) {
+			noDenyDestinationsMatched = false
 		}
 	}
 
-	return anyDestinationMatched
+	return anyDestinationMatched && noDenyDestinationsMatched
 }
 
 func isDenyPattern(pattern string) bool {
@@ -596,10 +557,10 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 // Applications in the installation namespace are always permitted. Also, at
 // application creation time, its namespace may yet be empty to indicate that
 // the application will be created in the controller's namespace.
-func (proj AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
+func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
 	if app.Namespace == "" || app.Namespace == controllerNs {
 		return true
 	}
 
-	return glob.MatchStringInList(proj.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
 }

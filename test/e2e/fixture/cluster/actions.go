@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -38,7 +39,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) Create() *Actions {
+func (a *Actions) Create(args ...string) *Actions {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
@@ -59,7 +60,7 @@ func (a *Actions) Create() *Actions {
 	})
 	if err != nil {
 		if !a.ignoreErrors {
-			log.Fatalf("Failed to upsert cluster %v", err.Error())
+			log.Fatalf(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))
 		}
 		a.lastError = errors.New(err.Error())
 	}
@@ -67,7 +68,7 @@ func (a *Actions) Create() *Actions {
 	return a
 }
 
-func (a *Actions) CreateWithRBAC() *Actions {
+func (a *Actions) CreateWithRBAC(args ...string) *Actions {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 	config, err := pathOpts.GetStartingConfig()
 	if err != nil {

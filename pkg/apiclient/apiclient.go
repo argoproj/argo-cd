@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -55,6 +55,12 @@ import (
 	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
 	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
+
+// These mocks are not currently used, but they are part of the public API of this package.
+//go:generate -command mockery go run github.com/vektra/mockery/v2@v2.40.2
+//go:generate mockery --dir=./session --name=SessionServiceServer --output=./session/mocks
+//go:generate mockery --dir=./session --name=SessionServiceClient --output=./session/mocks
+//go:generate mockery --dir=./cluster --name=ClusterServiceServer --output=./cluster/mocks
 
 const (
 	MetaDataTokenKey = "token"
@@ -126,7 +132,6 @@ type ClientOptions struct {
 	RedisHaProxyName     string
 	RedisName            string
 	RepoServerName       string
-	PromptsEnabled       bool
 }
 
 type client struct {
@@ -402,8 +407,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	validator := jwt.NewValidator()
-	if validator.Validate(claims) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -559,7 +563,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, errors.New("credentials: failed to append certificates")
+			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}

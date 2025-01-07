@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/stretchr/testify/assert"
@@ -25,14 +25,14 @@ func Test_gitErrToGRPC(t *testing.T) {
 	assert.Equal(t, defaultError.Error(), defaultErrorMsg)
 
 	grpcErrorMsg := "grpc error"
-	grpcError := gitErrToGRPC(status.Error(codes.Unknown, grpcErrorMsg))
+	grpcError := gitErrToGRPC(status.Errorf(codes.Unknown, grpcErrorMsg))
 	se, ok := grpcError.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.Unknown, se.GRPCStatus().Code())
 	assert.Equal(t, se.GRPCStatus().Message(), grpcErrorMsg)
 
 	notFoundMsg := "repository not found"
-	notFound := gitErrToGRPC(status.Error(codes.NotFound, notFoundMsg))
+	notFound := gitErrToGRPC(status.Errorf(codes.NotFound, notFoundMsg))
 	se1, ok := notFound.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, se1.GRPCStatus().Code())
@@ -51,19 +51,19 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			Group:    "apps",
 			Resource: "Deployment",
 		}
-		return apierrors.NewForbidden(gr, "some-app", errors.New("authentication error"))
+		return apierr.NewForbidden(gr, "some-app", fmt.Errorf("authentication error"))
 	}
 	newUnauthorizedError := func() error {
-		return apierrors.NewUnauthorized("unauthenticated")
+		return apierr.NewUnauthorized("unauthenticated")
 	}
 	cases := []*testCase{
 		{
 			name: "will return standard error if not grpc status",
 			givenErrFn: func() error {
-				return errors.New("standard error")
+				return fmt.Errorf("standard error")
 			},
 			expectedErrFn: func() error {
-				return errors.New("standard error")
+				return fmt.Errorf("standard error")
 			},
 			expectedGRPCStatus: nil,
 		},
@@ -80,7 +80,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			expectedGRPCStatus: status.New(codes.NotFound, "Not found"),
 		},
 		{
-			name: "will return permission denied if apierrors.IsForbidden",
+			name: "will return permission denied if apierr.IsForbidden",
 			givenErrFn: func() error {
 				return newForbiddenError()
 			},
@@ -92,7 +92,7 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			expectedGRPCStatus: status.New(codes.PermissionDenied, newForbiddenError().Error()),
 		},
 		{
-			name: "will return unauthenticated if apierrors.IsUnauthorized",
+			name: "will return unauthenticated if apierr.IsUnauthorized",
 			givenErrFn: func() error {
 				return newUnauthorizedError()
 			},
@@ -104,40 +104,40 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			expectedGRPCStatus: status.New(codes.Unauthenticated, newUnauthorizedError().Error()),
 		},
 		{
-			name: "will return Unavailable if apierrors.IsServerTimeout",
+			name: "will return Unavailable if apierr.IsServerTimeout",
 			givenErrFn: func() error {
-				return apierrors.NewServerTimeout(schema.GroupResource{}, "update", 1)
+				return apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
 			},
 			expectedErrFn: func() error {
-				err := apierrors.NewServerTimeout(schema.GroupResource{}, "update", 1)
+				err := apierr.NewServerTimeout(schema.GroupResource{}, "update", 1)
 				grpcStatus := status.New(codes.Unavailable, err.Error())
 				return grpcStatus.Err()
 			},
-			expectedGRPCStatus: status.New(codes.Unavailable, apierrors.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
+			expectedGRPCStatus: status.New(codes.Unavailable, apierr.NewServerTimeout(schema.GroupResource{}, "update", 1).Error()),
 		},
 		{
-			name: "will return Aborted if apierrors.IsConflict",
+			name: "will return Aborted if apierr.IsConflict",
 			givenErrFn: func() error {
-				return apierrors.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
+				return apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
 			},
 			expectedErrFn: func() error {
-				err := apierrors.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
+				err := apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo"))
 				grpcStatus := status.New(codes.Aborted, err.Error())
 				return grpcStatus.Err()
 			},
-			expectedGRPCStatus: status.New(codes.Aborted, apierrors.NewConflict(schema.GroupResource{}, "foo", errors.New("foo")).Error()),
+			expectedGRPCStatus: status.New(codes.Aborted, apierr.NewConflict(schema.GroupResource{}, "foo", errors.New("foo")).Error()),
 		},
 		{
-			name: "will return ResourceExhausted if apierrors.IsTooManyRequests",
+			name: "will return ResourceExhausted if apierr.IsTooManyRequests",
 			givenErrFn: func() error {
-				return apierrors.NewTooManyRequests("foo", 1)
+				return apierr.NewTooManyRequests("foo", 1)
 			},
 			expectedErrFn: func() error {
-				err := apierrors.NewTooManyRequests("foo", 1)
+				err := apierr.NewTooManyRequests("foo", 1)
 				grpcStatus := status.New(codes.ResourceExhausted, err.Error())
 				return grpcStatus.Err()
 			},
-			expectedGRPCStatus: status.New(codes.ResourceExhausted, apierrors.NewTooManyRequests("foo", 1).Error()),
+			expectedGRPCStatus: status.New(codes.ResourceExhausted, apierr.NewTooManyRequests("foo", 1).Error()),
 		},
 	}
 	for _, c := range cases {

@@ -91,7 +91,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	appClientset := appfake.NewSimpleClientset(app, proj)
 	deployment := test.NewDeployment()
-	kubeClientset := kubefake.NewClientset(deployment, &cm)
+	kubeClientset := kubefake.NewSimpleClientset(deployment, &cm)
 	clusterCache := clustermocks.ClusterCache{}
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)
@@ -110,7 +110,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.On("IsNamespaced", mock.Anything, mock.Anything).Return(true, nil)
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", &repoServerClientset, "",
-		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {
+		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
 		false,

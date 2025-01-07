@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
@@ -26,14 +27,14 @@ func TestCreateAndUseAccount(t *testing.T) {
 		When().
 		Create().
 		Then().
-		And(func(account *account.Account, _ error) {
+		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
 			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
 		Then().
-		CurrentUser(func(user *session.GetUserInfoResponse, _ error) {
+		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
 			assert.True(t, user.LoggedIn)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
@@ -48,8 +49,8 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		Login().
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -63,8 +64,8 @@ func TestCanIGetLogsDenySwitchOn(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "no")
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "no"))
 		})
 }
 
@@ -91,8 +92,8 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -106,8 +107,8 @@ func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -120,9 +121,9 @@ func TestCreateAndUseAccountCLI(t *testing.T) {
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
 
-	errors.CheckError(SetAccounts(map[string][]string{
+	SetAccounts(map[string][]string{
 		"test": {"login", "apiKey"},
-	}))
+	})
 
 	output, err = RunCli("account", "list")
 	errors.CheckError(err)

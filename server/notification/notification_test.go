@@ -17,7 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/scheme"
@@ -35,8 +35,8 @@ func TestNotificationServer(t *testing.T) {
 	require.NoError(t, err)
 	cm.Namespace = testNamespace
 
-	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -47,7 +47,7 @@ func TestNotificationServer(t *testing.T) {
 		},
 	},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},

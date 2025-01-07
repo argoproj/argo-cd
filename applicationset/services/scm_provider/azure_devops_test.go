@@ -2,7 +2,6 @@ package scm_provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -17,6 +16,8 @@ import (
 
 	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
+
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --srcpkg=github.com/microsoft/azure-devops-go-api/azuredevops/git --name=Client --output=azure_devops/git/mocks --outpkg=mocks
 
 func s(input string) *string {
 	return ptr.To(input)
@@ -42,7 +43,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 	}{
 		{
 			name:        "RepoHasPath when Azure DevOps client factory fails returns error",
-			clientError: errors.New("Client factory error"),
+			clientError: fmt.Errorf("Client factory error"),
 		},
 		{
 			name:      "RepoHasPath when found returns true",
@@ -63,7 +64,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 		{
 			name:             "RepoHasPath when unknown Azure DevOps error occurs returns error",
 			pathFound:        false,
-			azureDevopsError: errors.New("Undefined error from Azure Devops"),
+			azureDevopsError: fmt.Errorf("Undefined error from Azure Devops"),
 			returnError:      true,
 			errorMessage:     "failed to check for path existence",
 		},
@@ -134,7 +135,7 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 		},
 		{
 			name:              "other error when calling azure devops returns error",
-			azureDevOpsError:  errors.New("some unknown error"),
+			azureDevOpsError:  fmt.Errorf("some unknown error"),
 			shouldReturnError: true,
 		},
 	}
@@ -193,7 +194,7 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 		},
 		{
 			name:              "other error when calling azure devops returns error",
-			azureDevOpsError:  errors.New("some unknown error"),
+			azureDevOpsError:  fmt.Errorf("some unknown error"),
 			shouldReturnError: true,
 		},
 	}
@@ -281,11 +282,11 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 		},
 		{
 			name:                "GetBranches AllBranches false when request fails returns error and empty result",
-			getBranchesApiError: errors.New("Remote Azure Devops GetBranches error"),
+			getBranchesApiError: fmt.Errorf("Remote Azure Devops GetBranches error"),
 		},
 		{
 			name:        "GetBranches AllBranches false when Azure DevOps client fails returns error",
-			clientError: errors.New("Could not get Azure Devops API client"),
+			clientError: fmt.Errorf("Could not get Azure Devops API client"),
 		},
 		{
 			name:           "GetBranches AllBranches false when branch returned with long commit SHA",
@@ -353,7 +354,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 		},
 		{
 			name:                "GetBranches when Azure DevOps request fails returns error and empty result",
-			getBranchesApiError: errors.New("Remote Azure Devops GetBranches error"),
+			getBranchesApiError: fmt.Errorf("Remote Azure Devops GetBranches error"),
 			allBranches:         true,
 		},
 		{
@@ -363,7 +364,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 		},
 		{
 			name:        "GetBranches when git client retrievel fails returns error",
-			clientError: errors.New("Could not get Azure Devops API client"),
+			clientError: fmt.Errorf("Could not get Azure Devops API client"),
 			allBranches: true,
 		},
 		{
@@ -448,7 +449,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 		},
 		{
 			name:                 "ListRepos when Azure DevOps request fails returns error",
-			getRepositoriesError: errors.New("Could not get repos"),
+			getRepositoriesError: fmt.Errorf("Could not get repos"),
 		},
 		{
 			name:         "ListRepos when repo has no name returns empty list",

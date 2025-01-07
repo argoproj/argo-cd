@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,7 +25,7 @@ func TestGetOutWriter_InlineOff(t *testing.T) {
 func TestGetOutWriter_InlineOn(t *testing.T) {
 	tmpFile := t.TempDir()
 	defer func() {
-		_ = os.Remove(tmpFile + ".back")
+		_ = os.Remove(fmt.Sprintf("%s.back", tmpFile))
 	}()
 
 	out, closer, err := getOutWriter(true, tmpFile)
@@ -32,13 +33,13 @@ func TestGetOutWriter_InlineOn(t *testing.T) {
 	defer io.Close(closer)
 
 	assert.Equal(t, tmpFile, out.(*os.File).Name())
-	_, err = os.Stat(tmpFile + ".back")
+	_, err = os.Stat(fmt.Sprintf("%s.back", tmpFile))
 	require.NoError(t, err, "Back file must be created")
 }
 
 func TestPrintResources_Secret_YAML(t *testing.T) {
 	out := bytes.Buffer{}
-	err := PrintResources("yaml", &out, &corev1.Secret{
+	err := PrintResources("yaml", &out, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-secret"},
 		Data:       map[string][]byte{"my-secret-key": []byte("my-secret-data")},
 	})

@@ -9,13 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utillog "github.com/argoproj/argo-cd/v2/util/log"
+	// "github.com/argoproj/argo-cd/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -144,33 +142,6 @@ connectors:
       nameAttr: cn
 `
 
-var goodDexConfigWithLogger = `
-logger:
-  level: debug
-  other: value
-connectors:
-# GitHub example
-- type: github
-  id: github
-  name: GitHub
-  config:
-    clientID: aabbccddeeff00112233
-    clientSecret: $dex.github.clientSecret
-    orgs:
-    - name: your-github-org
-
-# GitHub enterprise example
-- type: github
-  id: acme-github
-  name: Acme GitHub
-  config:
-    hostName: github.acme.example.com
-    clientID: abcdefghijklmnopqrst
-    clientSecret: $dex.acme.clientSecret
-    orgs:
-    - name: your-github-org
-`
-
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -258,15 +229,15 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]any)
+		connectors, ok := dexCfg["connectors"].([]interface{})
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]any)["config"].(map[string]any)
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
@@ -284,80 +255,21 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]any)
+		connectors, ok := dexCfg["connectors"].([]interface{})
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]any)["config"].(map[string]any)
+			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}
-	})
-
-	t.Run("Logging level", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfig,
-		}
-		t.Setenv(common.EnvLogLevel, log.WarnLevel.String())
-		t.Setenv(common.EnvLogFormat, utillog.JsonFormat)
-
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		if err != nil {
-			panic(err.Error())
-		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]any)
-		assert.True(t, ok)
-
-		level, ok := loggerCfg["level"].(string)
-		assert.True(t, ok)
-		assert.Equal(t, "WARN", level)
-
-		format, ok := loggerCfg["format"].(string)
-		assert.True(t, ok)
-		assert.Equal(t, "json", format)
-	})
-
-	t.Run("Logging level with config", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfigWithLogger,
-		}
-		t.Setenv(common.EnvLogLevel, log.WarnLevel.String())
-		t.Setenv(common.EnvLogFormat, utillog.JsonFormat)
-
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		if err != nil {
-			panic(err.Error())
-		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]any)
-		assert.True(t, ok)
-
-		level, ok := loggerCfg["level"].(string)
-		assert.True(t, ok)
-		assert.Equal(t, "debug", level)
-
-		format, ok := loggerCfg["format"].(string)
-		assert.True(t, ok)
-		assert.Equal(t, "json", format)
-
-		_, ok = loggerCfg["other"].(string)
-		assert.True(t, ok)
 	})
 
 	t.Run("Redirect config", func(t *testing.T) {
@@ -377,18 +289,18 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]any)
+		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]any)
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
-		assert.Len(t, customClient["redirectURIs"].([]any), 1)
+		assert.Len(t, customClient["redirectURIs"].([]interface{}), 1)
 	})
 	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
@@ -399,16 +311,16 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]any)
+		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]any)
+		customClient := clients[3].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
@@ -419,12 +331,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)
@@ -442,12 +354,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]any
+		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)
@@ -481,7 +393,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
-		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer fakeDex.Close()
@@ -490,7 +402,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		client := &http.Client{
-			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}
@@ -511,7 +423,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Round Tripper", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 			assert.Equal(t, "/", req.URL.String())
 		}))
 		defer server.Close()

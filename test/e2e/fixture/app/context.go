@@ -11,49 +11,40 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// Context implements the "given" part of given/when/then
+// this implements the "given" part of given/when/then
 type Context struct {
 	t           *testing.T
 	path        string
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                  int
-	name                     string
-	appNamespace             string
-	destServer               string
-	destName                 string
-	isDestServerInferred     bool
-	env                      string
-	parameters               []string
-	namePrefix               string
-	nameSuffix               string
-	resource                 string
-	prune                    bool
-	configManagementPlugin   string
-	async                    bool
-	localPath                string
-	project                  string
-	revision                 string
-	force                    bool
-	applyOutOfSyncOnly       bool
-	directoryRecurse         bool
-	replace                  bool
-	helmPassCredentials      bool
-	helmSkipCrds             bool
-	helmSkipSchemaValidation bool
-	helmSkipTests            bool
-	trackingMethod           v1alpha1.TrackingMethod
-	sources                  []v1alpha1.ApplicationSource
-	drySourceRevision        string
-	drySourcePath            string
-	syncSourceBranch         string
-	syncSourcePath           string
-	hydrateToBranch          string
+	timeout                int
+	name                   string
+	appNamespace           string
+	destServer             string
+	destName               string
+	env                    string
+	parameters             []string
+	namePrefix             string
+	nameSuffix             string
+	resource               string
+	prune                  bool
+	configManagementPlugin string
+	async                  bool
+	localPath              string
+	project                string
+	revision               string
+	force                  bool
+	applyOutOfSyncOnly     bool
+	directoryRecurse       bool
+	replace                bool
+	helmPassCredentials    bool
+	helmSkipCrds           bool
+	trackingMethod         v1alpha1.TrackingMethod
+	sources                []v1alpha1.ApplicationSource
 }
 
 type ContextArgs struct {
@@ -61,27 +52,23 @@ type ContextArgs struct {
 }
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
-	t.Helper()
 	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
-	t.Helper()
 	ctx := Given(t)
 	ctx.appNamespace = namespace
 	return ctx
 }
 
 func GivenWithSameState(t *testing.T) *Context {
-	t.Helper()
-	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
 		t:              t,
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
-		destName:       "in-cluster",
 		repoURLType:    fixture.RepoURLTypeFile,
 		name:           fixture.Name(),
 		timeout:        timeout,
@@ -98,20 +85,22 @@ func (c *Context) AppName() string {
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
+	} else {
+		return c.AppName()
 	}
-	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
+	} else {
+		return fixture.TestNamespace()
 	}
-	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// errors.CheckError(fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation"))
+	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 
@@ -218,7 +207,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	errors.CheckError(fixture.SetProjectSpec(c.project, spec))
+	fixture.SetProjectSpec(c.project, spec)
 	return c
 }
 
@@ -246,31 +235,6 @@ func (c *Context) Path(path string) *Context {
 	return c
 }
 
-func (c *Context) DrySourceRevision(revision string) *Context {
-	c.drySourceRevision = revision
-	return c
-}
-
-func (c *Context) DrySourcePath(path string) *Context {
-	c.drySourcePath = path
-	return c
-}
-
-func (c *Context) SyncSourceBranch(branch string) *Context {
-	c.syncSourceBranch = branch
-	return c
-}
-
-func (c *Context) SyncSourcePath(path string) *Context {
-	c.syncSourcePath = path
-	return c
-}
-
-func (c *Context) HydrateToBranch(branch string) *Context {
-	c.hydrateToBranch = branch
-	return c
-}
-
 func (c *Context) Recurse() *Context {
 	c.directoryRecurse = true
 	return c
@@ -293,13 +257,11 @@ func (c *Context) Timeout(timeout int) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
-	c.isDestServerInferred = false
 	return c
 }
 
 func (c *Context) DestName(destName string) *Context {
 	c.destName = destName
-	c.isDestServerInferred = true
 	return c
 }
 
@@ -330,12 +292,12 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	errors.CheckError(fixture.SetResourceOverrides(overrides))
+	fixture.SetResourceOverrides(overrides)
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	errors.CheckError(fixture.SetResourceFilter(filter))
+	fixture.SetResourceFilter(filter)
 	return c
 }
 
@@ -345,6 +307,8 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	// in case any settings have changed, pause for 1s, not great, but fine
+	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
 }
 
@@ -393,23 +357,13 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
-func (c *Context) HelmSkipSchemaValidation() *Context {
-	c.helmSkipSchemaValidation = true
-	return c
-}
-
-func (c *Context) HelmSkipTests() *Context {
-	c.helmSkipTests = true
-	return c
-}
-
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	fixture.SetTrackingMethod(trackingMethod)
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	fixture.SetTrackingMethod(installationID)
 	return c
 }
 

@@ -24,7 +24,6 @@ type Server struct {
 	authenticator             Authenticator
 	disableAuth               bool
 	appsInAnyNamespaceEnabled bool
-	hydratorEnabled           bool
 }
 
 type Authenticator interface {
@@ -32,12 +31,12 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled}
 }
 
 // Get returns Argo CD settings
-func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
@@ -91,7 +90,6 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
-		AdditionalURLs:     argoCDSettings.AdditionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
 		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
@@ -114,8 +112,6 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
-		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:           s.hydratorEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -152,7 +148,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 }
 
 // GetPlugins returns a list of plugins
-func (s *Server) GetPlugins(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
+func (s *Server) GetPlugins(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
 	plugins, err := s.plugins(ctx)
 	if err != nil {
 		return nil, err
