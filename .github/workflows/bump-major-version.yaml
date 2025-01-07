@@ -70,7 +70,8 @@ jobs:
 
       - name: Copy changes back
         run: |
-          cp -a /home/runner/go/src/github.com/argoproj/argo-cd/. ../argo-cd
+          # Copy the contents back, but skip the .git directory
+          rsync -a --exclude=.git /home/runner/go/src/github.com/argoproj/argo-cd/ ../argo-cd
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
