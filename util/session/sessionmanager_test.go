@@ -304,7 +304,7 @@ type tokenVerifierMock struct {
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
 	if tm.err != nil {
 		return nil, "", tm.err
 	}
