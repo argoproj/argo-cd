@@ -27045,6 +27045,18 @@ spec:
               key: hydrator.enabled
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.batch.events.processing
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.events.processing.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
         image: quay.io/argoproj/argocd:v2.14.0-rc4
