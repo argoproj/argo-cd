@@ -370,9 +370,9 @@ func (s *Service) runRepoOperation(
 		defer io.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(ociPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath)
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -2662,7 +2662,7 @@ func (s *Service) GetHelmCharts(_ context.Context, q *apiclient.HelmChartsReques
 	return &res, nil
 }
 
-func (s *Service) TestRepository(_ context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
 	repo := q.Repo
 	// per Type doc, "git" should be assumed if empty or absent
 	if repo.Type == "" {
@@ -2702,7 +2702,7 @@ func (s *Service) TestRepository(_ context.Context, q *apiclient.TestRepositoryR
 }
 
 // ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
-func (s *Service) ResolveRevision(_ context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
+func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
 	repo := q.Repo
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
@@ -2733,7 +2733,7 @@ func (s *Service) ResolveRevision(_ context.Context, q *apiclient.ResolveRevisio
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
-	revision, err = gitClient.LsRemote(ambiguousRevision)
+	revision, err := gitClient.LsRemote(ambiguousRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
