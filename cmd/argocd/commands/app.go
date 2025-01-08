@@ -274,7 +274,7 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
-func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
+func parentChildDetails(ctx context.Context, appIf application.ApplicationServiceClient, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
 	mapUidToNode := make(map[string]argoappv1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
@@ -299,7 +299,7 @@ func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.
 	return mapUidToNode, mapParentToChild, parentNode
 }
 
-func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
+func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
 	aURL := appURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, aURL, windows)
 
@@ -405,11 +405,11 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			// check for source position if --show-params is set
@@ -434,7 +434,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -442,14 +442,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
-				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
 				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
 					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
-				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
 				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUidToNode) > 0 {
 					fmt.Println()
@@ -840,11 +840,11 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
@@ -953,11 +953,11 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
@@ -1271,11 +1271,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -1340,7 +1340,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 			}
-			proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
@@ -1664,7 +1664,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
@@ -2033,11 +2033,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -2158,7 +2158,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					argoio.Close(conn)
 
-					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 					errors.CheckError(err)
 					diffOption.local = local
@@ -2234,7 +2234,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
-					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 					if foundDiffs {
 						if !diffChangesConfirm {
@@ -2490,7 +2490,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 // constructs the necessary data structures to print the app as a tree.
 func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
-	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
+	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(ctx, appIf, appName, appNs)
 	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})
 	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
@@ -3004,11 +3004,11 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					if pos, ok := sourceNameToPosition[name]; !ok {
+					pos, ok := sourceNameToPosition[name]
+					if !ok {
 						log.Fatalf("Unknown source name '%s'", name)
-					} else {
-						sourcePositions = append(sourcePositions, pos)
 					}
+					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -3032,7 +3032,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 
-					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 					// nolint:staticcheck
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 				} else if len(revisions) > 0 && len(sourcePositions) > 0 {
@@ -3339,11 +3339,11 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				if pos, ok := sourceNameToPosition[sourceName]; !ok {
+				pos, ok := sourceNameToPosition[sourceName]
+				if !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
-				} else {
-					sourcePosition = int(pos)
 				}
+				sourcePosition = int(pos)
 			}
 
 			if !app.Spec.HasMultipleSources() {

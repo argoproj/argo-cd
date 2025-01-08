@@ -361,12 +361,12 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 			return nil, common.PermissionDeniedAPIError
 		}
 		for _, server := range servers {
-			if err := enforceAndDelete(s, ctx, server, c.Project); err != nil {
+			if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
 				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 			}
 		}
 	} else {
-		if err := enforceAndDelete(s, ctx, q.Server, c.Project); err != nil {
+		if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 		}
 	}
@@ -374,7 +374,7 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 	return &cluster.ClusterResponse{}, nil
 }
 
-func enforceAndDelete(s *Server, ctx context.Context, server, project string) error {
+func enforceAndDelete(ctx context.Context, s *Server, server, project string) error {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError

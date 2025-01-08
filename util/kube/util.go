@@ -21,7 +21,7 @@ type kubeUtil struct {
 type updateFn func(s *corev1.Secret, new bool) error
 
 // NewKubeUtil NewUtil returns a new kubeUtil receiver
-func NewKubeUtil(client kubernetes.Interface, ctx context.Context) *kubeUtil {
+func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
 	return &kubeUtil{client: client, ctx: ctx}
 }
 
@@ -70,7 +70,7 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 
 // CreateOrUpdateSecretField creates or updates a secret name in namespace ns, with given value for given field
 func (ku *kubeUtil) CreateOrUpdateSecretField(ns string, name string, field string, value string) error {
-	err := ku.CreateOrUpdateSecret(ns, name, func(s *corev1.Secret, new bool) error {
+	err := ku.CreateOrUpdateSecret(ns, name, func(s *corev1.Secret, _ bool) error {
 		s.Data[field] = []byte(value)
 		return nil
 	})

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -191,7 +191,7 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset.AddReactor("*", "secrets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	kubeclientset.AddReactor("*", "secrets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, generatedSecret, nil
 	})
 
@@ -224,7 +224,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
 	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
-	assert.True(t, apierr.IsNotFound(err))
+	assert.True(t, apierrors.IsNotFound(err))
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {

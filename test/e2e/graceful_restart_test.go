@@ -11,13 +11,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func checkHealth(t *testing.T, requireHealthy bool) {
 	t.Helper()
-	resp, err := DoHttpRequest("GET", "/healthz?full=true", "")
+	resp, err := fixture.DoHttpRequest("GET", "/healthz?full=true", "")
 	if requireHealthy {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -33,7 +32,7 @@ func checkHealth(t *testing.T, requireHealthy bool) {
 }
 
 func TestAPIServerGracefulRestart(t *testing.T) {
-	EnsureCleanState(t)
+	fixture.EnsureCleanState(t)
 
 	// Should be healthy.
 	checkHealth(t, true)
@@ -47,7 +46,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	}
 	// One final time, should be healthy, or restart is considered too slow for tests
 	checkHealth(t, true)
-	closer, settingsClient, err := ArgoCDClientset.NewSettingsClient()
+	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
 	if closer != nil {
 		defer closer.Close()
 	}

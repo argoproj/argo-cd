@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -72,8 +72,8 @@ const (
 	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
 	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
 
-	// EnvClusterCacheEventProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
-	EnvClusterCacheEventProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENT_PROCESSING_INTERVAL"
+	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
+	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
@@ -108,13 +108,13 @@ var (
 	clusterCacheAttemptLimit int32 = 1
 
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
-	clusterCacheRetryUseBackoff bool = false
+	clusterCacheRetryUseBackoff = false
 
 	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
-	clusterCacheBatchEventsProcessing bool = false
+	clusterCacheBatchEventsProcessing = false
 
-	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventProcessingInterval = 100 * time.Millisecond
+	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
 )
 
 func init() {
@@ -127,7 +127,7 @@ func init() {
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
-	clusterCacheEventProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventProcessingInterval, clusterCacheEventProcessingInterval, 0, math.MaxInt64)
+	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -409,14 +409,14 @@ func isRetryableError(err error) bool {
 	if err == nil {
 		return false
 	}
-	return kerrors.IsInternalError(err) ||
-		kerrors.IsInvalid(err) ||
-		kerrors.IsTooManyRequests(err) ||
-		kerrors.IsServerTimeout(err) ||
-		kerrors.IsServiceUnavailable(err) ||
-		kerrors.IsTimeout(err) ||
-		kerrors.IsUnexpectedObjectError(err) ||
-		kerrors.IsUnexpectedServerError(err) ||
+	return apierrors.IsInternalError(err) ||
+		apierrors.IsInvalid(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsServiceUnavailable(err) ||
+		apierrors.IsTimeout(err) ||
+		apierrors.IsUnexpectedObjectError(err) ||
+		apierrors.IsUnexpectedServerError(err) ||
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
@@ -429,17 +429,16 @@ func isHTTP2GoawayErr(err error) bool {
 }
 
 func isExceededQuotaErr(err error) bool {
-	return kerrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
+	return apierrors.IsForbidden(err) && strings.Contains(err.Error(), "exceeded quota")
 }
 
 func isResourceQuotaConflictErr(err error) bool {
-	return kerrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
+	return apierrors.IsConflict(err) && strings.Contains(err.Error(), "Operation cannot be fulfilled on resourcequota")
 }
 
 func isTransientNetworkErr(err error) bool {
 	var netErr net.Error
-	switch {
-	case errors.As(err, &netErr):
+	if errors.As(err, &netErr) {
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError
@@ -569,7 +568,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
-		clustercache.SetEventProcessingInterval(clusterCacheEventProcessingInterval),
+		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -619,7 +618,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.onObjectUpdated(toNotify, ref)
 	})
 
-	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
+	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
 		gvk := un.GroupVersionKind()
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 	})

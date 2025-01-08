@@ -48,7 +48,7 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(namespace, func(app *Application, ns *corev1.Namespace) {
+		Expect(Namespace(namespace, func(_ *Application, ns *corev1.Namespace) {
 			assert.NotContains(t, ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 		})).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

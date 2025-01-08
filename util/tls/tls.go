@@ -345,14 +345,13 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 			}
 			// ...but everything else is considered an error
 			return nil, fmt.Errorf("could not load TLS certificate: %w", err)
-		} else {
-			f, err := os.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
-			}
-			if ok := pool.AppendCertsFromPEM(f); !ok {
-				return nil, fmt.Errorf("invalid cert data in %s", path)
-			}
+		}
+		f, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
+		}
+		if ok := pool.AppendCertsFromPEM(f); !ok {
+			return nil, fmt.Errorf("invalid cert data in %s", path)
 		}
 	}
 	return pool, nil

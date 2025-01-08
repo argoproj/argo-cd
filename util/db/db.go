@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -55,7 +55,7 @@ type ArgoDB interface {
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
-	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	GetProjectRepositories(project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
 	RepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateRepository updates a repository
@@ -68,7 +68,7 @@ type ArgoDB interface {
 	// GetWriteRepository returns a repository by URL with write credentials
 	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
-	GetProjectWriteRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	GetProjectWriteRepositories(project string) ([]*appv1.Repository, error)
 	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
 	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateWriteRepository updates a repository with write credentials
@@ -176,7 +176,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 	if err != nil {
 		appControllerDeployment = nil
-		if !kubeerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
 		}
 	}

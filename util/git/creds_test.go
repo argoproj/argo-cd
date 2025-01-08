@@ -43,7 +43,7 @@ func (s *memoryCredsStore) Remove(id string) {
 	delete(s.creds, id)
 }
 
-func (s *memoryCredsStore) Environ(id string) []string {
+func (s *memoryCredsStore) Environ(_ string) []string {
 	return nil
 }
 

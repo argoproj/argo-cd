@@ -167,9 +167,8 @@ func (e Env) Envsubst(s string) string {
 		// allow escaping $ with $$
 		if s == "$" {
 			return "$"
-		} else {
-			return valByEnv[s]
 		}
+		return valByEnv[s]
 	})
 }
 
@@ -202,12 +201,12 @@ type ApplicationSource struct {
 // ApplicationSources contains list of required information about the sources of an application
 type ApplicationSources []ApplicationSource
 
-func (s ApplicationSources) Equals(other ApplicationSources) bool {
-	if len(s) != len(other) {
+func (a ApplicationSources) Equals(other ApplicationSources) bool {
+	if len(a) != len(other) {
 		return false
 	}
-	for i := range s {
-		if !s[i].Equals(&other[i]) {
+	for i := range a {
+		if !a[i].Equals(&other[i]) {
 			return false
 		}
 	}
@@ -219,154 +218,153 @@ func (a ApplicationSources) IsZero() bool {
 	return len(a) == 0
 }
 
-func (a *ApplicationSpec) GetSource() ApplicationSource {
-	if a.SourceHydrator != nil {
-		return a.SourceHydrator.GetSyncSource()
+func (spec *ApplicationSpec) GetSource() ApplicationSource {
+	if spec.SourceHydrator != nil {
+		return spec.SourceHydrator.GetSyncSource()
 	}
 	// if Application has multiple sources, return the first source in sources
-	if a.HasMultipleSources() {
-		return a.Sources[0]
+	if spec.HasMultipleSources() {
+		return spec.Sources[0]
 	}
-	if a.Source != nil {
-		return *a.Source
+	if spec.Source != nil {
+		return *spec.Source
 	}
 	return ApplicationSource{}
 }
 
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
-func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
-	if a.SourceHydrator != nil {
-		targetRevision := a.SourceHydrator.SyncSource.TargetBranch
-		if a.SourceHydrator.HydrateTo != nil {
-			targetRevision = a.SourceHydrator.HydrateTo.TargetBranch
+func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if spec.SourceHydrator != nil {
+		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
+		if spec.SourceHydrator.HydrateTo != nil {
+			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
 		}
 		return ApplicationSource{
-			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
-			Path:           a.SourceHydrator.SyncSource.Path,
+			RepoURL:        spec.SourceHydrator.DrySource.RepoURL,
+			Path:           spec.SourceHydrator.SyncSource.Path,
 			TargetRevision: targetRevision,
 		}
 	}
 	return ApplicationSource{}
 }
 
-func (a *ApplicationSpec) GetSources() ApplicationSources {
-	if a.SourceHydrator != nil {
-		return ApplicationSources{a.SourceHydrator.GetSyncSource()}
+func (spec *ApplicationSpec) GetSources() ApplicationSources {
+	if spec.SourceHydrator != nil {
+		return ApplicationSources{spec.SourceHydrator.GetSyncSource()}
 	}
-	if a.HasMultipleSources() {
-		return a.Sources
+	if spec.HasMultipleSources() {
+		return spec.Sources
 	}
-	if a.Source != nil {
-		return ApplicationSources{*a.Source}
+	if spec.Source != nil {
+		return ApplicationSources{*spec.Source}
 	}
 	return ApplicationSources{}
 }
 
-func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.SourceHydrator == nil && len(a.Sources) > 0
+func (spec *ApplicationSpec) HasMultipleSources() bool {
+	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
+func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
-	return a.GetSourcePtrByIndex(sourcePosition - 1)
+	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
-func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
-	if a.SourceHydrator != nil {
-		source := a.SourceHydrator.GetSyncSource()
+func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
+	if spec.SourceHydrator != nil {
+		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}
 	// if Application has multiple sources, return the first source in sources
-	if a.HasMultipleSources() {
+	if spec.HasMultipleSources() {
 		if sourceIndex > 0 {
-			return &a.Sources[sourceIndex]
+			return &spec.Sources[sourceIndex]
 		}
-		return &a.Sources[0]
+		return &spec.Sources[0]
 	}
-	return a.Source
+	return spec.Source
 }
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
-func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
-	switch {
+func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	// Kustomize with parameters requires changing kustomization.yaml file
-	case a.Kustomize != nil:
-		return a.Kustomize.AllowsConcurrentProcessing()
+	if source.Kustomize != nil {
+		return source.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
 }
 
 // IsRef returns true when the application source is of type Ref
-func (a *ApplicationSource) IsRef() bool {
-	return a.Ref != ""
+func (source *ApplicationSource) IsRef() bool {
+	return source.Ref != ""
 }
 
 // IsHelm returns true when the application source is of type Helm
-func (a *ApplicationSource) IsHelm() bool {
-	return a.Chart != ""
+func (source *ApplicationSource) IsHelm() bool {
+	return source.Chart != ""
 }
 
 // IsHelmOci returns true when the application source is of type Helm OCI
-func (a *ApplicationSource) IsHelmOci() bool {
-	if a.Chart == "" {
+func (source *ApplicationSource) IsHelmOci() bool {
+	if source.Chart == "" {
 		return false
 	}
-	return helm.IsHelmOciRepo(a.RepoURL)
+	return helm.IsHelmOciRepo(source.RepoURL)
 }
 
 // IsZero returns true if the application source is considered empty
-func (a *ApplicationSource) IsZero() bool {
-	return a == nil ||
-		a.RepoURL == "" &&
-			a.Path == "" &&
-			a.TargetRevision == "" &&
-			a.Helm.IsZero() &&
-			a.Kustomize.IsZero() &&
-			a.Directory.IsZero() &&
-			a.Plugin.IsZero()
+func (source *ApplicationSource) IsZero() bool {
+	return source == nil ||
+		source.RepoURL == "" &&
+			source.Path == "" &&
+			source.TargetRevision == "" &&
+			source.Helm.IsZero() &&
+			source.Kustomize.IsZero() &&
+			source.Directory.IsZero() &&
+			source.Plugin.IsZero()
 }
 
 // GetNamespaceOrDefault gets the static namespace configured in the source. If none is configured, returns the given
 // default.
-func (a *ApplicationSource) GetNamespaceOrDefault(defaultNamespace string) string {
-	if a == nil {
+func (source *ApplicationSource) GetNamespaceOrDefault(defaultNamespace string) string {
+	if source == nil {
 		return defaultNamespace
 	}
-	if a.Helm != nil && a.Helm.Namespace != "" {
-		return a.Helm.Namespace
+	if source.Helm != nil && source.Helm.Namespace != "" {
+		return source.Helm.Namespace
 	}
-	if a.Kustomize != nil && a.Kustomize.Namespace != "" {
-		return a.Kustomize.Namespace
+	if source.Kustomize != nil && source.Kustomize.Namespace != "" {
+		return source.Kustomize.Namespace
 	}
 	return defaultNamespace
 }
 
 // GetKubeVersionOrDefault gets the static Kubernetes API version configured in the source. If none is configured,
 // returns the given default.
-func (a *ApplicationSource) GetKubeVersionOrDefault(defaultKubeVersion string) string {
-	if a == nil {
+func (source *ApplicationSource) GetKubeVersionOrDefault(defaultKubeVersion string) string {
+	if source == nil {
 		return defaultKubeVersion
 	}
-	if a.Helm != nil && a.Helm.KubeVersion != "" {
-		return a.Helm.KubeVersion
+	if source.Helm != nil && source.Helm.KubeVersion != "" {
+		return source.Helm.KubeVersion
 	}
-	if a.Kustomize != nil && a.Kustomize.KubeVersion != "" {
-		return a.Kustomize.KubeVersion
+	if source.Kustomize != nil && source.Kustomize.KubeVersion != "" {
+		return source.Kustomize.KubeVersion
 	}
 	return defaultKubeVersion
 }
 
 // GetAPIVersionsOrDefault gets the static API versions list configured in the source. If none is configured, returns
 // the given default.
-func (a *ApplicationSource) GetAPIVersionsOrDefault(defaultAPIVersions []string) []string {
-	if a == nil {
+func (source *ApplicationSource) GetAPIVersionsOrDefault(defaultAPIVersions []string) []string {
+	if source == nil {
 		return defaultAPIVersions
 	}
-	if a.Helm != nil && len(a.Helm.APIVersions) > 0 {
-		return a.Helm.APIVersions
+	if source.Helm != nil && len(source.Helm.APIVersions) > 0 {
+		return source.Helm.APIVersions
 	}
-	if a.Kustomize != nil && len(a.Kustomize.APIVersions) > 0 {
-		return a.Kustomize.APIVersions
+	if source.Kustomize != nil && len(source.Kustomize.APIVersions) > 0 {
+		return source.Kustomize.APIVersions
 	}
 	return defaultAPIVersions
 }
@@ -558,39 +556,39 @@ func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 
 // AddParameter adds a HelmParameter to the application source. If a parameter with the same name already
 // exists, its value will be overwritten. Otherwise, the HelmParameter will be appended as a new entry.
-func (in *ApplicationSourceHelm) AddParameter(p HelmParameter) {
+func (ash *ApplicationSourceHelm) AddParameter(p HelmParameter) {
 	found := false
-	for i, cp := range in.Parameters {
+	for i, cp := range ash.Parameters {
 		if cp.Name == p.Name {
 			found = true
-			in.Parameters[i] = p
+			ash.Parameters[i] = p
 			break
 		}
 	}
 	if !found {
-		in.Parameters = append(in.Parameters, p)
+		ash.Parameters = append(ash.Parameters, p)
 	}
 }
 
 // AddFileParameter adds a HelmFileParameter to the application source. If a file parameter with the same name already
 // exists, its value will be overwritten. Otherwise, the HelmFileParameter will be appended as a new entry.
-func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
+func (ash *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 	found := false
-	for i, cp := range in.FileParameters {
+	for i, cp := range ash.FileParameters {
 		if cp.Name == p.Name {
 			found = true
-			in.FileParameters[i] = p
+			ash.FileParameters[i] = p
 			break
 		}
 	}
 	if !found {
-		in.FileParameters = append(in.FileParameters, p)
+		ash.FileParameters = append(ash.FileParameters, p)
 	}
 }
 
 // IsZero Returns true if the Helm options in an application source are considered zero
-func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && !h.SkipTests && !h.SkipSchemaValidation && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
+func (ash *ApplicationSourceHelm) IsZero() bool {
+	return ash == nil || (ash.Version == "") && (ash.ReleaseName == "") && len(ash.ValueFiles) == 0 && len(ash.Parameters) == 0 && len(ash.FileParameters) == 0 && ash.ValuesIsEmpty() && !ash.PassCredentials && !ash.IgnoreMissingValueFiles && !ash.SkipCrds && !ash.SkipTests && !ash.SkipSchemaValidation && ash.KubeVersion == "" && len(ash.APIVersions) == 0 && ash.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -678,14 +676,13 @@ type KustomizeReplicas []KustomizeReplica
 // If parsing error occurs, returns 0 and error.
 func (kr KustomizeReplica) GetIntCount() (int, error) {
 	if kr.Count.Type == intstr.String {
-		if count, err := strconv.Atoi(kr.Count.StrVal); err != nil {
+		count, err := strconv.Atoi(kr.Count.StrVal)
+		if err != nil {
 			return 0, fmt.Errorf("expected integer value for count. Received: %s", kr.Count.StrVal)
-		} else {
-			return count, nil
 		}
-	} else {
-		return kr.Count.IntValue(), nil
+		return count, nil
 	}
+	return kr.Count.IntValue(), nil
 }
 
 // NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
@@ -815,9 +812,8 @@ func NewJsonnetVar(s string, code bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
 		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
-	} else {
-		return JsonnetVar{Name: s, Code: code}
 	}
+	return JsonnetVar{Name: s, Code: code}
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1124,7 +1120,7 @@ func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
 type ResourceHealthLocation string
 
 var (
-	ResourceHealthLocationInline  ResourceHealthLocation = ""
+	ResourceHealthLocationInline  ResourceHealthLocation
 	ResourceHealthLocationAppTree ResourceHealthLocation = "appTree"
 )
 
@@ -1169,9 +1165,9 @@ type SourceHydratorStatus struct {
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
 }
 
-func (a *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
-	for i := range a.Resources {
-		res := a.Resources[i]
+func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
+	for i := range status.Resources {
+		res := status.Resources[i]
 		if kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name) == key {
 			return &res, true
 		}
@@ -1221,12 +1217,12 @@ const (
 // If app has multisources, it will return all corresponding revisions preserving
 // order from the app.spec.sources. If app has only one source, it will return a
 // single revision in the list.
-func (a *ApplicationStatus) GetRevisions() []string {
+func (status *ApplicationStatus) GetRevisions() []string {
 	revisions := []string{}
-	if len(a.Sync.Revisions) > 0 {
-		revisions = a.Sync.Revisions
-	} else if a.Sync.Revision != "" {
-		revisions = append(revisions, a.Sync.Revision)
+	if len(status.Sync.Revisions) > 0 {
+		revisions = status.Sync.Revisions
+	} else if status.Sync.Revision != "" {
+		revisions = append(revisions, status.Sync.Revision)
 	}
 	return revisions
 }
@@ -1528,9 +1524,8 @@ func (m *SyncStrategy) Force() bool {
 		return m.Apply.Force
 	} else if m.Hook != nil {
 		return m.Hook.Force
-	} else {
-		return false
 	}
+	return false
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -2288,20 +2283,20 @@ type ResourceOverride struct {
 }
 
 // TODO: describe this method
-func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
+func (ro *ResourceOverride) UnmarshalJSON(data []byte) error {
 	raw := &rawResourceOverride{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	s.KnownTypeFields = raw.KnownTypeFields
-	s.HealthLua = raw.HealthLua
-	s.UseOpenLibs = raw.UseOpenLibs
-	s.Actions = raw.Actions
-	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+	ro.KnownTypeFields = raw.KnownTypeFields
+	ro.HealthLua = raw.HealthLua
+	ro.UseOpenLibs = raw.UseOpenLibs
+	ro.Actions = raw.Actions
+	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &ro.IgnoreDifferences)
 	if err != nil {
 		return err
 	}
-	err = yaml.Unmarshal([]byte(raw.IgnoreResourceUpdates), &s.IgnoreResourceUpdates)
+	err = yaml.Unmarshal([]byte(raw.IgnoreResourceUpdates), &ro.IgnoreResourceUpdates)
 	if err != nil {
 		return err
 	}
@@ -2309,23 +2304,23 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 }
 
 // TODO: describe this method
-func (s ResourceOverride) MarshalJSON() ([]byte, error) {
-	ignoreDifferencesData, err := yaml.Marshal(s.IgnoreDifferences)
+func (ro ResourceOverride) MarshalJSON() ([]byte, error) {
+	ignoreDifferencesData, err := yaml.Marshal(ro.IgnoreDifferences)
 	if err != nil {
 		return nil, err
 	}
-	ignoreResourceUpdatesData, err := yaml.Marshal(s.IgnoreResourceUpdates)
+	ignoreResourceUpdatesData, err := yaml.Marshal(ro.IgnoreResourceUpdates)
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), s.KnownTypeFields}
+	raw := &rawResourceOverride{ro.HealthLua, ro.UseOpenLibs, ro.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), ro.KnownTypeFields}
 	return json.Marshal(raw)
 }
 
 // TODO: describe this method
-func (o *ResourceOverride) GetActions() (ResourceActions, error) {
+func (ro *ResourceOverride) GetActions() (ResourceActions, error) {
 	var actions ResourceActions
-	err := yaml.Unmarshal([]byte(o.Actions), &actions)
+	err := yaml.Unmarshal([]byte(ro.Actions), &actions)
 	if err != nil {
 		return actions, err
 	}
@@ -2565,24 +2560,24 @@ type SyncWindow struct {
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
-func (s *SyncWindows) HasWindows() bool {
-	return s != nil && len(*s) > 0
+func (w *SyncWindows) HasWindows() bool {
+	return w != nil && len(*w) > 0
 }
 
 // Active returns a list of sync windows that are currently active
-func (s *SyncWindows) Active() (*SyncWindows, error) {
-	return s.active(time.Now())
+func (w *SyncWindows) Active() (*SyncWindows, error) {
+	return w.active(time.Now())
 }
 
-func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
+func (w *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
 
-	if s.HasWindows() {
+	if w.HasWindows() {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-		for _, w := range *s {
+		for _, w := range *w {
 			schedule, sErr := specParser.Parse(w.Schedule)
 			if sErr != nil {
 				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
@@ -2609,19 +2604,19 @@ func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 // InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
 // for the current time. If the current time is in an inactive allow window, syncs will
 // be denied.
-func (s *SyncWindows) InactiveAllows() (*SyncWindows, error) {
-	return s.inactiveAllows(time.Now())
+func (w *SyncWindows) InactiveAllows() (*SyncWindows, error) {
+	return w.inactiveAllows(time.Now())
 }
 
-func (s *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
+func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
 
-	if s.HasWindows() {
+	if w.HasWindows() {
 		var inactive SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-		for _, w := range *s {
+		for _, w := range *w {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
 				if sErr != nil {
@@ -2658,7 +2653,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2686,18 +2681,18 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 		return err
 	}
 
-	s.SyncWindows = append(s.SyncWindows, window)
+	spec.SyncWindows = append(spec.SyncWindows, window)
 
 	return nil
 }
 
 // DeleteWindow deletes a sync window with the given id from the AppProject
-func (s *AppProjectSpec) DeleteWindow(id int) error {
+func (spec *AppProjectSpec) DeleteWindow(id int) error {
 	var exists bool
-	for i := range s.SyncWindows {
+	for i := range spec.SyncWindows {
 		if i == id {
 			exists = true
-			s.SyncWindows = append(s.SyncWindows[:i], s.SyncWindows[i+1:]...)
+			spec.SyncWindows = append(spec.SyncWindows[:i], spec.SyncWindows[i+1:]...)
 			break
 		}
 	}
@@ -2762,9 +2757,8 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}
 
 	if active.hasAllow() {
@@ -2778,9 +2772,8 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}
 
 	return true, nil
@@ -2921,10 +2914,10 @@ func (w *SyncWindow) Validate() error {
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
-func (d AppProjectSpec) DestinationClusters() []string {
+func (spec AppProjectSpec) DestinationClusters() []string {
 	servers := make([]string, 0)
 
-	for _, d := range d.Destinations {
+	for _, d := range spec.Destinations {
 		servers = append(servers, d.Server)
 	}
 
@@ -3214,12 +3207,12 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 }
 
 // Equals compares two instances of ApplicationDestination and returns true if instances are equal.
-func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
+func (d ApplicationDestination) Equals(other ApplicationDestination) bool {
 	// ignore destination cluster name and isServerInferred fields during comparison
 	// since server URL is inferred from cluster name
-	if dest.isServerInferred {
-		dest.Server = ""
-		dest.isServerInferred = false
+	if d.isServerInferred {
+		d.Server = ""
+		d.isServerInferred = false
 	}
 
 	if other.isServerInferred {
@@ -3227,9 +3220,9 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 		other.isServerInferred = false
 	}
 
-	if dest.isNameInferred {
-		dest.Name = ""
-		dest.isNameInferred = false
+	if d.isNameInferred {
+		d.Name = ""
+		d.isNameInferred = false
 	}
 
 	if other.isNameInferred {
@@ -3237,7 +3230,7 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 		other.isNameInferred = false
 	}
 
-	return reflect.DeepEqual(dest, other)
+	return reflect.DeepEqual(d, other)
 }
 
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
@@ -3539,37 +3532,36 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 // tracking values, i.e. in the format <namespace>_<name>. When the namespace
 // of the application is similar to the value of defaultNs, only the name of
 // the application is returned to keep backwards compatibility.
-func (a *Application) InstanceName(defaultNs string) string {
+func (app *Application) InstanceName(defaultNs string) string {
 	// When app has no namespace set, or the namespace is the default ns, we
 	// return just the application name
-	if a.Namespace == "" || a.Namespace == defaultNs {
-		return a.Name
+	if app.Namespace == "" || app.Namespace == defaultNs {
+		return app.Name
 	}
-	return a.Namespace + "_" + a.Name
+	return app.Namespace + "_" + app.Name
 }
 
 // QualifiedName returns the full qualified name of the application, including
 // the name of the namespace it is created in delimited by a forward slash,
 // i.e. <namespace>/<appname>
-func (a *Application) QualifiedName() string {
-	if a.Namespace == "" {
-		return a.Name
-	} else {
-		return a.Namespace + "/" + a.Name
+func (app *Application) QualifiedName() string {
+	if app.Namespace == "" {
+		return app.Name
 	}
+	return app.Namespace + "/" + app.Name
 }
 
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
-func (a *Application) RBACName(defaultNS string) string {
-	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+func (app *Application) RBACName(defaultNS string) string {
+	return security.RBACName(defaultNS, app.Spec.GetProject(), app.Namespace, app.Name)
 }
 
 // GetAnnotation returns the value of the specified annotation if it exists,
 // e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
 // If the annotation does not exist, it returns an empty string.
-func (a *Application) GetAnnotation(annotation string) string {
-	v, exists := a.Annotations[annotation]
+func (app *Application) GetAnnotation(annotation string) string {
+	v, exists := app.Annotations[annotation]
 	if !exists {
 		return ""
 	}
@@ -3577,8 +3569,8 @@ func (a *Application) GetAnnotation(annotation string) string {
 	return v
 }
 
-func (a *Application) IsDeletionConfirmed(since time.Time) bool {
-	val := a.GetAnnotation(synccommon.AnnotationDeletionApproved)
+func (app *Application) IsDeletionConfirmed(since time.Time) bool {
+	val := app.GetAnnotation(synccommon.AnnotationDeletionApproved)
 	if val == "" {
 		return false
 	}

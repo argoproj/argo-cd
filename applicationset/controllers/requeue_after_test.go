@@ -60,7 +60,7 @@ func TestRequeueAfter(t *testing.T) {
 	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil, true)
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
-		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
+		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
@@ -90,7 +90,7 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,
