@@ -69,18 +69,18 @@ func (db *db) ListConfiguredGPGPublicKeys(_ context.Context) (map[string]*appsv1
 	// This is not optimal, but the executil from argo-pkg does not support writing to
 	// stdin of the forked process. So for now, we must live with that.
 	for k, p := range keysCM.Data {
-		if expectedKeyID := gpg.KeyID(k); expectedKeyID != "" {
-			parsedKey, err := validatePGPKey(p)
-			if err != nil {
-				return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
-			}
-			if expectedKeyID != parsedKey.KeyID {
-				return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
-			}
-			result[parsedKey.KeyID] = parsedKey
-		} else {
+		expectedKeyID := gpg.KeyID(k)
+		if expectedKeyID == "" {
 			return nil, fmt.Errorf("Found entry with key '%s' in ConfigMap, but this is not a valid PGP key ID", k)
 		}
+		parsedKey, err := validatePGPKey(p)
+		if err != nil {
+			return nil, fmt.Errorf("Could not parse GPG key for entry '%s': %s", expectedKeyID, err.Error())
+		}
+		if expectedKeyID != parsedKey.KeyID {
+			return nil, fmt.Errorf("Key parsed for entry with key ID '%s' had different key ID '%s'", expectedKeyID, parsedKey.KeyID)
+		}
+		result[parsedKey.KeyID] = parsedKey
 	}
 
 	return result, nil

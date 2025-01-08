@@ -112,18 +112,17 @@ func (s *secretsRepositoryBackend) ListRepositories(_ context.Context, repoType 
 	for _, secret := range secrets {
 		r, err := secretToRepository(secret)
 		if err != nil {
-			if r != nil {
-				modifiedTime := metav1.Now()
-				r.ConnectionState = appsv1.ConnectionState{
-					Status:     appsv1.ConnectionStatusFailed,
-					Message:    "Configuration error - please check the server logs",
-					ModifiedAt: &modifiedTime,
-				}
-
-				log.Warnf("Error while parsing repository secret '%s': %v", secret.Name, err)
-			} else {
+			if r == nil {
 				return nil, err
 			}
+			modifiedTime := metav1.Now()
+			r.ConnectionState = appsv1.ConnectionState{
+				Status:     appsv1.ConnectionStatusFailed,
+				Message:    "Configuration error - please check the server logs",
+				ModifiedAt: &modifiedTime,
+			}
+
+			log.Warnf("Error while parsing repository secret '%s': %v", secret.Name, err)
 		}
 
 		if repoType == nil || *repoType == r.Type {

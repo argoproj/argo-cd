@@ -494,12 +494,11 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 			_, err = appSetClientSet.Update(context.Background(), utils.MustToUnstructured(&appSet), metav1.UpdateOptions{})
 
-			if err != nil {
-				mostRecentError = err
-			} else {
+			if err == nil {
 				mostRecentError = nil
 				break
 			}
+			mostRecentError = err
 		}
 	}
 
