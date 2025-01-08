@@ -1205,12 +1205,11 @@ func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.C
 						destServiceAccount.DefaultServiceAccount == serviceAccount
 				},
 			)
-			if originalLength != len(proj.Spec.DestinationServiceAccounts) {
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
-			} else {
+			if originalLength == len(proj.Spec.DestinationServiceAccounts) {
 				log.Fatal("Specified destination service account does not exist in project")
 			}
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 

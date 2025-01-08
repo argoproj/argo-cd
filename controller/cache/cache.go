@@ -329,12 +329,11 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 }
 
 func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
-	if !visited[r.ResourceKey()] {
-		visited[r.ResourceKey()] = true
-	} else {
+	if visited[r.ResourceKey()] {
 		log.Warnf("Circular dependency detected: %v.", visited)
 		return resInfo(r).AppName, false
 	}
+	visited[r.ResourceKey()] = true
 
 	if resInfo(r).AppName != "" {
 		return resInfo(r).AppName, true

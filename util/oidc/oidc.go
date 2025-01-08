@@ -564,12 +564,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
 		} else {
 			err = json.Unmarshal(claimsRaw, &claims)
-			if err != nil {
-				log.Errorf("cannot unmarshal cached claims structure: %s", err)
-			} else {
+			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
 				return claims, false, err
 			}
+			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 
