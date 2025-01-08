@@ -41,7 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
+var ErrInvalidRepoURL = errors.New("repo URL is invalid")
 
 type RevisionMetadata struct {
 	Author  string
@@ -137,11 +137,11 @@ var (
 
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
-		if cnt, err := strconv.Atoi(countStr); err != nil {
+		cnt, err := strconv.Atoi(countStr)
+		if err != nil {
 			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
-		} else {
-			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
+		maxAttemptsCount = int(math.Max(float64(cnt), 1))
 	}
 
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
@@ -211,7 +211,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		// 15 second timeout by default
 		Timeout: gitClientTimeout,
 		// don't follow redirect
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -220,7 +220,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
-	clientCertFunc := func(req *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	clientCertFunc := func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		var err error
 		cert := tls.Certificate{}
 
@@ -381,9 +381,8 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Fetch fetches latest updates from origin
@@ -438,16 +437,15 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			}
 		}
 		return files, nil
-	} else {
-		// This is the old and default way
-		out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
-		if err != nil {
-			return nil, err
-		}
-		// remove last element, which is blank regardless of whether we're using nullbyte or newline
-		ss := strings.Split(out, "\000")
-		return ss[:len(ss)-1], nil
 	}
+	// This is the old and default way
+	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+	if err != nil {
+		return nil, err
+	}
+	// remove last element, which is blank regardless of whether we're using nullbyte or newline
+	ss := strings.Split(out, "\000")
+	return ss[:len(ss)-1], nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -784,7 +782,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
-		return "", fmt.Errorf("permission denied")
+		return "", errors.New("permission denied")
 	}
 	return out, nil
 }
@@ -795,9 +793,8 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out != "" && err == nil {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // ChangedFiles returns a list of files changed between two revisions
@@ -807,7 +804,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	}
 
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))

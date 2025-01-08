@@ -39,13 +39,13 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
   # Print only client and server core version strings in YAML format
   argocd version --short -o yaml
 `,
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			ctx := cmd.Context()
 
 			cv := common.GetVersion()
 			switch output {
 			case "yaml", "json":
-				v := make(map[string]interface{})
+				v := make(map[string]any)
 
 				if short {
 					v["client"] = map[string]string{cliName: cv.Version}

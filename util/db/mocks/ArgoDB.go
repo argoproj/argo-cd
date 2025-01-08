@@ -481,9 +481,9 @@ func (_m *ArgoDB) GetProjectClusters(ctx context.Context, project string) ([]*v1
 	return r0, r1
 }
 
-// GetProjectRepositories provides a mock function with given fields: ctx, project
-func (_m *ArgoDB) GetProjectRepositories(ctx context.Context, project string) ([]*v1alpha1.Repository, error) {
-	ret := _m.Called(ctx, project)
+// GetProjectRepositories provides a mock function with given fields: project
+func (_m *ArgoDB) GetProjectRepositories(project string) ([]*v1alpha1.Repository, error) {
+	ret := _m.Called(project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProjectRepositories")
@@ -491,19 +491,19 @@ func (_m *ArgoDB) GetProjectRepositories(ctx context.Context, project string) ([
 
 	var r0 []*v1alpha1.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*v1alpha1.Repository, error)); ok {
-		return rf(ctx, project)
+	if rf, ok := ret.Get(0).(func(string) ([]*v1alpha1.Repository, error)); ok {
+		return rf(project)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*v1alpha1.Repository); ok {
-		r0 = rf(ctx, project)
+	if rf, ok := ret.Get(0).(func(string) []*v1alpha1.Repository); ok {
+		r0 = rf(project)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*v1alpha1.Repository)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, project)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(project)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -511,9 +511,9 @@ func (_m *ArgoDB) GetProjectRepositories(ctx context.Context, project string) ([
 	return r0, r1
 }
 
-// GetProjectWriteRepositories provides a mock function with given fields: ctx, project
-func (_m *ArgoDB) GetProjectWriteRepositories(ctx context.Context, project string) ([]*v1alpha1.Repository, error) {
-	ret := _m.Called(ctx, project)
+// GetProjectWriteRepositories provides a mock function with given fields: project
+func (_m *ArgoDB) GetProjectWriteRepositories(project string) ([]*v1alpha1.Repository, error) {
+	ret := _m.Called(project)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProjectWriteRepositories")
@@ -521,19 +521,19 @@ func (_m *ArgoDB) GetProjectWriteRepositories(ctx context.Context, project strin
 
 	var r0 []*v1alpha1.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*v1alpha1.Repository, error)); ok {
-		return rf(ctx, project)
+	if rf, ok := ret.Get(0).(func(string) ([]*v1alpha1.Repository, error)); ok {
+		return rf(project)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []*v1alpha1.Repository); ok {
-		r0 = rf(ctx, project)
+	if rf, ok := ret.Get(0).(func(string) []*v1alpha1.Repository); ok {
+		r0 = rf(project)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*v1alpha1.Repository)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, project)
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(project)
 	} else {
 		r1 = ret.Error(1)
 	}

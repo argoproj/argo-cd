@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"testing"
@@ -66,7 +67,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
@@ -89,7 +90,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -112,7 +113,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -384,12 +385,12 @@ func extractKubeConfigValues() (string, string, error) {
 
 	context, ok := config.Contexts[config.CurrentContext]
 	if !ok || context == nil {
-		return "", "", fmt.Errorf("no context")
+		return "", "", stderrors.New("no context")
 	}
 
 	cluster, ok := config.Clusters[context.Cluster]
 	if !ok || cluster == nil {
-		return "", "", fmt.Errorf("no cluster")
+		return "", "", stderrors.New("no cluster")
 	}
 
 	var kubeConfigDefault string
@@ -407,7 +408,7 @@ func extractKubeConfigValues() (string, string, error) {
 		}
 
 		if kubeConfigDefault == "" {
-			return "", "", fmt.Errorf("unable to retrieve kube config path")
+			return "", "", stderrors.New("unable to retrieve kube config path")
 		}
 	}
 

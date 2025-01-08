@@ -38,7 +38,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
+func (a *Actions) Create() *Actions {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
@@ -67,7 +67,7 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) CreateWithRBAC(args ...string) *Actions {
+func (a *Actions) CreateWithRBAC() *Actions {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 	config, err := pathOpts.GetStartingConfig()
 	if err != nil {

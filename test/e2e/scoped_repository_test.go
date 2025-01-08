@@ -29,11 +29,11 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		And(func(r *Repository, err error) {
+		And(func(r *Repository, _ error) {
 			assert.Equal(t, r.Repo, path)
 			assert.Equal(t, "argo-project", r.Project)
 
-			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, err error) {
+			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, _ error) {
 				assert.Len(t, projectResponse.Repositories, 1)
 				assert.Equal(t, projectResponse.Repositories[0].Repo, path)
 			})
@@ -55,7 +55,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
@@ -82,7 +82,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
@@ -118,14 +118,14 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		And(func(r *Repository, err error) {
+		And(func(r *Repository, _ error) {
 			assert.Equal(t, r.Repo, path)
 			assert.Equal(t, "argo-project", r.Project)
 		}).
 		When().
 		Delete().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Contains(t, output, "Repository 'https://github.com/argoproj/argo-cd.git' removed")
 		})
 }
@@ -161,7 +161,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		And(func(r *Repository, err error) {
+		And(func(r *Repository, _ error) {
 			assert.Equal(t, r.Repo, path)
 			assert.Equal(t, "argo-project", r.Project)
 		}).
@@ -169,7 +169,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		IgnoreErrors().
 		Delete().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, delete")
 		})
 }
@@ -182,13 +182,13 @@ func TestDeleteRepository(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		And(func(r *Repository, err error) {
+		And(func(r *Repository, _ error) {
 			assert.Equal(t, r.Repo, path)
 		}).
 		When().
 		Delete().
 		Then().
-		And(func(r *Repository, err error) {
+		And(func(_ *Repository, err error) {
 			assert.Equal(t, "repo not found", err.Error())
 		})
 }
@@ -201,13 +201,13 @@ func TestListRepoCLIOutput(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
 		}).
 		When().
 		List().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
 git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
 		})
@@ -221,13 +221,13 @@ func TestGetRepoCLIOutput(t *testing.T) {
 		Project("argo-project").
 		Create().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
 		}).
 		When().
 		Get().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
 git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
 		})

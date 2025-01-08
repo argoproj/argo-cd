@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -72,7 +72,7 @@ func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
 }
 
 func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
-	kubeclientset := fake.NewClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-cm",
@@ -80,7 +80,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -115,7 +115,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	objects = append(objects, defaultProj, myProj)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -528,7 +528,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, true)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
@@ -544,7 +544,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update no merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, false)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{

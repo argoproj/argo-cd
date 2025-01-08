@@ -26,7 +26,7 @@ type IndividualTest struct {
 func getObj(path string) *unstructured.Unstructured {
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	errors.CheckError(err)
 
@@ -34,7 +34,7 @@ func getObj(path string) *unstructured.Unstructured {
 }
 
 func TestLuaHealthScript(t *testing.T) {
-	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
