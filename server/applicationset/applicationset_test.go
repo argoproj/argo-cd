@@ -115,7 +115,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	objects = append(objects, defaultProj, myProj)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -528,7 +528,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, true)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
@@ -544,7 +544,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update no merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, false)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{

@@ -43,12 +43,12 @@ func TestGetDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
@@ -56,7 +56,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{
 					Repo: "foo",
 				}, nil
@@ -70,7 +70,7 @@ func TestGetDirectories(t *testing.T) {
 			repoURL: "foo",
 		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
@@ -419,12 +419,12 @@ func TestGetFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
@@ -432,7 +432,7 @@ func TestGetFiles(t *testing.T) {
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{
 					Repo: "foo",
 				}, nil
@@ -452,7 +452,7 @@ func TestGetFiles(t *testing.T) {
 			"bar.yaml": []byte("yay: appsets"),
 		}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {

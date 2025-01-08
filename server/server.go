@@ -304,8 +304,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
 	}
-	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
-	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 
 	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
@@ -392,15 +392,15 @@ const (
 	notObjectErrMsg = "object does not implement the Object interfaces"
 )
 
-func (a *ArgoCDServer) healthCheck(r *http.Request) error {
-	if a.terminateRequested.Load() {
+func (server *ArgoCDServer) healthCheck(r *http.Request) error {
+	if server.terminateRequested.Load() {
 		return errors.New("API Server is terminating and unable to serve requests.")
 	}
-	if !a.available.Load() {
+	if !server.available.Load() {
 		return errors.New("API Server is not available. It either hasn't started or is restarting.")
 	}
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
+		argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
 		_, err := argoDB.ListClusters(r.Context())
 		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
 			return err
@@ -438,18 +438,18 @@ func (l *Listeners) Close() error {
 }
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
-func (a *ArgoCDServer) logInClusterWarnings() error {
+func (server *ArgoCDServer) logInClusterWarnings() error {
 	labelSelector := labels.NewSelector()
 	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
 	if err != nil {
 		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
 	}
 	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := a.settingsMgr.GetSecretsLister()
+	secretsLister, err := server.settingsMgr.GetSecretsLister()
 	if err != nil {
 		return fmt.Errorf("failed to get secrets lister: %w", err)
 	}
-	clusterSecrets, err := secretsLister.Secrets(a.ArgoCDServerOpts.Namespace).List(labelSelector)
+	clusterSecrets, err := secretsLister.Secrets(server.ArgoCDServerOpts.Namespace).List(labelSelector)
 	if err != nil {
 		return fmt.Errorf("failed to list cluster secrets: %w", err)
 	}
@@ -465,7 +465,7 @@ func (a *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterSecrets) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := a.settingsMgr.GetSettings()
+		dbSettings, err := server.settingsMgr.GetSettings()
 		if err != nil {
 			return fmt.Errorf("could not get DB settings: %w", err)
 		}
@@ -491,12 +491,12 @@ func startListener(host string, port int) (net.Listener, error) {
 	return conn, realErr
 }
 
-func (a *ArgoCDServer) Listen() (*Listeners, error) {
-	mainLn, err := startListener(a.ListenHost, a.ListenPort)
+func (server *ArgoCDServer) Listen() (*Listeners, error) {
+	mainLn, err := startListener(server.ListenHost, server.ListenPort)
 	if err != nil {
 		return nil, err
 	}
-	metricsLn, err := startListener(a.ListenHost, a.MetricsPort)
+	metricsLn, err := startListener(server.ListenHost, server.MetricsPort)
 	if err != nil {
 		io.Close(mainLn)
 		return nil, err
@@ -506,14 +506,14 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
 	dOpts = append(dOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
 	dOpts = append(dOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
-	if a.useTLS() {
+	if server.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
 		// so we need to supply the same certificates to establish the connections that a normal,
 		// external gRPC client would need.
-		tlsConfig := a.settings.TLSConfig()
-		if a.TLSConfigCustomizer != nil {
-			a.TLSConfigCustomizer(tlsConfig)
+		tlsConfig := server.settings.TLSConfig()
+		if server.TLSConfigCustomizer != nil {
+			server.TLSConfigCustomizer(tlsConfig)
 		}
 		tlsConfig.InsecureSkipVerify = true
 		dCreds := credentials.NewTLS(tlsConfig)
@@ -522,7 +522,7 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	// nolint:staticcheck
-	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", a.ListenPort), dOpts...)
+	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
 		io.Close(mainLn)
 		io.Close(metricsLn)
@@ -532,51 +532,51 @@ func (a *ArgoCDServer) Listen() (*Listeners, error) {
 }
 
 // Init starts informers used by the API server
-func (a *ArgoCDServer) Init(ctx context.Context) {
-	go a.projInformer.Run(ctx.Done())
-	go a.appInformer.Run(ctx.Done())
-	go a.appsetInformer.Run(ctx.Done())
-	go a.configMapInformer.Run(ctx.Done())
-	go a.secretInformer.Run(ctx.Done())
+func (server *ArgoCDServer) Init(ctx context.Context) {
+	go server.projInformer.Run(ctx.Done())
+	go server.appInformer.Run(ctx.Done())
+	go server.appsetInformer.Run(ctx.Done())
+	go server.configMapInformer.Run(ctx.Done())
+	go server.secretInformer.Run(ctx.Done())
 }
 
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
+func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
-			a.terminateRequested.Store(true)
-			a.shutdown()
+			server.terminateRequested.Store(true)
+			server.shutdown()
 		}
 	}()
 
-	a.userStateStorage.Init(ctx)
+	server.userStateStorage.Init(ctx)
 
-	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
-	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServ, a.userStateStorage.GetLockObject())
+	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
+	if server.RedisClient != nil {
+		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
 
-	svcSet := newArgoCDServiceSet(a)
-	a.serviceSet = svcSet
-	grpcS, appResourceTreeFn := a.newGRPCServer()
+	svcSet := newArgoCDServiceSet(server)
+	server.serviceSet = svcSet
+	grpcS, appResourceTreeFn := server.newGRPCServer()
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
 	var httpsS *http.Server
-	if a.useTLS() {
-		httpS = newRedirectServer(a.ListenPort, a.RootPath)
-		httpsS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
+	if server.useTLS() {
+		httpS = newRedirectServer(server.ListenPort, server.RootPath)
+		httpsS = server.newHTTPServer(ctx, server.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
 	} else {
-		httpS = a.newHTTPServer(ctx, a.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
+		httpS = server.newHTTPServer(ctx, server.ListenPort, grpcWebS, appResourceTreeFn, listeners.GatewayConn, metricsServ)
 	}
-	if a.RootPath != "" {
-		httpS.Handler = withRootPath(httpS.Handler, a)
+	if server.RootPath != "" {
+		httpS.Handler = withRootPath(httpS.Handler, server)
 
 		if httpsS != nil {
-			httpsS.Handler = withRootPath(httpsS.Handler, a)
+			httpsS.Handler = withRootPath(httpsS.Handler, server)
 		}
 	}
 	httpS.Handler = &bug21955Workaround{handler: httpS.Handler}
@@ -590,7 +590,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	var grpcL net.Listener
 	var httpL net.Listener
 	var httpsL net.Listener
-	if !a.useTLS() {
+	if !server.useTLS() {
 		httpL = tcpm.Match(cmux.HTTP1Fast("PATCH"))
 		grpcL = tcpm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	} else {
@@ -606,11 +606,11 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			// gRPC clients know we support http2 for their communication.
 			NextProtos: []string{"http/1.1", "h2"},
 		}
-		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			return a.settings.Certificate, nil
+		tlsConfig.GetCertificate = func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return server.settings.Certificate, nil
 		}
-		if a.TLSConfigCustomizer != nil {
-			a.TLSConfigCustomizer(&tlsConfig)
+		if server.TLSConfigCustomizer != nil {
+			server.TLSConfigCustomizer(&tlsConfig)
 		}
 		tlsl = tls.NewListener(tlsl, &tlsConfig)
 
@@ -622,26 +622,26 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
-		common.GetVersion(), a.ListenPort, a.settings.URL, a.useTLS(), a.Namespace, a.settings.IsSSOConfigured())
-	log.Infof("Enabled application namespace patterns: %s", a.allowedApplicationNamespacesAsString())
+		common.GetVersion(), server.ListenPort, server.settings.URL, server.useTLS(), server.Namespace, server.settings.IsSSOConfigured())
+	log.Infof("Enabled application namespace patterns: %s", server.allowedApplicationNamespacesAsString())
 
-	go func() { a.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
-	go func() { a.checkServeErr("httpS", httpS.Serve(httpL)) }()
-	if a.useTLS() {
-		go func() { a.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
-		go func() { a.checkServeErr("tlsm", tlsm.Serve()) }()
+	go func() { server.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
+	go func() { server.checkServeErr("httpS", httpS.Serve(httpL)) }()
+	if server.useTLS() {
+		go func() { server.checkServeErr("httpsS", httpsS.Serve(httpsL)) }()
+		go func() { server.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
-	go a.watchSettings()
-	go a.rbacPolicyLoader(ctx)
-	go func() { a.checkServeErr("tcpm", tcpm.Serve()) }()
-	go func() { a.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
-	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
+	go server.watchSettings()
+	go server.rbacPolicyLoader(ctx)
+	go func() { server.checkServeErr("tcpm", tcpm.Serve()) }()
+	go func() { server.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
+	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
 	shutdownFunc := func() {
 		log.Info("API Server shutdown initiated. Shutting down servers...")
-		a.available.Store(false)
+		server.available.Store(false)
 		shutdownCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
 		var wg gosync.WaitGroup
@@ -656,7 +656,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			}
 		}()
 
-		if a.useTLS() {
+		if server.useTLS() {
 			// Shutdown https server
 			wg.Add(1)
 			go func() {
@@ -685,7 +685,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			}
 		}()
 
-		if a.useTLS() {
+		if server.useTLS() {
 			// Shutdown tls server
 			wg.Add(1)
 			go func() {
@@ -716,37 +716,37 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			log.Warn("Graceful shutdown timeout. Exiting...")
 		}
 	}
-	a.shutdown = shutdownFunc
-	signal.Notify(a.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	a.available.Store(true)
+	server.shutdown = shutdownFunc
+	signal.Notify(server.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	server.available.Store(true)
 
 	select {
-	case signal := <-a.stopCh:
+	case signal := <-server.stopCh:
 		log.Infof("API Server received signal: %s", signal.String())
 		gracefulRestartSignal := GracefulRestartSignal{}
 		if signal != gracefulRestartSignal {
-			a.terminateRequested.Store(true)
+			server.terminateRequested.Store(true)
 		}
-		a.shutdown()
+		server.shutdown()
 	case <-ctx.Done():
 		log.Infof("API Server: %s", ctx.Err())
-		a.terminateRequested.Store(true)
-		a.shutdown()
+		server.terminateRequested.Store(true)
+		server.shutdown()
 	}
 }
 
-func (a *ArgoCDServer) Initialized() bool {
-	return a.projInformer.HasSynced() && a.appInformer.HasSynced()
+func (server *ArgoCDServer) Initialized() bool {
+	return server.projInformer.HasSynced() && server.appInformer.HasSynced()
 }
 
 // TerminateRequested returns whether a shutdown was initiated by a signal or context cancel
 // as opposed to a watch.
-func (a *ArgoCDServer) TerminateRequested() bool {
-	return a.terminateRequested.Load()
+func (server *ArgoCDServer) TerminateRequested() bool {
+	return server.terminateRequested.Load()
 }
 
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
-func (a *ArgoCDServer) checkServeErr(name string, err error) {
+func (server *ArgoCDServer) checkServeErr(name string, err error) {
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Errorf("Error received from server %s: %v", name, err)
 	} else {
@@ -772,81 +772,81 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
-func (a *ArgoCDServer) watchSettings() {
+func (server *ArgoCDServer) watchSettings() {
 	updateCh := make(chan *settings_util.ArgoCDSettings, 1)
-	a.settingsMgr.Subscribe(updateCh)
+	server.settingsMgr.Subscribe(updateCh)
 
-	prevURL := a.settings.URL
-	prevAdditionalURLs := a.settings.AdditionalURLs
-	prevOIDCConfig := a.settings.OIDCConfig()
-	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+	prevURL := server.settings.URL
+	prevAdditionalURLs := server.settings.AdditionalURLs
+	prevOIDCConfig := server.settings.OIDCConfig()
+	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
-	prevGitHubSecret := a.settings.WebhookGitHubSecret
-	prevGitLabSecret := a.settings.WebhookGitLabSecret
-	prevBitbucketUUID := a.settings.WebhookBitbucketUUID
-	prevBitbucketServerSecret := a.settings.WebhookBitbucketServerSecret
-	prevGogsSecret := a.settings.WebhookGogsSecret
-	prevExtConfig := a.settings.ExtensionConfig
+	prevGitHubSecret := server.settings.WebhookGitHubSecret
+	prevGitLabSecret := server.settings.WebhookGitLabSecret
+	prevBitbucketUUID := server.settings.WebhookBitbucketUUID
+	prevBitbucketServerSecret := server.settings.WebhookBitbucketServerSecret
+	prevGogsSecret := server.settings.WebhookGogsSecret
+	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
-	if a.settings.Certificate != nil && !a.ArgoCDServerOpts.Insecure {
-		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+	if server.settings.Certificate != nil && !server.ArgoCDServerOpts.Insecure {
+		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
 	}
 
 	for {
 		newSettings := <-updateCh
-		a.settings = newSettings
-		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
+		server.settings = newSettings
+		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if string(newDexCfgBytes) != string(prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
 			break
 		}
-		if checkOIDCConfigChange(prevOIDCConfig, a.settings) {
+		if checkOIDCConfigChange(prevOIDCConfig, server.settings) {
 			log.Infof("oidc config modified. restarting")
 			break
 		}
-		if prevURL != a.settings.URL {
+		if prevURL != server.settings.URL {
 			log.Infof("url modified. restarting")
 			break
 		}
-		if !reflect.DeepEqual(prevAdditionalURLs, a.settings.AdditionalURLs) {
+		if !reflect.DeepEqual(prevAdditionalURLs, server.settings.AdditionalURLs) {
 			log.Infof("additionalURLs modified. restarting")
 			break
 		}
-		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
+		if prevGitHubSecret != server.settings.WebhookGitHubSecret {
 			log.Infof("github secret modified. restarting")
 			break
 		}
-		if prevGitLabSecret != a.settings.WebhookGitLabSecret {
+		if prevGitLabSecret != server.settings.WebhookGitLabSecret {
 			log.Infof("gitlab secret modified. restarting")
 			break
 		}
-		if prevBitbucketUUID != a.settings.WebhookBitbucketUUID {
+		if prevBitbucketUUID != server.settings.WebhookBitbucketUUID {
 			log.Infof("bitbucket uuid modified. restarting")
 			break
 		}
-		if prevBitbucketServerSecret != a.settings.WebhookBitbucketServerSecret {
+		if prevBitbucketServerSecret != server.settings.WebhookBitbucketServerSecret {
 			log.Infof("bitbucket server secret modified. restarting")
 			break
 		}
-		if prevGogsSecret != a.settings.WebhookGogsSecret {
+		if prevGogsSecret != server.settings.WebhookGogsSecret {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if !reflect.DeepEqual(prevExtConfig, a.settings.ExtensionConfig) {
-			prevExtConfig = a.settings.ExtensionConfig
+		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) {
+			prevExtConfig = server.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
-			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
+			err := server.extensionManager.UpdateExtensionRegistry(server.settings)
 			if err != nil {
 				log.Errorf("error updating extensions configs: %s", err)
 			} else {
 				log.Info("extensions configs updated successfully")
 			}
 		}
-		if !a.ArgoCDServerOpts.Insecure {
+		if !server.ArgoCDServerOpts.Insecure {
 			var newCert, newCertKey string
-			if a.settings.Certificate != nil {
-				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*a.settings.Certificate)
+			if server.settings.Certificate != nil {
+				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
 			}
 			if newCert != prevCert || newCertKey != prevCertKey {
 				log.Infof("tls certificate modified. reloading certificate")
@@ -855,14 +855,14 @@ func (a *ArgoCDServer) watchSettings() {
 		}
 	}
 	log.Info("shutting down settings watch")
-	a.settingsMgr.Unsubscribe(updateCh)
+	server.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
 	// Triggers server restart
-	a.stopCh <- GracefulRestartSignal{}
+	server.stopCh <- GracefulRestartSignal{}
 }
 
-func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
-	err := a.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
+func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
+	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
 		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; len(scopesStr) > 0 && ok {
 			scopes = make([]string, 0)
@@ -872,20 +872,20 @@ func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 			}
 		}
 
-		a.policyEnforcer.SetScopes(scopes)
+		server.policyEnforcer.SetScopes(scopes)
 		return nil
 	})
 	errorsutil.CheckError(err)
 }
 
-func (a *ArgoCDServer) useTLS() bool {
-	if a.Insecure || a.settings.Certificate == nil {
+func (server *ArgoCDServer) useTLS() bool {
+	if server.Insecure || server.settings.Certificate == nil {
 		return false
 	}
 	return true
 }
 
-func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
+func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
 	if enableGRPCTimeHistogram {
 		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
@@ -929,51 +929,51 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		grpc_logrus.StreamServerInterceptor(a.log),
+		grpc_logrus.StreamServerInterceptor(server.log),
 		grpc_prometheus.StreamServerInterceptor,
-		grpc_auth.StreamServerInterceptor(a.Authenticate),
+		grpc_auth.StreamServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadStreamServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
+		grpc_util.PayloadStreamServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
 		grpc_util.ErrorCodeGitStreamServerInterceptor(),
-		grpc_util.PanicLoggerStreamServerInterceptor(a.log),
+		grpc_util.PanicLoggerStreamServerInterceptor(server.log),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 		bug21955WorkaroundInterceptor,
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		grpc_logrus.UnaryServerInterceptor(a.log),
+		grpc_logrus.UnaryServerInterceptor(server.log),
 		grpc_prometheus.UnaryServerInterceptor,
-		grpc_auth.UnaryServerInterceptor(a.Authenticate),
+		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
-		grpc_util.PayloadUnaryServerInterceptor(a.log, true, func(ctx context.Context, fullMethodName string, servingObject any) bool {
+		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
 			return !sensitiveMethods[fullMethodName]
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
-		grpc_util.PanicLoggerUnaryServerInterceptor(a.log),
+		grpc_util.PanicLoggerUnaryServerInterceptor(server.log),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 
-	versionpkg.RegisterVersionServiceServer(grpcS, a.serviceSet.VersionService)
-	clusterpkg.RegisterClusterServiceServer(grpcS, a.serviceSet.ClusterService)
-	applicationpkg.RegisterApplicationServiceServer(grpcS, a.serviceSet.ApplicationService)
-	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, a.serviceSet.ApplicationSetService)
-	notificationpkg.RegisterNotificationServiceServer(grpcS, a.serviceSet.NotificationService)
-	repositorypkg.RegisterRepositoryServiceServer(grpcS, a.serviceSet.RepoService)
-	repocredspkg.RegisterRepoCredsServiceServer(grpcS, a.serviceSet.RepoCredsService)
-	sessionpkg.RegisterSessionServiceServer(grpcS, a.serviceSet.SessionService)
-	settingspkg.RegisterSettingsServiceServer(grpcS, a.serviceSet.SettingsService)
-	projectpkg.RegisterProjectServiceServer(grpcS, a.serviceSet.ProjectService)
-	accountpkg.RegisterAccountServiceServer(grpcS, a.serviceSet.AccountService)
-	certificatepkg.RegisterCertificateServiceServer(grpcS, a.serviceSet.CertificateService)
-	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, a.serviceSet.GpgkeyService)
+	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
+	clusterpkg.RegisterClusterServiceServer(grpcS, server.serviceSet.ClusterService)
+	applicationpkg.RegisterApplicationServiceServer(grpcS, server.serviceSet.ApplicationService)
+	applicationsetpkg.RegisterApplicationSetServiceServer(grpcS, server.serviceSet.ApplicationSetService)
+	notificationpkg.RegisterNotificationServiceServer(grpcS, server.serviceSet.NotificationService)
+	repositorypkg.RegisterRepositoryServiceServer(grpcS, server.serviceSet.RepoService)
+	repocredspkg.RegisterRepoCredsServiceServer(grpcS, server.serviceSet.RepoCredsService)
+	sessionpkg.RegisterSessionServiceServer(grpcS, server.serviceSet.SessionService)
+	settingspkg.RegisterSettingsServiceServer(grpcS, server.serviceSet.SettingsService)
+	projectpkg.RegisterProjectServiceServer(grpcS, server.serviceSet.ProjectService)
+	accountpkg.RegisterAccountServiceServer(grpcS, server.serviceSet.AccountService)
+	certificatepkg.RegisterCertificateServiceServer(grpcS, server.serviceSet.CertificateService)
+	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, server.serviceSet.GpgkeyService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
-	errorsutil.CheckError(a.serviceSet.ProjectService.NormalizeProjs())
-	return grpcS, a.serviceSet.AppResourceTreeFn
+	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs())
+	return grpcS, server.serviceSet.AppResourceTreeFn
 }
 
 type ArgoCDServiceSet struct {
@@ -1084,27 +1084,27 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 }
 
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
-func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
+func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
 		token := sessionResp.Token
-		err := a.setTokenCookie(token, w)
+		err := server.setTokenCookie(token, w)
 		if err != nil {
 			return fmt.Errorf("error setting token cookie from session response: %w", err)
 		}
 	} else if md, ok := runtime.ServerMetadataFromContext(ctx); ok {
 		renewToken := md.HeaderMD[renewTokenKey]
 		if len(renewToken) > 0 {
-			return a.setTokenCookie(renewToken[0], w)
+			return server.setTokenCookie(renewToken[0], w)
 		}
 	}
 
 	return nil
 }
 
-func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
-	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(a.ArgoCDServerOpts.BaseHRef, "/"), "/")
+func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error {
+	cookiePath := "path=/" + strings.TrimRight(strings.TrimLeft(server.ArgoCDServerOpts.BaseHRef, "/"), "/")
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if !a.Insecure {
+	if !server.Insecure {
 		flags = append(flags, "Secure")
 	}
 	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
@@ -1142,7 +1142,7 @@ func compressHandler(handler http.Handler) http.Handler {
 
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
-func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
+func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
 	httpS := http.Server{
@@ -1150,8 +1150,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(a.AppClientset, a.settingsMgr, a.Namespace, a.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(a.AppClientset, a.settingsMgr, a.sessionMgr, a.ArgoCDServerOpts.RootPath, a.ArgoCDServerOpts.BaseHRef, a.Namespace),
+				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
+				common.LogoutEndpoint: logout.NewHandler(server.AppClientset, server.settingsMgr, server.sessionMgr, server.ArgoCDServerOpts.RootPath, server.ArgoCDServerOpts.BaseHRef, server.Namespace),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1166,60 +1166,60 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
-	gwCookieOpts := runtime.WithForwardResponseOption(a.translateGrpcCookieHeader)
+	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
 
 	var handler http.Handler = gwmux
-	if a.EnableGZip {
+	if server.EnableGZip {
 		handler = compressHandler(handler)
 	}
-	if len(a.ContentTypes) > 0 {
-		handler = enforceContentTypes(handler, a.ContentTypes)
+	if len(server.ContentTypes) > 0 {
+		handler = enforceContentTypes(handler, server.ContentTypes)
 	} else {
 		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: a.ArgoCDServerOpts.DisableAuth, Enf: a.enf}
+	terminalOpts := application.TerminalOptions{DisableAuth: server.ArgoCDServerOpts.DisableAuth, Enf: server.enf}
 
-	terminal := application.NewHandler(a.appLister, a.Namespace, a.ApplicationNamespaces, a.db, a.Cache, appResourceTreeFn, a.settings.ExecShells, a.sessionMgr, &terminalOpts).
-		WithFeatureFlagMiddleware(a.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(a.DisableAuth, a.sessionMgr, terminal)
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, server.Cache, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
+		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
-	if a.EnableProxyExtension {
+	if server.EnableProxyExtension {
 		// API server won't panic if extensions fail to register. In
 		// this case an error log will be sent and no extension route
 		// will be added in mux.
-		registerExtensions(mux, a, metricsReg)
+		registerExtensions(mux, server, metricsReg)
 	}
 
-	mustRegisterGWHandler(versionpkg.RegisterVersionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(clusterpkg.RegisterClusterServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationpkg.RegisterApplicationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(applicationsetpkg.RegisterApplicationSetServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(notificationpkg.RegisterNotificationServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repositorypkg.RegisterRepositoryServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(repocredspkg.RegisterRepoCredsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(sessionpkg.RegisterSessionServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(settingspkg.RegisterSettingsServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(projectpkg.RegisterProjectServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(accountpkg.RegisterAccountServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(certificatepkg.RegisterCertificateServiceHandler, ctx, gwmux, conn)
-	mustRegisterGWHandler(gpgkeypkg.RegisterGPGKeyServiceHandler, ctx, gwmux, conn)
+	mustRegisterGWHandler(ctx, versionpkg.RegisterVersionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, clusterpkg.RegisterClusterServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationpkg.RegisterApplicationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, applicationsetpkg.RegisterApplicationSetServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, notificationpkg.RegisterNotificationServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repositorypkg.RegisterRepositoryServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, repocredspkg.RegisterRepoCredsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, sessionpkg.RegisterSessionServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, settingspkg.RegisterSettingsServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, projectpkg.RegisterProjectServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, accountpkg.RegisterAccountServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
+	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", a.RootPath)
-	healthz.ServeHealthCheck(mux, a.healthCheck)
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
+	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and client app and OAuth2 login/callback
-	a.registerDexHandlers(mux)
+	server.registerDexHandlers(mux)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
-	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.ArgoCDServerOpts.WebhookParallelism, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB, a.settingsMgr.GetMaxWebhookPayloadSize())
+	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ArgoCDServerOpts.ApplicationNamespaces, server.ArgoCDServerOpts.WebhookParallelism, server.AppClientset, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1230,16 +1230,16 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	extensionsSharedPath := "/tmp/extensions/"
 
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		a.serveExtensions(extensionsSharedPath, writer)
+		server.serveExtensions(extensionsSharedPath, writer)
 	})
-	if a.ArgoCDServerOpts.EnableGZip {
+	if server.ArgoCDServerOpts.EnableGZip {
 		extensionsHandler = compressHandler(extensionsHandler)
 	}
 	mux.Handle("/extensions.js", extensionsHandler)
 
 	// Serve UI static assets
-	var assetsHandler http.Handler = http.HandlerFunc(a.newStaticAssetsHandler())
-	if a.ArgoCDServerOpts.EnableGZip {
+	var assetsHandler http.Handler = http.HandlerFunc(server.newStaticAssetsHandler())
+	if server.ArgoCDServerOpts.EnableGZip {
 		assetsHandler = compressHandler(assetsHandler)
 	}
 	mux.Handle("/", assetsHandler)
@@ -1280,7 +1280,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 
 var extensionsPattern = regexp.MustCompile(`^extension(.*)\.js$`)
 
-func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
+func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/javascript")
 
 	err := filepath.Walk(extensionsSharedPath, func(filePath string, info os.FileInfo, err error) error {
@@ -1321,17 +1321,17 @@ func (a *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.Respo
 }
 
 // registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
-func (a *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
-	if !a.settings.IsSSOConfigured() {
+func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
+	if !server.settings.IsSSOConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	var err error
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(a.DexServerAddr, a.BaseHRef, a.DexTLSConfig))
-	a.ssoClientApp, err = oidc.NewClientApp(a.settings, a.DexServerAddr, a.DexTLSConfig, a.BaseHRef, cacheutil.NewRedisCache(a.RedisClient, a.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
+	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
 	errorsutil.CheckError(err)
-	mux.HandleFunc(common.LoginEndpoint, a.ssoClientApp.HandleLogin)
-	mux.HandleFunc(common.CallbackEndpoint, a.ssoClientApp.HandleCallback)
+	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
+	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -1366,21 +1366,21 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	}
 }
 
-func (s *ArgoCDServer) getIndexData() ([]byte, error) {
-	s.indexDataInit.Do(func() {
+func (server *ArgoCDServer) getIndexData() ([]byte, error) {
+	server.indexDataInit.Do(func() {
 		data, err := ui.Embedded.ReadFile("dist/app/index.html")
 		if err != nil {
-			s.indexDataErr = err
+			server.indexDataErr = err
 			return
 		}
-		if s.BaseHRef == "/" || s.BaseHRef == "" {
-			s.indexData = data
+		if server.BaseHRef == "/" || server.BaseHRef == "" {
+			server.indexData = data
 		} else {
-			s.indexData = []byte(replaceBaseHRef(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(s.BaseHRef, "/"))))
+			server.indexData = []byte(replaceBaseHRef(string(data), fmt.Sprintf(`<base href="/%s/">`, strings.Trim(server.BaseHRef, "/"))))
 		}
 	})
 
-	return s.indexData, s.indexDataErr
+	return server.indexData, server.indexDataErr
 }
 
 func (server *ArgoCDServer) uiAssetExists(filename string) bool {
@@ -1458,7 +1458,7 @@ func isMainJsBundle(url *url.URL) bool {
 type registerFunc func(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error
 
 // mustRegisterGWHandler is a convenience function to register a gateway handler
-func mustRegisterGWHandler(register registerFunc, ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) {
+func mustRegisterGWHandler(ctx context.Context, register registerFunc, mux *runtime.ServeMux, conn *grpc.ClientConn) {
 	err := register(ctx, mux, conn)
 	if err != nil {
 		panic(err)
@@ -1470,11 +1470,11 @@ func replaceBaseHRef(data string, replaceWith string) string {
 }
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
-func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
-	if a.DisableAuth {
+func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
+	if server.DisableAuth {
 		return ctx, nil
 	}
-	claims, newToken, claimsErr := a.getClaims(ctx)
+	claims, newToken, claimsErr := server.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
 		// nolint:staticcheck
@@ -1494,22 +1494,21 @@ func (a *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error
 	}
 
 	if claimsErr != nil {
-		argoCDSettings, err := a.settingsMgr.GetSettings()
+		argoCDSettings, err := server.settingsMgr.GetSettings()
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
 		}
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
-		} else {
-			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", "")
 		}
+		// nolint:staticcheck
+		ctx = context.WithValue(ctx, "claims", "")
 	}
 
 	return ctx, nil
 }
 
-func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, "", ErrNoSession
@@ -1518,7 +1517,7 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
-	claims, newToken, err := a.sessionMgr.VerifyToken(tokenString)
+	claims, newToken, err := server.sessionMgr.VerifyToken(tokenString)
 	if err != nil {
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
@@ -1534,8 +1533,8 @@ func (a *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error
 		}
 	}
 	iss := jwtutil.StringField(groupClaims, "iss")
-	if iss != util_session.SessionManagerClaimsIssuer && a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := a.ssoClientApp.GetUserInfo(groupClaims, a.settings.IssuerURL(), a.settings.UserInfoPath())
+	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1685,11 +1684,11 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 
 // allowedApplicationNamespacesAsString returns a string containing comma-separated list
 // of allowed application namespaces
-func (a *ArgoCDServer) allowedApplicationNamespacesAsString() string {
-	ns := a.Namespace
-	if len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0 {
+func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
+	ns := server.Namespace
+	if len(server.ArgoCDServerOpts.ApplicationNamespaces) > 0 {
 		ns += ", "
-		ns += strings.Join(a.ArgoCDServerOpts.ApplicationNamespaces, ", ")
+		ns += strings.Join(server.ArgoCDServerOpts.ApplicationNamespaces, ", ")
 	}
 	return ns
 }

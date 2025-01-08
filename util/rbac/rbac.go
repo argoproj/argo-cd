@@ -27,7 +27,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	v1 "k8s.io/client-go/informers/core/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -249,17 +249,15 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			switch s := rvals[0].(type) {
-			case jwt.Claims:
+			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
-				if err != nil {
-					break
-				}
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
-				}
-				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+				if err == nil {
+					if sub := jwtutil.StringField(claims, "sub"); sub != "" {
+						rvalsStrs = append(rvalsStrs, "sub: "+sub)
+					}
+					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
@@ -341,7 +339,7 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 		options.FieldSelector = cmFieldSelector.String()
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
-	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
+	return informersv1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
@@ -521,18 +519,18 @@ func loadPolicyLine(line string, model model.Model) error {
 	return nil
 }
 
-func (a *argocdAdapter) SavePolicy(model model.Model) error {
+func (a *argocdAdapter) SavePolicy(_ model.Model) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) AddPolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) RemovePolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+func (a *argocdAdapter) RemoveFilteredPolicy(_ string, _ string, _ int, _ ...string) error {
 	return errors.New("not implemented")
 }

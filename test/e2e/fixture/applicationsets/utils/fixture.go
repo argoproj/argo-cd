@@ -312,14 +312,13 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 		}
 
 		conditionErr := condition()
-		if conditionErr != nil {
-			// Fail!
-			mostRecentError = conditionErr
-		} else {
+		if conditionErr == nil {
 			// Pass!
 			mostRecentError = nil
 			break
 		}
+		// Fail!
+		mostRecentError = conditionErr
 
 		// Wait on fail
 		if sleepIntervalsIdx < len(sleepIntervals)-1 {

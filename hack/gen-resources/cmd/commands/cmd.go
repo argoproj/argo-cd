@@ -53,7 +53,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		Use:   "generate [-f file]",
 		Short: "Generate entities",
 		Long:  "Generate entities",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			log.Printf("Retrieve configuration from %s", file)
 			err := util.Parse(opts, file)
 			if err != nil {
@@ -97,7 +97,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		Use:   "clean",
 		Short: "Clean entities",
 		Long:  "Clean entities",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)
