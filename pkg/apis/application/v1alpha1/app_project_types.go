@@ -304,9 +304,9 @@ func (proj *AppProject) ValidateProject() error {
 		destServiceAccts[key] = true
 	}
 
-	if p.Spec.AllowedNodeLabels != nil {
+	if proj.Spec.AllowedNodeLabels != nil {
 		allowedNodeLabels := make(map[string]bool)
-		for _, label := range p.Spec.AllowedNodeLabels {
+		for _, label := range proj.Spec.AllowedNodeLabels {
 			if errs := validation.IsQualifiedName(label); len(errs) != 0 {
 				return status.Errorf(codes.InvalidArgument, "label '%s' has an invalid format", label)
 			}
