@@ -114,7 +114,7 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 
 #### Fine-grained Permissions for `update`/`delete` action
 
-The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself but not its resources.
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself **and** all of its resources.
 It can be desirable to only allow `update` or `delete` on specific resources within an application.
 
 To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
@@ -148,12 +148,36 @@ p, example-user, applications, delete, default/prod-app, deny
 p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-If we want to explicitly allow updates to the application, but deny updates to any sub-resources:
+!!! note
 
-```csv
-p, example-user, applications, update, default/prod-app, allow
-p, example-user, applications, update/*, default/prod-app, deny
-```
+    It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
+    For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
+
+    ```csv
+    p, example-user, applications, delete, default/prod-app, allow
+    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+    ```
+
+!!! note
+
+    In a future version, RBAC will have a breaking change. The `update` and
+    `delete` actions (without a `/*`) will no longer include sub-resources.
+    This allows you to explicitly allow or deny access to an application
+    without affecting its sub-resources. For example, you may want to allow
+    enable/disable of auto-sync by allowing update on an application, but
+    disallow the editing of deployment manifests for that application.
+
+    To enable this behavior before v3, you can set the config value
+    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
+    the Argo CD ConfigMap argocd-cm.
+
+    Once you do so, you can explicitly allow updates to the application, but deny
+    updates to any sub-resources:
+
+    ```csv
+    p, example-user, applications, update, default/prod-app, allow
+    p, example-user, applications, update/*, default/prod-app, deny
+    ```
 
 #### The `action` action
 
