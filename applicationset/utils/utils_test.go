@@ -565,7 +565,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
 			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
 			params: map[string]any{
-				"foo": func(test *string) {
+				"foo": func(_ *string) {
 				},
 			},
 		},

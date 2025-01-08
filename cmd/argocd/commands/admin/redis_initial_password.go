@@ -40,7 +40,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "redis-initial-password",
 		Short: "Ensure the Redis password exists, creating a new one if necessary.",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 

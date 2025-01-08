@@ -424,7 +424,7 @@ func TestListClusters(t *testing.T) {
 // TestClusterRaceConditionClusterSecrets reproduces a race condition
 // on the cluster secrets. The test isn't asserting anything because
 // before the fix it would cause a panic from concurrent map iteration and map write
-func TestClusterRaceConditionClusterSecrets(t *testing.T) {
+func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 	clusterSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",

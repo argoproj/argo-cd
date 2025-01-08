@@ -616,7 +616,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
 	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1603,7 +1603,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 func Test_enforceContentTypes(t *testing.T) {
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
 			writer.WriteHeader(http.StatusOK)
 		})
