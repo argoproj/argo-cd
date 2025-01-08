@@ -464,11 +464,10 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %w", err)
 		}
 
-		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
-			replicasCount = int(*appControllerDeployment.Spec.Replicas)
-		} else {
+		if appControllerDeployment == nil || appControllerDeployment.Spec.Replicas == nil {
 			return nil, stderrors.New("(dynamic cluster distribution) failed to get app controller deployment replica count")
 		}
+		replicasCount = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 	}
