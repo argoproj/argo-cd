@@ -20,6 +20,10 @@ spec:
   - namespace: guestbook
     server: https://kubernetes.default.svc
     name: in-cluster
+  # Destinations also allow wildcard globbing
+  - namespace: guestbook-*
+    server: https://kubernetes.default.svc
+    name: in-cluster
 
   # Deny all cluster-scoped resources from being created, except for Namespace
   clusterResourceWhitelist:
