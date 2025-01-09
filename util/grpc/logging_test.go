@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,10 +26,10 @@ func Test_JSONLogging(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(_ context.Context, _ string, _ any) bool {
 		return true
 	}
 	interceptor := PayloadUnaryServerInterceptor(entry, false, decider)
@@ -47,10 +47,10 @@ func Test_logRequest(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+	handler := func(_ context.Context, _ any) (any, error) {
 		return nil, nil
 	}
-	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
+	decider := func(_ context.Context, _ string, _ any) bool {
 		return true
 	}
 

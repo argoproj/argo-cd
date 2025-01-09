@@ -120,7 +120,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
@@ -436,11 +436,10 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if os.IsNotExist(err) {
-			exists = false
-		} else {
+		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
+		exists = false
 	}
 	return func() {
 		if !exists {

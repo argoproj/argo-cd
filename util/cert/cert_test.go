@@ -1,7 +1,6 @@
 package cert
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -399,7 +398,7 @@ func Test_ValidHostnames(t *testing.T) {
 	}
 
 	for hostName, valid := range hostNames {
-		t.Run(fmt.Sprintf("Test validity for hostname %s", hostName), func(t *testing.T) {
+		t.Run("Test validity for hostname "+hostName, func(t *testing.T) {
 			assert.Equal(t, valid, IsValidHostname(hostName, false))
 		})
 	}

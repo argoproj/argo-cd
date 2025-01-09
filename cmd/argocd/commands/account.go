@@ -262,7 +262,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:     "list",
 		Short:   "List accounts",
 		Example: "argocd account list",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
@@ -309,7 +309,7 @@ argocd account get
 
 # Get details for an account by name
 argocd account get --account <account-name>`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -358,7 +358,7 @@ func printAccountDetails(acc *accountpkg.Account) {
 				expiresAt := time.Unix(t.ExpiresAt, 0)
 				expiresAtFormatted = expiresAt.Format(time.RFC3339)
 				if expiresAt.Before(time.Now()) {
-					expiresAtFormatted = fmt.Sprintf("%s (expired)", expiresAtFormatted)
+					expiresAtFormatted = expiresAtFormatted + " (expired)"
 				}
 			}
 
@@ -382,7 +382,7 @@ argocd account generate-token
 
 # Generate token for the account with the specified name
 argocd account generate-token --account <account-name>`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)

@@ -17,7 +17,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -33,7 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
+var InvalidRedirectURLError = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -383,7 +383,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
 	}
-	cookiePath := fmt.Sprintf("path=/%s", path)
+	cookiePath := "path=/" + path
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
@@ -564,12 +564,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
 		} else {
 			err = json.Unmarshal(claimsRaw, &claims)
-			if err != nil {
-				log.Errorf("cannot unmarshal cached claims structure: %s", err)
-			} else {
+			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
 				return claims, false, err
 			}
+			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 

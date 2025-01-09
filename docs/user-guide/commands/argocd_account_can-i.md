@@ -22,7 +22,7 @@ argocd account can-i update projects 'default'
 argocd account can-i create clusters '*'
 
 Actions: [get create update delete sync override action invoke]
-Resources: [clusters projects applications applicationsets repositories certificates accounts gpgkeys logs exec extensions]
+Resources: [clusters projects applications applicationsets repositories write-repositories certificates accounts gpgkeys logs exec extensions]
 
 ```
 

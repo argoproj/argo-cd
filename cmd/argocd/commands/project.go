@@ -254,11 +254,10 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			}
 			if index == -1 {
 				log.Fatal("Specified signature key is not configured for project")
-			} else {
-				proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.SignatureKeys = append(proj.Spec.SignatureKeys[:index], proj.Spec.SignatureKeys[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 
@@ -352,11 +351,10 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 			if index == -1 {
 				log.Fatal("Specified destination does not exist in project")
-			} else {
-				proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.Destinations = append(proj.Spec.Destinations[:index], proj.Spec.Destinations[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 
@@ -456,11 +454,10 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 			}
 			if index == -1 {
 				log.Fatal("Specified resource does not exist in the orphaned ignore of project")
-			} else {
-				proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
 			}
+			proj.Spec.OrphanedResources.Ignore = append(proj.Spec.OrphanedResources.Ignore[:index], proj.Spec.OrphanedResources.Ignore[index+1:]...)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 	command.Flags().StringVar(&name, "name", "", "Resource name pattern")
@@ -602,22 +599,21 @@ func modifyResourcesList(list *[]metav1.GroupKind, add bool, listDesc string, gr
 		fmt.Printf("Group '%s' and kind '%s' is added to %s resources\n", group, kind, listDesc)
 		*list = append(*list, metav1.GroupKind{Group: group, Kind: kind})
 		return true
-	} else {
-		index := -1
-		for i, item := range *list {
-			if item.Group == group && item.Kind == kind {
-				index = i
-				break
-			}
-		}
-		if index == -1 {
-			fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
-			return false
-		}
-		*list = append((*list)[:index], (*list)[index+1:]...)
-		fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
-		return true
 	}
+	index := -1
+	for i, item := range *list {
+		if item.Group == group && item.Kind == kind {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		fmt.Printf("Group '%s' and kind '%s' not in %s resources\n", group, kind, listDesc)
+		return false
+	}
+	*list = append((*list)[:index], (*list)[index+1:]...)
+	fmt.Printf("Group '%s' and kind '%s' is removed from %s resources\n", group, kind, listDesc)
+	return true
 }
 
 func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdclient.ClientOptions, allow bool, namespacedList bool) *cobra.Command {
@@ -831,7 +827,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			# List all available projects in yaml format
 			argocd proj list -o yaml
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -1027,7 +1023,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			projName := args[0]
-			detailedProject := getProject(c, clientOpts, ctx, projName)
+			detailedProject := getProject(ctx, c, clientOpts, projName)
 
 			switch output {
 			case "yaml", "json":
@@ -1044,7 +1040,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	return command
 }
 
-func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx context.Context, projName string) *projectpkg.DetailedProjectsResponse {
+func getProject(ctx context.Context, c *cobra.Command, clientOpts *argocdclient.ClientOptions, projName string) *projectpkg.DetailedProjectsResponse {
 	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 	defer argoio.Close(conn)
 	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -1077,7 +1073,7 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			projData, err = yaml.JSONToYAML(projData)
 			errors.CheckError(err)
 
-			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", projName), projData, func(input []byte) error {
+			cli.InteractiveEdit(projName+"-*-edit.yaml", projData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
 					return fmt.Errorf("error converting YAML to JSON: %w", err)
@@ -1114,12 +1110,11 @@ func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.Clie
 				Namespace:             namespace,
 				DefaultServiceAccount: fmt.Sprintf("%s:%s", serviceAccountNamespace, serviceAccount),
 			}
-		} else {
-			return v1alpha1.ApplicationDestinationServiceAccount{
-				Server:                destination,
-				Namespace:             namespace,
-				DefaultServiceAccount: serviceAccount,
-			}
+		}
+		return v1alpha1.ApplicationDestinationServiceAccount{
+			Server:                destination,
+			Namespace:             namespace,
+			DefaultServiceAccount: serviceAccount,
 		}
 	}
 
@@ -1210,12 +1205,11 @@ func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.C
 						destServiceAccount.DefaultServiceAccount == serviceAccount
 				},
 			)
-			if originalLength != len(proj.Spec.DestinationServiceAccounts) {
-				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-				errors.CheckError(err)
-			} else {
+			if originalLength == len(proj.Spec.DestinationServiceAccounts) {
 				log.Fatal("Specified destination service account does not exist in project")
 			}
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
 		},
 	}
 

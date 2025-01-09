@@ -257,7 +257,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			switch output {
 			case "yaml", "json":
-				var resources []interface{}
+				var resources []any
 				for i := range appsList {
 					app := appsList[i]
 					// backfill api version and kind because k8s client always return empty values for these fields
@@ -293,7 +293,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	# List all ApplicationSets
 	argocd appset list
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
@@ -396,7 +396,7 @@ func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
+	headers := []any{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
@@ -411,7 +411,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 				conditions = append(conditions, condition)
 			}
 		}
-		vals := []interface{}{
+		vals := []any{
 			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
