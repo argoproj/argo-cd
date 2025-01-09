@@ -74,7 +74,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		return nil, ErrLessThanTwoGeneratorsInMerge
 	}
 
-	var joinType, err = getJoinType(appSetGenerator.Merge.Mode)
+	joinType, err := getJoinType(appSetGenerator.Merge.Mode)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,6 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 			baseParamSetsByMergeKey,
 			paramSetsByMergeKey,
 			appSet)
-
 		if err != nil {
 			return nil, err
 		}
@@ -118,8 +117,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 	baseParamSetsByMergeKey map[string][]map[string]interface{},
 	paramSetsByMergeKey map[string][]map[string]interface{},
-	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
-
+	appSet *argoprojiov1alpha1.ApplicationSet,
+) (map[string][]map[string]interface{}, error) {
 	var err error
 
 	switch mergeMode {
@@ -171,7 +170,8 @@ func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 
 func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParamSet map[string]interface{},
 	mergeKeyValue string, baseParamSetsByMergeKey map[string][]map[string]interface{},
-	appSet *argoprojiov1alpha1.ApplicationSet) (map[string][]map[string]interface{}, error) {
+	appSet *argoprojiov1alpha1.ApplicationSet,
+) (map[string][]map[string]interface{}, error) {
 	if appSet.Spec.GoTemplate {
 		if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
 			return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
