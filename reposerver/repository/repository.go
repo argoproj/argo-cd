@@ -381,9 +381,8 @@ func (s *Service) runRepoOperation(
 						"file":               oobError.File,
 					}).Warn("oci image contains out-of-bounds symlink")
 					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
-				} else {
-					return err
 				}
+				return err
 			}
 		}
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {

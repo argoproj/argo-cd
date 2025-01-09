@@ -153,7 +153,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
 			},
 			args: args{
-				digestFunc: func(store *memory.Store) string {
+				digestFunc: func(_ *memory.Store) string {
 					return "sha256:nonexistentdigest"
 				},
 				manifestMaxExtractedSize:        1000,
@@ -172,7 +172,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					layerBlob := createGzippedTarWithContent(t, "chart.tar.gz", string(helmBlob))
 					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", layerBlob), layerBlob})
 				},
-				postValidationFunc: func(sha string, path string, _ Client, _ fields, _ args) {
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
 					tempDir, err := files.CreateTempDir(os.TempDir())
 					defer os.RemoveAll(tempDir)
 					require.NoError(t, err)
@@ -208,7 +208,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
 					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
-				postValidationFunc: func(sha string, path string, _ Client, _ fields, _ args) {
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
 					manifestDir, err := os.ReadDir(path)
 					require.NoError(t, err)
 					require.Len(t, manifestDir, 1)

@@ -378,9 +378,8 @@ func fileExists(filePath string) (bool, error) {
 	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
-		} else {
-			return false, err
 		}
+		return false, err
 	}
 	return true, nil
 }
@@ -522,7 +521,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 				return err
 			}
 
-			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
+			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, _ error) error {
 				if path != srcDir {
 					// Calculate the relative path from srcDir
 					relPath, err := filepath.Rel(srcDir, path)
