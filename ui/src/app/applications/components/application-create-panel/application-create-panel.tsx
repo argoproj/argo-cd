@@ -170,6 +170,16 @@ export const ApplicationCreatePanel = (props: {
         }
     }
 
+    const onCreateApp = (data: models.Application) => {
+        if (destinationComboValue === 'URL') {
+            delete data.spec.destination.name;
+        } else {
+            delete data.spec.destination.server;
+        }
+
+        props.createApp(data);
+    };
+
     return (
         <React.Fragment>
             <DataLoader
@@ -223,7 +233,7 @@ export const ApplicationCreatePanel = (props: {
                                     })}
                                     defaultValues={app}
                                     formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
-                                    onSubmit={props.createApp}
+                                    onSubmit={onCreateApp}
                                     getApi={props.getFormApi}>
                                     {api => {
                                         const generalPanel = () => (
