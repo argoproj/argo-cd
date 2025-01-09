@@ -429,14 +429,11 @@ func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
 func TestMergeModes(t *testing.T) {
-
 	testCases := []struct {
 		name            string
 		mode            argoprojiov1alpha1.MergeMode
