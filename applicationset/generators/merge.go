@@ -106,7 +106,7 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		}
 	}
 
-	var mergedParamSets []map[string]interface{}
+	var mergedParamSets []map[string]any
 	for _, mergedParamSetList := range baseParamSetsByMergeKey {
 		mergedParamSets = append(mergedParamSets, mergedParamSetList...)
 	}
@@ -115,10 +115,10 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 }
 
 func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
-	baseParamSetsByMergeKey map[string][]map[string]interface{},
-	paramSetsByMergeKey map[string][]map[string]interface{},
+	baseParamSetsByMergeKey map[string][]map[string]any,
+	paramSetsByMergeKey map[string][]map[string]any,
 	appSet *argoprojiov1alpha1.ApplicationSet,
-) (map[string][]map[string]interface{}, error) {
+) (map[string][]map[string]any, error) {
 	var err error
 
 	switch mergeMode {
@@ -168,10 +168,10 @@ func combineParamSetsByJoinType(mergeMode argoprojiov1alpha1.MergeMode,
 	return baseParamSetsByMergeKey, nil
 }
 
-func overrideParamSets(i int, baseParamSet map[string]interface{}, overrideParamSet map[string]interface{},
-	mergeKeyValue string, baseParamSetsByMergeKey map[string][]map[string]interface{},
+func overrideParamSets(i int, baseParamSet map[string]any, overrideParamSet map[string]any,
+	mergeKeyValue string, baseParamSetsByMergeKey map[string][]map[string]any,
 	appSet *argoprojiov1alpha1.ApplicationSet,
-) (map[string][]map[string]interface{}, error) {
+) (map[string][]map[string]any, error) {
 	if appSet.Spec.GoTemplate {
 		if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
 			return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
