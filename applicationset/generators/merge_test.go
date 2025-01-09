@@ -231,7 +231,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:      "simple key, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
@@ -240,7 +240,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			name:      "simple key object, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]any{{"key": map[string]any{"hello": "world"}}, {"key": "b"}},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":{"hello":"world"}}`: {{"key": map[string]any{"hello": "world"}}},
 				`{"key":"b"}`:               {{"key": "b"}},
 			},
@@ -289,7 +289,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "b", "key2": "a"},
 			},
 			expected: map[string][]map[string]any{
-				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}}},
+				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]any{"hello": "world"}}},
 				`{"key1":"a","key2":"b"}`:               {{"key1": "a", "key2": "b"}},
 				`{"key1":"b","key2":"a"}`:               {{"key1": "b", "key2": "a"}},
 			},
@@ -352,15 +352,15 @@ func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
 	testCases := []struct {
 		name        string
 		mergeKeys   []string
-		paramSets   []map[string]interface{}
+		paramSets   []map[string]any
 		expectedErr error
-		expected    map[string][]map[string]interface{}
+		expected    map[string][]map[string]any
 	}{
 		{
 			name:      "simple key, non-unique paramSets",
 			mergeKeys: []string{"key"},
-			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}, {"key": "b"}},
-			expected: map[string][]map[string]interface{}{
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}, {"key": "b"}},
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a"}},
 				`{"key":"b"}`: {{"key": "b"}, {"key": "b"}},
 			},
@@ -368,21 +368,21 @@ func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "simple key object, duplicated key name, non-unique paramSets",
 			mergeKeys: []string{"key"},
-			paramSets: []map[string]interface{}{{"key": map[string]interface{}{"hello": "world"}}, {"key": "b"}, {"key": "b"}},
-			expected: map[string][]map[string]interface{}{
-				`{"key":{"hello":"world"}}`: {{"key": map[string]interface{}{"hello": "world"}}},
+			paramSets: []map[string]any{{"key": map[string]any{"hello": "world"}}, {"key": "b"}, {"key": "b"}},
+			expected: map[string][]map[string]any{
+				`{"key":{"hello":"world"}}`: {{"key": map[string]any{"hello": "world"}}},
 				`{"key":"b"}`:               {{"key": "b"}, {"key": "b"}},
 			},
 		},
 		{
 			name:      "compound key, non-unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
-			paramSets: []map[string]interface{}{
+			paramSets: []map[string]any{
 				{"key1": "a", "key2": "a"},
 				{"key1": "a", "key2": "a"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key1":"a","key2":"a"}`: {{"key1": "a", "key2": "a"}, {"key1": "a", "key2": "a"}},
 				`{"key1":"b","key2":"a"}`: {{"key1": "b", "key2": "a"}},
 			},
@@ -390,26 +390,26 @@ func TestParamSetsAreNonUniqueByMergeKeys(t *testing.T) {
 		{
 			name:      "compound key object, non-unique paramSets",
 			mergeKeys: []string{"key1"},
-			paramSets: []map[string]interface{}{
-				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}},
+			paramSets: []map[string]any{
+				{"key1": "a", "key2": map[string]any{"hello": "world"}},
 				{"key1": "a", "key2": "b"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string][]map[string]interface{}{
-				`{"key1":"a"}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}}, {"key1": "a", "key2": "b"}},
+			expected: map[string][]map[string]any{
+				`{"key1":"a"}`: {{"key1": "a", "key2": map[string]any{"hello": "world"}}, {"key1": "a", "key2": "b"}},
 				`{"key1":"b"}`: {{"key1": "b", "key2": "a"}},
 			},
 		},
 		{
 			name:      "compound key, compound key object, non-unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
-			paramSets: []map[string]interface{}{
-				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "bye"},
-				{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "world"},
+			paramSets: []map[string]any{
+				{"key1": "a", "key2": map[string]any{"hello": "world"}, "key3": "bye"},
+				{"key1": "a", "key2": map[string]any{"hello": "world"}, "key3": "world"},
 				{"key1": "b", "key2": "a"},
 			},
-			expected: map[string][]map[string]interface{}{
-				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "bye"}, {"key1": "a", "key2": map[string]interface{}{"hello": "world"}, "key3": "world"}},
+			expected: map[string][]map[string]any{
+				`{"key1":"a","key2":{"hello":"world"}}`: {{"key1": "a", "key2": map[string]any{"hello": "world"}, "key3": "bye"}, {"key1": "a", "key2": map[string]any{"hello": "world"}, "key3": "world"}},
 				`{"key1":"b","key2":"a"}`:               {{"key1": "b", "key2": "a"}},
 			},
 		},
@@ -440,23 +440,23 @@ func TestMergeModes(t *testing.T) {
 	testCases := []struct {
 		name            string
 		mode            argoprojiov1alpha1.MergeMode
-		firstParamSets  map[string][]map[string]interface{}
-		secondParamSets map[string][]map[string]interface{}
+		firstParamSets  map[string][]map[string]any
+		secondParamSets map[string][]map[string]any
 		expectedErr     error
-		expected        map[string][]map[string]interface{}
+		expected        map[string][]map[string]any
 	}{
 		{
 			name: "left-join-uniq",
 			mode: LeftJoinUniq,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
@@ -464,30 +464,30 @@ func TestMergeModes(t *testing.T) {
 		{
 			name: "left-join with multiple param sets for same merge key",
 			mode: LeftJoin,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
 		},
 		{
 			name: "default is left-join-uniq",
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
@@ -495,41 +495,41 @@ func TestMergeModes(t *testing.T) {
 		{
 			name: "inner-join-uniq",
 			mode: InnerJoinUniq,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
 			},
 		},
 		{
 			name: "inner-join with multiple param sets for same merge key",
 			mode: InnerJoin,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
 			},
 		},
 		{
 			name: "inner-join with no common keys among param sets",
 			mode: InnerJoin,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"d"}`: {{"key": "d", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
@@ -538,15 +538,15 @@ func TestMergeModes(t *testing.T) {
 		{
 			name: "full-join-uniq",
 			mode: FullJoinUniq,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
@@ -555,15 +555,15 @@ func TestMergeModes(t *testing.T) {
 		{
 			name: "full-join with multiple param sets for same merge key",
 			mode: FullJoin,
-			firstParamSets: map[string][]map[string]interface{}{
+			firstParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello"}, {"key": "a", "firstSet": "bye"}},
 				`{"key":"b"}`: {{"key": "b"}},
 			},
-			secondParamSets: map[string][]map[string]interface{}{
+			secondParamSets: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
 			},
-			expected: map[string][]map[string]interface{}{
+			expected: map[string][]map[string]any{
 				`{"key":"a"}`: {{"key": "a", "firstSet": "hello", "secondSet": "secondVal"}, {"key": "a", "firstSet": "bye", "secondSet": "secondVal"}},
 				`{"key":"b"}`: {{"key": "b"}},
 				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
