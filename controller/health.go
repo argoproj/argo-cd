@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
@@ -51,7 +52,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
 				// also log so we don't lose the message
-				log.WithField("application", app.QualifiedName()).Warn(savedErr)
+				log.WithFields(applog.GetAppLogFields(app)).Warn(savedErr)
 			}
 		}
 
