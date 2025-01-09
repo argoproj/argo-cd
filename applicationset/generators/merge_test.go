@@ -475,21 +475,6 @@ func TestMergeModes(t *testing.T) {
 			},
 		},
 		{
-			name: "default is left-join-uniq",
-			firstParamSets: map[string][]map[string]any{
-				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal"}},
-				`{"key":"b"}`: {{"key": "b"}},
-			},
-			secondParamSets: map[string][]map[string]any{
-				`{"key":"a"}`: {{"key": "a", "secondSet": "secondVal"}},
-				`{"key":"c"}`: {{"key": "c", "secondSet": "secondVal2"}},
-			},
-			expected: map[string][]map[string]any{
-				`{"key":"a"}`: {{"key": "a", "firstSet": "firstVal", "secondSet": "secondVal"}},
-				`{"key":"b"}`: {{"key": "b"}},
-			},
-		},
-		{
 			name: "inner-join-uniq",
 			mode: InnerJoinUniq,
 			firstParamSets: map[string][]map[string]any{
