@@ -51,7 +51,7 @@ func TestGetDirectories(t *testing.T) {
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, errors.New("unable to get dirs")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -61,7 +61,7 @@ func TestGetDirectories(t *testing.T) {
 					Repo: "foo",
 				}, nil
 			},
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{"foo", "foo/bar", "bar/foo"},
 				}, nil
@@ -73,7 +73,7 @@ func TestGetDirectories(t *testing.T) {
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -115,10 +115,10 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "NonExistentRepoResolution", fields: fields{
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "does-not-exist"}, req.Repo)
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{},
@@ -163,13 +163,13 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			repoURL: "does-not-exist",
 		}, want: []string{}, wantErr: assert.NoError},
 		{name: "DefaultRepoResolution", fields: fields{
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -211,13 +211,13 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			repoURL: "git@github.com:argoproj/argo-cd.git",
 		}, want: []string{}, wantErr: assert.NoError},
 		{name: "TemplatedRepoResolution", fields: fields{
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -260,13 +260,13 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			project: "{{ .some-proj }}",
 		}, want: []string{}, wantErr: assert.NoError},
 		{name: "ProjectRepoResolutionHappyPath", fields: fields{
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Project: "some-proj", Password: "123456"}, req.Repo)
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "some-proj", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -309,13 +309,13 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 			repoURL: "git@github.com:argoproj/argo-cd.git",
 		}, want: []string{}, wantErr: assert.NoError},
 		{name: "NonExistingProjectRepoResolution", fields: fields{
-			getGitDirectories: func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+			getGitDirectories: func(_ context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git"}, req.Repo)
 				return &apiclient.GitDirectoriesResponse{
 					Paths: []string{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -427,7 +427,7 @@ func TestGetFiles(t *testing.T) {
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, errors.New("unable to get files")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -437,7 +437,7 @@ func TestGetFiles(t *testing.T) {
 					Repo: "foo",
 				}, nil
 			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{
 						"foo.json": []byte("hello: world!"),
@@ -455,7 +455,7 @@ func TestGetFiles(t *testing.T) {
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, errors.New("revision HEAD is not signed")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
@@ -497,13 +497,13 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "NonExistentRepoResolution", fields: fields{
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "does-not-exist"}, req.Repo)
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -545,13 +545,13 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			repoURL: "does-not-exist",
 		}, want: map[string][]byte{}, wantErr: assert.NoError},
 		{name: "DefaultRepoResolution", fields: fields{
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -593,13 +593,13 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			repoURL: "git@github.com:argoproj/argo-cd.git",
 		}, want: map[string][]byte{}, wantErr: assert.NoError},
 		{name: "TemplatedRepoResolution", fields: fields{
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Password: "123456"}, req.Repo)
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -642,13 +642,13 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			project: "{{ .some-proj }}",
 		}, want: map[string][]byte{}, wantErr: assert.NoError},
 		{name: "ProjectRepoResolutionHappyPath", fields: fields{
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git", Project: "some-proj", Password: "123456"}, req.Repo)
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "some-proj", project)
 			},
 			repoSecrets: []*corev1.Secret{
@@ -691,13 +691,13 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 			repoURL: "git@github.com:argoproj/argo-cd.git",
 		}, want: map[string][]byte{}, wantErr: assert.NoError},
 		{name: "NonExistingProjectRepoResolution", fields: fields{
-			getGitFiles: func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+			getGitFiles: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				require.Equal(t, &v1alpha1.Repository{Repo: "git@github.com:argoproj/argo-cd.git"}, req.Repo)
 				return &apiclient.GitFilesResponse{
 					Map: map[string][]byte{},
 				}, nil
 			},
-			getRepositoryPreAssertions: func(ctx context.Context, url, project string) {
+			getRepositoryPreAssertions: func(_ context.Context, _, project string) {
 				require.Equal(t, "does-not-exist-proj", project)
 			},
 			repoSecrets: []*corev1.Secret{
