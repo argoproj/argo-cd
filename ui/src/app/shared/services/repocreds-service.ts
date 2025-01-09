@@ -7,8 +7,10 @@ export interface HTTPSCreds {
     password: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    type: string;
     proxy: string;
     noProxy: string;
+    enableOCI: boolean;
 }
 
 export interface SSHCreds {

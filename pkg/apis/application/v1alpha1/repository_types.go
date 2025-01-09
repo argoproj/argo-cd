@@ -192,6 +192,10 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.NoProxy == "" {
 			repo.NoProxy = source.NoProxy
 		}
+		if repo.Type == "" {
+			repo.Type = source.Type
+		}
+		repo.EnableOCI = source.EnableOCI
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
