@@ -198,20 +198,19 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
 		certFile, err := os.CreateTemp(argoio.TempDir, "")
-		if err == nil {
-			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
-			if err != nil {
-				removeErr := os.Remove(certFile.Name())
-				if removeErr != nil {
-					log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
-				}
-				return NopCloser{}, nil, err
-			}
-			defer keyFile.Close()
-		} else {
+		if err != nil {
 			return NopCloser{}, nil, err
 		}
+		defer certFile.Close()
+		keyFile, err = os.CreateTemp(argoio.TempDir, "")
+		if err != nil {
+			removeErr := os.Remove(certFile.Name())
+			if removeErr != nil {
+				log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
+			}
+			return NopCloser{}, nil, err
+		}
+		defer keyFile.Close()
 
 		// We should have both temp files by now
 		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
@@ -408,20 +407,19 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
 		certFile, err := os.CreateTemp(argoio.TempDir, "")
-		if err == nil {
-			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
-			if err != nil {
-				removeErr := os.Remove(certFile.Name())
-				if removeErr != nil {
-					log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
-				}
-				return NopCloser{}, nil, err
-			}
-			defer keyFile.Close()
-		} else {
+		if err != nil {
 			return NopCloser{}, nil, err
 		}
+		defer certFile.Close()
+		keyFile, err = os.CreateTemp(argoio.TempDir, "")
+		if err != nil {
+			removeErr := os.Remove(certFile.Name())
+			if removeErr != nil {
+				log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
+			}
+			return NopCloser{}, nil, err
+		}
+		defer keyFile.Close()
 
 		// We should have both temp files by now
 		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})

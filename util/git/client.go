@@ -489,14 +489,14 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		if largeFiles, err := m.LsLargeFiles(); err == nil {
-			if len(largeFiles) > 0 {
-				if out, err := m.runCmd("lfs", "checkout"); err != nil {
-					return out, fmt.Errorf("failed to checkout LFS files: %w", err)
-				}
-			}
-		} else {
+		largeFiles, err := m.LsLargeFiles()
+		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
+		}
+		if len(largeFiles) > 0 {
+			if out, err := m.runCmd("lfs", "checkout"); err != nil {
+				return out, fmt.Errorf("failed to checkout LFS files: %w", err)
+			}
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
@@ -861,13 +861,12 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
-		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
-			out, err = m.runCmd("switch", "--orphan", branch)
-			if err != nil {
-				return out, fmt.Errorf("failed to create orphan branch: %w", err)
-			}
-		} else {
+		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+		out, err = m.runCmd("switch", "--orphan", branch)
+		if err != nil {
+			return out, fmt.Errorf("failed to create orphan branch: %w", err)
 		}
 
 		// Make an empty initial commit.
@@ -890,20 +889,19 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
-		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
-			// If the branch does not exist, create any empty branch based on the sync branch
-			// First, checkout the sync branch.
-			out, err = m.Checkout(base, submoduleEnabled)
-			if err != nil {
-				return out, fmt.Errorf("failed to checkout sync branch: %w", err)
-			}
-
-			out, err = m.runCmd("checkout", "-b", branch)
-			if err != nil {
-				return out, fmt.Errorf("failed to create branch: %w", err)
-			}
-		} else {
+		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+		// If the branch does not exist, create any empty branch based on the sync branch
+		// First, checkout the sync branch.
+		out, err = m.Checkout(base, submoduleEnabled)
+		if err != nil {
+			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
+		}
+
+		out, err = m.runCmd("checkout", "-b", branch)
+		if err != nil {
+			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
 	}
 	return "", nil

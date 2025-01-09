@@ -449,11 +449,10 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if os.IsNotExist(err) {
-			exists = false
-		} else {
+		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
+		exists = false
 	}
 	return func() {
 		if !exists {
