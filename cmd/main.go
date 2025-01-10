@@ -27,7 +27,7 @@ const (
 )
 
 func init() {
-	// Make sure klog and gRPC uses the configured log level and format.
+	// Make sure klog uses the configured log level and format.
 	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
 }
 
