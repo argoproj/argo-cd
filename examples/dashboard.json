@@ -3628,7 +3628,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(increase(controller_runtime_reconcile_time_seconds_bucket{namespace=~\"$namespace\"}[$interval])) by (le)",
+              "expr": "sum(increase(controller_runtime_reconcile_time_seconds_bucket{namespace=~\"$namespace\",controller=\"applicationset\"}[$interval])) by (le)",
               "format": "heatmap",
               "instant": false,
               "intervalFactor": 10,
@@ -7644,8 +7644,8 @@
     ]
   },
   "timezone": "",
-  "title": "ArgoCD",
+  "title": "ArgoCD v2",
   "uid": "LCAgc9rWz",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
