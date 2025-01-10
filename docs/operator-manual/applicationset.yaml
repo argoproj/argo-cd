@@ -5,7 +5,6 @@ metadata:
   namespace: argocd
 spec:
   generators:
-
     # Using a generator plugin without combining it with Matrix or Merge
     # Plugins allow you to provide your own generator
     - plugin:
@@ -53,34 +52,34 @@ spec:
           values:
             name: "{{organization}}-{{repository}}"
 
-        #The GitLab mode uses the GitLab API to scan and organization in either gitlab.com or self-hosted GitLab.  
+        #The GitLab mode uses the GitLab API to scan and organization in either gitlab.com or self-hosted GitLab.
         gitlab:
         #The Gitea mode uses the Gitea API to scan organizations in your instance
         gitea:
         #Use the Bitbucket Server API (1.0) to scan repos in a project.
         bitbucketServer:
-        #Uses the Azure DevOps API to look up eligible repositories 
+        #Uses the Azure DevOps API to look up eligible repositories
         azureDevOps:
         # The Bitbucket mode uses the Bitbucket API V2 to scan a workspace in bitbucket.org
         bitbucket:
         #Uses AWS ResourceGroupsTagging and AWS CodeCommit APIs to scan repos across AWS accounts and regionsz
         awsCodeCommit:
 
-        #Filters allow selecting which repositories to generate for. 
+        #Filters allow selecting which repositories to generate for.
         filters:
-        # Include any repository starting with "myapp" AND including a Kustomize config AND labeled with "deploy-ok" ...
-        - repositoryMatch: ^myapp
-          pathsExist: [kubernetes/kustomization.yaml]
-          labelMatch: deploy-ok
-        # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
-        - repositoryMatch: ^otherapp
-          pathsExist: [helm]
-          pathsDoNotExist: [disabledrepo.txt]
+          # Include any repository starting with "myapp" AND including a Kustomize config AND labeled with "deploy-ok" ...
+          - repositoryMatch: ^myapp
+            pathsExist: [kubernetes/kustomization.yaml]
+            labelMatch: deploy-ok
+          # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
+          - repositoryMatch: ^otherapp
+            pathsExist: [helm]
+            pathsDoNotExist: [disabledrepo.txt]
     # matrix 'parent' generator
     - matrix:
         generators:
         # any of the top-level generators may be used here instead.
-  
+
     # merge 'parent' generator
     # Use the selector set by both child generators to combine them.
     - merge:
@@ -92,22 +91,21 @@ spec:
         generators:
           - clusters:
               values:
-                kafka: 'true'
-                redis: 'false'
+                kafka: "true"
+                redis: "false"
           # For clusters with a specific label, enable Kafka.
           - clusters:
               selector:
                 matchLabels:
-                  use-kafka: 'false'
+                  use-kafka: "false"
               values:
-                kafka: 'false'
+                kafka: "false"
           # For a specific cluster, enable Redis.
           - list:
-              elements: 
+              elements:
                 - server: https://2.4.6.8
-                  values.redis: 'true'
-                
-              
+                  values.redis: "true"
+
   # Determines whether go templating will be used in the `template` field below.
   goTemplate: true
   # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
@@ -121,35 +119,35 @@ spec:
       name: test-hello-world-app
     spec:
       project: my-project
-      syncPolicy: 
+      syncPolicy:
         automated:
-          selfHeal: true    
+          selfHeal: true
         syncOptions:
-        - CreateNamespace=true  
+          - CreateNamespace=true
       # defines from which Git repository to extract the desired Application manifests
       source:
-        - chart: '{{.chart}}'
-        # developers may customize app details using JSON files from above repo URL
+        - chart: "{{.chart}}"
+          # developers may customize app details using JSON files from above repo URL
           repoURL: https://github.com/argoproj/argo-cd.git
           targetRevision: HEAD
           # Path within the repository where Kubernetes manifests are located
           path: applicationset/examples/list-generator/guestbook/{{cluster}}
           helm:
-            useCredentials: "{{.useCredentials}}"  # This field may NOT be templated, because it is a boolean field
+            useCredentials: "{{.useCredentials}}" # This field may NOT be templated, because it is a boolean field
           parameters:
-          - name: "image.tag"
-            value: "pull-{{head_sha}}"
-          - name: "{{.name}}"
-            value: "{{.value}}"
-          - name: throw-away
-            value: "{{end}}"
+            - name: "image.tag"
+              value: "pull-{{head_sha}}"
+            - name: "{{.name}}"
+              value: "{{.value}}"
+            - name: throw-away
+              value: "{{end}}"
       destination:
         # Only one of name or server may be specified: if both are specified, an error is returned.
         #  Name of the cluster (within Argo CD) to deploy to
         name: production-cluster # cluster is restricted
         #  API Server URL for the cluster
-        server: '{{.url}}'
-        # Target namespace in which to deploy the manifests from source 
+        server: "{{.url}}"
+        # Target namespace in which to deploy the manifests from source
         namespace: dev-team-one # namespace is restricted
 
   # This sync policy pertains to the ApplicationSet, not to the Applications it creates.
@@ -167,10 +165,10 @@ spec:
     preserveResourcesOnDeletion: true
 
   strategy:
-     # The RollingSync update strategy allows you to group Applications by labels present on the generated Application resources
-     # See documentation for "Progressive Syncs"
-     type: RollingSync
-     rollingSync:
+    # The RollingSync update strategy allows you to group Applications by labels present on the generated Application resources
+    # See documentation for "Progressive Syncs"
+    type: RollingSync
+    rollingSync:
       steps:
         # Application groups are selected using their labels and matchExpressions
         - matchExpressions:
@@ -184,116 +182,116 @@ spec:
               operator: In
               values:
                 - env-qa
-          maxUpdate: 0      # if 0, no matched applications will be synced unless they're synced manually
+          maxUpdate: 0 # if 0, no matched applications will be synced unless they're synced manually
         - matchExpressions:
             - key: envLabel
               operator: In
               values:
                 - env-prod
-          maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
+          maxUpdate: 10% # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
 
   # Define annotations and labels of the Application that this ApplicationSet will ignore
   # ignoreApplicationDifferences is the preferred way to accomplish this now.
   preservedFields:
-    annotations: [ some-annotation-key ]
-    labels: [ some-label-key ]
+    annotations: [some-annotation-key]
+    labels: [some-label-key]
 
   # Define fields of the that should be ignored when comparing Applications
   ignoreApplicationDifferences:
-  - jsonPointers:
-    - /spec/source/targetRevision
-  - name: some-app
-    jqPathExpressions:
-    - .spec.source.helm.values
+    - jsonPointers:
+        - /spec/source/targetRevision
+    - name: some-app
+      jqPathExpressions:
+        - .spec.source.helm.values
 
-  # Cluster-decision-resource-based ApplicationSet generator
-  - clusterDecisionResource:
-    # ConfigMap with GVK information for the duck type resource
-    configMapRef: my-configmap  
-    name: quak           # Choose either "name" of the resource or "labelSelector"
-    labelSelector:
-      matchLabels:       # OPTIONAL
-        duck: spotted
-      matchExpressions:  # OPTIONAL
-      - key: duck
-        operator: In
-        values:
-        - "spotted"
-        - "canvasback"   
-    # OPTIONAL: Checks for changes every 60sec (default 3min)
-    requeueAfterSeconds: 60
-  
-  # The Pull Request generator uses the API of an SCMaaS provider to automatically discover open pull requests within a repository
-  - pullRequest:
-      # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
-      requeueAfterSeconds: 1800
-      # See below for provider specific options.
-      # Specify the repository from which to fetch the GitHub Pull requests.
-      github:
-        # The GitHub organization or user.
-        owner: myorg
-        # The Github repository
-        repo: myrepository
-        # For GitHub Enterprise (optional)
-        api: https://git.example.com/
-        # Reference to a Secret containing an access token. (optional)
-        tokenRef:
-          secretName: github-token
-          key: token
-        # (optional) use a GitHub App to access the API instead of a PAT.
-        appSecretName: github-app-repo-creds
-        # Labels is used to filter the PRs that you want to target. (optional)
-        labels:
-        - preview
+    # Cluster-decision-resource-based ApplicationSet generator
+    - clusterDecisionResource:
+      # ConfigMap with GVK information for the duck type resource
+      configMapRef: my-configmap
+      name: quak # Choose either "name" of the resource or "labelSelector"
+      labelSelector:
+        matchLabels: # OPTIONAL
+          duck: spotted
+        matchExpressions: # OPTIONAL
+          - key: duck
+            operator: In
+            values:
+              - "spotted"
+              - "canvasback"
+      # OPTIONAL: Checks for changes every 60sec (default 3min)
+      requeueAfterSeconds: 60
 
-      # Filters allow selecting which pull requests to generate for
-      # Include any pull request ending with "argocd". (optional)
-      filters:
-      - branchMatch: ".*-argocd"
+    # The Pull Request generator uses the API of an SCMaaS provider to automatically discover open pull requests within a repository
+    - pullRequest:
+        # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
+        requeueAfterSeconds: 1800
+        # See below for provider specific options.
+        # Specify the repository from which to fetch the GitHub Pull requests.
+        github:
+          # The GitHub organization or user.
+          owner: myorg
+          # The Github repository
+          repo: myrepository
+          # For GitHub Enterprise (optional)
+          api: https://git.example.com/
+          # Reference to a Secret containing an access token. (optional)
+          tokenRef:
+            secretName: github-token
+            key: token
+          # (optional) use a GitHub App to access the API instead of a PAT.
+          appSecretName: github-app-repo-creds
+          # Labels is used to filter the PRs that you want to target. (optional)
+          labels:
+            - preview
 
-      # Specify the project from which to fetch the GitLab merge requests.
-      gitlab:
-      # Specify the repository from which to fetch the Gitea Pull requests.
-      gitea:
-      # Fetch pull requests from a repo hosted on a Bitbucket Server (not the same as Bitbucket Cloud).
-      bitbucketServer:
-      # Fetch pull requests from a repo hosted on a Bitbucket Cloud.
-      bitbucket:
-      # Specify the organization, project and repository from which you want to fetch pull requests.
-      azuredevops:
-      # Fetch pull requests from AWS CodeCommit repositories.
-      awsCodeCommit:
+        # Filters allow selecting which pull requests to generate for
+        # Include any pull request ending with "argocd". (optional)
+        filters:
+          - branchMatch: ".*-argocd"
 
-# The list generator generates a set of two application which then filter by the key value to only select the env with value staging
-  - list:
-      elements:
-        - cluster: engineering-dev
-          url: https://kubernetes.default.svc
+        # Specify the project from which to fetch the GitLab merge requests.
+        gitlab:
+        # Specify the repository from which to fetch the Gitea Pull requests.
+        gitea:
+        # Fetch pull requests from a repo hosted on a Bitbucket Server (not the same as Bitbucket Cloud).
+        bitbucketServer:
+        # Fetch pull requests from a repo hosted on a Bitbucket Cloud.
+        bitbucket:
+        # Specify the organization, project and repository from which you want to fetch pull requests.
+        azuredevops:
+        # Fetch pull requests from AWS CodeCommit repositories.
+        awsCodeCommit:
+
+    # The list generator generates a set of two application which then filter by the key value to only select the env with value staging
+    - list:
+        elements:
+          - cluster: engineering-dev
+            url: https://kubernetes.default.svc
+            env: staging
+          - cluster: engineering-prod
+            url: https://kubernetes.default.svc
+            env: prod
+        # The generator's template field takes precedence over the spec's template fields
+        template:
+          metadata: {}
+          spec:
+            project: "default"
+            source:
+              revision: HEAD
+              repoURL: https://github.com/argoproj/argo-cd.git
+              # New path value is generated here:
+              path: "applicationset/examples/template-override/{{cluster}}-override"
+            destination: {}
+
+      selector:
+        matchLabels:
           env: staging
-        - cluster: engineering-prod
-          url: https://kubernetes.default.svc
-          env: prod
-      # The generator's template field takes precedence over the spec's template fields
-      template:
-        metadata: {}
-        spec:
-          project: "default"
-          source:
-            revision: HEAD
-            repoURL: https://github.com/argoproj/argo-cd.git
-            # New path value is generated here:
-            path: 'applicationset/examples/template-override/{{cluster}}-override'
-          destination: {}
-
-    selector:
-      matchLabels:
-        env: staging
-  # It is also possible to use matchExpressions for more powerful selectors
-  - clusters: {}
-    selector:
-      matchExpressions:
-        - key: server
-          operator: In
-          values:
-            - https://kubernetes.default.svc
-            - https://some-other-cluster
+    # It is also possible to use matchExpressions for more powerful selectors
+    - clusters: {}
+      selector:
+        matchExpressions:
+          - key: server
+            operator: In
+            values:
+              - https://kubernetes.default.svc
+              - https://some-other-cluster
