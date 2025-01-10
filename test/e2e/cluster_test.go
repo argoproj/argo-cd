@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestClusterList(t *testing.T) {
