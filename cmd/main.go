@@ -4,13 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"k8s.io/klog/v2"
-
-	"github.com/argoproj/argo-cd/v3/util/log"
-
-	"github.com/argoproj/argo-cd/v3/cmd/util"
-
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
 	appcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
@@ -23,6 +18,8 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
 const (
