@@ -11,8 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:

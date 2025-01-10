@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository";
 
 // Repository Service
 //
@@ -7,8 +7,8 @@ option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository";
 package repository;
 
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
 
 // RepoAppsQuery is a query for Repository apps
 message RepoAppsQuery {
@@ -27,7 +27,7 @@ message AppInfo {
 
 // RepoAppDetailsQuery contains query information for app details request
 message RepoAppDetailsQuery {
-	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 	string appName = 2;
 	string appProject = 3;
 	// source index (for multi source apps)
@@ -96,7 +96,7 @@ message RepoResponse {}
 // RepoCreateRequest is a request for creating repository config
 message RepoCreateRequest {
 	// Repository definition
-	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
 	// Whether to create in upsert mode
 	bool upsert = 2;
 	// Whether to operate on credential set instead of repository
@@ -104,35 +104,35 @@ message RepoCreateRequest {
 }
 
 message RepoUpdateRequest {
-	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
 }
 
 // RepositoryService
 service RepositoryService {
 
 	// List returns list of repos or repository credentials
-	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryList) {
+	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 		option deprecated = true;
 	}
 
 	// Get returns a repository or its credentials
-	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http).get = "/api/v1/repositories/{repo}";
 	}
 
 	// GetWrite returns a repository or its write credentials
-	rpc GetWrite(RepoQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc GetWrite(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http).get = "/api/v1/write-repositories/{repo}";
 	}
 
 	// ListRepositories gets a list of all configured repositories
-	rpc ListRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryList) {
+	rpc ListRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/repositories";
 	}
 
 	// ListWriteRepositories gets a list of all configured write repositories
-	rpc ListWriteRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RepositoryList) {
+	rpc ListWriteRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
 		option (google.api.http).get = "/api/v1/write-repositories";
 	}
 
@@ -159,7 +159,7 @@ service RepositoryService {
 	}
 
 	// Create creates a repo or a repo credential set
-	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "repo"
@@ -168,7 +168,7 @@ service RepositoryService {
 	}
 
 	// CreateRepository creates a new repository configuration
-	rpc CreateRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc CreateRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/repositories"
 			body: "repo"
@@ -176,7 +176,7 @@ service RepositoryService {
 	}
 
 	// CreateWriteRepository creates a new write repository configuration
-	rpc CreateWriteRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc CreateWriteRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			post: "/api/v1/write-repositories"
 			body: "repo"
@@ -184,7 +184,7 @@ service RepositoryService {
 	}
 
 	// Update updates a repo or repo credential set
-	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"
@@ -193,7 +193,7 @@ service RepositoryService {
 	}
 
 	// UpdateRepository updates a repository configuration
-	rpc UpdateRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc UpdateRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/repositories/{repo.repo}"
 			body: "repo"
@@ -201,7 +201,7 @@ service RepositoryService {
 	}
 
 	// UpdateWriteRepository updates a write repository configuration
-	rpc UpdateWriteRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository) {
+	rpc UpdateWriteRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
 		option (google.api.http) = {
 			put: "/api/v1/write-repositories/{repo.repo}"
 			body: "repo"

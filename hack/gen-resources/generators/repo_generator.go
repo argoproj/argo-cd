@@ -12,7 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
 
 	"k8s.io/client-go/kubernetes"
 )
