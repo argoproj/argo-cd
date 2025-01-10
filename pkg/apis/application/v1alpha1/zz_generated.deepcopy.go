@@ -174,6 +174,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]ApplicationDestinationServiceAccount, len(*in))
 		copy(*out, *in)
 	}
+	if in.AllowedNodeLabels != nil {
+		in, out := &in.AllowedNodeLabels, &out.AllowedNodeLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -2235,6 +2240,13 @@ func (in *HostInfo) DeepCopyInto(out *HostInfo) {
 		copy(*out, *in)
 	}
 	out.SystemInfo = in.SystemInfo
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
