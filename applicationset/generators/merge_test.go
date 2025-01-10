@@ -622,7 +622,7 @@ func TestMergeModeDetection(t *testing.T) {
 		{
 			name:     "no mode passed, should take default join type",
 			joinType: "",
-			expected: LeftJoinUniq,
+			expected: InnerJoinUniq,
 		},
 	}
 

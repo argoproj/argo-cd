@@ -192,8 +192,8 @@ func getJoinType(joinType string) (argoprojiov1alpha1.MergeMode, error) {
 	case LeftJoin, LeftJoinUniq, InnerJoin, InnerJoinUniq, FullJoin, FullJoinUniq:
 		return argoprojiov1alpha1.MergeMode(joinType), nil
 	case "":
-		// No merge mode passed. Using default left-join-uniq
-		return LeftJoinUniq, nil
+		// No merge mode passed. Using default inner-join-uniq
+		return InnerJoinUniq, nil
 	default:
 		return "", fmt.Errorf("incorrect merge mode passed. %s merge mode is not supported", joinType)
 	}
