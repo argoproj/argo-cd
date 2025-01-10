@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -115,6 +116,20 @@ func EnsureCleanState(t *testing.T) {
 	policy := metav1.DeletePropagationForeground
 
 	fixture.RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repository
+			return fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
+			return fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
+		},
 		func() error {
 			// Delete the applicationset-e2e namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, metav1.DeleteOptions{PropagationPolicy: &policy})
