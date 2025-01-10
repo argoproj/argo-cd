@@ -1026,7 +1026,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("").
+		HTTPSInsecureRepoURLAdded("").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 
@@ -1103,7 +1103,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("").
+		HTTPSInsecureRepoURLAdded("").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -1255,7 +1255,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("default").
+		HTTPSInsecureRepoURLAdded("default").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -1331,7 +1331,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("some-other-project").
+		HTTPSInsecureRepoURLAdded("some-other-project").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -1407,7 +1407,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("").
+		HTTPSInsecureRepoURLAdded("").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -1494,7 +1494,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 	var expectedAppsNewNamespace []v1alpha1.Application
 
 	Given(t).
-		HTTPSRepoURLAdded("default").
+		HTTPSInsecureRepoURLAdded("default").
 		When().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{

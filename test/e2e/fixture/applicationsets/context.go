@@ -57,7 +57,7 @@ func (c *Context) GPGPublicKeyAdded() *Context {
 	return c
 }
 
-func (c *Context) HTTPSRepoURLAdded(project string) *Context {
-	repos.AddHTTPSRepo(false, true, project, fixture.RepoURLTypeHTTPS)
+func (c *Context) HTTPSInsecureRepoURLAdded(project string) *Context {
+	repos.AddHTTPSRepo(true, true, project, fixture.RepoURLTypeHTTPS)
 	return c
 }
