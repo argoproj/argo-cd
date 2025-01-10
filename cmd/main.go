@@ -4,6 +4,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"k8s.io/klog/v2"
+
+	"github.com/argoproj/argo-cd/v3/util/log"
+
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 
 	"github.com/spf13/cobra"
@@ -27,6 +31,9 @@ const (
 
 func main() {
 	var command *cobra.Command
+
+	// Make sure klog uses the configured log level and format.
+	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
 
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
@@ -66,6 +73,8 @@ func main() {
 		isCLI = true
 	}
 	util.SetAutoMaxProcs(isCLI)
+
+	klog.Error("test")
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
