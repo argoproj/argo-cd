@@ -29,11 +29,13 @@ const (
 	binaryNameEnv = "ARGOCD_BINARY_NAME"
 )
 
+func init() {
+	// Make sure klog and gRPC uses the configured log level and format.
+	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
+}
+
 func main() {
 	var command *cobra.Command
-
-	// Make sure klog uses the configured log level and format.
-	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
 
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
@@ -73,8 +75,6 @@ func main() {
 		isCLI = true
 	}
 	util.SetAutoMaxProcs(isCLI)
-
-	klog.Error("test")
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
