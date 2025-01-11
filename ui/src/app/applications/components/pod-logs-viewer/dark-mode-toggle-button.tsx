@@ -5,38 +5,34 @@ import {ToggleButton} from '../../../shared/components/toggle-button';
 // DarkModeToggleButton is a component that renders a toggle button that toggles dark mode.
 // Added a logviewer theme profile
 
-interface LogViewerTheme {
-    light: boolean;
-    dark: boolean;
-}
-
 export const DarkModeToggleButton = ({prefs}: {prefs: ViewPreferences}) => {
     React.useEffect(() => {
-        const profiles = prefs.appDetails.LogViewerTheme as LogViewerTheme;
-        const currentTheme = prefs.theme;
-
-        if (!profiles) {
+        // Only run when theme changes or LogViewerTheme is not initialized
+        const profile = prefs.appDetails.UseDarkModeInLogViewerForAppTheme;
+        
+        if (!profile) {
+            // First time initialization
             services.viewPreferences.updatePreferences({
                 ...prefs,
                 appDetails: {
                     ...prefs.appDetails,
-                    LogViewerTheme: {
-                        light: false,
-                        dark: true
-                    },
-                    darkMode: currentTheme === 'dark'
+                    UseDarkModeInLogViewerForAppTheme: {
+                        light: prefs.appDetails.darkMode,  
+                        dark: prefs.appDetails.darkMode    
+                    }
                 }
             });
             return;
         }
 
-        const profilePreference = currentTheme === 'dark' ? profiles.dark : profiles.light;
-        if (prefs.appDetails.darkMode !== profilePreference) {
+        // Update darkMode based on saved preference for current theme
+        const currentThemeDarkMode = profile[prefs.theme as keyof typeof profile];
+        if (prefs.appDetails.darkMode !==currentThemeDarkMode) {
             services.viewPreferences.updatePreferences({
                 ...prefs,
                 appDetails: {
                     ...prefs.appDetails,
-                    darkMode: profilePreference
+                    darkMode: currentThemeDarkMode
                 }
             });
         }
@@ -44,10 +40,9 @@ export const DarkModeToggleButton = ({prefs}: {prefs: ViewPreferences}) => {
 
     const handleToggle = () => {
         const newDarkMode = !prefs.appDetails.darkMode;
-        const currentTheme = prefs.theme;
-        const profiles = (prefs.appDetails.LogViewerTheme as LogViewerTheme) || {
-            light: false,
-            dark: true
+        const currentProfile = prefs.appDetails.UseDarkModeInLogViewerForAppTheme || {
+            light: prefs.appDetails.darkMode,
+            dark: prefs.appDetails.darkMode
         };
 
         services.viewPreferences.updatePreferences({
@@ -55,13 +50,20 @@ export const DarkModeToggleButton = ({prefs}: {prefs: ViewPreferences}) => {
             appDetails: {
                 ...prefs.appDetails,
                 darkMode: newDarkMode,
-                LogViewerTheme: {
-                    ...profiles,
-                    [currentTheme]: newDarkMode
+                UseDarkModeInLogViewerForAppTheme: {
+                    ...currentProfile,
+                    [prefs.theme]: newDarkMode
                 }
             }
         });
     };
 
-    return <ToggleButton title='Dark Mode' onToggle={handleToggle} toggled={prefs.appDetails.darkMode} icon='moon' />;
+    return (
+        <ToggleButton
+            title='Dark Mode'
+            onToggle={handleToggle}
+            toggled={prefs.appDetails.darkMode}
+            icon='moon'
+        />
+    );
 };

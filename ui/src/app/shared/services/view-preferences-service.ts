@@ -31,7 +31,7 @@ export interface AppDetailsPreferences {
     zoom: number;
     podGroupCount: number;
     userHelpTipMsgs: UserMessages[];
-    LogViewerTheme?: {light: boolean; dark: boolean};
+    UseDarkModeInLogViewerForAppTheme?: {light: boolean; dark: boolean};
 }
 
 export interface PodViewPreferences {
