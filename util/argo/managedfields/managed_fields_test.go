@@ -12,8 +12,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {

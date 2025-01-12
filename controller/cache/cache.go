@@ -29,17 +29,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/lua"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -72,8 +72,8 @@ const (
 	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
 	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
 
-	// EnvClusterCacheEventProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
-	EnvClusterCacheEventProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENT_PROCESSING_INTERVAL"
+	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
+	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
@@ -113,8 +113,8 @@ var (
 	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
 	clusterCacheBatchEventsProcessing = false
 
-	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventProcessingInterval = 100 * time.Millisecond
+	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
 )
 
 func init() {
@@ -127,7 +127,7 @@ func init() {
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
-	clusterCacheEventProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventProcessingInterval, clusterCacheEventProcessingInterval, 0, math.MaxInt64)
+	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -329,12 +329,11 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 }
 
 func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
-	if !visited[r.ResourceKey()] {
-		visited[r.ResourceKey()] = true
-	} else {
+	if visited[r.ResourceKey()] {
 		log.Warnf("Circular dependency detected: %v.", visited)
 		return resInfo(r).AppName, false
 	}
+	visited[r.ResourceKey()] = true
 
 	if resInfo(r).AppName != "" {
 		return resInfo(r).AppName, true
@@ -568,7 +567,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
-		clustercache.SetEventProcessingInterval(clusterCacheEventProcessingInterval),
+		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
