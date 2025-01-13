@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/util/workloadidentity/mocks"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func runCmd(workingDir string, name string, args ...string) error {

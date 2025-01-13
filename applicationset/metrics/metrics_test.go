@@ -17,9 +17,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
 )
 
 var (

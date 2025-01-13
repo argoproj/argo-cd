@@ -28,11 +28,11 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	argoutils "github.com/argoproj/argo-cd/v2/util"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/workloadidentity"
+	"github.com/argoproj/argo-cd/v3/common"
+	argoutils "github.com/argoproj/argo-cd/v3/util"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	argoioutils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 var (

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
@@ -27,10 +27,10 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 var (

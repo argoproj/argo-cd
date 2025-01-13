@@ -34,14 +34,14 @@ import (
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
