@@ -82,7 +82,7 @@ func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, re
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
 // the current datas.
-func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
+func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int, cache LiveStateCache) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
 	switch shardingAlgorithm {
@@ -92,6 +92,8 @@ func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardin
 		distributionFunction = LegacyDistributionFunction(replicasCount)
 	case common.ConsistentHashingWithBoundedLoadsAlgorithm:
 		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount)
+	case common.ConnectionBased: // New algorithm
+        	distributionFunction = ConnectionBasedDistributionFunction(clusters, replicasCount, cache)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -247,6 +249,54 @@ func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[str
 		appDistribution[a.Spec.Destination.Server]++
 	}
 	return appDistribution
+}
+
+func ConnectionBasedDistributionFunction(clusters clusterAccessor, replicas int, cache LiveStateCache) DistributionFunction {
+	return func(c *v1alpha1.Cluster) int {
+		if replicas > 0 {
+			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
+				return 0
+			}
+			// if Shard is manually set and the assigned value is lower than the number of replicas,
+			// then its value is returned otherwise it is the default calculated value
+			if c.Shard != nil && int(*c.Shard) < replicas {
+				return int(*c.Shard)
+			}
+		        // Fetch connection status using the cache
+			connectionStatus := fetchConnectionStatusFromCache(cache, c.Server)
+		        if connectionStatus == 0 {
+		          	log.Warnf("Cluster with ID=%s has no valid connection status; assigning shard -1", c.ID)
+			            return -1 // Unassignable due to bad connection
+			}
+			clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
+			clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
+			if !ok {
+				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
+				return -1
+			}
+			shard := int(clusterIndex % replicas)
+			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
+			return shard
+		}
+		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
+		return -1
+	}
+}
+
+// Fetch connection status using LiveStateCache
+func fetchConnectionStatusFromCache(cache LiveStateCache, clusterID string) float64 {
+	clustersInfo := cache.GetClustersInfo()
+	for _, cluster := range clustersInfo {
+		if cluster.Server == clusterID {
+            		if cluster.SyncError == nil {
+                		log.Debugf("Cluster %s is connected successfully.", clusterID)
+                		return 1.0 // Connection is healthy
+            		} else {
+                		log.Debugf("Cluster %s has a connection error: %v", clusterID, cluster.SyncError)
+        			return 0.0 // Connection is unhealthy
+            		}
+		}
+	}
 }
 
 // NoShardingDistributionFunction returns a DistributionFunction that will process all cluster by shard 0
