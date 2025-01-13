@@ -1175,9 +1175,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Metrics:       metrics,
 				ArgoDB:        argodb,
 			}
-			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
-			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
@@ -2036,7 +2033,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
+			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -2440,7 +2437,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
-	require.NoError(t, err)
+	require.NoErrorf(t, err, "Reconcile failed with error: %v", err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
@@ -6652,6 +6649,81 @@ func TestMigrateStatus(t *testing.T) {
 			err := r.migrateStatus(context.Background(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
+		})
+	}
+}
+
+func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
+	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		oldAppSet         crtclient.Object
+		newAppSet         crtclient.Object
+		reconcileExpected bool
+	}{
+		{
+			name: "annotation removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name: "annotation not removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+		{
+			name:              "annotation never existed",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: true,
+		},
+		{
+			name:      "annotation added",
+			oldAppSet: buildAppSet(map[string]string{}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+		{
+			name:              "old object is not an appset",
+			oldAppSet:         &v1alpha1.Application{},
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name:              "new object is not an appset",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         &v1alpha1.Application{},
+			reconcileExpected: false,
+		},
+	}
+
+	predicate := ignoreWhenAnnotationApplicationSetRefreshIsRemoved()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := event.UpdateEvent{
+				ObjectOld: tt.oldAppSet,
+				ObjectNew: tt.newAppSet,
+			}
+			result := predicate.Update(e)
+			assert.Equal(t, tt.reconcileExpected, result)
 		})
 	}
 }
