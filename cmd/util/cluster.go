@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -16,8 +17,8 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type ClusterEndpoint string
@@ -131,7 +132,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 	}
 	kubeconfig, ok := clusterInfo.Data["kubeconfig"]
 	if !ok {
-		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
+		return "", stderrors.New("cluster-info does not contain a public kubeconfig")
 	}
 	// Parse Kubeconfig and get server address
 	config := &clientcmdapiv1.Config{}
@@ -140,7 +141,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
-		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
+		return "", stderrors.New("cluster-info kubeconfig does not have any clusters")
 	}
 
 	return config.Clusters[0].Cluster.Server, nil

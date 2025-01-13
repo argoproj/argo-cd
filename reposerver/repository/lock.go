@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	ioutil "github.com/argoproj/argo-cd/v2/util/io"
+	ioutil "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func NewRepositoryLock() *repositoryLock {
@@ -68,11 +68,10 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			state.processCount++
 			state.cond.L.Unlock()
 			return closer, nil
-		} else {
-			state.cond.Wait()
-			// wait when all in-flight processes of this revision complete and try again
-			state.cond.L.Unlock()
 		}
+		state.cond.Wait()
+		// wait when all in-flight processes of this revision complete and try again
+		state.cond.L.Unlock()
 	}
 }
 

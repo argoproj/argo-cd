@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -235,7 +235,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 					Destinations: data.projDest,
 				},
 			}
-			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -402,7 +402,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)

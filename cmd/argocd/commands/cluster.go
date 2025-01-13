@@ -15,17 +15,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 const (
@@ -404,7 +404,7 @@ argocd cluster rm cluster-name`,
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			numOfClusters := len(args)
-			var isConfirmAll bool = false
+			var isConfirmAll bool
 
 			for _, clusterSelector := range args {
 				clusterQuery := getQueryBySelector(clusterSelector)
@@ -496,7 +496,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
