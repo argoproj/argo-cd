@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	adapter "github.com/bombsimon/logrusr/v2"
+	adapter "github.com/bombsimon/logrusr/v4"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 
@@ -18,7 +18,7 @@ const (
 )
 
 func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
-	return adapter.New(fieldLogger, adapter.WithFormatter(func(val any) string {
+	return adapter.New(fieldLogger, adapter.WithFormatter(func(val any) any {
 		return fmt.Sprintf("%v", val)
 	}))
 }
