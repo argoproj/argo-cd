@@ -6662,10 +6662,18 @@ func TestApplicationSetOwnsHandler(t *testing.T) {
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
 
+	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+		}
+	}
+
 	tests := []struct {
 		name      string
-		appSetOld *v1alpha1.ApplicationSet
-		appSetNew *v1alpha1.ApplicationSet
+		appSetOld crtclient.Object
+		appSetNew crtclient.Object
 		want      bool
 	}{
 		{
@@ -6687,18 +6695,10 @@ func TestApplicationSetOwnsHandler(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "Different Annotations",
-			appSetOld: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"key1": "value1"},
-				},
-			},
-			appSetNew: &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"key1": "value2"},
-				},
-			},
-			want: true,
+			name:      "Different Annotations",
+			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
+			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
+			want:      true,
 		},
 		{
 			name: "Different Labels",
@@ -6756,6 +6756,44 @@ func TestApplicationSetOwnsHandler(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "annotation removed",
+			appSetOld: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			appSetNew: buildAppSet(map[string]string{}),
+			want:      false,
+		},
+		{
+			name: "annotation not removed",
+			appSetOld: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			appSetNew: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			want: false,
+		},
+		{
+			name:      "annotation added",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			want: true,
+		},
+		{
+			name:      "old object is not an appset",
+			appSetOld: &v1alpha1.Application{},
+			appSetNew: buildAppSet(map[string]string{}),
+			want:      false,
+		},
+		{
+			name:      "new object is not an appset",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: &v1alpha1.Application{},
+			want:      false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -6766,81 +6804,6 @@ func TestApplicationSetOwnsHandler(t *testing.T) {
 				ObjectNew: tt.appSetNew,
 			})
 			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
-		})
-	}
-}
-
-func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
-	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
-		return &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: annotations,
-			},
-		}
-	}
-
-	tests := []struct {
-		name              string
-		oldAppSet         crtclient.Object
-		newAppSet         crtclient.Object
-		reconcileExpected bool
-	}{
-		{
-			name: "annotation removed",
-			oldAppSet: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: false,
-		},
-		{
-			name: "annotation not removed",
-			oldAppSet: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			newAppSet: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			reconcileExpected: true,
-		},
-		{
-			name:              "annotation never existed",
-			oldAppSet:         buildAppSet(map[string]string{}),
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: true,
-		},
-		{
-			name:      "annotation added",
-			oldAppSet: buildAppSet(map[string]string{}),
-			newAppSet: buildAppSet(map[string]string{
-				argocommon.AnnotationApplicationSetRefresh: "true",
-			}),
-			reconcileExpected: true,
-		},
-		{
-			name:              "old object is not an appset",
-			oldAppSet:         &v1alpha1.Application{},
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: false,
-		},
-		{
-			name:              "new object is not an appset",
-			oldAppSet:         buildAppSet(map[string]string{}),
-			newAppSet:         &v1alpha1.Application{},
-			reconcileExpected: false,
-		},
-	}
-
-	predicate := ignoreWhenAnnotationApplicationSetRefreshIsRemoved()
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := event.UpdateEvent{
-				ObjectOld: tt.oldAppSet,
-				ObjectNew: tt.newAppSet,
-			}
-			result := predicate.Update(e)
-			assert.Equal(t, tt.reconcileExpected, result)
 		})
 	}
 }

@@ -1621,11 +1621,25 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
 	// in the ApplicationSetTemplate from the generators
 	if !cmp.Equal(appSetOld.Spec, appSetNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
-		!cmp.Equal(appSetOld.ObjectMeta.GetAnnotations(), appSetNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appSetOld.ObjectMeta.GetLabels(), appSetNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appSetOld.ObjectMeta.GetFinalizers(), appSetNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
 		return true
 	}
+
+	// we do not want to requeue if the new ApplicationSet has the refresh annotation removed
+	// only when the annotation is added.
+	// it is possible that a different annotation changed at the same time and we miss
+	// the change but that is a rare edge case
+	if !cmp.Equal(appSetOld.ObjectMeta.GetAnnotations(), appSetNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) {
+		_, oldHasRefreshAnnotation := appSetOld.Annotations[common.AnnotationApplicationSetRefresh]
+		_, newHasRefreshAnnotation := appSetNew.Annotations[common.AnnotationApplicationSetRefresh]
+
+		if oldHasRefreshAnnotation && !newHasRefreshAnnotation {
+			return false
+		}
+		return true
+	}
+
 	return false
 }
 
