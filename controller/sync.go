@@ -50,7 +50,7 @@ const (
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, er
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
+func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -70,15 +70,10 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 // interface that provides functionality to manage kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(server)
+func (m *appStateManager) getResourceOperations(cluster *v1alpha1.Cluster) (kube.ResourceOperations, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
-	}
-
-	cluster, err := m.db.GetCluster(context.Background(), server)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	rawConfig, err := cluster.RawRestConfig()
@@ -221,21 +216,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
+		return
+	}
+
+	rawConfig, err := destCluster.RawRestConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-
-	clusterRESTConfig, err := clst.RESTConfig()
+	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -285,7 +280,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		prunePropagationPolicy = metav1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(clst.Server)
+	openAPISchema, err := m.getOpenAPISchema(destCluster)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -344,7 +339,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
+				permitted, err := proj.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
@@ -417,9 +412,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
 				}
 			}
 			return apiVersion, nil
