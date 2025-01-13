@@ -11,7 +11,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -242,9 +242,9 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 
 	var err error
 
-	_, err = fixtureClient.KubeClientset.RbacV1().Roles(fixture.TestNamespace()).Create(context.Background(), &v1.Role{
+	_, err = fixtureClient.KubeClientset.RbacV1().Roles(fixture.TestNamespace()).Create(context.Background(), &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{Name: "placement-role", Namespace: fixture.TestNamespace()},
-		Rules: []v1.PolicyRule{
+		Rules: []rbacv1.PolicyRule{
 			{
 				Verbs:     []string{"get", "list", "watch"},
 				APIGroups: []string{"cluster.open-cluster-management.io"},
@@ -258,16 +258,16 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 
 	if err == nil {
 		_, err = fixtureClient.KubeClientset.RbacV1().RoleBindings(fixture.TestNamespace()).Create(context.Background(),
-			&v1.RoleBinding{
+			&rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{Name: "placement-role-binding", Namespace: fixture.TestNamespace()},
-				Subjects: []v1.Subject{
+				Subjects: []rbacv1.Subject{
 					{
 						Name:      "argocd-applicationset-controller",
 						Namespace: fixture.TestNamespace(),
 						Kind:      "ServiceAccount",
 					},
 				},
-				RoleRef: v1.RoleRef{
+				RoleRef: rbacv1.RoleRef{
 					Kind:     "Role",
 					APIGroup: "rbac.authorization.k8s.io",
 					Name:     "placement-role",
@@ -494,12 +494,11 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 			_, err = appSetClientSet.Update(context.Background(), utils.MustToUnstructured(&appSet), metav1.UpdateOptions{})
 
-			if err != nil {
-				mostRecentError = err
-			} else {
+			if err == nil {
 				mostRecentError = nil
 				break
 			}
+			mostRecentError = err
 		}
 	}
 

@@ -38,7 +38,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	versionCmd := cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
@@ -279,9 +279,8 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 		if string(updated) == "" || string(updated) == string(data) {
 			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
-		} else {
-			data = stripComments(updated)
 		}
+		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {

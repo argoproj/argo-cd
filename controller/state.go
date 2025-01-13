@@ -488,16 +488,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
 			}, nil
-		} else {
-			return &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: app.Spec.BuildComparedToStatus(),
-					Status:     v1alpha1.SyncStatusCodeUnknown,
-					Revision:   revisions[0],
-				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
-			}, nil
 		}
+		return &comparisonResult{
+			syncStatus: &v1alpha1.SyncStatus{
+				ComparedTo: app.Spec.BuildComparedToStatus(),
+				Status:     v1alpha1.SyncStatusCodeUnknown,
+				Revision:   revisions[0],
+			},
+			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
@@ -780,7 +779,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod, installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), trackingMethod, installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -1108,7 +1107,7 @@ func NewAppStateManager(
 // group and kind) match the properties of the live object, or if the tracking method
 // used does not provide the required properties for matching.
 // Reference: https://github.com/argoproj/argo-cd/issues/8683
-func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
+func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
 	if live == nil {
 		return true
 	}
@@ -1141,7 +1140,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 	// to match the properties from the live object. Cluster scoped objects
 	// carry the app's destination namespace in the tracking annotation,
 	// but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(live, appLabelKey, trackingMethod, installationID)
+	appInstance := m.resourceTracking.GetAppInstance(live, trackingMethod, installationID)
 	if appInstance != nil {
 		return isSelfReferencedObj(live, *appInstance)
 	}

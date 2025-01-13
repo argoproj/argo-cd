@@ -40,7 +40,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func TestHandleModEvent_HasChanges(t *testing.T) {
+func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
@@ -72,7 +72,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(managedByApp map[string]bool, ref corev1.ObjectReference) {
+		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
 		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
@@ -97,7 +97,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(t *testing.T) {
+func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
@@ -174,7 +174,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -188,7 +188,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.On("Invalidate").Run(func(_ mock.Arguments) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -536,9 +536,9 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x string = "x"
-		hash2_y string = "y"
-		hash3_x string = "x"
+		hash1_x = "x"
+		hash2_y = "y"
+		hash3_x = "x"
 	)
 	info := &ResourceInfo{
 		manifestHash: hash1_x,

@@ -38,7 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
-var syncIdPrefix uint64 = 0
+var syncIdPrefix uint64
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
@@ -174,7 +174,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
+	proj, err := argo.GetAppProject(context.TODO(), app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -307,11 +307,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
-	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
-	if err != nil {
-		log.Errorf("Could not get appInstanceLabelKey: %v", err)
-		return
-	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
@@ -368,7 +363,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -572,7 +567,7 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 // Note, this is not foolproof, since a proper fix would require the CRD record
 // status.observedGeneration coupled with a health.lua that verifies
 // status.observedGeneration == metadata.generation
-func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) error {
+func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	if !finalWave {
 		delaySec := 2
 		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
@@ -626,10 +621,9 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
-			} else {
-				// service account needs to be prefixed with a namespace
-				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 			}
+			// service account needs to be prefixed with a namespace
+			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 		}
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.

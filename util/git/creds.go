@@ -61,14 +61,14 @@ func init() {
 
 type NoopCredsStore struct{}
 
-func (d NoopCredsStore) Add(username string, password string) string {
+func (d NoopCredsStore) Add(_ string, _ string) string {
 	return ""
 }
 
-func (d NoopCredsStore) Remove(id string) {
+func (d NoopCredsStore) Remove(_ string) {
 }
 
-func (d NoopCredsStore) Environ(id string) []string {
+func (d NoopCredsStore) Environ(_ string) []string {
 	return []string{}
 }
 
@@ -101,7 +101,7 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 }
 
 // GetUserInfo returns empty strings for user info
-func (c NopCreds) GetUserInfo(ctx context.Context) (name string, email string, err error) {
+func (c NopCreds) GetUserInfo(_ context.Context) (name string, email string, err error) {
 	return "", "", nil
 }
 
@@ -156,60 +156,59 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-func (c HTTPSCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (creds HTTPSCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
-	return c.username, "", nil
+	return creds.username, "", nil
 }
 
-func (c HTTPSCreds) BasicAuthHeader() string {
+func (creds HTTPSCreds) BasicAuthHeader() string {
 	h := "Authorization: Basic "
-	t := c.username + ":" + c.password
+	t := creds.username + ":" + creds.password
 	h += base64.StdEncoding.EncodeToString([]byte(t))
 	return h
 }
 
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
-func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
+func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	var env []string
 
 	httpCloser := authFilePaths(make([]string, 0))
 
 	// GIT_SSL_NO_VERIFY is used to tell git not to validate the server's cert at
 	// all.
-	if c.insecure {
+	if creds.insecure {
 		env = append(env, "GIT_SSL_NO_VERIFY=true")
 	}
 
 	// In case the repo is configured for using a TLS client cert, we need to make
 	// sure git client will use it. The certificate's key must not be password
 	// protected.
-	if c.HasClientCert() {
+	if creds.HasClientCert() {
 		var certFile, keyFile *os.File
 
 		// We need to actually create two temp files, one for storing cert data and
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
 		certFile, err := os.CreateTemp(argoio.TempDir, "")
-		if err == nil {
-			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
-			if err != nil {
-				removeErr := os.Remove(certFile.Name())
-				if removeErr != nil {
-					log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
-				}
-				return NopCloser{}, nil, err
-			}
-			defer keyFile.Close()
-		} else {
+		if err != nil {
 			return NopCloser{}, nil, err
 		}
+		defer certFile.Close()
+		keyFile, err = os.CreateTemp(argoio.TempDir, "")
+		if err != nil {
+			removeErr := os.Remove(certFile.Name())
+			if removeErr != nil {
+				log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
+			}
+			return NopCloser{}, nil, err
+		}
+		defer keyFile.Close()
 
 		// We should have both temp files by now
 		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
 
-		_, err = certFile.WriteString(c.clientCertData)
+		_, err = certFile.WriteString(creds.clientCertData)
 		if err != nil {
 			httpCloser.Close()
 			return NopCloser{}, nil, err
@@ -217,7 +216,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// GIT_SSL_CERT is the full path to a client certificate to be used
 		env = append(env, "GIT_SSL_CERT="+certFile.Name())
 
-		_, err = keyFile.WriteString(c.clientCertKey)
+		_, err = keyFile.WriteString(creds.clientCertKey)
 		if err != nil {
 			httpCloser.Close()
 			return NopCloser{}, nil, err
@@ -228,27 +227,27 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 	// If at least password is set, we will set ARGOCD_BASIC_AUTH_HEADER to
 	// hold the HTTP authorization header, so auth mechanism negotiation is
 	// skipped. This is insecure, but some environments may need it.
-	if c.password != "" && c.forceBasicAuth {
-		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
+	if creds.password != "" && creds.forceBasicAuth {
+		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, creds.BasicAuthHeader()))
 	}
-	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, c.store.Environ(nonce)...)
+	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
+	env = append(env, creds.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
-		c.store.Remove(nonce)
+		creds.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
 }
 
-func (g HTTPSCreds) HasClientCert() bool {
-	return g.clientCertData != "" && g.clientCertKey != ""
+func (creds HTTPSCreds) HasClientCert() bool {
+	return creds.clientCertData != "" && creds.clientCertKey != ""
 }
 
-func (c HTTPSCreds) GetClientCertData() string {
-	return c.clientCertData
+func (creds HTTPSCreds) GetClientCertData() string {
+	return creds.clientCertData
 }
 
-func (c HTTPSCreds) GetClientCertKey() string {
-	return c.clientCertKey
+func (creds HTTPSCreds) GetClientCertKey() string {
+	return creds.clientCertKey
 }
 
 var _ Creds = SSHCreds{}
@@ -269,7 +268,7 @@ func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool
 
 // GetUserInfo returns empty strings for user info.
 // TODO: Implement this method to return the username and email address for the credentials, if they're available.
-func (c SSHCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (c SSHCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	// User info not implemented for SSH creds.
 	return "", "", nil
 }
@@ -285,7 +284,7 @@ func (f sshPrivateKeyFile) Close() error {
 // Remove a list of files that have been created as temp files while creating
 // HTTPCreds object above.
 func (f authFilePaths) Close() error {
-	var retErr error = nil
+	var retErr error
 	for _, path := range f {
 		err := os.Remove(path)
 		if err != nil {
@@ -401,20 +400,19 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
 		certFile, err := os.CreateTemp(argoio.TempDir, "")
-		if err == nil {
-			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
-			if err != nil {
-				removeErr := os.Remove(certFile.Name())
-				if removeErr != nil {
-					log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
-				}
-				return NopCloser{}, nil, err
-			}
-			defer keyFile.Close()
-		} else {
+		if err != nil {
 			return NopCloser{}, nil, err
 		}
+		defer certFile.Close()
+		keyFile, err = os.CreateTemp(argoio.TempDir, "")
+		if err != nil {
+			removeErr := os.Remove(certFile.Name())
+			if removeErr != nil {
+				log.Errorf("Could not remove previously created tempfile %s: %v", certFile.Name(), removeErr)
+			}
+			return NopCloser{}, nil, err
+		}
+		defer keyFile.Close()
 
 		// We should have both temp files by now
 		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
@@ -586,7 +584,7 @@ func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
 // TODO: implement getting email instead of just username.
-func (c GoogleCloudCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (c GoogleCloudCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	username, err := c.getUsername()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get username from creds: %w", err)

@@ -3,10 +3,10 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	reflect "reflect"
+	"reflect"
 	"strings"
 
-	runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 

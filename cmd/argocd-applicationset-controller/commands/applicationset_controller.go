@@ -81,7 +81,7 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: func(c *cobra.Command, _ []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -120,8 +120,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			// By default, watch all namespaces
-			var watchedNamespace string = ""
-
+			var watchedNamespace string
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
 				watchedNamespace = (applicationSetNamespaces)[0]

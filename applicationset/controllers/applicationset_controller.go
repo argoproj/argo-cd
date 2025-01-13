@@ -479,12 +479,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-		if !namesSet[app.Name] {
-			namesSet[app.Name] = true
-		} else {
+		if namesSet[app.Name] {
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
+		namesSet[app.Name] = true
 
 		appProject := &argov1alpha1.AppProject{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
@@ -982,15 +981,14 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(applicationSet argov1alpha1.A
 			}
 
 			appStatus := applicationSet.Status.ApplicationStatus[idx]
-
-			if app, ok := appMap[appName]; ok {
-				syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
-				if !syncEnabled {
-					break
-				}
-			} else {
+			app, ok := appMap[appName]
+			if !ok {
 				// application name not found in the list of applications managed by this ApplicationSet, maybe because it's being deleted
 				syncEnabled = false
+				break
+			}
+			syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
+			if !syncEnabled {
 				break
 			}
 		}
@@ -1162,10 +1160,10 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 		// populate updateCountMap with counts of existing Pending and Progressing Applications
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
-			totalCountMap[appStepMap[appStatus.Application]] += 1
+			totalCountMap[appStepMap[appStatus.Application]]++
 
 			if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
-				updateCountMap[appStepMap[appStatus.Application]] += 1
+				updateCountMap[appStepMap[appStatus.Application]]++
 			}
 		}
 
@@ -1201,7 +1199,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing."
 				appStatus.Step = strconv.Itoa(getAppStep(appStatus.Application, appStepMap))
 
-				updateCountMap[appStepMap[appStatus.Application]] += 1
+				updateCountMap[appStepMap[appStatus.Application]]++
 			}
 
 			appStatuses = append(appStatuses, appStatus)
