@@ -90,10 +90,44 @@ export class AppsListPreferences {
     public favoritesAppList: string[];
 }
 
+export class ResourcesListPreferences {
+    public static countEnabledFilters(pref: ResourcesListPreferences) {
+        return [pref.clustersFilter, pref.healthFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter, pref.apiGroupFilter, pref.kindFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: ResourcesListPreferences) {
+        pref.clustersFilter = [];
+        pref.healthFilter = [];
+        pref.namespacesFilter = [];
+        pref.projectsFilter = [];
+        pref.syncFilter = [];
+        pref.apiGroupFilter = [];
+        pref.kindFilter = [];
+    }
+
+    public projectsFilter: string[];
+    public syncFilter: string[];
+    public healthFilter: string[];
+    public namespacesFilter: string[];
+    public clustersFilter: string[];
+    public hideFilters: boolean;
+    public apiGroupFilter: string[];
+    public kindFilter: string[];
+}
+
 export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
+    resourcesList: ResourcesListPreferences;
     pageSizes: {[key: string]: number};
     sortOptions?: {[key: string]: string};
     hideBannerContent: string;
@@ -144,6 +178,16 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         statusBarView: {
             showHealthStatusBar: true
         }
+    },
+    resourcesList: {
+        projectsFilter: new Array<string>(),
+        namespacesFilter: new Array<string>(),
+        clustersFilter: new Array<string>(),
+        syncFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+        kindFilter: new Array<string>(),
+        apiGroupFilter: new Array<string>(),
+        hideFilters: false
     },
     pageSizes: {},
     hideBannerContent: '',
