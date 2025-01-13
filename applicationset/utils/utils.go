@@ -23,8 +23,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance

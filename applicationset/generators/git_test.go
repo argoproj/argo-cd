@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_generateParamsFromGitFile(t *testing.T) {
