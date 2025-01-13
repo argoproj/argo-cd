@@ -17,8 +17,8 @@ import (
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
-	"github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 type cred struct {
@@ -43,7 +43,7 @@ func (s *memoryCredsStore) Remove(id string) {
 	delete(s.creds, id)
 }
 
-func (s *memoryCredsStore) Environ(id string) []string {
+func (s *memoryCredsStore) Environ(_ string) []string {
 	return nil
 }
 

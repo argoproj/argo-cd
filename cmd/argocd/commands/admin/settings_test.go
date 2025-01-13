@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utils "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

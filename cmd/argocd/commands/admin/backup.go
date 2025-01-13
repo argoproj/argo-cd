@@ -9,20 +9,20 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/localconfig"
-	secutil "github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	secutil "github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -36,7 +36,7 @@ func NewExportCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "export",
 		Short: "Export all Argo CD data to stdout (default) or a file",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			config, err := clientConfig.ClientConfig()
@@ -98,8 +98,8 @@ func NewExportCommand() *cobra.Command {
 				}
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if err != nil && !apierr.IsNotFound(err) {
-				if apierr.IsForbidden(err) {
+			if err != nil && !apierrors.IsNotFound(err) {
+				if apierrors.IsForbidden(err) {
 					log.Warn(err)
 				} else {
 					errors.CheckError(err)
@@ -200,7 +200,7 @@ func NewImportCommand() *cobra.Command {
 				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
 			} else {
 				errors.CheckError(err)
@@ -257,7 +257,7 @@ func NewImportCommand() *cobra.Command {
 					isForbidden := false
 					if !dryRun {
 						_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
 						} else {
@@ -276,7 +276,7 @@ func NewImportCommand() *cobra.Command {
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)
 						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
 						} else {
@@ -307,7 +307,7 @@ func NewImportCommand() *cobra.Command {
 								newLive := liveObj.DeepCopy()
 								newLive.SetFinalizers(nil)
 								_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if err != nil && !apierr.IsNotFound(err) {
+								if err != nil && !apierrors.IsNotFound(err) {
 									errors.CheckError(err)
 								}
 							}
@@ -323,7 +323,7 @@ func NewImportCommand() *cobra.Command {
 						canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
 						if canPrune {
 							err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-							if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
+							if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 								isForbidden = true
 								log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
 							} else {
@@ -361,8 +361,7 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 	if !stopOperation {
 		return true
 	}
-	switch liveObj.GetKind() {
-	case application.ApplicationKind:
+	if liveObj.GetKind() == application.ApplicationKind {
 		return liveObj.Object["operation"] == nil
 	}
 	return true

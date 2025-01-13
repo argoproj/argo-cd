@@ -21,12 +21,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	v1 "k8s.io/client-go/informers/core/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -35,14 +34,14 @@ import (
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -636,7 +635,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	argoCDSecret, err := mgr.getSecret()
 	createSecret := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
@@ -674,7 +673,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	argoCDCM, err := mgr.getConfigMap()
 	createCM := false
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
@@ -1278,14 +1277,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj any) {
+		UpdateFunc: func(_, _ any) {
 			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
-		AddFunc: func(obj any) {
+		AddFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
-		DeleteFunc: func(obj any) {
+		DeleteFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -1297,8 +1296,8 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
-	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
-	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
+	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
+	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
 	_, err := cmInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
@@ -1547,7 +1546,7 @@ func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, er
 	var cert tls.Certificate
 	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
 	}
@@ -2066,7 +2065,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 				if err != nil {
 					return err
 				}
-				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
 				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err

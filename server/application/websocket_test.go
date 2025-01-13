@@ -12,9 +12,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
@@ -130,7 +130,7 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+		enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 			return true
 		})
 		ts := newTestTerminalSession(w, r)
@@ -150,7 +150,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:test")
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+		enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 			return false
 		})
 		ts := newTestTerminalSession(w, r)

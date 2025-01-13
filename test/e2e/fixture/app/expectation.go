@@ -10,12 +10,12 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 type state = string
@@ -53,9 +53,8 @@ func OperationMessageContains(text string) Expectation {
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
-	} else {
-		return pending, message
 	}
+	return pending, message
 }
 
 func SyncStatusIs(expected SyncStatusCode) Expectation {
@@ -176,9 +175,8 @@ func ResourceResultNumbering(num int) Expectation {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
 		} else if actualNum == num {
 			return succeeded, fmt.Sprintf("right number of results, want %d, got %d", num, actualNum)
-		} else {
-			return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 		}
+		return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 	}
 }
 
@@ -223,7 +221,7 @@ func DoesNotExist() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -236,7 +234,7 @@ func DoesNotExistNow() Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := c.get()
 		if err != nil {
-			if apierr.IsNotFound(err) {
+			if apierrors.IsNotFound(err) {
 				return succeeded, "app does not exist"
 			}
 			return failed, err.Error()
@@ -246,7 +244,7 @@ func DoesNotExistNow() Expectation {
 }
 
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -261,7 +259,7 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -282,7 +280,7 @@ func pods() (*corev1.PodList, error) {
 }
 
 func NoNamespace(name string) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		_, err := namespace(name)
 		if err != nil {
 			return succeeded, "namespace not found"

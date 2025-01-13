@@ -23,8 +23,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -131,7 +131,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
-		for i := 0; i < original.NumField(); i += 1 {
+		for i := 0; i < original.NumField(); i++ {
 			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
@@ -173,7 +173,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValueIntoUnexported(copy, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		}
 
-		for i := 0; i < original.Len(); i += 1 {
+		for i := 0; i < original.Len(); i++ {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err

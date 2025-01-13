@@ -10,12 +10,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewHandler creates handler serving to do api/logout endpoint

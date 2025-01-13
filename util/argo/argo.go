@@ -17,20 +17,20 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimachineryvalidation "k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -243,13 +243,12 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	}
 	for attempt := 0; attempt < 5; attempt++ {
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			if !apierr.IsConflict(err) {
-				return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
-			}
-		} else {
+		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app, nil
+		}
+		if !apierrors.IsConflict(err) {
+			return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -656,14 +655,14 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
 		_, err = db.GetCluster(ctx, spec.Destination.Server)
 		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				conditions = append(conditions, argoappv1.ApplicationCondition{
-					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
-				})
-			} else {
+			errStatus, ok := status.FromError(err)
+			if !(ok && errStatus.Code() == codes.NotFound) {
 				return nil, fmt.Errorf("error getting cluster: %w", err)
 			}
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("cluster '%s' has not been configured", spec.Destination.Server),
+			})
 		}
 	} else if spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: errDestinationMissing})
@@ -692,7 +691,7 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 }
 
 // GetAppProjectWithScopedResources returns a project from an application with scoped resources
-func GetAppProjectWithScopedResources(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
+func GetAppProjectWithScopedResources(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app project %q: %w", name, err)
@@ -707,7 +706,7 @@ func GetAppProjectWithScopedResources(name string, projLister applicationsv1.App
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting project clusters: %w", err)
 	}
-	repos, err := db.GetProjectRepositories(ctx, name)
+	repos, err := db.GetProjectRepositories(name)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting project repos: %w", err)
 	}
@@ -715,13 +714,13 @@ func GetAppProjectWithScopedResources(name string, projLister applicationsv1.App
 }
 
 // GetAppProjectByName returns a project from an application based on name
-func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
+func GetAppProjectByName(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app project %q: %w", name, err)
 	}
 	project := projOrig.DeepCopy()
-	repos, err := db.GetProjectRepositories(ctx, name)
+	repos, err := db.GetProjectRepositories(name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting project repositories: %w", err)
 	}
@@ -746,8 +745,8 @@ func GetAppProjectByName(name string, projLister applicationsv1.AppProjectLister
 
 // GetAppProject returns a project from an application. It will also ensure
 // that the application is allowed to use the project.
-func GetAppProject(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) (*argoappv1.AppProject, error) {
-	proj, err := GetAppProjectByName(app.Spec.GetProject(), projLister, ns, settingsManager, db, ctx)
+func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, error) {
+	proj, err := GetAppProjectByName(ctx, app.Spec.GetProject(), projLister, ns, settingsManager, db)
 	if err != nil {
 		return nil, err
 	}
@@ -881,7 +880,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		if err == nil {
 			return a, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error updating application %q: %w", appName, err)
 		}
 		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
@@ -1158,9 +1157,8 @@ func ParseInstanceName(appName string, defaultNs string) (string, string) {
 func AppInstanceName(appName, appNs, defaultNs string) string {
 	if appNs == "" || appNs == defaultNs {
 		return appName
-	} else {
-		return appNs + "_" + appName
 	}
+	return appNs + "_" + appName
 }
 
 // InstanceNameFromQualified returns the value to be used for app
@@ -1214,7 +1212,7 @@ func IsValidContainerName(name string) bool {
 // If matched, the corresponding labels are returned to be added to the generated event. In case of a conflict
 // between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
 // Furthermore, labels specified in `resource.excludeEventLabelKeys` in argocd-cm are removed from the event labels, if they were included.
-func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) map[string]string {
+func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) map[string]string {
 	eventLabels := make(map[string]string)
 
 	// Get all app & app-project labels
@@ -1222,7 +1220,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	proj, err := GetAppProject(app, projLister, ns, settingsManager, db, ctx)
+	proj, err := GetAppProject(ctx, app, projLister, ns, settingsManager, db)
 	if err == nil {
 		for k, v := range proj.Labels {
 			_, found := labels[k]

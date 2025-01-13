@@ -8,13 +8,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	rbac "k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 const (
@@ -78,7 +78,7 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
 			require.NoError(t, err)
-			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
+			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
 					Resources: []string{"deployments"},
@@ -132,7 +132,7 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
 			require.NoError(t, err)
-			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
+			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
 					Resources: []string{"deployments"},
@@ -182,7 +182,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
 			require.NoError(t, err)
-			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
+			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
 					Resources: []string{"deployments"},
@@ -251,8 +251,8 @@ func createTestAppProject(name, namespace string, destinationServiceAccounts []v
 }
 
 // createTestRole creates a test Role resource.
-func createTestRole(roleName, namespace string, rules []rbac.PolicyRule) error {
-	role := &rbac.Role{
+func createTestRole(roleName, namespace string, rules []rbacv1.PolicyRule) error {
+	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      roleName,
 			Namespace: namespace,
@@ -266,18 +266,18 @@ func createTestRole(roleName, namespace string, rules []rbac.PolicyRule) error {
 
 // createTestRoleBinding creates a test RoleBinding resource.
 func createTestRoleBinding(roleName, serviceAccountName, namespace string) error {
-	roleBinding := &rbac.RoleBinding{
+	roleBinding := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName + "-binding",
 		},
-		Subjects: []rbac.Subject{
+		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
 				Name:      serviceAccountName,
 				Namespace: namespace,
 			},
 		},
-		RoleRef: rbac.RoleRef{
+		RoleRef: rbacv1.RoleRef{
 			Kind:     "Role",
 			Name:     roleName,
 			APIGroup: "rbac.authorization.k8s.io",

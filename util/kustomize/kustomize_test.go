@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 const (
@@ -119,8 +119,7 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		switch image {
-		case "nginx":
+		if image == "nginx" {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}

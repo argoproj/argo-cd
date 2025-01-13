@@ -354,20 +354,20 @@ const (
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
-	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
+	gnuPgHome := os.Getenv(EnvGnuPGHome)
+	if gnuPgHome == "" {
 		return DefaultGnuPgHomePath
-	} else {
-		return gnuPgHome
 	}
+	return gnuPgHome
 }
 
 // GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
 func GetPluginSockFilePath() string {
-	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+	pluginSockFilePath := os.Getenv(EnvPluginSockFilePath)
+	if pluginSockFilePath == "" {
 		return DefaultPluginSockFilePath
-	} else {
-		return pluginSockFilePath
 	}
+	return pluginSockFilePath
 }
 
 // GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.

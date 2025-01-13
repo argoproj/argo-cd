@@ -13,7 +13,7 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_newCluster(t *testing.T) {

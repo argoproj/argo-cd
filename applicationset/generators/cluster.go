@@ -7,16 +7,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*ClusterGenerator)(nil)
@@ -33,7 +33,7 @@ type ClusterGenerator struct {
 
 var render = &utils.Render{}
 
-func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &ClusterGenerator{

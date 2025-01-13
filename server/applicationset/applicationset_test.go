@@ -16,18 +16,18 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -115,7 +115,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	objects = append(objects, defaultProj, myProj)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -528,7 +528,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, true)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
@@ -544,7 +544,7 @@ func TestUpdateAppSet(t *testing.T) {
 	t.Run("Update no merge", func(t *testing.T) {
 		appServer := newTestAppSetServer(appSet)
 
-		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
+		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, false)
 
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{

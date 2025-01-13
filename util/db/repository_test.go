@@ -9,9 +9,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var repoArgoCD = &corev1.Secret{
@@ -335,7 +335,7 @@ func Test_GetProjectRepositories(t *testing.T) {
 	clientset := getClientset(repoSecretWithProject, repoSecretWithoutProject)
 	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
-	repos, err := argoDB.GetProjectRepositories(context.TODO(), "some-project")
+	repos, err := argoDB.GetProjectRepositories("some-project")
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)

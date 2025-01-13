@@ -15,9 +15,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/common"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -179,7 +179,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		redisCACertificate := redisCACertificateSrc()
 		compressionStr := compressionStrSrc()
 
-		var tlsConfig *tls.Config = nil
+		var tlsConfig *tls.Config
 		if redisUseTLS {
 			tlsConfig = &tls.Config{}
 			if redisClientCertificate != "" {
@@ -280,9 +280,8 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	client := c.GetClient()
 	if opts.Delete {
 		return client.Delete(fullKey)
-	} else {
-		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
+	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
 func (c *Cache) GetItem(key string, item any) error {

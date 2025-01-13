@@ -18,10 +18,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	argocderrors "github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocderrors "github.com/argoproj/argo-cd/v3/util/errors"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
 const (
@@ -118,7 +118,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
-		grpc.UnknownServiceHandler(func(srv any, stream grpc.ServerStream) error {
+		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
 				return errors.New("Unable to get method name from stream context.")
@@ -169,9 +169,8 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
-					} else {
-						return nil
 					}
+					return nil
 				}
 
 				if err := stream.SendMsg(data); err != nil {

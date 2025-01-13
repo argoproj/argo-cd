@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 	fakeNamespace     = "fake-ns"
 )
 
-var noOpUpdate = func(cm *corev1.ConfigMap) error {
+var noOpUpdate = func(_ *corev1.ConfigMap) error {
 	return nil
 }
 
@@ -215,7 +215,7 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	_ = enf.SetUserPolicy(policy)
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return false
 	})
 
@@ -279,7 +279,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -308,7 +308,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))

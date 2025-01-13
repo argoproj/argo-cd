@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/db"
 
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v5"
@@ -21,18 +21,18 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	informer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	informer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const testNamespace = "default"
@@ -79,7 +79,7 @@ func TestProjectServer(t *testing.T) {
 
 	ctx := context.Background()
 	fakeAppsClientset := apps.NewSimpleClientset()
-	factory := informer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, informer.WithNamespace(""), informer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := informer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, informer.WithNamespace(""), informer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
@@ -713,7 +713,7 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:admin")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enforcer.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	return enforcer

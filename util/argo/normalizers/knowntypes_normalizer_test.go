@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -61,11 +61,11 @@ func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, 
 	if len(items) < i {
 		return nil, fmt.Errorf("field %s has less than %d items", strings.Join(path, "."), i)
 	}
-	if item, ok := items[i].(map[string]any); !ok {
+	item, ok := items[i].(map[string]any)
+	if !ok {
 		return nil, fmt.Errorf("field %s[%d] is not map", strings.Join(path, "."), i)
-	} else {
-		return item, nil
 	}
+	return item, nil
 }
 
 func TestNormalize_MapField(t *testing.T) {

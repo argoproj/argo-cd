@@ -9,8 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/argoproj/argo-cd/v2/util/config"
-	configUtil "github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v3/util/config"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -80,7 +79,7 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
-	var config LocalConfig
+	var localconfig LocalConfig
 
 	// check file permission only when argocd config exists
 	if fi, err := os.Stat(path); err == nil {
@@ -90,15 +89,15 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 		}
 	}
 
-	err = configUtil.UnmarshalLocalFile(path, &config)
+	err = config.UnmarshalLocalFile(path, &localconfig)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	err = ValidateLocalConfig(config)
+	err = ValidateLocalConfig(localconfig)
 	if err != nil {
 		return nil, err
 	}
-	return &config, nil
+	return &localconfig, nil
 }
 
 func ValidateLocalConfig(config LocalConfig) error {
@@ -112,12 +111,12 @@ func ValidateLocalConfig(config LocalConfig) error {
 }
 
 // WriteLocalConfig writes a new local configuration file.
-func WriteLocalConfig(config LocalConfig, configPath string) error {
+func WriteLocalConfig(localconfig LocalConfig, configPath string) error {
 	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	return configUtil.MarshalLocalYAMLFile(configPath, config)
+	return config.MarshalLocalYAMLFile(configPath, localconfig)
 }
 
 func DeleteLocalConfig(configPath string) error {

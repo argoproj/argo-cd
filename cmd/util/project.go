@@ -13,10 +13,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 type ProjectOpts struct {
@@ -86,12 +86,11 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
 			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
-		} else {
-			destinations = append(destinations, v1alpha1.ApplicationDestination{
-				Server:    parts[0],
-				Namespace: parts[1],
-			})
 		}
+		destinations = append(destinations, v1alpha1.ApplicationDestination{
+			Server:    parts[0],
+			Namespace: parts[1],
+		})
 	}
 	return destinations
 }
@@ -102,13 +101,12 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 3 {
 			log.Fatalf("Expected destination service account of the form: server,namespace, defaultServiceAccount. Received: %s", destStr)
-		} else {
-			destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
-				Server:                parts[0],
-				Namespace:             parts[1],
-				DefaultServiceAccount: parts[2],
-			})
 		}
+		destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
+			Server:                parts[0],
+			Namespace:             parts[1],
+			DefaultServiceAccount: parts[2],
+		})
 	}
 	return destinationServiceAccounts
 }

@@ -11,14 +11,14 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command
@@ -106,9 +106,8 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				if subjectMap[x509cert.Subject.String()] != nil {
 					fmt.Printf("ERROR: Cert with subject '%s' already seen in the input stream.\n", x509cert.Subject.String())
 					continue
-				} else {
-					subjectMap[x509cert.Subject.String()] = x509cert
 				}
+				subjectMap[x509cert.Subject.String()] = x509cert
 			}
 
 			serverName := args[0]
@@ -149,7 +148,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
@@ -277,7 +276,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured certificates",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			if certType != "" {
