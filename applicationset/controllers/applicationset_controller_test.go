@@ -6655,3 +6655,78 @@ func TestMigrateStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
+	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: annotations,
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		oldAppSet         crtclient.Object
+		newAppSet         crtclient.Object
+		reconcileExpected bool
+	}{
+		{
+			name: "annotation removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name: "annotation not removed",
+			oldAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+		{
+			name:              "annotation never existed",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: true,
+		},
+		{
+			name:      "annotation added",
+			oldAppSet: buildAppSet(map[string]string{}),
+			newAppSet: buildAppSet(map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+			}),
+			reconcileExpected: true,
+		},
+		{
+			name:              "old object is not an appset",
+			oldAppSet:         &v1alpha1.Application{},
+			newAppSet:         buildAppSet(map[string]string{}),
+			reconcileExpected: false,
+		},
+		{
+			name:              "new object is not an appset",
+			oldAppSet:         buildAppSet(map[string]string{}),
+			newAppSet:         &v1alpha1.Application{},
+			reconcileExpected: false,
+		},
+	}
+
+	predicate := ignoreWhenAnnotationApplicationSetRefreshIsRemoved()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := event.UpdateEvent{
+				ObjectOld: tt.oldAppSet,
+				ObjectNew: tt.newAppSet,
+			}
+			result := predicate.Update(e)
+			assert.Equal(t, tt.reconcileExpected, result)
+		})
+	}
+}
