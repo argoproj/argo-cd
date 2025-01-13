@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func generateRandomPassword() (string, error) {
@@ -40,7 +40,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "redis-initial-password",
 		Short: "Ensure the Redis password exists, creating a new one if necessary.",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 

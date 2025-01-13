@@ -45,19 +45,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v2/applicationset/status"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v3/applicationset/status"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/db"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -479,12 +479,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
 	for i, app := range desiredApplications {
-		if !namesSet[app.Name] {
-			namesSet[app.Name] = true
-		} else {
+		if namesSet[app.Name] {
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
+		namesSet[app.Name] = true
 
 		appProject := &argov1alpha1.AppProject{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
@@ -532,6 +531,33 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
+// ignoreWhenAnnotationApplicationSetRefreshIsRemoved returns a predicate that ignores updates to ApplicationSet resources
+// when the ApplicationSetRefresh annotation is removed
+// First reconciliation is triggered when the annotation is added by [webhook.go#refreshApplicationSet]
+// Using this predicate we avoid a second reconciliation triggered by the controller himself when the annotation is removed.
+func ignoreWhenAnnotationApplicationSetRefreshIsRemoved() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAppset, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			newAppset, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+
+			_, oldHasRefreshAnnotation := oldAppset.Annotations[common.AnnotationApplicationSetRefresh]
+			_, newHasRefreshAnnotation := newAppset.Annotations[common.AnnotationApplicationSetRefresh]
+
+			if oldHasRefreshAnnotation && !newHasRefreshAnnotation {
+				return false
+			}
+			return true
+		},
+	}
+}
+
 func appControllerIndexer(rawObj client.Object) []string {
 	// grab the job object, extract the owner...
 	app := rawObj.(*argov1alpha1.Application)
@@ -557,7 +583,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(ignoreWhenAnnotationApplicationSetRefreshIsRemoved())).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
 		Watches(
@@ -982,15 +1008,14 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(applicationSet argov1alpha1.A
 			}
 
 			appStatus := applicationSet.Status.ApplicationStatus[idx]
-
-			if app, ok := appMap[appName]; ok {
-				syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
-				if !syncEnabled {
-					break
-				}
-			} else {
+			app, ok := appMap[appName]
+			if !ok {
 				// application name not found in the list of applications managed by this ApplicationSet, maybe because it's being deleted
 				syncEnabled = false
+				break
+			}
+			syncEnabled = appSyncEnabledForNextStep(&applicationSet, app, appStatus)
+			if !syncEnabled {
 				break
 			}
 		}

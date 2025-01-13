@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	appv1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -817,12 +817,12 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	assert.Equal(t, int(expectedReplicas), replicas)
 
 	expectedReplicas = int32(3)
-	clientset = getClientset(nil, &appv1.Deployment{
+	clientset = getClientset(nil, &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ApplicationController,
 			Namespace: testNamespace,
 		},
-		Spec: appv1.DeploymentSpec{
+		Spec: appsv1.DeploymentSpec{
 			Replicas: &expectedReplicas,
 		},
 	})

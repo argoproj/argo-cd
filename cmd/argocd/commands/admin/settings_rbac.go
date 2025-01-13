@@ -14,12 +14,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 type actionTraitMap map[string]rbacTrait
@@ -248,12 +248,11 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 					fmt.Println("Yes")
 				}
 				os.Exit(0)
-			} else {
-				if !quiet {
-					fmt.Println("No")
-				}
-				os.Exit(1)
 			}
+			if !quiet {
+				fmt.Println("No")
+			}
+			os.Exit(1)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -321,13 +320,11 @@ argocd admin settings rbac validate --namespace argocd
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
 					os.Exit(0)
-				} else {
-					fmt.Printf("Policy is invalid: %v\n", err)
-					os.Exit(1)
 				}
-			} else {
-				log.Fatalf("Policy is empty or could not be loaded.")
+				fmt.Printf("Policy is invalid: %v\n", err)
+				os.Exit(1)
 			}
+			log.Fatalf("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -466,9 +463,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 func resolveRBACResourceName(name string) string {
 	if res, ok := resourceMap[name]; ok {
 		return res
-	} else {
-		return name
 	}
+	return name
 }
 
 // validateRBACResourceAction checks whether a given resource is a valid RBAC resource.

@@ -20,7 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 func newCatalogCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "catalog",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			cm := corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",
@@ -89,7 +89,7 @@ func newCatalogCommand() *cobra.Command {
 func newDocsCommand() *cobra.Command {
 	return &cobra.Command{
 		Use: "docs",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			var builtItDocsData bytes.Buffer
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")

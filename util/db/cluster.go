@@ -19,9 +19,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var (
@@ -57,7 +57,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 }
 
 // ListClusters returns list of clusters
-func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
+func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
@@ -233,7 +233,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 }
 
 // GetProjectClusters return project scoped clusters by given project name
-func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error) {
+func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secrets informer: %w", err)
@@ -253,7 +253,7 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	return res, nil
 }
 
-func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]string, error) {
+func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
