@@ -204,15 +204,15 @@ func TestGetRepositoryCredentials(t *testing.T) {
 
 func TestGetResourceFilter(t *testing.T) {
 	data := map[string]string{
-		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
-		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
+		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n    namespaces: [\"namespace1\"]\n",
+		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n    namespaces: [\"namespace2\"]\n",
 	}
 	_, settingsManager := fixtures(data)
 	filter, err := settingsManager.GetResourcesFilter()
 	require.NoError(t, err)
 	assert.Equal(t, &ResourcesFilter{
-		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
-		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
+		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}, Namespaces: []string{"namespace1"}}},
+		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}, Namespaces: []string{"namespace2"}}},
 	}, filter)
 }
 
