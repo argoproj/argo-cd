@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/commitserver/commit/mocks"
-	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	gitmocks "github.com/argoproj/argo-cd/v2/util/git/mocks"
+	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/commitserver/commit/mocks"
+	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {

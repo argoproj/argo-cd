@@ -6,12 +6,12 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/server/settings"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	"github.com/argoproj/argo-cd/v2/util/kustomize"
-	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/server/settings"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	"github.com/argoproj/argo-cd/v3/util/kustomize"
+	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 )
 
 type Server struct {

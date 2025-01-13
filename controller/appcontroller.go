@@ -42,32 +42,32 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
-	"github.com/argoproj/argo-cd/v2/controller/hydrator"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/stats"
+	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/stats"
 
-	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
-	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -275,11 +275,10 @@ func NewApplicationController(
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			appControllerDeployment, err := deploymentInformer.Lister().Deployments(settingsMgr.GetNamespace()).Get(applicationControllerName)
 			if err != nil {
-				if apierrors.IsNotFound(err) {
-					appControllerDeployment = nil
-				} else {
+				if !apierrors.IsNotFound(err) {
 					return fmt.Errorf("error retrieving Application Controller Deployment: %w", err)
 				}
+				appControllerDeployment = nil
 			}
 			if appControllerDeployment != nil {
 				if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
@@ -1639,9 +1638,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if comparisonLevel == ComparisonWithNothing {
 		managedResources := make([]*appv1.ResourceDiff, 0)
-		if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err != nil {
-			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
-		} else {
+		err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources)
+		if err == nil {
 			var tree *appv1.ApplicationTree
 			if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
 				app.Status.Summary = tree.GetSummary(app)
@@ -1654,6 +1652,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 			return
 		}
+		logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 	}
 	ts.AddCheckpoint("comparison_with_nothing_ms")
 
@@ -2105,21 +2104,21 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
 		return nil, 0
 	} else if alreadyAttempted && selfHeal {
-		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
-			op.Sync.SelfHealAttemptsCount++
-			for _, resource := range resources {
-				if resource.Status != appv1.SyncStatusCodeSynced {
-					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
-						Kind:  resource.Kind,
-						Group: resource.Group,
-						Name:  resource.Name,
-					})
-				}
-			}
-		} else {
+		shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app)
+		if !shouldSelfHeal {
 			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 			return nil, 0
+		}
+		op.Sync.SelfHealAttemptsCount++
+		for _, resource := range resources {
+			if resource.Status != appv1.SyncStatusCodeSynced {
+				op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+					Kind:  resource.Kind,
+					Group: resource.Group,
+					Name:  resource.Name,
+				})
+			}
 		}
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
