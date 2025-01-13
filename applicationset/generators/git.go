@@ -15,10 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 var _ Generator = (*GitGenerator)(nil)
