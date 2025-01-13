@@ -243,7 +243,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -273,7 +273,7 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -293,7 +293,7 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
