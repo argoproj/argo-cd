@@ -18,7 +18,7 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
+func NewGithubService(token, url, owner, repo string, labels []string) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
