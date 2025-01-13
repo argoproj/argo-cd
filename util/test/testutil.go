@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -139,7 +139,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +204,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 
 func GetOIDCTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

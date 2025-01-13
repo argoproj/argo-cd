@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -235,7 +235,11 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 					Destinations: data.projDest,
 				},
 			}
-			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			destCluster := &Cluster{
+				Server: data.appDest.Server,
+				Name:   data.appDest.Name,
+			}
+			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -402,7 +406,11 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+		destCluster := &Cluster{
+			Server: data.appDest.Server,
+			Name:   data.appDest.Name,
+		}
+		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -474,8 +482,11 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 				Destinations:                    data.projDest,
 			},
 		}
-
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
+		destCluster := &Cluster{
+			Server: data.appDest.Server,
+			Name:   data.appDest.Name,
+		}
+		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 			return data.clusters, nil
 		})
 		assert.Equal(t, data.isPermitted, permitted)
@@ -489,8 +500,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			}},
 		},
 	}
-
-	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
+	_, err := proj.IsDestinationPermitted(&Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
 	assert.ErrorContains(t, err, "could not retrieve project clusters")
@@ -1081,32 +1091,6 @@ func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 			assert.Equal(t, tcc.expect, kv)
 		})
 	}
-}
-
-func TestAppDestinationEquality(t *testing.T) {
-	left := &ApplicationDestination{
-		Server:    "https://kubernetes.default.svc",
-		Namespace: "default",
-	}
-	right := left.DeepCopy()
-	assert.True(t, left.Equals(*right))
-	right.Namespace = "kube-system"
-	assert.False(t, left.Equals(*right))
-}
-
-func TestAppDestinationEquality_InferredServerURL(t *testing.T) {
-	left := ApplicationDestination{
-		Name:      "in-cluster",
-		Namespace: "default",
-	}
-	right := ApplicationDestination{
-		Name:             "in-cluster",
-		Server:           "https://kubernetes.default.svc",
-		Namespace:        "default",
-		isServerInferred: true,
-	}
-	assert.True(t, left.Equals(right))
-	assert.True(t, right.Equals(left))
 }
 
 func TestAppProjectSpec_DestinationClusters(t *testing.T) {
