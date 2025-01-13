@@ -57,6 +57,42 @@ func TestProjectServer(t *testing.T) {
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-1",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("server1"),
+			"server": []byte("https://server1"),
+		},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-2",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("server2"),
+			"server": []byte("https://server2"),
+		},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-3",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("server3"),
+			"server": []byte("https://server3"),
+		},
 	})
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
 	enforcer := newEnforcer(kubeclientset)
@@ -201,7 +237,7 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test"},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Source: &v1alpha1.ApplicationSource{}, Project: "test"},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -218,7 +254,7 @@ func TestProjectServer(t *testing.T) {
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: "server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -231,7 +267,7 @@ func TestProjectServer(t *testing.T) {
 
 		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
-		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equalf(t, codes.InvalidArgument, statusCode.Code(), "Got unexpected error code with error: %v", err)
 		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
@@ -240,7 +276,7 @@ func TestProjectServer(t *testing.T) {
 		proj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/*"}
 		existingApp := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
