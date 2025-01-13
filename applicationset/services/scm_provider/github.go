@@ -10,14 +10,6 @@ import (
 	"github.com/google/go-github/v66/github"
 )
 
-type contextKey struct{}
-
-var cacheContextKey = contextKey{}
-
-func ContextWithGithubCache(ctx context.Context, cache httpcache.Cache) context.Context {
-	return context.WithValue(ctx, cacheContextKey, cache)
-}
-
 type GithubProvider struct {
 	client       *github.Client
 	organization string
