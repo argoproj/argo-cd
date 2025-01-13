@@ -531,6 +531,33 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
+// ignoreWhenAnnotationApplicationSetRefreshIsRemoved returns a predicate that ignores updates to ApplicationSet resources
+// when the ApplicationSetRefresh annotation is removed
+// First reconciliation is triggered when the annotation is added by [webhook.go#refreshApplicationSet]
+// Using this predicate we avoid a second reconciliation triggered by the controller himself when the annotation is removed.
+func ignoreWhenAnnotationApplicationSetRefreshIsRemoved() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAppset, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			newAppset, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+
+			_, oldHasRefreshAnnotation := oldAppset.Annotations[common.AnnotationApplicationSetRefresh]
+			_, newHasRefreshAnnotation := newAppset.Annotations[common.AnnotationApplicationSetRefresh]
+
+			if oldHasRefreshAnnotation && !newHasRefreshAnnotation {
+				return false
+			}
+			return true
+		},
+	}
+}
+
 func appControllerIndexer(rawObj client.Object) []string {
 	// grab the job object, extract the owner...
 	app := rawObj.(*argov1alpha1.Application)
@@ -556,7 +583,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(ignoreWhenAnnotationApplicationSetRefreshIsRemoved())).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
 		Watches(
