@@ -336,6 +336,8 @@ The first thing you can do to test whether your build toolchain is setup correct
 
 This should return without any error.
 
+If `codegen-local` returns the error `Could not make proto path relative` with a file path under `~/go/src/`, this may mean that your local Argo CD repository is cloned at an unsupported path. Please refer to https://argo-cd.readthedocs.io/en/stable/developer-guide/toolchain-guide/#clone-the-argo-cd-repository-from-your-personal-fork-on-github  
+
 ### Run unit-tests
 
 The next thing is to make sure that unit tests are running correctly on your system. These will require that all dependencies, such as Helm, Kustomize, Git, GnuPG, etc are correctly installed and fully functioning:
