@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -24,13 +25,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type netError string
@@ -39,7 +40,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func TestHandleModEvent_HasChanges(t *testing.T) {
+func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
@@ -71,7 +72,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(managedByApp map[string]bool, ref v1.ObjectReference) {
+		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
 		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
@@ -96,7 +97,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(t *testing.T) {
+func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
@@ -173,7 +174,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -187,7 +188,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.On("Invalidate").Run(func(_ mock.Arguments) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -238,15 +239,15 @@ func TestIsRetryableError(t *testing.T) {
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewConflict(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
+		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
+		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
-		assert.True(t, isRetryableError(apierr.NewTooManyRequests("", 0)))
+		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
 		assert.True(t, isRetryableError(&net.DNSError{}))
@@ -278,7 +279,7 @@ func TestIsRetryableError(t *testing.T) {
 func Test_asResourceNode_owner_refs(t *testing.T) {
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
-		Ref: v1.ObjectReference{
+		Ref: corev1.ObjectReference{
 			APIVersion: "v1",
 		},
 		OwnerRefs: []metav1.OwnerReference{
@@ -334,7 +335,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -354,7 +355,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->cm2->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -363,7 +364,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -382,7 +383,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cm1->cm2->app1 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -392,7 +393,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -400,7 +401,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -421,7 +422,7 @@ func Test_getAppRecursive(t *testing.T) {
 			// Issue #11699, fixed #12667.
 			name: "ok: cm1->cm2 & cm1->cm3->cm2 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -431,12 +432,12 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -456,7 +457,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1<->cm2",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -465,7 +466,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -473,7 +474,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -487,7 +488,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1->cm2->cm3->cm1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -496,7 +497,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -504,7 +505,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -512,7 +513,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -535,9 +536,9 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x string = "x"
-		hash2_y string = "y"
-		hash3_x string = "x"
+		hash1_x = "x"
+		hash2_y = "y"
+		hash3_x = "x"
 	)
 	info := &ResourceInfo{
 		manifestHash: hash1_x,
@@ -726,9 +727,7 @@ func TestShouldHashManifest(t *testing.T) {
 				test.un.SetAnnotations(test.annotations)
 			}
 			got := shouldHashManifest(test.appName, test.gvk, test.un)
-			if test.want != got {
-				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
-			}
+			require.Equalf(t, test.want, got, "test=%v", test.name)
 		})
 	}
 }

@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"testing"
@@ -16,17 +17,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
@@ -66,7 +67,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
@@ -89,7 +90,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -112,7 +113,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -384,12 +385,12 @@ func extractKubeConfigValues() (string, string, error) {
 
 	context, ok := config.Contexts[config.CurrentContext]
 	if !ok || context == nil {
-		return "", "", fmt.Errorf("no context")
+		return "", "", stderrors.New("no context")
 	}
 
 	cluster, ok := config.Clusters[context.Cluster]
 	if !ok || cluster == nil {
-		return "", "", fmt.Errorf("no cluster")
+		return "", "", stderrors.New("no cluster")
 	}
 
 	var kubeConfigDefault string
@@ -407,7 +408,7 @@ func extractKubeConfigValues() (string, string, error) {
 		}
 
 		if kubeConfigDefault == "" {
-			return "", "", fmt.Errorf("unable to retrieve kube config path")
+			return "", "", stderrors.New("unable to retrieve kube config path")
 		}
 	}
 

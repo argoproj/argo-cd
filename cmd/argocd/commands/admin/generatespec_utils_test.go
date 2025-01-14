@@ -5,11 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,7 +38,7 @@ func TestGetOutWriter_InlineOn(t *testing.T) {
 
 func TestPrintResources_Secret_YAML(t *testing.T) {
 	out := bytes.Buffer{}
-	err := PrintResources("yaml", &out, &v1.Secret{
+	err := PrintResources("yaml", &out, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Name: "my-secret"},
 		Data:       map[string][]byte{"my-secret-key": []byte("my-secret-data")},
 	})
