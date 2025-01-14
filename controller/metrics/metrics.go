@@ -33,7 +33,6 @@ type MetricsServer struct {
 	syncCounter             *prometheus.CounterVec
 	kubectlExecCounter      *prometheus.CounterVec
 	kubectlExecPendingGauge *prometheus.GaugeVec
-	orphanedResourcesGauge  *prometheus.GaugeVec
 	k8sRequestCounter       *prometheus.CounterVec
 	clusterEventsCounter    *prometheus.CounterVec
 	redisRequestCounter     *prometheus.CounterVec
@@ -145,14 +144,6 @@ var (
 		},
 		[]string{"hostname", "initiator"},
 	)
-
-	orphanedResourcesGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "argocd_app_orphaned_resources_count",
-			Help: "Number of orphaned resources per application",
-		},
-		descAppDefaultLabels,
-	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -197,7 +188,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(k8sRequestCounter)
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
-	registry.MustRegister(orphanedResourcesGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
@@ -213,7 +203,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		k8sRequestCounter:       k8sRequestCounter,
 		kubectlExecCounter:      kubectlExecCounter,
 		kubectlExecPendingGauge: kubectlExecPendingGauge,
-		orphanedResourcesGauge:  orphanedResourcesGauge,
 		reconcileHistogram:      reconcileHistogram,
 		clusterEventsCounter:    clusterEventsCounter,
 		redisRequestCounter:     redisRequestCounter,
@@ -250,10 +239,6 @@ func (m *MetricsServer) IncKubectlExecPending(command string) {
 
 func (m *MetricsServer) DecKubectlExecPending(command string) {
 	m.kubectlExecPendingGauge.WithLabelValues(m.hostname, command).Dec()
-}
-
-func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, numOrphanedResources int) {
-	m.orphanedResourcesGauge.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Set(float64(numOrphanedResources))
 }
 
 // IncClusterEventsCount increments the number of cluster events
@@ -305,7 +290,6 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.syncCounter.Reset()
 		m.kubectlExecCounter.Reset()
 		m.kubectlExecPendingGauge.Reset()
-		m.orphanedResourcesGauge.Reset()
 		m.k8sRequestCounter.Reset()
 		m.clusterEventsCounter.Reset()
 		m.redisRequestCounter.Reset()

@@ -30,7 +30,7 @@ func Test_secretToCluster(t *testing.T) {
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster"),
-			"config": []byte("{\"username\":\"foo\", \"disableCompression\":true}"),
+			"config": []byte("{\"username\":\"foo\"}"),
 		},
 	}
 	cluster, err := secretToCluster(secret)
@@ -39,8 +39,7 @@ func Test_secretToCluster(t *testing.T) {
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: argoappv1.ClusterConfig{
-			Username:           "foo",
-			DisableCompression: true,
+			Username: "foo",
 		},
 	}, *cluster)
 }
@@ -93,7 +92,12 @@ func TestValidateDestination(t *testing.T) {
 			Namespace: "default",
 		}
 
-		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
+		secret := createClusterSecret("my-secret", "minikube", "https://127.0.0.1:6443")
+		objects := []runtime.Object{}
+		objects = append(objects, secret)
+		kubeclientset := fake.NewSimpleClientset(objects...)
+
+		appCond := ValidateDestination(context.Background(), &dest, kubeclientset, fakeNamespace)
 		require.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})

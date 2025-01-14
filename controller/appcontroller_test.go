@@ -823,7 +823,6 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
-	now := metav1.Now()
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
@@ -844,9 +843,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -885,7 +886,6 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
@@ -931,8 +931,10 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
 		app := newFakeAppWithDestName()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-		app.DeletionTimestamp = &now
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
+		appObj := kube.MustToUnstructured(&app)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(appObj): appObj,
+		}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -2147,7 +2149,7 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 		app,
 		appModified)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
+	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
 }
 
 func TestAppStatusIsReplaced(t *testing.T) {
@@ -2194,7 +2196,6 @@ func TestAlreadyAttemptSync(t *testing.T) {
 }
 
 func assertDurationAround(t *testing.T, expected time.Duration, actual time.Duration) {
-	t.Helper()
 	delta := time.Second / 2
 	assert.GreaterOrEqual(t, expected, actual-delta)
 	assert.LessOrEqual(t, expected, actual+delta)

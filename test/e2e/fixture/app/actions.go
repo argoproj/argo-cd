@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -226,7 +226,7 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		"--repo", fixture.RepoURL(a.context.repoURLType),
 	}, args...)
 
-	if a.context.destName != "" {
+	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {
 		args = append(args, "--dest-name", a.context.destName)
 	} else {
 		args = append(args, "--dest-server", a.context.destServer)
@@ -269,9 +269,6 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	}
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
-	}
-	if a.context.helmSkipTests {
-		args = append(args, "--helm-skip-tests")
 	}
 	return args
 }
@@ -346,7 +343,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -382,14 +379,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
-
-	return a
-}
-
-func (a *Actions) ConfirmDeletion() *Actions {
-	a.context.t.Helper()
-
-	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
 	return a
 }
@@ -442,13 +431,13 @@ func (a *Actions) Wait(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
+	fixture.SetParamInSettingConfigMap(key, value)
 	return a
 }
 
@@ -477,16 +466,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	fixture.SetTrackingMethod(trackingMethod)
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	fixture.SetInstallationID(installationID)
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
+	fixture.SetTrackingLabel(trackingLabel)
 	return a
 }

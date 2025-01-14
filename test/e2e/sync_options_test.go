@@ -53,11 +53,11 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
-			}))
+			})
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}

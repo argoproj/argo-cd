@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -53,7 +52,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
 	ctx.
 		Path("deployment").
 		When().
@@ -76,7 +75,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	SetTrackingMethod(string(argo.TrackingMethodLabel))
 	ctx.
 		Path("deployment").
 		When().
@@ -260,7 +259,6 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
-	t.Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

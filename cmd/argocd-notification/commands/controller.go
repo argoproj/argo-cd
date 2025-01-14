@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -115,13 +114,6 @@ func NewCommand() *cobra.Command {
 			default:
 				return fmt.Errorf("unknown log format '%s'", logFormat)
 			}
-
-			// Recover from panic and log the error using the configured logger instead of the default.
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
-				}
-			}()
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       argocdRepoServerPlaintext,

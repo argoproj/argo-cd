@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -405,12 +405,12 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 	// copy labels and annotations excluding system ones
 	labels := map[string]string{}
 	if s.Labels != nil {
-		labels = maps.Clone(s.Labels)
+		labels = collections.CopyStringMap(s.Labels)
 		delete(labels, common.LabelKeySecretType)
 	}
 	annotations := map[string]string{}
 	if s.Annotations != nil {
-		annotations = maps.Clone(s.Annotations)
+		annotations = collections.CopyStringMap(s.Annotations)
 		// delete system annotations
 		delete(annotations, apiv1.LastAppliedConfigAnnotation)
 		delete(annotations, common.AnnotationKeyManagedBy)

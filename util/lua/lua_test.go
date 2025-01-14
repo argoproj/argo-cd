@@ -266,7 +266,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
-	assert.False(t, useOpenLibs)
+	assert.True(t, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
@@ -283,8 +283,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	var expectedErr *ScriptDoesNotExistError
-	require.ErrorAs(t, err, &expectedErr)
+	require.NoError(t, err)
 	assert.Empty(t, action.ActionLua)
 }
 
@@ -685,7 +684,8 @@ func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
-	assert.ErrorContains(t, err, "unsupported operation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {

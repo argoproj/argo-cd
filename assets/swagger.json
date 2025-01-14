@@ -1990,6 +1990,39 @@
         }
       }
     },
+    "/api/v1/applicationsets/generate": {
+      "post": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Generate generates",
+        "operationId": "ApplicationSetService_Generate",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}": {
       "get": {
         "tags": [
@@ -4557,9 +4590,6 @@
         "namespace": {
           "type": "string"
         },
-        "requiresDeletionConfirmation": {
-          "type": "boolean"
-        },
         "requiresPruning": {
           "type": "boolean"
         },
@@ -6529,10 +6559,6 @@
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
-        "name": {
-          "description": "Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.",
-          "type": "string"
-        },
         "path": {
           "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git.",
           "type": "string"
@@ -6623,10 +6649,6 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
-        },
-        "skipTests": {
-          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
-          "type": "boolean"
         },
         "valueFiles": {
           "type": "array",
@@ -7151,19 +7173,11 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
-        "disableCompression": {
-          "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
-          "type": "boolean"
-        },
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },
         "password": {
           "type": "string"
-        },
-        "proxyUrl": {
-          "type": "string",
-          "title": "ProxyURL is the URL to the proxy to be used for all requests send to the server"
         },
         "tlsClientConfig": {
           "$ref": "#/definitions/v1alpha1TLSClientConfig"
@@ -7178,10 +7192,6 @@
       "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
       "properties": {
-        "flatList": {
-          "type": "boolean",
-          "title": "returns the clusters a single 'clusters' value in the template"
-        },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
         },

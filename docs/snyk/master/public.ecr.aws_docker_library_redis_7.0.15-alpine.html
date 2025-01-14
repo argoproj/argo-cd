@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="1 known vulnerabilities found in 9 vulnerable dependency paths.">
+  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 24th 2024, 12:21:25 am (UTC+00:00)</p>
+                <p class="timestamp">September 8th 2024, 12:18:59 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -467,8 +467,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>1</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>9 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -476,193 +476,7 @@
         </div><!-- .layout-stacked__header -->
 
     <div class="layout-container" style="padding-top: 35px;">
-      <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2024-9143</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.20
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssl/libcrypto3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine and openssl/libcrypto3@3.3.2-r0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240906.232324
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240906.232324
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.3.2-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        .redis-rundeps@20240906.232324
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|public.ecr.aws/docker/library/redis@7.0.15-alpine
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.3.2-r0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.20</code> relevant fixed versions and status.</em></p>
-        <p>Issue summary: Use of the low-level GF(2^m) elliptic curve APIs with untrusted
-        explicit values for the field polynomial can lead to out-of-bounds memory reads
-        or writes.</p>
-        <p>Impact summary: Out of bound memory writes can lead to an application crash or
-        even a possibility of a remote code execution, however, in all the protocols
-        involving Elliptic Curve Cryptography that we&#39;re aware of, either only &#34;named
-        curves&#34; are supported, or, if explicit curve parameters are supported, they
-        specify an X9.62 encoding of binary (GF(2^m)) curves that can&#39;t represent
-        problematic input values. Thus the likelihood of existence of a vulnerable
-        application is low.</p>
-        <p>In particular, the X9.62 encoding is used for ECC keys in X.509 certificates,
-        so problematic inputs cannot occur in the context of processing X.509
-        certificates.  Any problematic use-cases would have to be using an &#34;exotic&#34;
-        curve encoding.</p>
-        <p>The affected APIs include: EC_GROUP_new_curve_GF2m(), EC_GROUP_new_from_params(),
-        and various supporting BN_GF2m_*() functions.</p>
-        <p>Applications working with &#34;exotic&#34; explicit binary (GF(2^m)) curve parameters,
-        that make it possible to represent invalid field polynomials with a zero
-        constant term, via the above or similar APIs, may terminate abruptly as a
-        result of reading or writing outside of array bounds.  Remote code execution
-        cannot easily be ruled out.</p>
-        <p>The FIPS modules in 3.3, 3.2, 3.1 and 3.0 are not affected by this issue.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.20</code> <code>openssl</code> to version 3.3.2-r1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/openssl/openssl/commit/72ae83ad214d2eef262461365a1975707f862712">https://github.com/openssl/openssl/commit/72ae83ad214d2eef262461365a1975707f862712</a></li>
-        <li><a href="https://github.com/openssl/openssl/commit/bc7e04d7c8d509fb78fc0e285aa948fb0da04700">https://github.com/openssl/openssl/commit/bc7e04d7c8d509fb78fc0e285aa948fb0da04700</a></li>
-        <li><a href="https://github.com/openssl/openssl/commit/c0d3e4d32d2805f49bec30547f225bc4d092e1f4">https://github.com/openssl/openssl/commit/c0d3e4d32d2805f49bec30547f225bc4d092e1f4</a></li>
-        <li><a href="https://github.com/openssl/openssl/commit/fdf6723362ca51bd883295efe206cb5b1cfa5154">https://github.com/openssl/openssl/commit/fdf6723362ca51bd883295efe206cb5b1cfa5154</a></li>
-        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a">https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a</a></li>
-        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41">https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41</a></li>
-        <li><a href="https://openssl-library.org/news/secadv/20241016.txt">https://openssl-library.org/news/secadv/20241016.txt</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/16/1">http://www.openwall.com/lists/oss-security/2024/10/16/1</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/23/1">http://www.openwall.com/lists/oss-security/2024/10/23/1</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/24/1">http://www.openwall.com/lists/oss-security/2024/10/24/1</a></li>
-        <li><a href="https://security.netapp.com/advisory/ntap-20241101-0001/">https://security.netapp.com/advisory/ntap-20241101-0001/</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-8235201">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-      </div><!-- cards -->
+      No known vulnerabilities detected.
     </div>
   </main><!-- .layout-stacked__content -->
 </body>

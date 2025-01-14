@@ -12,7 +12,6 @@ type Context struct {
 }
 
 func Given(t *testing.T) *Context {
-	t.Helper()
 	fixture.EnsureCleanState(t)
 	return &Context{t: t}
 }

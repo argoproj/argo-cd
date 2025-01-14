@@ -265,7 +265,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
 
 	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 		return s.db.GetRepository(ctx, url, project)
@@ -300,8 +300,8 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	for i := 0; i < 10; i++ {
 		appset.Spec = newAppset.Spec
 		if merge {
-			appset.Labels = collections.Merge(appset.Labels, newAppset.Labels)
-			appset.Annotations = collections.Merge(appset.Annotations, newAppset.Annotations)
+			appset.Labels = collections.MergeStringMaps(appset.Labels, newAppset.Labels)
+			appset.Annotations = collections.MergeStringMaps(appset.Annotations, newAppset.Annotations)
 		} else {
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations

@@ -131,6 +131,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackOff               *wait.Backoff
+	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -188,6 +189,7 @@ func NewApplicationController(
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
+		repoClientset:                     repoClientset,
 		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
 		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
@@ -628,7 +630,6 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
 		}}
 	}
-	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
@@ -760,7 +761,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -1165,15 +1166,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
-	clusterRESTConfig, err := cluster.RESTConfig()
-	if err != nil {
-		return err
-	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	if app.CascadedDeletion() {
-		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1191,10 +1186,6 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 			if ctrl.shouldBeDeleted(app, objsMap[k]) {
 				objs = append(objs, objsMap[k])
-				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
-					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
-					return nil
-				}
 			}
 		}
 

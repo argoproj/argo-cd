@@ -136,8 +136,13 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, -1)
-	require.NoError(t, err, "Find revision history should fail without errors")
-	require.NotNil(t, history, "History should be found")
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 }
 
 func TestPrintTreeViewAppGet(t *testing.T) {
@@ -244,8 +249,13 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, -1)
-	require.NoError(t, err, "Find revision history should fail without errors")
-	require.NotNil(t, history, "History should be found")
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 }
 
 func TestDefaultWaitOptions(t *testing.T) {
@@ -298,9 +308,17 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 
 	history, err := findRevisionHistory(&application, -1)
 
-	require.Error(t, err, "Find revision history should fail with errors")
-	require.Nil(t, history, "History should be empty")
-	require.EqualError(t, err, "Application '' should have at least two successful deployments", "Find revision history should fail with correct error message")
+	if err == nil {
+		t.Fatal("Find revision history should fail with errors")
+	}
+
+	if history != nil {
+		t.Fatal("History should be empty")
+	}
+
+	if err.Error() != "Application '' should have at least two successful deployments" {
+		t.Fatal("Find revision history should fail with correct error message")
+	}
 }
 
 func TestFindRevisionHistoryWithPassedId(t *testing.T) {
@@ -328,9 +346,17 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, 3)
-	require.NoError(t, err, "Find revision history should fail without errors")
-	require.NotNil(t, history, "History should be found")
-	require.Equal(t, "123", history.Revision, "Failed to find correct history with correct revision")
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
+
+	if history.Revision != "123" {
+		t.Fatal("Failed to find correct history with correct revision")
+	}
 }
 
 func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
@@ -359,9 +385,17 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 
 	history, err := findRevisionHistory(&application, 4)
 
-	require.Error(t, err, "Find revision history should fail with errors")
-	require.Nil(t, history, "History should be not found")
-	require.EqualError(t, err, "Application '' does not have deployment id '4' in history\n", "Find revision history should fail with correct error message")
+	if err == nil {
+		t.Fatal("Find revision history should fail with errors")
+	}
+
+	if history != nil {
+		t.Fatal("History should be not found")
+	}
+
+	if err.Error() != "Application '' does not have deployment id '4' in history\n" {
+		t.Fatal("Find revision history should fail with correct error message")
+	}
 }
 
 func Test_groupObjsByKey(t *testing.T) {
@@ -423,7 +457,9 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		require.Equalf(t, "Manual", policy, "Incorrect policy %q, should be Manual", policy)
+		if policy != "Manual" {
+			t.Fatalf("Incorrect policy %q, should be Manual", policy)
+		}
 	})
 
 	t.Run("Auto policy", func(t *testing.T) {
@@ -437,7 +473,9 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		require.Equalf(t, "Auto", policy, "Incorrect policy %q, should be Auto", policy)
+		if policy != "Auto" {
+			t.Fatalf("Incorrect policy %q, should be Auto", policy)
+		}
 	})
 
 	t.Run("Auto policy with prune", func(t *testing.T) {
@@ -453,7 +491,9 @@ func TestFormatSyncPolicy(t *testing.T) {
 
 		policy := formatSyncPolicy(app)
 
-		require.Equalf(t, "Auto-Prune", policy, "Incorrect policy %q, should be Auto-Prune", policy)
+		if policy != "Auto-Prune" {
+			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
+		}
 	})
 }
 
@@ -470,7 +510,9 @@ func TestFormatConditionSummary(t *testing.T) {
 		}
 
 		summary := formatConditionsSummary(app)
-		require.Equalf(t, "<none>", summary, "Incorrect summary %q, should be <none>", summary)
+		if summary != "<none>" {
+			t.Fatalf("Incorrect summary %q, should be <none>", summary)
+		}
 	})
 
 	t.Run("Few conditions are defined", func(t *testing.T) {
@@ -491,28 +533,9 @@ func TestFormatConditionSummary(t *testing.T) {
 		}
 
 		summary := formatConditionsSummary(app)
-		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
-	})
-
-	t.Run("Conditions are sorted for idempotent summary", func(t *testing.T) {
-		app := v1alpha1.Application{
-			Status: v1alpha1.ApplicationStatus{
-				Conditions: []v1alpha1.ApplicationCondition{
-					{
-						Type: "type2",
-					},
-					{
-						Type: "type1",
-					},
-					{
-						Type: "type1",
-					},
-				},
-			},
+		if summary != "type1(2),type2" && summary != "type2,type1(2)" {
+			t.Fatalf("Incorrect summary %q, should be type1(2),type2", summary)
 		}
-
-		summary := formatConditionsSummary(app)
-		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
 	})
 }
 
@@ -523,7 +546,9 @@ func TestPrintOperationResult(t *testing.T) {
 			return nil
 		})
 
-		require.Emptyf(t, output, "Incorrect print operation output %q, should be ''", output)
+		if output != "" {
+			t.Fatalf("Incorrect print operation output %q, should be ''", output)
+		}
 	})
 
 	t.Run("Operation state sync result is not empty", func(t *testing.T) {
@@ -537,7 +562,9 @@ func TestPrintOperationResult(t *testing.T) {
 		})
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\n"
-		require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
 	})
 
 	t.Run("Operation state sync result with message is not empty", func(t *testing.T) {
@@ -552,7 +579,9 @@ func TestPrintOperationResult(t *testing.T) {
 		})
 
 		expectation := "Operation:          Sync\nSync Revision:      revision\nPhase:              \nStart:              0001-01-01 00:00:00 +0000 UTC\nFinished:           2020-11-10 23:00:00 +0000 UTC\nDuration:           2333448h16m18.871345152s\nMessage:            test\n"
-		require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
+		if output != expectation {
+			t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+		}
 	})
 }
 
@@ -588,7 +617,9 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 
 	expectation := "SOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
 
-	require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
 }
 
 func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
@@ -665,7 +696,9 @@ func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
 
 	expectation := "SOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
 
-	require.Equalf(t, output, expectation, "Incorrect print operation output %q, should be %q", output, expectation)
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
 }
 
 func TestPrintAppSummaryTable(t *testing.T) {
@@ -879,7 +912,9 @@ func TestPrintAppConditions(t *testing.T) {
 		return nil
 	})
 	expectation := "CONDITION\tMESSAGE\tLAST TRANSITION\nDeletionError\ttest\t<nil>\nExcludedResourceWarning\ttest2\t<nil>\nRepeatedResourceWarning\ttest3\t<nil>\n"
-	require.Equalf(t, output, expectation, "Incorrect print app conditions output %q, should be %q", output, expectation)
+	if output != expectation {
+		t.Fatalf("Incorrect print app conditions output %q, should be %q", output, expectation)
+	}
 }
 
 func TestPrintParams(t *testing.T) {
@@ -956,7 +991,9 @@ func TestPrintParams(t *testing.T) {
 				return nil
 			})
 
-			require.Equalf(t, tc.expectedOutput, output, "Incorrect print params output %q, should be %q\n", output, tc.expectedOutput)
+			if output != tc.expectedOutput {
+				t.Fatalf("Incorrect print params output %q, should be %q\n", output, tc.expectedOutput)
+			}
 		})
 	}
 }
@@ -968,7 +1005,9 @@ func TestAppUrlDefault(t *testing.T) {
 			PlainText:  true,
 		}), "test")
 		expectation := "http://localhost:80/applications/test"
-		require.Equalf(t, result, expectation, "Incorrect url %q, should be %q", result, expectation)
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
 	})
 	t.Run("https", func(t *testing.T) {
 		result := appURLDefault(argocdclient.NewClientOrDie(&argocdclient.ClientOptions{
@@ -976,14 +1015,18 @@ func TestAppUrlDefault(t *testing.T) {
 			PlainText:  false,
 		}), "test")
 		expectation := "https://localhost/applications/test"
-		require.Equalf(t, result, expectation, "Incorrect url %q, should be %q", result, expectation)
+		if result != expectation {
+			t.Fatalf("Incorrect url %q, should be %q", result, expectation)
+		}
 	})
 }
 
 func TestTruncateString(t *testing.T) {
 	result := truncateString("argocdtool", 2)
 	expectation := "ar..."
-	require.Equalf(t, result, expectation, "Incorrect truncate string %q, should be %q", result, expectation)
+	if result != expectation {
+		t.Fatalf("Incorrect truncate string %q, should be %q", result, expectation)
+	}
 }
 
 func TestGetService(t *testing.T) {
@@ -997,7 +1040,9 @@ func TestGetService(t *testing.T) {
 		}
 		result := getServer(app)
 		expectation := "test-server"
-		require.Equal(t, result, expectation, "Incorrect server %q, should be %q", result, expectation)
+		if result != expectation {
+			t.Fatalf("Incorrect server %q, should be %q", result, expectation)
+		}
 	})
 	t.Run("Name", func(t *testing.T) {
 		app := &v1alpha1.Application{
@@ -1009,7 +1054,9 @@ func TestGetService(t *testing.T) {
 		}
 		result := getServer(app)
 		expectation := "test-name"
-		require.Equal(t, result, expectation, "Incorrect server name %q, should be %q", result, expectation)
+		if result != expectation {
+			t.Fatalf("Incorrect server name %q, should be %q", result, expectation)
+		}
 	})
 }
 
@@ -1023,9 +1070,17 @@ func TestTargetObjects(t *testing.T) {
 		},
 	}
 	objects, err := targetObjects(resources)
-	require.NoError(t, err, "operation should finish without error")
-	require.Lenf(t, objects, 2, "incorrect number of objects %v, should be 2", len(objects))
-	require.Equalf(t, "test-helm-guestbook", objects[0].GetName(), "incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
+	if err != nil {
+		t.Fatal("operation should finish without error")
+	}
+
+	if len(objects) != 2 {
+		t.Fatalf("incorrect number of objects %v, should be 2", len(objects))
+	}
+
+	if objects[0].GetName() != "test-helm-guestbook" {
+		t.Fatalf("incorrect name %q, should be %q", objects[0].GetName(), "test-helm-guestbook")
+	}
 }
 
 func TestTargetObjects_invalid(t *testing.T) {
@@ -1052,7 +1107,9 @@ func TestPrintApplicationNames(t *testing.T) {
 		return nil
 	})
 	expectation := "test\ntest\n"
-	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+	if output != expectation {
+		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+	}
 }
 
 func Test_unset(t *testing.T) {
@@ -1842,8 +1899,9 @@ func Test_hasAppChanged(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := hasAppChanged(tt.args.appReq, tt.args.appRes, tt.args.upsert)
-			assert.Equalf(t, tt.want, got, "hasAppChanged() = %v, want %v", got, tt.want)
+			if got := hasAppChanged(tt.args.appReq, tt.args.appRes, tt.args.upsert); got != tt.want {
+				t.Errorf("hasAppChanged() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

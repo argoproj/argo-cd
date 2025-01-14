@@ -702,7 +702,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -735,7 +735,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -773,7 +773,7 @@ func TestValidatePermissions(t *testing.T) {
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "has not been configured")
+		assert.Contains(t, conditions[0].Message, "unable to find destination server")
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
@@ -834,8 +834,10 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
-		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		require.Error(t, err)
+		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "Unknown error occurred")
 	})
 
 	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
@@ -893,7 +895,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		require.ErrorContains(t, err, "operation is already in progress")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
@@ -906,7 +909,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		require.ErrorContains(t, err, "Operation unspecified")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
@@ -932,7 +936,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil)
-		require.NoError(t, appCond)
+		require.Error(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -971,7 +975,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		require.ErrorContains(t, err, "an error occurred")
+		assert.Contains(t, err.Error(), "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -1420,7 +1424,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)

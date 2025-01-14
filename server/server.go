@@ -561,13 +561,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			// Advertise that we support both http/1.1 and http2 for application level communication.
-			// By putting http/1.1 first, we ensure that HTTPS clients will use http/1.1, which is the only
-			// protocol our server supports for HTTPS clients. By including h2 in the list, we ensure that
-			// gRPC clients know we support http2 for their communication.
-			NextProtos: []string{"http/1.1", "h2"},
-		}
+		tlsConfig := tls.Config{}
 		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return a.settings.Certificate, nil
 		}
@@ -1293,7 +1287,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
-		if acceptHTML && !fileRequest && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
 			for k, v := range noCacheHeaders {
 				w.Header().Set(k, v)
 			}
