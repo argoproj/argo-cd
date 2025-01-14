@@ -28,6 +28,13 @@ var (
 		descAppsetDefaultLabels,
 		nil,
 	)
+
+	descAppsetGithubCacheCounter = prometheus.NewDesc(
+		"argocd_appset_github_cached_items_count",
+		"Number of github api requests cached",
+		[]string{},
+		nil,
+	)
 )
 
 type ApplicationsetMetrics struct {
@@ -54,7 +61,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	)
 	githubCacheHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "argocd_github_cache_latency",
+			Name: "argocd_appset_github_cache_latency",
 			Help: "",
 		},
 		descAppsetDefaultLabels,
@@ -62,7 +69,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	githubCacheCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "argocd_github_cache_items",
+			Name: "argocd_appset_github_cached_items_count",
 			Help: "Number of items in the github cache",
 		},
 		descAppsetDefaultLabels,
@@ -77,9 +84,8 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	metrics.Registry.MustRegister(githubCacheCounter)
 
 	return ApplicationsetMetrics{
-		reconcileHistogram:   reconcileHistogram,
-		githubCacheHistogram: githubCacheHistogram,
-		githubCacheCounter:   githubCacheCounter,
+		reconcileHistogram: reconcileHistogram,
+		githubCacheCounter: githubCacheCounter,
 	}
 }
 
@@ -88,11 +94,12 @@ func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSe
 }
 
 func (m *ApplicationsetMetrics) ObserveGithubCacheLatency(appset *argoappv1.ApplicationSet, duration time.Duration) {
+	// TODO: come back to this
 	m.githubCacheHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
 }
 
-func (m *ApplicationsetMetrics) IncGithubCacheItems(appset *argoappv1.ApplicationSet, count int) {
-	m.githubCacheCounter.WithLabelValues(appset.Namespace, appset.Name).Add(float64(count))
+func (m *ApplicationsetMetrics) IncGithubCacheItems() {
+	m.githubCacheCounter.WithLabelValues().Inc()
 }
 
 func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) *appsetCollector {

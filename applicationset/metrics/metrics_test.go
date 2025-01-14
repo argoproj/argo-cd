@@ -209,6 +209,25 @@ argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)
 }
 
+func IncGithubCacheItems(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	appsetMetrics.IncGithubCacheItems()
+	handler.ServeHTTP(rr, req)
+	assert.Contains(t, rr.Body.String(), `
+argocd_appset_github_cached_items_count{} 1
+`)
+
+}
+
 func TestObserveReconcile(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
 	client := initializeClient(appsetList)
