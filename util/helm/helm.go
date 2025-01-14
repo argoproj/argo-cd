@@ -12,9 +12,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/config"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
 
 const (
@@ -42,10 +42,10 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, passCredentials bool) (Helm, error) {
-	cmd, err := NewCmd(workDir, version, proxy)
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, noProxy string, passCredentials bool) (Helm, error) {
+	cmd, err := NewCmd(workDir, version, proxy, noProxy)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new helm command: %w", err)
 	}
 	cmd.IsLocal = isLocal
 
@@ -69,7 +69,7 @@ func IsMissingDependencyErr(err error) bool {
 func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	out, command, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return "", command, err
+		return "", command, fmt.Errorf("failed to execute helm template command: %w", err)
 	}
 	return out, command, nil
 }
@@ -92,19 +92,22 @@ func (h *helm) DependencyBuild() error {
 				}()
 
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to login to registry %s: %w", repo.Repo, err)
 				}
 			}
 		} else {
 			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to add helm repository %s: %w", repo.Repo, err)
 			}
 		}
 	}
 	h.repos = nil
 	_, err := h.cmd.dependencyBuild()
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to build helm dependencies: %w", err)
+	}
+	return nil
 }
 
 func (h *helm) Dispose() {
@@ -134,7 +137,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		out, err := h.cmd.inspectValues(".")
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to execute helm inspect values command: %w", err)
 		}
 		values = append(values, out)
 	} else {
@@ -166,7 +169,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 
 	output := map[string]string{}
 	for _, file := range values {
-		values := map[string]interface{}{}
+		values := map[string]any{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
@@ -176,13 +179,13 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	return output, nil
 }
 
-func flatVals(input interface{}, output map[string]string, prefixes ...string) {
+func flatVals(input any, output map[string]string, prefixes ...string) {
 	switch i := input.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for k, v := range i {
 			flatVals(v, output, append(prefixes, k)...)
 		}
-	case []interface{}:
+	case []any:
 		p := append([]string(nil), prefixes...)
 		for j, v := range i {
 			flatVals(v, output, append(p[0:len(p)-1], fmt.Sprintf("%s[%v]", prefixes[len(p)-1], j))...)

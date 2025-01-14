@@ -1,6 +1,7 @@
 package kustomize
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -18,10 +19,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -39,13 +41,15 @@ type Kustomize interface {
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
-func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string) Kustomize {
+func NewKustomizeApp(repoRoot string, path string, creds git.Creds, fromRepo string, binaryPath string, proxy string, noProxy string) Kustomize {
 	return &kustomize{
 		repoRoot:   repoRoot,
 		path:       path,
 		creds:      creds,
 		repo:       fromRepo,
 		binaryPath: binaryPath,
+		proxy:      proxy,
+		noProxy:    noProxy,
 	}
 }
 
@@ -60,6 +64,10 @@ type kustomize struct {
 	repo string
 	// optional kustomize binary path
 	binaryPath string
+	// HTTP/HTTPS proxy used to access repository
+	proxy string
+	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+	noProxy string
 }
 
 var _ Kustomize = &kustomize{}
@@ -123,7 +131,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
 			} else {
 				// Make Git use CA bundle
-				environ = append(environ, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
+				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
 		}
 	}
@@ -250,25 +258,25 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
 			}
-			var kustomization interface{}
+			var kustomization any
 			err = yaml.Unmarshal(b, &kustomization)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
 			}
-			kMap, ok := kustomization.(map[string]interface{})
+			kMap, ok := kustomization.(map[string]any)
 			if !ok {
-				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]any, but got %T", kMap)
 			}
 			patches, ok := kMap["patches"]
 			if ok {
 				// The kustomization.yaml already had a patches field, so we need to append to it.
-				patchesList, ok := patches.([]interface{})
+				patchesList, ok := patches.([]any)
 				if !ok {
-					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []any, but got %T", patches)
 				}
 				// Since the patches from the Application manifest are typed, we need to convert them to a type which
 				// can be appended to the existing list.
-				untypedPatches := make([]interface{}, len(opts.Patches))
+				untypedPatches := make([]any, len(opts.Patches))
 				for i := range opts.Patches {
 					untypedPatches[i] = opts.Patches[i]
 				}
@@ -297,7 +305,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
 			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+				return nil, nil, nil, errors.New("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components
@@ -322,6 +330,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
 	}
 	cmd.Env = env
+	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
@@ -460,13 +469,13 @@ func getImageParameters(objs []*unstructured.Unstructured) []Image {
 	return images
 }
 
-func getImages(object map[string]interface{}) []Image {
+func getImages(object map[string]any) []Image {
 	var images []Image
 	for k, v := range object {
-		if array, ok := v.([]interface{}); ok {
+		if array, ok := v.([]any); ok {
 			if k == "containers" || k == "initContainers" {
 				for _, obj := range array {
-					if mapObj, isMapObj := obj.(map[string]interface{}); isMapObj {
+					if mapObj, isMapObj := obj.(map[string]any); isMapObj {
 						if image, hasImage := mapObj["image"]; hasImage {
 							images = append(images, fmt.Sprintf("%s", image))
 						}
@@ -474,12 +483,12 @@ func getImages(object map[string]interface{}) []Image {
 				}
 			} else {
 				for i := range array {
-					if mapObj, isMapObj := array[i].(map[string]interface{}); isMapObj {
+					if mapObj, isMapObj := array[i].(map[string]any); isMapObj {
 						images = append(images, getImages(mapObj)...)
 					}
 				}
 			}
-		} else if objMap, ok := v.(map[string]interface{}); ok {
+		} else if objMap, ok := v.(map[string]any); ok {
 			images = append(images, getImages(objMap)...)
 		}
 	}

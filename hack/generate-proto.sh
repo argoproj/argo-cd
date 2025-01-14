@@ -31,7 +31,7 @@ export GO111MODULE=off
 # --apimachinery-packages= option so that go-to-protobuf can locate the types, but prefixed with a
 # '-' so that go-to-protobuf will not generate .proto files for it.
 PACKAGES=(
-    github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1
+    github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1
 )
 APIMACHINERY_PKGS=(
     +k8s.io/apimachinery/pkg/util/intstr
@@ -44,7 +44,7 @@ APIMACHINERY_PKGS=(
 )
 
 export GO111MODULE=on
-[ -e ./v2 ] || ln -s . v2
+[ -e ./v3 ] || ln -s . v3
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")
 
 # protoc_include is the include directory containing the .proto files distributed with protoc binary
@@ -55,6 +55,12 @@ else
     # local codegen build
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
+
+# go-to-protobuf expects dependency proto files to be in $GOPATH/src. Copy them there.
+rm -rf "${GOPATH}/src/github.com/gogo/protobuf" && mkdir -p "${GOPATH}/src/github.com/gogo" && cp -r "${PROJECT_ROOT}/vendor/github.com/gogo/protobuf" "${GOPATH}/src/github.com/gogo"
+rm -rf "${GOPATH}/src/k8s.io/apimachinery" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apimachinery" "${GOPATH}/src/k8s.io"
+rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/api" "${GOPATH}/src/k8s.io"
+rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
 
 go-to-protobuf \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
@@ -68,7 +74,10 @@ go-to-protobuf \
     )" \
     --proto-import="${PROJECT_ROOT}"/vendor \
     --proto-import="${protoc_include}" \
-    --output-base="${GOPATH}/src/"
+    --output-dir="${GOPATH}/src/"
+
+# go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
+go mod vendor
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
@@ -86,7 +95,7 @@ MOD_ROOT=${GOPATH}/pkg/mod
 grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
 GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
 GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
-PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" \) | sort)
+PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
     protoc \
         -I"${PROJECT_ROOT}" \
@@ -101,8 +110,11 @@ for i in ${PROTO_FILES}; do
         "$i"
 done
 
+# This file is generated but should not be checked in.
+rm util/askpass/askpass.swagger.json
+
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
-[ -L ./v2 ] && rm -rf v2
+[ -L ./v3 ] && rm -rf v3
 
 # collect_swagger gathers swagger files into a subdirectory
 collect_swagger() {
@@ -153,3 +165,4 @@ clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
+clean_swagger commitserver

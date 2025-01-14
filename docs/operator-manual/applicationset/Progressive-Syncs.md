@@ -1,7 +1,9 @@
 # Progressive Syncs
 
-!!! warning "Alpha Feature"
-    This is an experimental, alpha-quality feature that allows you to control the order in which the ApplicationSet controller will create or update the Applications owned by an ApplicationSet resource. It may be removed in future releases or modified in backwards-incompatible ways.
+!!! warning "Alpha Feature (Since v2.6.0)"
+    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) 
+    feature that allows you to control the order in which the ApplicationSet controller will create or update the Applications 
+    owned by an ApplicationSet resource. It may be removed in future releases or modified in backwards-incompatible ways.
 
 ## Use Cases
 The Progressive Syncs feature set is intended to be light and flexible. The feature only interacts with the health of managed Applications. It is not intended to support direct integrations with other Rollout controllers (such as the native ReplicaSet controller or Argo Rollouts).
@@ -42,6 +44,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 * Sync operations are triggered the same way as if they were triggered by the UI or CLI (by directly setting the `operation` status field on the Application resource). This means that a RollingSync will respect sync windows just as if a user had clicked the "Sync" button in the Argo UI.
 * When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings.
 * If an Application is considered "Pending" for `applicationsetcontroller.default.application.progressing.timeout` seconds, the Application is automatically moved to Healthy status (default 300).
+* If an Application is not selected in any step, it will be excluded from the rolling sync and needs to be manually synced through the CLI or UI.
 
 #### Example
 The following example illustrates how to stage a progressive sync over Applications with explicitly configured environment labels.

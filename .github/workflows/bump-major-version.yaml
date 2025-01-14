@@ -1,0 +1,89 @@
+name: Bump major version
+on:
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  prepare-release:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Automatically update major version
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Get the current major version from go.mod and save it as a variable.
+      - name: Get target version
+        id: get-target-version
+        run: |
+          set -ue
+          CURRENT_VERSION=$(grep 'module github.com/argoproj/argo-cd' go.mod | awk '{print $2}' | sed 's/.*\/v//')
+          echo "TARGET_VERSION=$((CURRENT_VERSION + 1))" >> $GITHUB_OUTPUT
+
+      - name: Copy source code to GOPATH
+        run: |
+          mkdir -p ~/go/src/github.com/argoproj
+          cp -a ../argo-cd ~/go/src/github.com/argoproj
+
+      - name: Run script to bump the version
+        run: |
+          hack/bump-major-version.sh
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+
+      - name: Setup Golang
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Add ~/go/bin to PATH
+        run: |
+          echo "/home/runner/go/bin" >> $GITHUB_PATH
+      - name: Add /usr/local/bin to PATH
+        run: |
+          echo "/usr/local/bin" >> $GITHUB_PATH
+      - name: Download & vendor dependencies
+        run: |
+          # We need to vendor go modules for codegen yet
+          go mod download
+          go mod vendor -v
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+      - name: Install toolchain for codegen
+        run: |
+          make install-codegen-tools-local
+          make install-go-tools-local
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+      - name: Run codegen
+        run: |
+          set -x
+          export GOPATH=$(go env GOPATH)
+          make codegen-local
+        working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
+
+      - name: Copy changes back
+        run: |
+          # Copy the contents back, but skip the .git directory
+          rsync -a --exclude=.git /home/runner/go/src/github.com/argoproj/argo-cd/ ../argo-cd
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
+        with:
+          commit-message: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"
+          title: "Bump major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}"
+          body: |
+            Congrats! You've just bumped the major version to ${{ steps.get-target-version.outputs.TARGET_VERSION }}.
+            
+            Next steps:
+            - [ ] Merge this PR
+            - [ ] Add an upgrade guide to the docs for this version
+          branch: bump-major-version
+          branch-suffix: random
+          signoff: true

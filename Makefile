@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/argo-cd/v2/common
+PACKAGE=github.com/argoproj/argo-cd/v3/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
@@ -254,7 +254,7 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build $(COVERAGE_FLAG) -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -gcflags="all=-N -l" $(COVERAGE_FLAG) -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
@@ -472,6 +472,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/coverage/repo-server
 	mkdir -p /tmp/coverage/applicationset-controller
 	mkdir -p /tmp/coverage/notification
+	mkdir -p /tmp/coverage/commit-server
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
@@ -486,8 +487,10 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
 	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
+	ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE=true \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
+	ARGOCD_HYDRATOR_ENABLED=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -553,7 +556,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install mkdocs; pip install $$(mkdocs get-deps); mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -561,7 +564,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install mkdocs; pip install $$(mkdocs get-deps); mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect

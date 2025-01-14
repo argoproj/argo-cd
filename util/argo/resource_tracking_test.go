@@ -4,19 +4,19 @@ import (
 	"os"
 	"testing"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-
-	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/kube"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {
@@ -29,9 +29,9 @@ func TestSetAppInstanceLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel, "")
 	require.NoError(t, err)
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel)
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodLabel, "")
 	assert.Equal(t, "my-app", app)
 }
 
@@ -45,10 +45,10 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation)
+	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", TrackingMethodAnnotation, "")
 	require.NoError(t, err)
 
-	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation)
+	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, TrackingMethodAnnotation, "")
 	assert.Equal(t, "my-app", app)
 }
 
@@ -61,10 +61,10 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodAnnotationAndLabel, "")
 	require.NoError(t, err)
 
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel, "")
 	assert.Equal(t, "my-app", app)
 }
 
@@ -77,11 +77,11 @@ func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", "", TrackingMethodAnnotationAndLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", "", TrackingMethodAnnotationAndLabel, "")
 	require.NoError(t, err)
 
 	// the annotation should still work, so the name from GetAppName should not be truncated
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel, "")
 	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters", app)
 
 	// the label should be truncated to 63 characters
@@ -97,11 +97,11 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", "", TrackingMethodAnnotationAndLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", "", TrackingMethodAnnotationAndLabel, "")
 	require.NoError(t, err)
 
 	// the annotation should still work, so the name from GetAppName should not be truncated
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel)
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotationAndLabel, "")
 	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen", app)
 
 	// the label should be truncated to 63 characters, AND the hyphen should be removed
@@ -117,7 +117,7 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "----------------------------------------------------------------", "", TrackingMethodAnnotationAndLabel)
+	err = resourceTracking.SetAppInstance(&obj, common.LabelKeyAppInstance, "----------------------------------------------------------------", "", TrackingMethodAnnotationAndLabel, "")
 	// this should error because it can't truncate to a valid value
 	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
 }
@@ -132,7 +132,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 
 	resourceTracking := NewResourceTracking()
 
-	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation)
+	app := resourceTracking.GetAppName(&obj, common.LabelKeyAppInstance, TrackingMethodAnnotation, "")
 	assert.Equal(t, "", app)
 }
 
@@ -177,6 +177,7 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 }
 
 func sampleResource(t *testing.T) *unstructured.Unstructured {
+	t.Helper()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj *unstructured.Unstructured
@@ -190,12 +191,12 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource(t)
-	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel, "")
 	require.NoError(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource(t)
-	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation, "")
 	require.NoError(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
@@ -213,14 +214,14 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 
 	// live object is a resource that has old style tracking label
 	liveObj := sampleResource(t)
-	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel, "")
 	require.NoError(t, err)
 
 	// config object is a resource that has new style tracking annotation
 	configObj := sampleResource(t)
-	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation)
+	err = rt.SetAppInstance(configObj, common.AnnotationKeyAppInstance, "my-app2", "", TrackingMethodAnnotation, "")
 	require.NoError(t, err)
-	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel)
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "my-app", "", TrackingMethodLabel, "")
 	require.NoError(t, err)
 
 	_ = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(TrackingMethodAnnotation))
@@ -249,7 +250,7 @@ func TestSetAppInstanceParentAnnotation(t *testing.T) {
 
 	// ensure resource is correctly annotated
 	resourceTracking := NewResourceTracking()
-	err := resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "my-namespace", TrackingMethodAnnotation)
+	err := resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "my-namespace", TrackingMethodAnnotation, "")
 	require.NoError(t, err)
 	assert.Equal(t, "my-namespace/my-app", obj.GetAnnotations()[common.AnnotationAppParent])
 }

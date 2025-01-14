@@ -14,19 +14,19 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/dex"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/dex"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func TestInferGrantType(t *testing.T) {
@@ -79,7 +79,7 @@ func TestIDTokenClaims(t *testing.T) {
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
 	require.NoError(t, err)
 
-	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}
@@ -608,7 +608,7 @@ func TestGetUserInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
 		userInfoPath          string
-		expectedOutput        interface{}
+		expectedOutput        any
 		expectError           bool
 		expectUnauthenticated bool
 		expectedCacheItems    []struct { // items to check in cache after function call
@@ -639,12 +639,12 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -654,7 +654,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -673,12 +673,12 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -688,7 +688,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -707,12 +707,12 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 			  notevenJsongarbage	
 				`
@@ -730,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -749,12 +749,12 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -772,7 +772,7 @@ func TestGetUserInfo(t *testing.T) {
 		{
 			name:                  "call UserInfo with valid accessToken in cache",
 			userInfoPath:          "/user-info",
-			expectedOutput:        jwt.MapClaims{"groups": []interface{}{"githubOrg:engineers"}},
+			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:engineers"}},
 			expectError:           false,
 			expectUnauthenticated: false,
 			expectedCacheItems: []struct {
@@ -782,14 +782,14 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:             formatUserInfoResponseCacheKey("randomUser"),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -809,7 +809,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},

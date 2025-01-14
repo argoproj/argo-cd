@@ -5,10 +5,9 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,28 +19,30 @@ type FakeApplications struct {
 	ns   string
 }
 
-var applicationsResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
+var applicationsResource = v1alpha1.SchemeGroupVersion.WithResource("applications")
 
-var applicationsKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Application"}
+var applicationsKind = v1alpha1.SchemeGroupVersion.WithKind("Application")
 
 // Get takes name of the application, and returns the corresponding application object, and an error if there is any.
 func (c *FakeApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Application, err error) {
+	emptyResult := &v1alpha1.Application{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(applicationsResource, c.ns, name), &v1alpha1.Application{})
+		Invokes(testing.NewGetActionWithOptions(applicationsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Application), err
 }
 
 // List takes label and field selectors, and returns the list of Applications that match those selectors.
 func (c *FakeApplications) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ApplicationList, err error) {
+	emptyResult := &v1alpha1.ApplicationList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(applicationsResource, applicationsKind, c.ns, opts), &v1alpha1.ApplicationList{})
+		Invokes(testing.NewListActionWithOptions(applicationsResource, applicationsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -60,28 +61,30 @@ func (c *FakeApplications) List(ctx context.Context, opts v1.ListOptions) (resul
 // Watch returns a watch.Interface that watches the requested applications.
 func (c *FakeApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(applicationsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(applicationsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a application and creates it.  Returns the server's representation of the application, and an error, if there is any.
 func (c *FakeApplications) Create(ctx context.Context, application *v1alpha1.Application, opts v1.CreateOptions) (result *v1alpha1.Application, err error) {
+	emptyResult := &v1alpha1.Application{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(applicationsResource, c.ns, application), &v1alpha1.Application{})
+		Invokes(testing.NewCreateActionWithOptions(applicationsResource, c.ns, application, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Application), err
 }
 
 // Update takes the representation of a application and updates it. Returns the server's representation of the application, and an error, if there is any.
 func (c *FakeApplications) Update(ctx context.Context, application *v1alpha1.Application, opts v1.UpdateOptions) (result *v1alpha1.Application, err error) {
+	emptyResult := &v1alpha1.Application{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(applicationsResource, c.ns, application), &v1alpha1.Application{})
+		Invokes(testing.NewUpdateActionWithOptions(applicationsResource, c.ns, application, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Application), err
 }
@@ -96,7 +99,7 @@ func (c *FakeApplications) Delete(ctx context.Context, name string, opts v1.Dele
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(applicationsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(applicationsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.ApplicationList{})
 	return err
@@ -104,11 +107,12 @@ func (c *FakeApplications) DeleteCollection(ctx context.Context, opts v1.DeleteO
 
 // Patch applies the patch and returns the patched application.
 func (c *FakeApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Application, err error) {
+	emptyResult := &v1alpha1.Application{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(applicationsResource, c.ns, name, pt, data, subresources...), &v1alpha1.Application{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(applicationsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.Application), err
 }

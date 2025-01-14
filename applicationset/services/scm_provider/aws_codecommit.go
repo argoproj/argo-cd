@@ -21,7 +21,7 @@ import (
 	"golang.org/x/exp/maps"
 	"k8s.io/utils/strings/slices"
 
-	application "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 const (

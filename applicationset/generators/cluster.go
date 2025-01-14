@@ -7,20 +7,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-)
-
-const (
-	ArgoCDSecretTypeLabel   = "argocd.argoproj.io/secret-type"
-	ArgoCDSecretTypeCluster = "cluster"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	argoappsetv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*ClusterGenerator)(nil)
@@ -37,7 +33,7 @@ type ClusterGenerator struct {
 
 var render = &utils.Render{}
 
-func NewClusterGenerator(c client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &ClusterGenerator{
@@ -52,7 +48,7 @@ func NewClusterGenerator(c client.Client, ctx context.Context, clientset kuberne
 
 // GetRequeueAfter never requeue the cluster generator because the `clusterSecretEventHandler` will requeue the appsets
 // when the cluster secrets change
-func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *ClusterGenerator) GetRequeueAfter(_ *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
 
@@ -60,7 +56,8 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 	return &appSetGenerator.Clusters.Template
 }
 
-func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -83,14 +80,18 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(appSetGenerator)
+	clusterSecrets, err := g.getSecretsByClusterName(logCtx, appSetGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
 
-	res := []map[string]interface{}{}
+	res := []map[string]any{}
 
 	secretsFound := []corev1.Secret{}
+
+	isFlatMode := appSetGenerator.Clusters.FlatList
+	logCtx.Debugf("Using flat mode = %t for cluster generator", isFlatMode)
+	clustersParams := make([]map[string]any, 0)
 
 	for _, cluster := range clustersFromArgoCD.Items {
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
@@ -99,32 +100,44 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			secretsFound = append(secretsFound, secretForCluster)
 		} else if !ignoreLocalClusters {
 			// If there is no secret for the cluster, it's the local cluster, so handle it here.
-			params := map[string]interface{}{}
+			params := map[string]any{}
 			params["name"] = cluster.Name
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
+			params["project"] = ""
 
 			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			if err != nil {
 				return nil, fmt.Errorf("error appending templated values for local cluster: %w", err)
 			}
 
-			res = append(res, params)
+			if isFlatMode {
+				clustersParams = append(clustersParams, params)
+			} else {
+				res = append(res, params)
+			}
 
-			log.WithField("cluster", "local cluster").Info("matched local cluster")
+			logCtx.WithField("cluster", "local cluster").Info("matched local cluster")
 		}
 	}
 
 	// For each matching cluster secret (non-local clusters only)
 	for _, cluster := range secretsFound {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		params["name"] = string(cluster.Data["name"])
 		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
 		params["server"] = string(cluster.Data["server"])
 
+		project, ok := cluster.Data["project"]
+		if ok {
+			params["project"] = string(project)
+		} else {
+			params["project"] = ""
+		}
+
 		if appSet.Spec.GoTemplate {
-			meta := map[string]interface{}{}
+			meta := map[string]any{}
 
 			if len(cluster.ObjectMeta.Annotations) > 0 {
 				meta["annotations"] = cluster.ObjectMeta.Annotations
@@ -136,11 +149,11 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			params["metadata"] = meta
 		} else {
 			for key, value := range cluster.ObjectMeta.Annotations {
-				params[fmt.Sprintf("metadata.annotations.%s", key)] = value
+				params["metadata.annotations."+key] = value
 			}
 
 			for key, value := range cluster.ObjectMeta.Labels {
-				params[fmt.Sprintf("metadata.labels.%s", key)] = value
+				params["metadata.labels."+key] = value
 			}
 		}
 
@@ -149,19 +162,27 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
 		}
 
-		res = append(res, params)
+		if isFlatMode {
+			clustersParams = append(clustersParams, params)
+		} else {
+			res = append(res, params)
+		}
 
-		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
+		logCtx.WithField("cluster", cluster.Name).Debug("matched cluster secret")
 	}
 
+	if isFlatMode {
+		res = append(res, map[string]any{
+			"clusters": clustersParams,
+		})
+	}
 	return res, nil
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
-	// List all Clusters:
+func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
 	clusterSecretList := &corev1.SecretList{}
 
-	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, ArgoCDSecretTypeLabel, ArgoCDSecretTypeCluster)
+	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
 	secretSelector, err := metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return nil, fmt.Errorf("error converting label selector: %w", err)
@@ -170,7 +191,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
-	log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
+	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))
 
 	res := map[string]corev1.Secret{}
 

@@ -34,11 +34,12 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 
 ```
       --argocd-cm-path string           Path to local argocd-cm.yaml file
+      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file
@@ -66,6 +67,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                If provided, this URL will be used to connect via proxy
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
