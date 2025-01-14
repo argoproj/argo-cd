@@ -78,7 +78,7 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-You can also spin up the Argo CD API server locally by using `goreman`
+You can also spin up the [Argo CD API server locally](https://argo-cd.readthedocs.io/en/stable/developer-guide/running-locally/#running-argo-cd-locally) by using `goreman`
 but this method is not recommended since it'd require you to clone
 the Argo CD repository locally and run the `goreman run start api-server`
 command from the root of the Argo CD repository.
@@ -94,8 +94,8 @@ kubectl config set-context --current --namespace=argocd # change current kube co
 argocd login --core
 ```
 
-Users can also run the Web UI locally if they prefer to interact
-with Argo CD using this method. The Web UI can be started
+Similarly, users can also run the Web UI locally if they prefer to
+interact with Argo CD using this method. The Web UI can be started
 locally by running the following command:
 
 ```
