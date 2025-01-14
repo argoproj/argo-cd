@@ -7,15 +7,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 )
 
 type FakeClientConfig struct {
@@ -147,7 +147,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, err)
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",
@@ -280,7 +280,7 @@ p, role:user, logs, get, .*/.*, allow
 p, role:user, exec, create, .*/.*, allow
 `
 
-	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
 			Namespace: "argocd",

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"text/template"
 
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // utility method to template a string using a map
-func Tmpl(text string, values interface{}) string {
+func Tmpl(text string, values any) string {
 	parse, err := template.New(text).Parse(text)
 	CheckError(err)
 	buf := new(bytes.Buffer)

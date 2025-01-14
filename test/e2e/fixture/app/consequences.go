@@ -6,11 +6,11 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // this implements the "then" part of given/when/then
@@ -38,6 +38,9 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	sleepIntervalsIdx := -1
 	timeout := time.Duration(c.timeout) * time.Second
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
 		state, message = e(c)
 		switch state {
 		case succeeded:
@@ -48,9 +51,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 			return c
 		}
 		log.Infof("pending: %s", message)
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
 	}
 	c.context.t.Fatal("timeout waiting for: " + message)
 	return c
@@ -108,7 +108,7 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), v1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
