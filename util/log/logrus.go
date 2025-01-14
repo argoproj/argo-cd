@@ -2,11 +2,12 @@ package log
 
 import (
 	"fmt"
+	"os"
+	"strings"
+
 	adapter "github.com/bombsimon/logrusr/v4"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
-	"os"
-	"strings"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
