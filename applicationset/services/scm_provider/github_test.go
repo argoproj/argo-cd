@@ -245,7 +245,7 @@ func TestGithubListRepos(t *testing.T) {
 	for _, c := range cases {
 
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches, cache)
+			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches, nil)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -297,7 +297,8 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
+	cache := httpcache.NewMemoryCache()
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, cache)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",

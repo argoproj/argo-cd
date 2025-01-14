@@ -14,6 +14,7 @@ func toPtr(s string) *string {
 
 func TestGithubToken(t *testing.T) {
 	ctx := context.Background()
+
 	testCases := []struct {
 		name  string
 		token string
@@ -28,7 +29,7 @@ func TestGithubToken(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := NewGithubService(ctx, tc.token, "", "test", "test", []string{})
+			_, err := NewGithubService(ctx, tc.token, "", "test", "test", []string{}, nil)
 			require.NoError(t, err)
 		})
 	}
