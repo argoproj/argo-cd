@@ -297,7 +297,8 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	cache := httpcache.NewMemoryCache()
+	cache := httpcache.Cache{}
+
 	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, cache)
 	repo := &Repository{
 		Organization: "argoproj",

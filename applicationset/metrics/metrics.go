@@ -95,7 +95,7 @@ func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSe
 
 func (m *ApplicationsetMetrics) ObserveGithubCacheLatency(appset *argoappv1.ApplicationSet, duration time.Duration) {
 	// TODO: come back to this
-	m.githubCacheHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+	m.githubCacheHistogram.WithLabelValues().Observe(duration.Seconds())
 }
 
 func (m *ApplicationsetMetrics) IncGithubCacheItems() {
