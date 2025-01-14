@@ -31,7 +31,9 @@ var (
 )
 
 type ApplicationsetMetrics struct {
-	reconcileHistogram *prometheus.HistogramVec
+	reconcileHistogram   *prometheus.HistogramVec
+	githubCacheHistogram *prometheus.HistogramVec
+	githubCacheCounter   *prometheus.CounterVec
 }
 
 type appsetCollector struct {
@@ -50,15 +52,34 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 		},
 		descAppsetDefaultLabels,
 	)
+	githubCacheHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_github_cache_latency",
+			Help: "",
+		},
+		descAppsetDefaultLabels,
+	)
+
+	githubCacheCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_github_cache_items",
+			Help: "Number of items in the github cache",
+		},
+		descAppsetDefaultLabels,
+	)
 
 	appsetCollector := newAppsetCollector(appsetLister, appsetLabels, appsetFilter)
 
 	// Register collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
+	metrics.Registry.MustRegister(githubCacheHistogram)
+	metrics.Registry.MustRegister(githubCacheCounter)
 
 	return ApplicationsetMetrics{
-		reconcileHistogram: reconcileHistogram,
+		reconcileHistogram:   reconcileHistogram,
+		githubCacheHistogram: githubCacheHistogram,
+		githubCacheCounter:   githubCacheCounter,
 	}
 }
 
