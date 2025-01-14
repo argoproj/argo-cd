@@ -78,8 +78,14 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-To use Argo CD CLI in core mode, it is required to pass the `--core`
-flag with the `login` subcommand.
+You can also spin up the Argo CD API server locally by using `goreman`
+but this method is not recommended since it'd require you to clone
+the Argo CD repository locally and run the `goreman run start api-server`
+command from the root of the Argo CD repository.
+
+To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
+flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
+process that handles the CLI and Web UI requests.
 
 Example:
 
@@ -88,8 +94,8 @@ kubectl config set-context --current --namespace=argocd # change current kube co
 argocd login --core
 ```
 
-Similarly, users can also run the Web UI locally if they prefer to
-interact with Argo CD using this method. The Web UI can be started
+Users can also run the Web UI locally if they prefer to interact
+with Argo CD using this method. The Web UI can be started
 locally by running the following command:
 
 ```
@@ -97,4 +103,3 @@ argocd admin dashboard -n argocd
 ```
 
 Argo CD Web UI will be available at `http://localhost:8080`
-
