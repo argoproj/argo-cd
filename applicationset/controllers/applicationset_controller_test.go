@@ -1175,9 +1175,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 				Metrics:       metrics,
 				ArgoDB:        argodb,
 			}
-			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
-			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
-			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
@@ -2036,7 +2033,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: unable to find destination server: there are no clusters with this name: nonexistent-cluster")},
+			validationErrors: map[int]error{0: errors.New("application destination spec is invalid: there are no clusters with this name: nonexistent-cluster")},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -2440,7 +2437,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	// Verify that on validation error, no error is returned, but the object is requeued
 	resCreate, err := r.Reconcile(context.Background(), req)
-	require.NoError(t, err)
+	require.NoErrorf(t, err, "Reconcile failed with error: %v", err)
 	assert.Equal(t, time.Duration(0), resCreate.RequeueAfter)
 
 	var app v1alpha1.Application
