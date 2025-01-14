@@ -674,7 +674,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -6656,11 +6656,8 @@ func TestMigrateStatus(t *testing.T) {
 	}
 }
 
-func TestApplicationSetOwnsHandler(t *testing.T) {
+func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
 	ownsHandler := getApplicationSetOwnsHandler()
-	assert.True(t, ownsHandler.CreateFunc(event.CreateEvent{}))
-	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
-	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
 
 	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
 		return &v1alpha1.ApplicationSet{
@@ -6798,12 +6795,117 @@ func TestApplicationSetOwnsHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ownsHandler := getApplicationSetOwnsHandler()
 			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
 				ObjectOld: tt.appSetOld,
 				ObjectNew: tt.appSetNew,
 			})
 			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.GenericFunc(event.GenericEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.GenericFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.CreateFunc(event.CreateEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.CreateFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.DeleteFunc(event.DeleteEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.DeleteFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestShouldRequeueForApplicationSet(t *testing.T) {
+	type args struct {
+		appSetOld *v1alpha1.ApplicationSet
+		appSetNew *v1alpha1.ApplicationSet
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
 		})
 	}
 }

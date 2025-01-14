@@ -1562,26 +1562,20 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 func getApplicationSetOwnsHandler() predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			if log.IsLevelEnabled(log.DebugLevel) {
-				var appSetName string
-				appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
-				if isApp {
-					appSetName = appSet.QualifiedName()
-				}
-				log.WithField("applicationset", appSetName).Debugln("received create event")
+			appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
+			if !isApp {
+				return false
 			}
+			log.WithField("applicationset", appSet.QualifiedName()).Debugln("received create event")
 			// Always queue a new applicationset
 			return true
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			if log.IsLevelEnabled(log.DebugLevel) {
-				var appSetName string
-				appSet, isAppSet := e.Object.(*argov1alpha1.ApplicationSet)
-				if isAppSet {
-					appSetName = appSet.QualifiedName()
-				}
-				log.WithField("applicationset", appSetName).Debugln("received delete event")
+			appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
+			if !isApp {
+				return false
 			}
+			log.WithField("applicationset", appSet.QualifiedName()).Debugln("received delete event")
 			// Always queue for the deletion of an applicationset
 			return true
 		},
@@ -1600,14 +1594,12 @@ func getApplicationSetOwnsHandler() predicate.Funcs {
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
-			if log.IsLevelEnabled(log.DebugLevel) {
-				var appSetName string
-				appSet, isAppSet := e.Object.(*argov1alpha1.ApplicationSet)
-				if isAppSet {
-					appSetName = appSet.QualifiedName()
-				}
-				log.WithField("applicationset", appSetName).Debugln("received generic event")
+			appSet, isApp := e.Object.(*argov1alpha1.ApplicationSet)
+			if !isApp {
+				return false
 			}
+			log.WithField("applicationset", appSet.QualifiedName()).Debugln("received generic event")
+			// Always queue for the generic of an applicationset
 			return true
 		},
 	}
@@ -1615,6 +1607,9 @@ func getApplicationSetOwnsHandler() predicate.Funcs {
 
 // shouldRequeueForApplicationSet determines when we need to requeue an applicationset
 func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.ApplicationSet) bool {
+	if appSetOld == nil || appSetNew == nil {
+		return false
+	}
 	// only compare the applicationset spec, annotations, labels and finalizers, specifically avoiding
 	// the status field. status is owned by the applicationset controller,
 	// and we do not need to requeue when it does bookkeeping
