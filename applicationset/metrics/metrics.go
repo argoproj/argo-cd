@@ -87,6 +87,14 @@ func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSe
 	m.reconcileHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
 }
 
+func (m *ApplicationsetMetrics) ObserveGithubCacheLatency(appset *argoappv1.ApplicationSet, duration time.Duration) {
+	m.githubCacheHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+}
+
+func (m *ApplicationsetMetrics) IncGithubCacheItems(appset *argoappv1.ApplicationSet, count int) {
+	m.githubCacheCounter.WithLabelValues(appset.Namespace, appset.Name).Add(float64(count))
+}
+
 func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) *appsetCollector {
 	descAppsetDefaultLabels = []string{"namespace", "name"}
 
