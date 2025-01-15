@@ -229,3 +229,16 @@ App (healthy)
 └── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
     └── CustomChildResource (unhealthy)
 ```
+## Ignoring Child Resource Health Check in Applications
+
+To ignore the health check of an immediate child resource within an Application, set the annotation `argocd.argoproj.io/ignore-healthcheck` to `true`. For example:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
+```
+
+By doing this, the health status of the Deployment will not affect the health of its parent Application.
