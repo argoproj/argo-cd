@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/diff"
 )
 
 func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
@@ -51,7 +51,6 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, actual)
 		assert.Equal(t, expectedManagedFields, actual.ManagedFieldsManagers)
-		// nolint:testifylint
 		assert.Equal(t, expectedJSONPointers, actual.JSONPointers)
 		assert.Equal(t, expectedJQExpression, actual.JQPathExpressions)
 	})
@@ -73,7 +72,6 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, actual)
 		assert.Equal(t, expectedManagedFields, actual.ManagedFieldsManagers)
-		// nolint:testifylint
 		assert.Equal(t, expectedJSONPointers, actual.JSONPointers)
 		assert.Equal(t, expectedJQExpression, actual.JQPathExpressions)
 	})

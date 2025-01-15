@@ -12,13 +12,13 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -34,7 +34,7 @@ func newCommand() *cobra.Command {
 		configMaps   []string
 	)
 	command := cobra.Command{
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			ns, _, err := clientConfig.Namespace()
@@ -49,8 +49,8 @@ func newCommand() *cobra.Command {
 				cmNameToPath[parts[0]] = parts[1]
 			}
 
-			handledConfigMap := func(obj any) {
-				cm, ok := obj.(*corev1.ConfigMap)
+			handledConfigMap := func(obj interface{}) {
+				cm, ok := obj.(*v1.ConfigMap)
 				if !ok {
 					return
 				}
@@ -99,7 +99,7 @@ func newCommand() *cobra.Command {
 			informer := factory.Core().V1().ConfigMaps().Informer()
 			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
-				UpdateFunc: func(_, newObj any) {
+				UpdateFunc: func(oldObj, newObj interface{}) {
 					handledConfigMap(newObj)
 				},
 			})

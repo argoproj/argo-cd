@@ -19,10 +19,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -171,11 +171,11 @@ status:
     status: Healthy
 `
 
-var noOpHealthCheck = func(_ *http.Request) error {
+var noOpHealthCheck = func(r *http.Request) error {
 	return nil
 }
 
-var appFilter = func(_ any) bool {
+var appFilter = func(obj interface{}) bool {
 	return true
 }
 
@@ -203,7 +203,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 		fakeApps = append(fakeApps, a)
 	}
 	appClientset := appclientset.NewSimpleClientset(fakeApps...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	go appInformer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
@@ -467,7 +467,6 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 
 // assertMetricsNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
-	t.Helper()
 	for _, line := range strings.Split(expectedLines, "\n") {
 		if line == "" {
 			continue
@@ -507,31 +506,6 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
-}
-
-func TestOrphanedResourcesMetric(t *testing.T) {
-	cancel, appLister := newFakeLister()
-	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
-	require.NoError(t, err)
-
-	expectedMetrics := `
-# HELP argocd_app_orphaned_resources_count Number of orphaned resources per application
-# TYPE argocd_app_orphaned_resources_count gauge
-argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="important-project"} 1
-`
-	app := newFakeApp(fakeApp4)
-	numOrphanedResources := 1
-	metricsServ.SetOrphanedResourcesMetric(app, numOrphanedResources)
-
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
-	rr := httptest.NewRecorder()
-	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
 func TestMetricsReset(t *testing.T) {

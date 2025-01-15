@@ -12,11 +12,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
-	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v2/common"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -120,7 +120,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
@@ -338,41 +338,22 @@ type TemplateOpts struct {
 	Values      []pathutil.ResolvedFilePath
 	// ExtraValues is the randomly-generated path to the temporary values file holding the contents of
 	// spec.source.helm.values/valuesObject.
-	ExtraValues          pathutil.ResolvedFilePath
-	SkipCrds             bool
-	SkipSchemaValidation bool
-	SkipTests            bool
+	ExtraValues pathutil.ResolvedFilePath
+	SkipCrds    bool
 }
+
+var (
+	re                 = regexp.MustCompile(`([^\\]),`)
+	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+)
 
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
 		return val
 	}
-
-	val = replaceAllWithLookbehind(val, ',', `\,`, '\\')
-	return val
+	return re.ReplaceAllString(val, `$1\,`)
 }
-
-func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
-	var result strings.Builder
-	var prevR rune
-	for _, r := range val {
-		if r == old {
-			if prevR != lookbehind {
-				result.WriteString(new)
-			} else {
-				result.WriteRune(old)
-			}
-		} else {
-			result.WriteRune(r)
-		}
-		prevR = r
-	}
-	return result.String()
-}
-
-var apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, error) {
 	if callback, err := cleanupChartLockFile(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
@@ -410,12 +391,6 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	if !opts.SkipCrds {
 		args = append(args, "--include-crds")
 	}
-	if opts.SkipSchemaValidation {
-		args = append(args, "--skip-schema-validation")
-	}
-	if opts.SkipTests {
-		args = append(args, "--skip-tests")
-	}
 
 	out, command, err := c.run(args...)
 	if err != nil {
@@ -436,10 +411,11 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if !os.IsNotExist(err) {
+		if os.IsNotExist(err) {
+			exists = false
+		} else {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
-		exists = false
 	}
 	return func() {
 		if !exists {

@@ -24,26 +24,26 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type generatorMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
+func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(_ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
-	return []map[string]any{}, nil
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
 }
 
-func (g *generatorMock) GetRequeueAfter(_ *v1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *generatorMock) GetRequeueAfter(appSetGenerator *v1alpha1.ApplicationSetGenerator) time.Duration {
 	d, _ := time.ParseDuration("10s")
 	return d
 }
@@ -98,15 +98,6 @@ func TestWebhookHandler(t *testing.T) {
 			desc:               "WebHook from a GitLab repository via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
-			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
-			expectedStatusCode: http.StatusOK,
-			expectedRefresh:    true,
-		},
-		{
-			desc:               "WebHook from a System Hook via Commit",
-			headerKey:          "X-Gitlab-Event",
-			headerValue:        "System Hook",
 			payloadFile:        "gitlab-event.json",
 			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
@@ -208,7 +199,6 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
-				fakeAppWithGitGenerator("git-github-copy", namespace, "https://github.com/org/repo-copy"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
@@ -252,8 +242,9 @@ func TestWebhookHandler(t *testing.T) {
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
 				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
-					expected, got := test.expectedRefresh, gotAppSet.RefreshRequired()
-					require.Equalf(t, expected, got, "unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
+						t.Errorf("unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					}
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
 					assert.False(t, gotAppSet.RefreshRequired())

@@ -16,18 +16,17 @@ import (
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
-	sessionutil "github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -262,7 +261,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:     "list",
 		Short:   "List accounts",
 		Example: "argocd account list",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
@@ -309,7 +308,7 @@ argocd account get
 
 # Get details for an account by name
 argocd account get --account <account-name>`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -358,7 +357,7 @@ func printAccountDetails(acc *accountpkg.Account) {
 				expiresAt := time.Unix(t.ExpiresAt, 0)
 				expiresAtFormatted = expiresAt.Format(time.RFC3339)
 				if expiresAt.Before(time.Now()) {
-					expiresAtFormatted = expiresAtFormatted + " (expired)"
+					expiresAtFormatted = fmt.Sprintf("%s (expired)", expiresAtFormatted)
 				}
 			}
 
@@ -382,7 +381,7 @@ argocd account generate-token
 
 # Generate token for the account with the specified name
 argocd account generate-token --account <account-name>`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -433,14 +432,8 @@ argocd account delete-token --account <account-name> ID`,
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' token? [y/n]", id))
-			if canDelete {
-				_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
-				errors.CheckError(err)
-			} else {
-				fmt.Printf("The command to delete '%s' was cancelled.\n", id)
-			}
+			_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
+			errors.CheckError(err)
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")

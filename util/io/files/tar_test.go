@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 func TestTgz(t *testing.T) {
@@ -108,7 +108,9 @@ func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
 		tmpDir, err := os.MkdirTemp(getTestDataDir(t), "")
-		require.NoErrorf(t, err, "error creating tmpDir: %s", err)
+		if err != nil {
+			t.Fatalf("error creating tmpDir: %s", err)
+		}
 		return tmpDir
 	}
 	deleteTmpDir := func(t *testing.T, dirname string) {
@@ -121,11 +123,16 @@ func TestUntgz(t *testing.T) {
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()
 		f, err := os.CreateTemp(destDir, "")
-		require.NoErrorf(t, err, "error creating tmpFile in %q: %s", destDir, err)
+		if err != nil {
+			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
+		}
 		_, err = files.Tgz(fromDir, nil, nil, f)
-		require.NoErrorf(t, err, "error during Tgz: %s", err)
-		_, err = f.Seek(0, io.SeekStart)
-		require.NoErrorf(t, err, "seek error: %s", err)
+		if err != nil {
+			t.Fatalf("error during Tgz: %s", err)
+		}
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			t.Fatalf("seek error: %s", err)
+		}
 		return f
 	}
 	readFiles := func(t *testing.T, basedir string) map[string]string {
@@ -147,7 +154,9 @@ func TestUntgz(t *testing.T) {
 			names[relativePath] = link
 			return nil
 		})
-		require.NoErrorf(t, err, "error reading files: %s", err)
+		if err != nil {
+			t.Fatalf("error reading files: %s", err)
+		}
 		return names
 	}
 	t.Run("will untgz successfully", func(t *testing.T) {
@@ -186,7 +195,8 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "illegal filepath in symlink")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
@@ -242,13 +252,11 @@ func read(tgz *os.File) (map[string]string, error) {
 // getTestAppDir will return the full path of the app dir under
 // the 'testdata' folder.
 func getTestAppDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(getTestDataDir(t), "app")
 }
 
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

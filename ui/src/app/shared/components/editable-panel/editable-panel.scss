@@ -1,5 +1,4 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import 'node_modules/argo-ui/src/styles/theme';
 
 .editable-panel {
     position: relative;
@@ -33,11 +32,6 @@
         position: absolute;
         top: 30px;
         right: 30px;
-        &__override {
-            @include themify($themes) {
-                color: themed('light-argo-teal-7');
-            }
-        }
     }
 
     &__sticky-title {
