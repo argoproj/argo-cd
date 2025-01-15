@@ -1040,6 +1040,10 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		// Recent versions of the Gitlab API (v17.7+) return 404 not only when a file doesn't exist, but also
+		// when a path is to a file instead of a directory. Our code should not hit this path, because
+		// we should only send requests for parent directories. But we leave this handler in place
+		// to prevent regressions.
 		case "/api/v4/projects/27084533/repository/tree?path=argocd/filepath.yaml&ref=master":
 			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
