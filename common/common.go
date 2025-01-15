@@ -277,6 +277,8 @@ const (
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
 	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
+	// EnvLogFormatTimestamp is the timestamp format used in logs
+	EnvLogFormatTimestamp = "ARGOCD_LOG_FORMAT_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server

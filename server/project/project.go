@@ -409,13 +409,20 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 			invalidSrcCount++
 		}
 
-		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+		if err != nil {
+			if err.Error() != argo.ErrDestinationMissing {
+				return nil, err
+			}
+			invalidDstCount++
+		}
+		dstPermitted, err := oldProj.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
 		if err != nil {
 			return nil, err
 		}
 
 		if dstPermitted {
-			dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+			dstPermitted, err = q.Project.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
 			if err != nil {
 				return nil, err
 			}

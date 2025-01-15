@@ -495,7 +495,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			return nil, err
 		}
 
-		if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
+		if _, err = argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
@@ -531,6 +531,33 @@ func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	}
 }
 
+// ignoreWhenAnnotationApplicationSetRefreshIsRemoved returns a predicate that ignores updates to ApplicationSet resources
+// when the ApplicationSetRefresh annotation is removed
+// First reconciliation is triggered when the annotation is added by [webhook.go#refreshApplicationSet]
+// Using this predicate we avoid a second reconciliation triggered by the controller himself when the annotation is removed.
+func ignoreWhenAnnotationApplicationSetRefreshIsRemoved() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAppset, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			newAppset, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+
+			_, oldHasRefreshAnnotation := oldAppset.Annotations[common.AnnotationApplicationSetRefresh]
+			_, newHasRefreshAnnotation := newAppset.Annotations[common.AnnotationApplicationSetRefresh]
+
+			if oldHasRefreshAnnotation && !newHasRefreshAnnotation {
+				return false
+			}
+			return true
+		},
+	}
+}
+
 func appControllerIndexer(rawObj client.Object) []string {
 	// grab the job object, extract the owner...
 	app := rawObj.(*argov1alpha1.Application)
@@ -556,7 +583,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(ignoreWhenAnnotationApplicationSetRefreshIsRemoved())).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
 		Watches(
@@ -720,9 +747,6 @@ func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, a
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
 func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	// settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
-	// argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
-	// clusterList, err := argoDB.ListClusters(ctx)
 	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, r.ArgoCDNamespace)
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
@@ -782,21 +806,18 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	var validDestination bool
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
-	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
+	if destCluster, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
-
 		matchingCluster := false
 		for _, cluster := range clusterList.Items {
-			// Server fields must match. Note that ValidateDestination ensures that the server field is set, if applicable.
-			if app.Spec.Destination.Server != cluster.Server {
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 
-			// The name must match, if it is not empty
-			if app.Spec.Destination.Name != "" && cluster.Name != app.Spec.Destination.Name {
+			if destCluster.Name != cluster.Name {
 				continue
 			}
 
