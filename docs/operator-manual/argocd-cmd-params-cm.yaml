@@ -277,7 +277,10 @@ data:
   applicationsetcontroller.requeue.after: "3m"
   # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
   applicationsetcontroller.enable.tokenref.strict.mode: "false"
-
+  # Enable caching of Github API requests for scm and pull request generators
+  applicationsetcontroller.enable.github.cache: "false"
+  # Max number of items to store in the in-memory cache for Github API requests. Note that if enabled, to adjust the resource requests/limits accordingly.
+  applicationsetcontroller.github.cache.size: "1000"
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"

@@ -54,6 +54,8 @@ func NewCommand() *cobra.Command {
 		probeBindAddr                string
 		webhookAddr                  string
 		enableLeaderElection         bool
+		enableGithubCache            bool
+		githubCacheSize              int
 		applicationSetNamespaces     []string
 		argocdRepoServer             string
 		policy                       string
@@ -171,7 +173,7 @@ func NewCommand() *cobra.Command {
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode, enableGithubCache, githubCacheSize)
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -269,6 +271,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
+	command.Flags().BoolVar(&enableGithubCache, "enable-github-cache", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_CACHE", false), "Enable caching for GitHub client")
+	command.Flags().IntVar(&githubCacheSize, "github-cache-size", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GITHUB_CACHE_SIZE", 5000, 1000, 100000), "Max items to hold in the cache for github")
 	return &command
 }
 

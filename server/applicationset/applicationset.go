@@ -66,6 +66,8 @@ type Server struct {
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
+	EnableGithubCache        bool
+	GithubCacheSize          int
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -266,7 +268,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true, s.EnableGithubCache, s.GithubCacheSize)
 
 	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 		return s.db.GetRepository(ctx, url, project)

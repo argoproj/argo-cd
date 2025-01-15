@@ -53,6 +53,8 @@ argocd-server [flags]
       --enable-gzip                                     Enable GZIP compression (default true)
       --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
+      --enabled-github-cache                            Enable caching for GitHub client
+      --github-cache-size int                           Max items to hold in the cache for github (default 5000)
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
       --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")

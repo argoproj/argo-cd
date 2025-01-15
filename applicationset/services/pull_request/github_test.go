@@ -1,6 +1,7 @@
 package pull_request
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-github/v66/github"
@@ -9,6 +10,29 @@ import (
 
 func toPtr(s string) *string {
 	return &s
+}
+
+func TestGithubToken(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name  string
+		token string
+	}{
+		{
+			name: "No token",
+		},
+		{
+			name:  "With token",
+			token: "test",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewGithubService(ctx, tc.token, "", "test", "test", []string{}, nil)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestContainLabels(t *testing.T) {
