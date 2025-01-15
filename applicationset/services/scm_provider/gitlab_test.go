@@ -1040,6 +1040,8 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v4/projects/27084533/repository/tree?path=argocd/filepath.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
 			w.WriteHeader(http.StatusNotFound)
 		default:
@@ -1192,6 +1194,11 @@ func TestGitlabHasPath(t *testing.T) {
 		{
 			name:   "file does not exist",
 			path:   "argocd/notathing.yaml",
+			exists: false,
+		},
+		{
+			name:   "send a file path",
+			path:   "argocd/filepath.yaml",
 			exists: false,
 		},
 	}
