@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -16,8 +17,8 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type ClusterEndpoint string
@@ -122,28 +123,30 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 	return &clst
 }
 
-// GetKubePublicEndpoint returns the kubernetes apiserver endpoint as published
+// GetKubePublicEndpoint returns the kubernetes apiserver endpoint and certificate authority data as published
 // in the kube-public.
-func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
+func GetKubePublicEndpoint(client kubernetes.Interface) (string, []byte, error) {
 	clusterInfo, err := client.CoreV1().ConfigMaps("kube-public").Get(context.TODO(), "cluster-info", metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	kubeconfig, ok := clusterInfo.Data["kubeconfig"]
 	if !ok {
-		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
+		return "", nil, stderrors.New("cluster-info does not contain a public kubeconfig")
 	}
 	// Parse Kubeconfig and get server address
 	config := &clientcmdapiv1.Config{}
 	err = yaml.Unmarshal([]byte(kubeconfig), config)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
+		return "", nil, fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
-		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
+		return "", nil, stderrors.New("cluster-info kubeconfig does not have any clusters")
 	}
 
-	return config.Clusters[0].Cluster.Server, nil
+	endpoint := config.Clusters[0].Cluster.Server
+	certificateAuthorityData := config.Clusters[0].Cluster.CertificateAuthorityData
+	return endpoint, certificateAuthorityData, nil
 }
 
 type ClusterOptions struct {

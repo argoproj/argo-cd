@@ -210,6 +210,29 @@ export interface ApplicationSource {
     directory?: ApplicationSourceDirectory;
 
     ref?: string;
+
+    name?: string;
+}
+
+export interface SourceHydrator {
+    drySource: DrySource;
+    syncSource: SyncSource;
+    hydrateTo?: HydrateTo;
+}
+
+export interface DrySource {
+    repoURL: string;
+    targetRevision: string;
+    path: string;
+}
+
+export interface SyncSource {
+    targetBranch: string;
+    path: string;
+}
+
+export interface HydrateTo {
+    targetBranch: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -283,6 +306,7 @@ export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     sources: ApplicationSource[];
+    sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -443,7 +467,37 @@ export interface ApplicationStatus {
     health: HealthStatus;
     operationState?: OperationState;
     summary?: ApplicationSummary;
+    sourceHydrator?: SourceHydratorStatus;
 }
+
+export interface SourceHydratorStatus {
+    lastSuccessfulOperation?: SuccessfulHydrateOperation;
+    currentOperation?: HydrateOperation;
+}
+
+export interface HydrateOperation {
+    startedAt: models.Time;
+    finishedAt?: models.Time;
+    phase: HydrateOperationPhase;
+    message: string;
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export interface SuccessfulHydrateOperation {
+    drySHA: string;
+    hydratedSHA: string;
+    sourceHydrator: SourceHydrator;
+}
+
+export type HydrateOperationPhase = 'Hydrating' | 'Failed' | 'Hydrated';
+
+export const HydrateOperationPhases = {
+    Hydrating: 'Hydrating' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Hydrated: 'Hydrated' as OperationPhase
+};
 
 export interface JwtTokens {
     items: JwtToken[];
@@ -502,6 +556,7 @@ export interface AuthSettings {
     uiBannerPosition: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
+    hydratorEnabled: boolean;
 }
 
 export interface UserInfo {

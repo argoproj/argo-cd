@@ -145,7 +145,7 @@ func TestGetTLSVersionByString(t *testing.T) {
 func TestGetTLSCipherSuitesByString(t *testing.T) {
 	suites := make([]string, 0)
 	for _, s := range tls.CipherSuites() {
-		t.Run(fmt.Sprintf("Test for valid suite %s", s.Name), func(t *testing.T) {
+		t.Run("Test for valid suite "+s.Name, func(t *testing.T) {
 			ids, err := getTLSCipherSuitesByString(s.Name)
 			require.NoError(t, err)
 			assert.Len(t, ids, 1)
@@ -203,7 +203,7 @@ func TestGenerate(t *testing.T) {
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {
-		t.Run(fmt.Sprintf("Create certificate with curve %s", curve), func(t *testing.T) {
+		t.Run("Create certificate with curve "+curve, func(t *testing.T) {
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
 			_, _, err := generate(opts)
 			require.NoError(t, err)

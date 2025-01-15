@@ -11,6 +11,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_app_condition` | gauge | Report Applications conditions. It contains the conditions currently present in the application status. |
 | `argocd_app_k8s_request_total` | counter | Number of Kubernetes requests executed during application reconciliation |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
+| `argocd_app_orphaned_resources_count` | gauge | Number of orphaned resources per application. |
 | `argocd_app_reconcile` | histogram | Application reconciliation performance in seconds. |
 | `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
@@ -23,6 +24,8 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_kubectl_exec_total` | counter | Number of kubectl executions |
 | `argocd_redis_request_duration` | histogram | Redis requests duration. |
 | `argocd_redis_request_total` | counter | Number of redis requests executed during application reconciliation |
+| `argocd_resource_events_processing` | histogram | Time to process resource events in batch in seconds |
+| `argocd_resource_events_processed_in_batch` | gauge | Number of resource events processed in batch |
 
 If you use Argo CD with many application and project creation and deletion,
 the metrics page will keep in cache your application and project's history.
@@ -127,6 +130,20 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds. |
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total` | gauge | Number of pending requests requiring repository lock |
+
+## Commit Server Metrics
+
+Metrics about the Commit Server.
+Scraped at the `argocd-commit-server:8087/metrics` endpoint.
+
+| Metric                                                  |   Type    | Description                                          |
+|---------------------------------------------------------|:---------:|------------------------------------------------------|
+| `argocd_commitserver_commit_pending_request_total`      |   guage   | Number of pending commit requests.                   |
+| `argocd_commitserver_git_request_duration_seconds`      | histogram | Git requests duration seconds.                       |
+| `argocd_commitserver_git_request_total`                 |  counter  | Number of git requests performed by commit server    |
+| `argocd_commitserver_commit_request_duration_seconds`   | histogram | Commit requests duration seconds.                    |
+| `argocd_commitserver_userinfo_request_duration_seconds` | histogram | Userinfo requests duration seconds.                  |
+| `argocd_commitserver_commit_request_total`              |  counter  | Number of commit requests performed by commit server |
 
 ## Prometheus Operator
 

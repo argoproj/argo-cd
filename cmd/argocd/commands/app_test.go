@@ -12,32 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/grpc"
-	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-
-	v1 "k8s.io/api/core/v1"
-
-	"sigs.k8s.io/yaml"
-
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
-	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -46,11 +20,32 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/watch"
+	"sigs.k8s.io/yaml"
+
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
+	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -367,20 +362,20 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 func Test_groupObjsByKey(t *testing.T) {
 	localObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},
@@ -388,20 +383,20 @@ func Test_groupObjsByKey(t *testing.T) {
 	}
 	liveObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},
@@ -485,6 +480,27 @@ func TestFormatConditionSummary(t *testing.T) {
 					},
 					{
 						Type: "type2",
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
+	})
+
+	t.Run("Conditions are sorted for idempotent summary", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type2",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
 					},
 				},
 			},
@@ -1013,7 +1029,7 @@ func TestTargetObjects_invalid(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckForDeleteEvent(t *testing.T) {
+func TestCheckForDeleteEvent(_ *testing.T) {
 	ctx := context.Background()
 	fakeClient := new(fakeAcdClient)
 
@@ -1684,7 +1700,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
@@ -1692,57 +1708,57 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended and health status failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Health passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Health failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Synced passed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Synced failed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded passed", func(t *testing.T) {
@@ -1750,7 +1766,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded failed", func(t *testing.T) {
@@ -1758,7 +1774,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 }
@@ -1926,7 +1942,7 @@ type customAcdClient struct {
 	*fakeAcdClient
 }
 
-func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	_, appClient := c.NewApplicationClientOrDie()
 	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
@@ -1966,19 +1982,19 @@ func (c *fakeConnection) Close() error {
 
 type fakeSettingsServiceClient struct{}
 
-func (f fakeSettingsServiceClient) Get(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.Settings, error) {
+func (f fakeSettingsServiceClient) Get(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.Settings, error) {
 	return &settingspkg.Settings{
 		URL: "http://localhost:8080",
 	}, nil
 }
 
-func (f fakeSettingsServiceClient) GetPlugins(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.SettingsPluginsResponse, error) {
+func (f fakeSettingsServiceClient) GetPlugins(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.SettingsPluginsResponse, error) {
 	return nil, nil
 }
 
 type fakeAppServiceClient struct{}
 
-func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	return &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2046,111 +2062,111 @@ func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.Appli
 	}, nil
 }
 
-func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*corev1.EventList, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Watch(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
+func (c *fakeAppServiceClient) Watch(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Create(ctx context.Context, in *applicationpkg.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.ApplicationCreateRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) GetApplicationSyncWindows(ctx context.Context, in *applicationpkg.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *applicationpkg.ApplicationSyncWindowsQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) RevisionMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
+func (c *fakeAppServiceClient) RevisionMetadata(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) RevisionChartDetails(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+func (c *fakeAppServiceClient) RevisionChartDetails(_ context.Context, _ *applicationpkg.RevisionMetadataQuery, _ ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) GetManifests(ctx context.Context, in *applicationpkg.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+func (c *fakeAppServiceClient) GetManifests(_ context.Context, _ *applicationpkg.ApplicationManifestQuery, _ ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
+func (c *fakeAppServiceClient) GetManifestsWithFiles(_ context.Context, _ ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Update(ctx context.Context, in *applicationpkg.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Update(_ context.Context, _ *applicationpkg.ApplicationUpdateRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) UpdateSpec(ctx context.Context, in *applicationpkg.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+func (c *fakeAppServiceClient) UpdateSpec(_ context.Context, _ *applicationpkg.ApplicationUpdateSpecRequest, _ ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Patch(ctx context.Context, in *applicationpkg.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Patch(_ context.Context, _ *applicationpkg.ApplicationPatchRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Delete(ctx context.Context, in *applicationpkg.ApplicationDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+func (c *fakeAppServiceClient) Delete(_ context.Context, _ *applicationpkg.ApplicationDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Sync(ctx context.Context, in *applicationpkg.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Sync(_ context.Context, _ *applicationpkg.ApplicationSyncRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ManagedResources(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+func (c *fakeAppServiceClient) ManagedResources(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
+func (c *fakeAppServiceClient) ResourceTree(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) WatchResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
+func (c *fakeAppServiceClient) WatchResourceTree(_ context.Context, _ *applicationpkg.ResourcesQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Rollback(ctx context.Context, in *applicationpkg.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+func (c *fakeAppServiceClient) Rollback(_ context.Context, _ *applicationpkg.ApplicationRollbackRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) TerminateOperation(ctx context.Context, in *applicationpkg.OperationTerminateRequest, opts ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
+func (c *fakeAppServiceClient) TerminateOperation(_ context.Context, _ *applicationpkg.OperationTerminateRequest, _ ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) GetResource(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+func (c *fakeAppServiceClient) GetResource(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) PatchResource(ctx context.Context, in *applicationpkg.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+func (c *fakeAppServiceClient) PatchResource(_ context.Context, _ *applicationpkg.ApplicationResourcePatchRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceActions(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
+func (c *fakeAppServiceClient) ListResourceActions(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) RunResourceAction(ctx context.Context, in *applicationpkg.ResourceActionRunRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicationpkg.ResourceActionRunRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) DeleteResource(ctx context.Context, in *applicationpkg.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+func (c *fakeAppServiceClient) DeleteResource(_ context.Context, _ *applicationpkg.ApplicationResourceDeleteRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) PodLogs(ctx context.Context, in *applicationpkg.ApplicationPodLogsQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+func (c *fakeAppServiceClient) PodLogs(_ context.Context, _ *applicationpkg.ApplicationPodLogsQuery, _ ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListLinks(ctx context.Context, in *applicationpkg.ListAppLinksRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+func (c *fakeAppServiceClient) ListLinks(_ context.Context, _ *applicationpkg.ListAppLinksRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceLinks(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
 	return nil, nil
 }
 
@@ -2268,15 +2284,15 @@ func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountSe
 	return nil, nil
 }
 
-func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
 	go func() {
 		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
-		modifiedEvent.Type = k8swatch.Modified
+		modifiedEvent.Type = watch.Modified
 		appEventsCh <- modifiedEvent
 		deletedEvent := new(v1alpha1.ApplicationWatchEvent)
-		deletedEvent.Type = k8swatch.Deleted
+		deletedEvent.Type = watch.Deleted
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
