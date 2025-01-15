@@ -84,7 +84,7 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 		// send back the address so that it can be used
 		c <- listener.Addr().String()
 
-		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			// return the sentinel text at root URL
 			fmt.Fprint(w, sentinel)
 		})

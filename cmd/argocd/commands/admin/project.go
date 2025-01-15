@@ -2,24 +2,23 @@ package admin
 
 import (
 	"context"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	appclient "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	appclient "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -97,16 +96,16 @@ func getModification(modification string, resource string, scope string, permiss
 	switch modification {
 	case "set":
 		if scope == "" {
-			return nil, stderrors.New("Flag --group cannot be empty if permission should be set in role")
+			return nil, fmt.Errorf("Flag --group cannot be empty if permission should be set in role")
 		}
 		if permission == "" {
-			return nil, stderrors.New("Flag --permission cannot be empty if permission should be set in role")
+			return nil, fmt.Errorf("Flag --permission cannot be empty if permission should be set in role")
 		}
 		return func(proj string, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
 	case "remove":
-		return func(_ string, _ string) string {
+		return func(proj string, action string) string {
 			return ""
 		}, nil
 	}
@@ -123,7 +122,7 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(ctx, &updated, metav1.UpdateOptions{})
+		_, err = projectsIf.Update(ctx, &updated, v1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("error while updating project:  %w", err)
 		}
@@ -199,7 +198,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 }
 
 func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(ctx, metav1.ListOptions{})
+	projects, err := projIf.List(ctx, v1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)
 	}

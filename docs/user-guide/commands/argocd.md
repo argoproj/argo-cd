@@ -56,6 +56,6 @@ argocd [flags]
 * [argocd proj](argocd_proj.md)	 - Manage projects
 * [argocd relogin](argocd_relogin.md)	 - Refresh an expired authenticate token
 * [argocd repo](argocd_repo.md)	 - Manage repository connection parameters
-* [argocd repocreds](argocd_repocreds.md)	 - Manage credential templates for repositories
+* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
 * [argocd version](argocd_version.md)	 - Print version information
 

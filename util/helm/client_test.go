@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type fakeIndexCache struct {
@@ -257,7 +257,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -265,7 +265,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: serverURL.Host + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
 		},
 	}
 
@@ -342,7 +342,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -350,7 +350,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: serverURL.Host + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
 		},
 	}
 

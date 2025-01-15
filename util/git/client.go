@@ -34,14 +34,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	certutil "github.com/argoproj/argo-cd/v3/util/cert"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v2/common"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-var ErrInvalidRepoURL = errors.New("repo URL is invalid")
+var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
 	Author  string
@@ -137,11 +137,11 @@ var (
 
 func init() {
 	if countStr := os.Getenv(common.EnvGitAttemptsCount); countStr != "" {
-		cnt, err := strconv.Atoi(countStr)
-		if err != nil {
+		if cnt, err := strconv.Atoi(countStr); err != nil {
 			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAttemptsCount, err))
+		} else {
+			maxAttemptsCount = int(math.Max(float64(cnt), 1))
 		}
-		maxAttemptsCount = int(math.Max(float64(cnt), 1))
 	}
 
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
@@ -211,7 +211,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		// 15 second timeout by default
 		Timeout: gitClientTimeout,
 		// don't follow redirect
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
@@ -220,7 +220,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
-	clientCertFunc := func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	clientCertFunc := func(req *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		var err error
 		cert := tls.Certificate{}
 
@@ -381,8 +381,9 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
+	} else {
+		return false
 	}
-	return false
 }
 
 // Fetch fetches latest updates from origin
@@ -437,15 +438,16 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			}
 		}
 		return files, nil
+	} else {
+		// This is the old and default way
+		out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
+		if err != nil {
+			return nil, err
+		}
+		// remove last element, which is blank regardless of whether we're using nullbyte or newline
+		ss := strings.Split(out, "\000")
+		return ss[:len(ss)-1], nil
 	}
-	// This is the old and default way
-	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
-	if err != nil {
-		return nil, err
-	}
-	// remove last element, which is blank regardless of whether we're using nullbyte or newline
-	ss := strings.Split(out, "\000")
-	return ss[:len(ss)-1], nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -480,14 +482,14 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles()
-		if err != nil {
-			return "", fmt.Errorf("failed to list LFS files: %w", err)
-		}
-		if len(largeFiles) > 0 {
-			if out, err := m.runCmd("lfs", "checkout"); err != nil {
-				return out, fmt.Errorf("failed to checkout LFS files: %w", err)
+		if largeFiles, err := m.LsLargeFiles(); err == nil {
+			if len(largeFiles) > 0 {
+				if out, err := m.runCmd("lfs", "checkout"); err != nil {
+					return out, fmt.Errorf("failed to checkout LFS files: %w", err)
+				}
 			}
+		} else {
+			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
@@ -782,7 +784,7 @@ func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error)
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
-		return "", errors.New("permission denied")
+		return "", fmt.Errorf("permission denied")
 	}
 	return out, nil
 }
@@ -793,8 +795,9 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out != "" && err == nil {
 		return true
+	} else {
+		return false
 	}
-	return false
 }
 
 // ChangedFiles returns a list of files changed between two revisions
@@ -804,7 +807,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	}
 
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
-		return []string{}, errors.New("invalid revision provided, must be SHA")
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
 	}
 
 	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
@@ -852,12 +855,13 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
-		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
+		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
+			out, err = m.runCmd("switch", "--orphan", branch)
+			if err != nil {
+				return out, fmt.Errorf("failed to create orphan branch: %w", err)
+			}
+		} else {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
-		}
-		out, err = m.runCmd("switch", "--orphan", branch)
-		if err != nil {
-			return out, fmt.Errorf("failed to create orphan branch: %w", err)
 		}
 
 		// Make an empty initial commit.
@@ -880,19 +884,20 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
-		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
-			return out, fmt.Errorf("failed to checkout branch: %w", err)
-		}
-		// If the branch does not exist, create any empty branch based on the sync branch
-		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled)
-		if err != nil {
-			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
-		}
+		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
+			// If the branch does not exist, create any empty branch based on the sync branch
+			// First, checkout the sync branch.
+			out, err = m.Checkout(base, submoduleEnabled)
+			if err != nil {
+				return out, fmt.Errorf("failed to checkout sync branch: %w", err)
+			}
 
-		out, err = m.runCmd("checkout", "-b", branch)
-		if err != nil {
-			return out, fmt.Errorf("failed to create branch: %w", err)
+			out, err = m.runCmd("checkout", "-b", branch)
+			if err != nil {
+				return out, fmt.Errorf("failed to create branch: %w", err)
+			}
+		} else {
+			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 	}
 	return "", nil
@@ -938,7 +943,7 @@ func (m *nativeGitClient) CommitAndPush(branch, message string) (string, error) 
 // runWrapper runs a custom command with all the semantics of running the Git client
 func (m *nativeGitClient) runGnuPGWrapper(wrapper string, args ...string) (string, error) {
 	cmd := exec.Command(wrapper, args...)
-	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
+	cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", common.GetGnuPGHomePath()), "LANG=C")
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
@@ -960,8 +965,8 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	// If a basic auth header is explicitly set, tell Git to send it to the
 	// server to force use of basic auth instead of negotiating the auth scheme
 	for _, e := range environ {
-		if strings.HasPrefix(e, forceBasicAuthHeaderEnv+"=") {
-			args = append([]string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv}, args...)
+		if strings.HasPrefix(e, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			args = append([]string{"--config-env", fmt.Sprintf("http.extraHeader=%s", forceBasicAuthHeaderEnv)}, args...)
 		}
 	}
 
@@ -997,7 +1002,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			} else {
 				caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
 				if err == nil && caPath != "" {
-					cmd.Env = append(cmd.Env, "GIT_SSL_CAINFO="+caPath)
+					cmd.Env = append(cmd.Env, fmt.Sprintf("GIT_SSL_CAINFO=%s", caPath))
 				}
 			}
 		}

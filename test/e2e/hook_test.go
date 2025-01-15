@@ -8,16 +8,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
@@ -172,7 +172,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
@@ -264,7 +264,7 @@ func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we delete the hook on failure, if policy is set
@@ -280,7 +280,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we do NOT delete the hook on success if failure policy is set
@@ -294,7 +294,7 @@ func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we do delete the hook on failure if failure policy is set
@@ -310,7 +310,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we can run the hook twice
@@ -328,7 +328,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
-		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
@@ -344,7 +344,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
+		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
 			CheckError(err)
@@ -389,7 +389,7 @@ func TestHookSkip(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod" }))
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod" }))
 }
 
 // make sure that we do NOT name non-hook resources in they are unnamed
