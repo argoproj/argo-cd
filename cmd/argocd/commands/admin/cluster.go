@@ -21,23 +21,23 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
@@ -78,7 +78,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClient versioned.Interface, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -123,13 +123,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	}
 
 	apps := appItems.Items
-	for i, app := range apps {
-		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
-		if err != nil {
-			return nil, err
-		}
-		apps[i] = app
-	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
 
 	batchSize := 10
@@ -154,7 +147,11 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			}
 			nsSet := map[string]bool{}
 			for _, app := range apps {
-				if app.Spec.Destination.Server == cluster.Server {
+				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+				if err != nil {
+					return fmt.Errorf("error validating application destination: %w", err)
+				}
+				if destCluster.Server == cluster.Server {
 					nsSet[app.Spec.Destination.Namespace] = true
 				}
 			}
@@ -281,18 +278,16 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 		return fmt.Errorf("error listing application: %w", err)
 	}
 	apps := appItems.Items
-	for i, app := range apps {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB); err != nil {
-			return fmt.Errorf("error validating application destination: %w", err)
-		}
-		apps[i] = app
-	}
-
 	clusters := map[string][]string{}
 	for _, cluster := range clustersList.Items {
 		nsSet := map[string]bool{}
 		for _, app := range apps {
-			if app.Spec.Destination.Server != cluster.Server {
+			destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+			if err != nil {
+				return fmt.Errorf("error validating application destination: %w", err)
+			}
+
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 			// Use namespaces of actually deployed resources, since some application use dummy target namespace

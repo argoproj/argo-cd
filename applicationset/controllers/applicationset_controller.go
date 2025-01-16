@@ -45,19 +45,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v2/applicationset/status"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v3/applicationset/status"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/db"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -495,7 +495,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			return nil, err
 		}
 
-		if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
+		if _, err = argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 			errorsByIndex[i] = fmt.Errorf("application destination spec is invalid: %s", err.Error())
 			continue
 		}
@@ -524,9 +524,34 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 }
 
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
+	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return utils.IsNamespaceAllowed(namespaces, object.GetNamespace())
+	})
+}
+
+// ignoreWhenAnnotationApplicationSetRefreshIsRemoved returns a predicate that ignores updates to ApplicationSet resources
+// when the ApplicationSetRefresh annotation is removed
+// First reconciliation is triggered when the annotation is added by [webhook.go#refreshApplicationSet]
+// Using this predicate we avoid a second reconciliation triggered by the controller himself when the annotation is removed.
+func ignoreWhenAnnotationApplicationSetRefreshIsRemoved() predicate.Predicate {
 	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return utils.IsNamespaceAllowed(namespaces, e.Object.GetNamespace())
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldAppset, isAppSet := e.ObjectOld.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+			newAppset, isAppSet := e.ObjectNew.(*argov1alpha1.ApplicationSet)
+			if !isAppSet {
+				return false
+			}
+
+			_, oldHasRefreshAnnotation := oldAppset.Annotations[common.AnnotationApplicationSetRefresh]
+			_, newHasRefreshAnnotation := newAppset.Annotations[common.AnnotationApplicationSetRefresh]
+
+			if oldHasRefreshAnnotation && !newHasRefreshAnnotation {
+				return false
+			}
+			return true
 		},
 	}
 }
@@ -556,7 +581,7 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
-	}).For(&argov1alpha1.ApplicationSet{}).
+	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(ignoreWhenAnnotationApplicationSetRefreshIsRemoved())).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(ownsHandler)).
 		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
 		Watches(
@@ -720,9 +745,6 @@ func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, a
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
 func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	// settingsMgr := settings.NewSettingsManager(context.TODO(), r.KubeClientset, applicationSet.Namespace)
-	// argoDB := db.NewDB(applicationSet.Namespace, settingsMgr, r.KubeClientset)
-	// clusterList, err := argoDB.ListClusters(ctx)
 	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, r.ArgoCDNamespace)
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
@@ -782,21 +804,18 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	var validDestination bool
 
 	// Detect if the destination is invalid (name doesn't correspond to a matching cluster)
-	if err := argoutil.ValidateDestination(ctx, &app.Spec.Destination, r.ArgoDB); err != nil {
+	if destCluster, err := argoutil.GetDestinationCluster(ctx, app.Spec.Destination, r.ArgoDB); err != nil {
 		appLog.Warnf("The destination cluster for %s couldn't be found: %v", app.Name, err)
 		validDestination = false
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
-
 		matchingCluster := false
 		for _, cluster := range clusterList.Items {
-			// Server fields must match. Note that ValidateDestination ensures that the server field is set, if applicable.
-			if app.Spec.Destination.Server != cluster.Server {
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 
-			// The name must match, if it is not empty
-			if app.Spec.Destination.Name != "" && cluster.Name != app.Spec.Destination.Name {
+			if destCluster.Name != cluster.Name {
 				continue
 			}
 
