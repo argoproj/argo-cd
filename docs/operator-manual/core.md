@@ -78,11 +78,6 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-You can also spin up the [Argo CD API server locally](https://argo-cd.readthedocs.io/en/stable/developer-guide/running-locally/#running-argo-cd-locally) by using `goreman`
-but this method is not recommended since it'd require you to clone
-the Argo CD repository locally and run the `goreman run start api-server`
-command from the root of the Argo CD repository.
-
 To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
 flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
 process that handles the CLI and Web UI requests.
