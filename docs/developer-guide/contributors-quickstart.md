@@ -136,15 +136,31 @@ DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
 
 ## Common Make Targets
 
-Here are some frequently used make targets:
+Here are some frequently used make targets (all will run on your machine):
 
-* `make start-local` - Start Argo CD locally
-* `make test` - Run unit tests
-* `make test-e2e` - Run end-to-end tests
-* `make lint` - Run linting
-* `make serve-docs` - Serve documentation locally
-* `make pre-commit-local` - Run pre-commit checks locally
+### Local Toolchain Make Targets
+
+* `make build-local` - Build Argo CD binaries
+* `make test-local` - Run unit tests
+* `make codegen-local` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint-local` - Run linting
+* `make pre-commit-local` - Run pre-commit checks
+* `make start-e2e-local` - Start server for end-to-end tests
+* `make test-e2e-local` - Run end-to-end tests
+* `make serve-docs-local` - Serve documentation
+* `make start-local` - Start Argo CD
+
+### Virtualized Toolchain Make Targets
+
 * `make build` - Build Argo CD binaries
+* `make test` - Run unit tests
+* `make codegen` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint` - Run linting
+* `make pre-commit` - Run pre-commit checks
+* `make start-e2e` - Start server for end-to-end tests
+* `make test-e2e` - Run end-to-end tests
+* `make serve-docs` - Serve documentation
+* `make start` - Start Argo CD
 
 ## Making Changes
 
