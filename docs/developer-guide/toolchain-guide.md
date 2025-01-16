@@ -148,8 +148,6 @@ The following steps are required no matter whether you chose to use a virtualize
 
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `mkdir -p FOLDER-OF-YOUR-CHOICE/github.com/argoproj`
-* `cd FOLDER-OF-YOUR-CHOICE/github.com/argoproj`
 * `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
