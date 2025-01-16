@@ -67,11 +67,10 @@ data:
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
-  # Specifies if resource health should be persisted in app CRD (default true)
-  # Changing this to `false` significantly reduce number of Application CRD updates and improves controller performance.
-  # However, disabling resource health by default might affect applications that communicate with Applications CRD directly
-  # so we have to defer switching this to `false` by default till v3.0 release.
-  controller.resource.health.persist: "true"
+  # Specifies if resource health should be persisted in the application CR (default false).
+  # Setting this to true will store the health status of each resource in the application CR,
+  # increasing the number of updates to the CR and putting more load on the application controller
+  controller.resource.health.persist: "false"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
   # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
