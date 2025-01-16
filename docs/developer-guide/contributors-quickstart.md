@@ -24,12 +24,12 @@ Before starting, ensure you have the following tools installed with the specifie
 
 2. Clone the forked repository:
 ```shell
-mkdir -p ~/go/src/github.com/argoproj/
-cd ~/go/src/github.com/argoproj/
+mkdir -p FOLDER-OF-YOUR-CHOICE/github.com/argoproj/
+cd FOLDER-OF-YOUR-CHOICE/github.com/argoproj/
 git clone https://github.com/YOUR-USERNAME/argo-cd.git
 ```
 
-Please note that in order for all Argo CD `make` local development targets to function correctly, the Argo CD repo must be cloned under `~/go/src/`
+Please note that the local build process uses GOPATH and that path should not be used, unless the Argo CD repository was directly cloned in it.
 
 3. Add the upstream remote for rebasing:
 ```shell
