@@ -524,11 +524,9 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 }
 
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			return utils.IsNamespaceAllowed(namespaces, e.Object.GetNamespace())
-		},
-	}
+	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return utils.IsNamespaceAllowed(namespaces, object.GetNamespace())
+	})
 }
 
 func appControllerIndexer(rawObj client.Object) []string {
