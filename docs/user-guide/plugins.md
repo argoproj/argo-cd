@@ -1,4 +1,4 @@
-# Extend argocd with plugins
+# Plugins
 
 ## Overview
 
