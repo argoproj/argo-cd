@@ -58,7 +58,8 @@ func (_m *AWSTaggingClient) GetResourcesWithContext(_a0 context.Context, _a1 *re
 func NewAWSTaggingClient(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) *AWSTaggingClient {
+},
+) *AWSTaggingClient {
 	mock := &AWSTaggingClient{}
 	mock.Mock.Test(t)
 

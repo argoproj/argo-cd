@@ -1613,8 +1613,8 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 		return true
 	}
 
-        // Requeue only when the refresh annotation is newly added to the ApplicationSet.
-        // Changes to other annotations made simultaneously might be missed, but such cases are rare.
+	// Requeue only when the refresh annotation is newly added to the ApplicationSet.
+	// Changes to other annotations made simultaneously might be missed, but such cases are rare.
 	if !cmp.Equal(appSetOld.ObjectMeta.GetAnnotations(), appSetNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) {
 		_, oldHasRefreshAnnotation := appSetOld.Annotations[common.AnnotationApplicationSetRefresh]
 		_, newHasRefreshAnnotation := appSetNew.Annotations[common.AnnotationApplicationSetRefresh]

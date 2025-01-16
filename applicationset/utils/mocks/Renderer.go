@@ -76,7 +76,8 @@ func (_m *Renderer) Replace(tmpl string, replaceMap map[string]interface{}, useG
 func NewRenderer(t interface {
 	mock.TestingT
 	Cleanup(func())
-}) *Renderer {
+},
+) *Renderer {
 	mock := &Renderer{}
 	mock.Mock.Test(t)
 
