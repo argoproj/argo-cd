@@ -24,8 +24,6 @@ Before starting, ensure you have the following tools installed with the specifie
 
 2. Clone the forked repository:
 ```shell
-mkdir -p FOLDER-OF-YOUR-CHOICE/github.com/argoproj/
-cd FOLDER-OF-YOUR-CHOICE/github.com/argoproj/
 git clone https://github.com/YOUR-USERNAME/argo-cd.git
 ```
 
