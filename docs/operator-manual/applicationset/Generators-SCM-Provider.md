@@ -44,6 +44,8 @@ spec:
         api: https://git.example.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
+        # Exclude repos that are archived
+        excludeArchivedRepos: true
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: github-token
@@ -59,6 +61,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
 
@@ -90,6 +93,8 @@ spec:
         # If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default.
         # If false only search Projects under the same path. Defaults to true.
         includeSharedProjects: false
+        # Exclude repos that are archived
+        excludeArchivedRepos: true   
         # filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
         topic: "my-topic"
         # Reference to a Secret containing an access token. (optional)
@@ -111,6 +116,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
 * `includeSharedProjects`: If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default. If false only search Projects under the same path. In general most would want the behaviour when set to false. Defaults to true.
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 * `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
@@ -147,6 +153,8 @@ spec:
         api: https://gitea.mydomain.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
+        # Exclude repos that are archived
+        excludeArchivedRepos: true   
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: gitea-token
@@ -160,6 +168,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: Allow for self-signed TLS certificates.
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 
 This SCM provider does not yet support label filtering
 

@@ -9721,6 +9721,10 @@
           "description": "The Gitea URL to talk to. For example https://gitea.mydomain.com/.",
           "type": "string"
         },
+        "excludeArchivedRepos": {
+          "description": "Exclude repositories that are archived.",
+          "type": "boolean"
+        },
         "insecure": {
           "type": "boolean",
           "title": "Allow self-signed TLS / Certificates; default: false"
@@ -9750,6 +9754,10 @@
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret.",
           "type": "string"
         },
+        "excludeArchivedRepos": {
+          "description": "Exclude repositories that are archived.",
+          "type": "boolean"
+        },
         "organization": {
           "description": "GitHub org to scan. Required.",
           "type": "string"
@@ -9777,6 +9785,10 @@
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
           "type": "string"
+        },
+        "includeArchivedRepos": {
+          "description": "Include repositories that are archived.",
+          "type": "boolean"
         },
         "includeSharedProjects": {
           "type": "boolean",
