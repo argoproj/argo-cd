@@ -170,8 +170,7 @@ func (_m *AWSCodeCommitClient) ListRepositoriesWithContext(_a0 context.Context, 
 func NewAWSCodeCommitClient(t interface {
 	mock.TestingT
 	Cleanup(func())
-},
-) *AWSCodeCommitClient {
+}) *AWSCodeCommitClient {
 	mock := &AWSCodeCommitClient{}
 	mock.Mock.Test(t)
 

@@ -90,8 +90,7 @@ func (_m *Generator) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGenerat
 func NewGenerator(t interface {
 	mock.TestingT
 	Cleanup(func())
-},
-) *Generator {
+}) *Generator {
 	mock := &Generator{}
 	mock.Mock.Test(t)
 

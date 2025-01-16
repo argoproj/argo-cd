@@ -78,8 +78,7 @@ func (_m *Repos) GetFiles(ctx context.Context, repoURL string, revision string, 
 func NewRepos(t interface {
 	mock.TestingT
 	Cleanup(func())
-},
-) *Repos {
+}) *Repos {
 	mock := &Repos{}
 	mock.Mock.Test(t)
 
