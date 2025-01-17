@@ -397,7 +397,7 @@ var (
 
 // getSemver returns parsed kustomize version
 func getSemver() (*semver.Version, error) {
-	verStr, err := Version(true)
+	verStr, err := Version()
 	if err != nil {
 		return nil, err
 	}
@@ -428,33 +428,25 @@ func getSemverSafe() *semver.Version {
 	return semVer
 }
 
-func Version(shortForm bool) (string, error) {
-	executable := "kustomize"
-	cmdArgs := []string{"version"}
-	if shortForm {
-		cmdArgs = append(cmdArgs, "--short")
-	}
-	cmd := exec.Command(executable, cmdArgs...)
+func Version() (string, error) {
+	cmd := exec.Command("kustomize", "version", "--short")
 	// example version output:
-	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
-	if shortForm {
-		// trim the curly braces
-		version = strings.TrimPrefix(version, "{")
-		version = strings.TrimSuffix(version, "}")
-		version = strings.TrimSpace(version)
+	// trim the curly braces
+	version = strings.TrimPrefix(version, "{")
+	version = strings.TrimSuffix(version, "}")
+	version = strings.TrimSpace(version)
 
-		// remove double space in middle
-		version = strings.ReplaceAll(version, "  ", " ")
+	// remove double space in middle
+	version = strings.ReplaceAll(version, "  ", " ")
 
-		// remove extra 'kustomize/' before version
-		version = strings.TrimPrefix(version, "kustomize/")
-	}
+	// remove extra 'kustomize/' before version
+	version = strings.TrimPrefix(version, "kustomize/")
 	return version, nil
 }
 
