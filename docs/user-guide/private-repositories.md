@@ -164,10 +164,11 @@ Using the UI:
 
 ### Azure Container Registry/Azure Repos using Azure Workload Identity
 
-Before using this feature enable workload identity configuration for Argocd:
-- **Label the Pods:** Add the azure.workload.identity/use: "true" label to the argocd-repo-server pods.
-- **Create Federated Identity Credential:** Generate an Azure federated identity credential the argocd-repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
-- **Add Annotation to Service Account:** Add "azure.workload.identity/client-id": "$CLIENT_ID" annotation to the argocd-repo-server service account using the details from the workload identity.
+Before using this feature, you must perform the following steps to enable workload identity configuration in Argo CD:
+
+- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the repo-server pods.
+- **Create Federated Identity Credential:** Generate an Azure federated identity credential for the repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+- **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the repo-server service account, using the `CLIENT_ID` from the workload identity.
 - Setup the permissions for Azure Container Registry/Azure Repos for the workload identity.
 
 Using CLI for Helm OCI with Azure workload identity:
