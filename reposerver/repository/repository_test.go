@@ -3161,7 +3161,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
@@ -3174,7 +3174,7 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
@@ -3191,7 +3191,7 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
@@ -3207,7 +3207,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test-alias", helmRepos[0].Username)
+	assert.Equal(t, "test-alias", helmRepos[0].GetUsername())
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 

@@ -1,6 +1,7 @@
 package util_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,6 +77,55 @@ func TestSecretCopy(t *testing.T) {
 			assert.Equalf(t, tt.want, secretsCopy, "SecretCopy(%v)", tt.args.secrets)
 			for i := range tt.args.secrets {
 				assert.NotSame(t, secretsCopy[i], tt.args.secrets[i])
+			}
+		})
+	}
+}
+
+// TestGenerateCacheKey tests the GenerateCacheKey function
+func TestGenerateCacheKey(t *testing.T) {
+	// Define test cases
+	testCases := []struct {
+		format    string
+		args      []any
+		expected  string
+		shouldErr bool
+	}{
+		{
+			format:    "Hello %s",
+			args:      []any{"World"},
+			expected:  "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
+			shouldErr: false,
+		},
+		{
+			format:    "",
+			args:      []any{},
+			expected:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			shouldErr: false,
+		},
+		{
+			format:    "Number: %d",
+			args:      []any{123},
+			expected:  "665fb090bf37fa3cbba9b92b9f82e6fa4bb851bad4c0a0a6edfb0aefa542150b",
+			shouldErr: false,
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("format=%s args=%v", tc.format, tc.args), func(t *testing.T) {
+			key, err := util.GenerateCacheKey(tc.format, tc.args...)
+			if tc.shouldErr {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if key != tc.expected {
+				t.Fatalf("expected %s but got %s", tc.expected, key)
 			}
 		})
 	}
