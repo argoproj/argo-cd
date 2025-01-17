@@ -70,7 +70,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
-			Namespace: "argocd",
+			Namespace: "default",
 			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
