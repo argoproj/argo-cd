@@ -114,8 +114,8 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 
 #### Fine-grained Permissions for `update`/`delete` action
 
-The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself **and** all of its resources.
-It can be desirable to only allow `update` or `delete` on specific resources within an application.
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,
+but not on its resources.
 
 To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
 
@@ -130,9 +130,9 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
     Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
     will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
 
-    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital 
-    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase. 
-    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four 
+    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital
+    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase.
+    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four
     slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
@@ -148,35 +148,30 @@ p, example-user, applications, delete, default/prod-app, deny
 p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-!!! note
+If we want to explicitly allow updates to the application, but deny updates to any sub-resources:
 
-    It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
+```csv
+p, example-user, applications, update, default/prod-app, allow
+p, example-user, applications, update/*, default/prod-app, deny
+```
+
+!!! note "Preserve Application permission Inheritance (Since v3.0.0)"
+
+    Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
+    on sub-resources.
+
+    To preserve this behavior, you can set the config value
+    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
+    the Argo CD ConfigMap `argocd-cm`.
+
+    When disabled, it is not possible to deny fine-grained permissions for a sub-resource
+    if the action was **explicitly allowed on the application**.
+    For instance, the following policies will **allow** a user to delete the Pod and any
+    other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
     p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
-    ```
-
-!!! note
-
-    In a future version, RBAC will have a breaking change. The `update` and
-    `delete` actions (without a `/*`) will no longer include sub-resources.
-    This allows you to explicitly allow or deny access to an application
-    without affecting its sub-resources. For example, you may want to allow
-    enable/disable of auto-sync by allowing update on an application, but
-    disallow the editing of deployment manifests for that application.
-
-    To enable this behavior before v3, you can set the config value
-    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
-    the Argo CD ConfigMap argocd-cm.
-
-    Once you do so, you can explicitly allow updates to the application, but deny
-    updates to any sub-resources:
-
-    ```csv
-    p, example-user, applications, update, default/prod-app, allow
-    p, example-user, applications, update/*, default/prod-app, deny
     ```
 
 #### The `action` action
