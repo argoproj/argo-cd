@@ -190,7 +190,7 @@ Using the UI:
    ![connect repo overview](../assets/repo-add-overview.png)
 - Click on `+ Connect Repo`
 - On the connection page:
-    - Choose Connection Methos as `VIA HTTPS`
+    - Choose Connection Method as `VIA HTTPS`
     - Select the type as `git` or `helm`
     - Enter the Repository URL
     - Enter name, if the repo type is helm
