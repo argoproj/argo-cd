@@ -11,7 +11,7 @@ import (
 	"time"
 
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -28,22 +28,22 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/stats"
+	"github.com/argoproj/argo-cd/v3/common"
+	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/stats"
 )
 
 var CompareStateRepoError = errors.New("failed to get repo objects")
@@ -167,10 +167,15 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
 
-	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		return nil, nil, false, fmt.Errorf("failed to get destination cluster: %w", err)
+	}
+
+	ts.AddCheckpoint("build_options_ms")
+	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(destCluster)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -488,16 +493,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
 			}, nil
-		} else {
-			return &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					ComparedTo: app.Spec.BuildComparedToStatus(),
-					Status:     v1alpha1.SyncStatusCodeUnknown,
-					Revision:   revisions[0],
-				},
-				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
-			}, nil
 		}
+		return &comparisonResult{
+			syncStatus: &v1alpha1.SyncStatus{
+				ComparedTo: app.Spec.BuildComparedToStatus(),
+				Status:     v1alpha1.SyncStatusCodeUnknown,
+				Revision:   revisions[0],
+			},
+			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
@@ -510,8 +514,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	if err != nil {
+		return nil, err
+	}
+
 	logCtx := log.WithField("application", app.QualifiedName())
-	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", app.Spec.Destination.Server, app.Spec.Destination.Namespace)
+	logCtx.Infof("Comparing app state (cluster: %s, namespace: %s)", destCluster.Server, app.Spec.Destination.Namespace)
 
 	var targetObjs []*unstructured.Unstructured
 	now := metav1.Now()
@@ -534,7 +543,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
+			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
@@ -564,7 +573,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			targetObjs, err = unmarshalManifests(localManifests)
 			if err != nil {
 				targetObjs = make([]*unstructured.Unstructured, 0)
-				msg := fmt.Sprintf("Failed to load local manifests: %s", err.Error())
+				msg := "Failed to load local manifests: " + err.Error()
 				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 				failedToLoadObjs = true
 			}
@@ -575,20 +584,20 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
-	infoProvider, err = m.liveStateCache.GetClusterCache(app.Spec.Destination.Server)
+	infoProvider, err = m.liveStateCache.GetClusterCache(destCluster)
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
-		msg := fmt.Sprintf("Failed to deduplicate target state: %s", err.Error())
+		msg := "Failed to deduplicate target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
 	for i := len(targetObjs) - 1; i >= 0; i-- {
 		targetObj := targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
-		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
@@ -606,19 +615,18 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
+		msg := "Failed to load live state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
-
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
-		permitted, err := project.IsLiveResourcePermitted(v, app.Spec.Destination.Server, app.Spec.Destination.Name, func(project string) ([]*v1alpha1.Cluster, error) {
+		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
 			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
@@ -664,7 +672,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
 			// targetObjs array.
 			if isManagedNamespace(liveObj, app) && !targetNsExists {
-				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
+				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
@@ -729,7 +737,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
-	gvkParser, err := m.getGVKParser(app.Spec.Destination.Server)
+	gvkParser, err := m.getGVKParser(destCluster)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
@@ -739,7 +747,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		resourceOps, cleanup, err := m.getResourceOperations(app.Spec.Destination.Server)
+		resourceOps, cleanup, err := m.getResourceOperations(destCluster)
 		if err != nil {
 			log.Errorf("CompareAppState error getting resource operations: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
@@ -761,7 +769,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
-		msg := fmt.Sprintf("Failed to compare desired state to live state: %s", err.Error())
+		msg := "Failed to compare desired state to live state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	ts.AddCheckpoint("diff_ms")
@@ -780,7 +788,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod, installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), trackingMethod, installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -833,7 +841,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
-		isNamespaced, err := m.liveStateCache.IsNamespaced(app.Spec.Destination.Server, gvk.GroupKind())
+		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
 		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
@@ -903,7 +911,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
@@ -997,20 +1005,6 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 	// Make a copy to be sure we don't mutate the original.
 	specCopy := spec.DeepCopy()
 	currentSpec := specCopy.BuildComparedToStatus()
-
-	// The spec might have been augmented to include both server and name, so change it to match the comparedTo before
-	// comparing.
-	if comparedTo.Destination.Server == "" {
-		currentSpec.Destination.Server = ""
-	}
-	if comparedTo.Destination.Name == "" {
-		currentSpec.Destination.Name = ""
-	}
-
-	// Set IsServerInferred to false on both, because that field is not important for comparison.
-	comparedTo.Destination.SetIsServerInferred(false)
-	currentSpec.Destination.SetIsServerInferred(false)
-
 	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 
@@ -1108,7 +1102,7 @@ func NewAppStateManager(
 // group and kind) match the properties of the live object, or if the tracking method
 // used does not provide the required properties for matching.
 // Reference: https://github.com/argoproj/argo-cd/issues/8683
-func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
+func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
 	if live == nil {
 		return true
 	}
@@ -1141,7 +1135,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 	// to match the properties from the live object. Cluster scoped objects
 	// carry the app's destination namespace in the tracking annotation,
 	// but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(live, appLabelKey, trackingMethod, installationID)
+	appInstance := m.resourceTracking.GetAppInstance(live, trackingMethod, installationID)
 	if appInstance != nil {
 		return isSelfReferencedObj(live, *appInstance)
 	}

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -24,15 +24,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	utiltest "github.com/argoproj/argo-cd/v2/util/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+	utiltest "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister {
@@ -220,20 +220,12 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 	})
 }
 
-type claimsMock struct {
-	err error
-}
-
-func (cm *claimsMock) Valid() error {
-	return cm.err
-}
-
 type tokenVerifierMock struct {
-	claims *claimsMock
+	claims *jwt.RegisteredClaims
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -246,7 +238,7 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, r *http.Request) {
+		return func(w http.ResponseWriter, _ *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
@@ -258,7 +250,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *claimsMock
+		verifiedClaims       *jwt.RegisteredClaims
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -269,7 +261,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
@@ -287,7 +279,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
@@ -296,7 +288,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
@@ -689,7 +681,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -759,7 +751,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)

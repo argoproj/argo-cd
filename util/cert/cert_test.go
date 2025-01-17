@@ -1,7 +1,6 @@
 package cert
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -9,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const (
@@ -399,7 +398,7 @@ func Test_ValidHostnames(t *testing.T) {
 	}
 
 	for hostName, valid := range hostNames {
-		t.Run(fmt.Sprintf("Test validity for hostname %s", hostName), func(t *testing.T) {
+		t.Run("Test validity for hostname "+hostName, func(t *testing.T) {
 			assert.Equal(t, valid, IsValidHostname(hostName, false))
 		})
 	}

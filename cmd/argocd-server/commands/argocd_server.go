@@ -20,24 +20,24 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
-	"github.com/argoproj/argo-cd/v2/server"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/dex"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/templates"
-	"github.com/argoproj/argo-cd/v2/util/tls"
-	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
+	"github.com/argoproj/argo-cd/v3/server"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/dex"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v3/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 const (
@@ -103,7 +103,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -170,8 +170,8 @@ func NewCommand() *cobra.Command {
 			// repository server, if strict TLS validation was requested.
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/server/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-					fmt.Sprintf("%s/server/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/tls.crt",
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/server/tls/ca.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
@@ -186,14 +186,14 @@ func NewCommand() *cobra.Command {
 
 			if !dexServerPlaintext && dexServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/dex/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/ca.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
 				dexTlsConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
-					fmt.Sprintf("%s/dex/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)

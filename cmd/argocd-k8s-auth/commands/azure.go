@@ -7,7 +7,7 @@ import (
 	"github.com/Azure/kubelogin/pkg/token"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 var (
@@ -22,7 +22,7 @@ const (
 func newAzureCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "azure",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			o := token.OptionsWithEnv()
 			if o.LoginMethod == "" { // no environment variable overrides
 				// we'll use default of WorkloadIdentityLogin for the login flow

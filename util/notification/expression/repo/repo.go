@@ -8,15 +8,15 @@ import (
 	"regexp"
 	"strings"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
+	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	giturls "github.com/chainguard-dev/git-urls"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var gitSuffix = regexp.MustCompile(`\.git$`)
@@ -93,12 +93,12 @@ func repoURLToHTTPS(rawURL string) string {
 	return parsed.String()
 }
 
-func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map[string]interface{} {
-	return map[string]interface{}{
+func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map[string]any {
+	return map[string]any{
 		"RepoURLToHTTPS":    repoURLToHTTPS,
 		"FullNameByRepoURL": FullNameByRepoURL,
 		"QueryEscape":       url.QueryEscape,
-		"GetCommitMetadata": func(commitSHA string) interface{} {
+		"GetCommitMetadata": func(commitSHA string) any {
 			meta, err := getCommitMetadata(commitSHA, app, argocdService)
 			if err != nil {
 				panic(err)
@@ -106,7 +106,7 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 
 			return *meta
 		},
-		"GetAppDetails": func() interface{} {
+		"GetAppDetails": func() any {
 			appDetails, err := getAppDetails(app, argocdService)
 			if err != nil {
 				panic(err)

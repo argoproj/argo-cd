@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utillog "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utillog "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const invalidURL = ":://localhost/foo/bar"
@@ -258,15 +258,15 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]interface{})
+		connectors, ok := dexCfg["connectors"].([]any)
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
+			config := connectorsIf.(map[string]any)["config"].(map[string]any)
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
@@ -284,15 +284,15 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		connectors, ok := dexCfg["connectors"].([]interface{})
+		connectors, ok := dexCfg["connectors"].([]any)
 		assert.True(t, ok)
 		for i, connectorsIf := range connectors {
-			config := connectorsIf.(map[string]interface{})["config"].(map[string]interface{})
+			config := connectorsIf.(map[string]any)["config"].(map[string]any)
 			if i == 0 {
 				assert.Equal(t, "foobar", config["clientSecret"])
 			} else if i == 1 {
@@ -312,12 +312,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
+		loggerCfg, ok := dexCfg["logger"].(map[string]any)
 		assert.True(t, ok)
 
 		level, ok := loggerCfg["level"].(string)
@@ -340,12 +340,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
+		loggerCfg, ok := dexCfg["logger"].(map[string]any)
 		assert.True(t, ok)
 
 		level, ok := loggerCfg["level"].(string)
@@ -377,18 +377,18 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]interface{})
+		clients, ok := dexCfg["staticClients"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[3].(map[string]any)
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
-		assert.Len(t, customClient["redirectURIs"].([]interface{}), 1)
+		assert.Len(t, customClient["redirectURIs"].([]any), 1)
 	})
 	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
@@ -399,16 +399,16 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		clients, ok := dexCfg["staticClients"].([]interface{})
+		clients, ok := dexCfg["staticClients"].([]any)
 		assert.True(t, ok)
 		assert.Len(t, clients, 4)
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[3].(map[string]any)
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
@@ -419,12 +419,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)
@@ -442,12 +442,12 @@ func Test_GenerateDexConfig(t *testing.T) {
 		config, err := GenerateDexConfigYAML(&s, false)
 		require.NoError(t, err)
 		assert.NotNil(t, config)
-		var dexCfg map[string]interface{}
+		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
 		if err != nil {
 			panic(err.Error())
 		}
-		oauth2Config, ok := dexCfg["oauth2"].(map[string]interface{})
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
 		assert.True(t, ok)
 		pwConn, ok := oauth2Config["passwordConnector"].(string)
 		assert.True(t, ok)
@@ -481,7 +481,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
-		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		fakeDex := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
 			rw.WriteHeader(http.StatusInternalServerError)
 		}))
 		defer fakeDex.Close()
@@ -490,7 +490,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		client := &http.Client{
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
 		}
@@ -511,7 +511,7 @@ func Test_DexReverseProxy(t *testing.T) {
 	})
 
 	t.Run("Round Tripper", func(t *testing.T) {
-		server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 			assert.Equal(t, "/", req.URL.String())
 		}))
 		defer server.Close()
