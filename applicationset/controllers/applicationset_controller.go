@@ -1068,7 +1068,20 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 
 		appOutdated := false
 		if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
-			appOutdated = syncStatusString == "OutOfSync"
+			appOutdated = syncStatusString == string(argov1alpha1.SyncStatusCodeOutOfSync)
+			pruneEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && app.Spec.SyncPolicy.Automated.Prune
+			if !pruneEnabled && appOutdated {
+				requirePruneOnly := true
+				for _, r := range app.Status.Resources {
+					if r.Status != argov1alpha1.SyncStatusCodeSynced && !r.RequiresPruning {
+						requirePruneOnly = false
+						break
+					}
+				}
+				if requirePruneOnly {
+					appOutdated = false
+				}
+			}
 		}
 
 		if appOutdated && currentAppStatus.Status != "Waiting" && currentAppStatus.Status != "Pending" {
