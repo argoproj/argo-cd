@@ -49,6 +49,7 @@ argocd repocreds add REPOURL [flags]
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
+      --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
 ```
 

@@ -14,15 +14,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 // Server provides a Cluster service
@@ -159,22 +159,21 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 
 	clust, err := s.db.CreateCluster(ctx, c)
 	if err != nil {
-		if status.Convert(err).Code() == codes.AlreadyExists {
-			// act idempotent if existing spec matches new spec
-			existing, getErr := s.db.GetCluster(ctx, c.Server)
-			if getErr != nil {
-				return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
-			}
-
-			if existing.Equals(c) {
-				clust = existing
-			} else if q.Upsert {
-				return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
-			} else {
-				return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
-			}
-		} else {
+		if status.Convert(err).Code() != codes.AlreadyExists {
 			return nil, fmt.Errorf("error creating cluster: %w", err)
+		}
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetCluster(ctx, c.Server)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
+		}
+
+		if existing.Equals(c) {
+			clust = existing
+		} else if q.Upsert {
+			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+		} else {
+			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
 		}
 	}
 

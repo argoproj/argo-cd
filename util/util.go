@@ -2,7 +2,10 @@ package util
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -29,4 +32,16 @@ func SecretCopy(secrets []*corev1.Secret) []*corev1.Secret {
 		secretsCopy[i] = secret.DeepCopy()
 	}
 	return secretsCopy
+}
+
+// GenerateCacheKey generates a cache key based on a format string and arguments
+func GenerateCacheKey(format string, args ...any) (string, error) {
+	h := sha256.New()
+	_, err := h.Write([]byte(fmt.Sprintf(format, args...)))
+	if err != nil {
+		return "", err
+	}
+
+	key := hex.EncodeToString(h.Sum(nil))
+	return key, nil
 }

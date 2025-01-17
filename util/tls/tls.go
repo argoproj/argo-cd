@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -89,11 +89,10 @@ func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 	allowedSuites := make([]uint16, 0)
 	for _, s := range strings.Split(cipherSuites, ":") {
 		id, ok := suiteMap[strings.TrimSpace(s)]
-		if ok {
-			allowedSuites = append(allowedSuites, id)
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)
 		}
+		allowedSuites = append(allowedSuites, id)
 	}
 	return allowedSuites, nil
 }

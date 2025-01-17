@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -18,8 +18,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*DuckTypeGenerator)(nil)
@@ -168,59 +168,58 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Read this outside the loop to improve performance
 	argoClusters := clustersFromArgoCD.Items
 
-	if len(clusterDecisions) > 0 {
-		for _, cluster := range clusterDecisions {
-			// generated instance of cluster params
-			params := map[string]any{}
-
-			log.Infof("cluster: %v", cluster)
-			matchValue := cluster.(map[string]any)[matchKey]
-			if matchValue == nil || matchValue.(string) == "" {
-				log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]any))
-				continue
-			}
-
-			strMatchValue := matchValue.(string)
-			log.WithField(matchKey, strMatchValue).Debug("validate against ArgoCD")
-
-			found := false
-
-			for _, argoCluster := range argoClusters {
-				if argoCluster.Name == strMatchValue {
-					log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
-					params["name"] = argoCluster.Name
-					params["server"] = argoCluster.Server
-
-					found = true
-					break // Stop looking
-				}
-			}
-
-			if !found {
-				log.WithField(matchKey, strMatchValue).Warning("unmatched cluster in ArgoCD")
-				continue
-			}
-
-			for key, value := range cluster.(map[string]any) {
-				params[key] = value.(string)
-			}
-
-			for key, value := range appSetGenerator.ClusterDecisionResource.Values {
-				if appSet.Spec.GoTemplate {
-					if params["values"] == nil {
-						params["values"] = map[string]string{}
-					}
-					params["values"].(map[string]string)[key] = value
-				} else {
-					params["values."+key] = value
-				}
-			}
-
-			res = append(res, params)
-		}
-	} else {
+	if len(clusterDecisions) == 0 {
 		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
 		return nil, nil
+	}
+	for _, cluster := range clusterDecisions {
+		// generated instance of cluster params
+		params := map[string]any{}
+
+		log.Infof("cluster: %v", cluster)
+		matchValue := cluster.(map[string]any)[matchKey]
+		if matchValue == nil || matchValue.(string) == "" {
+			log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]any))
+			continue
+		}
+
+		strMatchValue := matchValue.(string)
+		log.WithField(matchKey, strMatchValue).Debug("validate against ArgoCD")
+
+		found := false
+
+		for _, argoCluster := range argoClusters {
+			if argoCluster.Name == strMatchValue {
+				log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
+				params["name"] = argoCluster.Name
+				params["server"] = argoCluster.Server
+
+				found = true
+				break // Stop looking
+			}
+		}
+
+		if !found {
+			log.WithField(matchKey, strMatchValue).Warning("unmatched cluster in ArgoCD")
+			continue
+		}
+
+		for key, value := range cluster.(map[string]any) {
+			params[key] = value.(string)
+		}
+
+		for key, value := range appSetGenerator.ClusterDecisionResource.Values {
+			if appSet.Spec.GoTemplate {
+				if params["values"] == nil {
+					params["values"] = map[string]string{}
+				}
+				params["values"].(map[string]string)[key] = value
+			} else {
+				params["values."+key] = value
+			}
+		}
+
+		res = append(res, params)
 	}
 
 	return res, nil
