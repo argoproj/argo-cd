@@ -112,7 +112,7 @@ func TestHandleCallback(t *testing.T) {
 }
 
 func TestClientApp_HandleLogin(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t, false)
+	oidcTestServer := test.GetOIDCTestServer(t)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -293,7 +293,7 @@ func Test_Login_Flow(t *testing.T) {
 	// Show that SSO login works when no redirect URL is provided, and we fall back to the configured base href for the
 	// Argo CD instance.
 
-	oidcTestServer := test.GetOIDCTestServer(t, false)
+	oidcTestServer := test.GetOIDCTestServer(t)
 	t.Cleanup(oidcTestServer.Close)
 
 	cdSettings := &settings.ArgoCDSettings{
@@ -335,7 +335,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 }
 
 func TestClientApp_HandleCallback(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t, false)
+	oidcTestServer := test.GetOIDCTestServer(t)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -416,7 +416,18 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 }
 
 func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
-	oidcTestServer := test.GetOIDCTestServer(t, true)
+	tokenRequestAssertions := func(r *http.Request) {
+		err := r.ParseForm()
+		require.NoError(t, err)
+
+		formData := r.Form
+		clientAssertion := formData.Get("client_assertion")
+		clientAssertionType := formData.Get("client_assertion_type")
+		assert.Equal(t, "serviceAccountToken", clientAssertion)
+		assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", clientAssertionType)
+	}
+
+	oidcTestServer := test.GetAzureOIDCTestServer(t, tokenRequestAssertions)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := test.GetDexTestServer(t)
@@ -437,7 +448,8 @@ func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
 name: Test
 issuer: %s
 clientID: xxx
-useAzureWorkloadIdentity: true
+azure: 
+  useWorkloadIdentity: true
 skipAudienceCheckWhenTokenHasNoAudience: true
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}

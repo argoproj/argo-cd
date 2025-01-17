@@ -31,11 +31,11 @@
 
 #### Add credentials a new Entra ID App registration
 ##### Using Workload Identity Federation (Recommended)
-1.  **Label the Pods:** Add the azure.workload.identity/use: "true" label to the argocd-server pods.
-2. **Add Annotation to Service Account:** Add "azure.workload.identity/client-id": "$CLIENT_ID" annotation to the argocd-server service account using the details from application created in previous step.
-3. From the `Certificates & secrets` menu, Navigate to `Federated credentials` choose `+ Add credential`
+1.  **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-server` pods.
+2. **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the `argocd-server` service account using the details from application created in previous step.
+3. From the `Certificates & secrets` menu, navigate to `Federated credentials`, then choose `+ Add credential`
 4. Choose `Federated credential scenario` as `Kubernetes Accessing Azure resources`
-   - Enter Cluster Issuer URL, refer [Retreive the OIDC issuer URL](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster#retrieve-the-oidc-issuer-url)
+   - Enter Cluster Issuer URL, refer to [retrieve the OIDC issuer URL](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster#retrieve-the-oidc-issuer-url) documentation
    - Enter namespace as the namespace where the argocd is deployed
    - Enter service account name as `argocd-server`
    - Enter a unique name
@@ -75,7 +75,8 @@
                      issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
                      clientID: {azure_ad_application_client_id}
                      clientSecret: $oidc.azure.clientSecret // if using client secret for authentication
-                     useAzureWorkloadIdentity: true // if using azure workload identity for authentication
+                     azure:
+                       useWorkloadIdentity: true // if using azure workload identity for authentication
                      requestedIDTokenClaims:
                         groups:
                            essential: true

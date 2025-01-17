@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -150,7 +149,7 @@ func GetDexTestServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
-func oidcMockHandler(t *testing.T, url string, assertAzureWorkloadIdentityAssertions bool) func(http.ResponseWriter, *http.Request) {
+func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *http.Request)) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -199,17 +198,9 @@ func oidcMockHandler(t *testing.T, url string, assertAzureWorkloadIdentityAssert
 			_, err = w.Write(out)
 			require.NoError(t, err)
 		case "/token":
-			if assertAzureWorkloadIdentityAssertions {
-				err := r.ParseForm()
-				require.NoError(t, err)
-
-				formData := r.Form
-				clientAssertion := formData.Get("client_assertion")
-				clientAssertionType := formData.Get("client_assertion_type")
-				assert.Equal(t, "serviceAccountToken", clientAssertion)
-				assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", clientAssertionType)
+			if tokenRequestPreHandler != nil {
+				tokenRequestPreHandler(r)
 			}
-
 			response, err := mockTokenEndpointResponse(url)
 			require.NoError(t, err)
 			out, err := json.Marshal(response)
@@ -222,13 +213,24 @@ func oidcMockHandler(t *testing.T, url string, assertAzureWorkloadIdentityAssert
 	}
 }
 
-func GetOIDCTestServer(t *testing.T, assertAzureWorkloadIdentityAssertions bool) *httptest.Server {
+func GetOIDCTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL, assertAzureWorkloadIdentityAssertions)(w, r)
+		oidcMockHandler(t, ts.URL, nil)(w, r)
+	})
+	return ts
+}
+
+func GetAzureOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		// Start with a placeholder. We need the server URL before setting up the real handler.
+	}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
 	})
 	return ts
 }

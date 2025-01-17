@@ -588,7 +588,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 }
 
 func TestSessionManager_VerifyToken(t *testing.T) {
-	oidcTestServer := utiltest.GetOIDCTestServer(t, false)
+	oidcTestServer := utiltest.GetOIDCTestServer(t)
 	t.Cleanup(oidcTestServer.Close)
 
 	dexTestServer := utiltest.GetDexTestServer(t)

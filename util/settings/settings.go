@@ -169,7 +169,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		Issuer:                   o.Issuer,
 		ClientID:                 o.ClientID,
 		ClientSecret:             o.ClientSecret,
-		UseAzureWorkloadIdentity: o.UseAzureWorkloadIdentity,
+		Azure:                    o.Azure,
 		CLIClientID:              o.CLIClientID,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
@@ -188,7 +188,6 @@ type OIDCConfig struct {
 	Issuer                   string                 `json:"issuer,omitempty"`
 	ClientID                 string                 `json:"clientID,omitempty"`
 	ClientSecret             string                 `json:"clientSecret,omitempty"`
-	UseAzureWorkloadIdentity bool                   `json:"useAzureWorkloadIdentity,omitempty"`
 	CLIClientID              string                 `json:"cliClientID,omitempty"`
 	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
 	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
@@ -199,6 +198,11 @@ type OIDCConfig struct {
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
+	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+}
+
+type AzureOIDCConfig struct {
+	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -2027,8 +2031,8 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 }
 
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
-	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
-		return oidcConfig.UseAzureWorkloadIdentity
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.UseWorkloadIdentity
 	}
 	return false
 }

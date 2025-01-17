@@ -1838,14 +1838,21 @@ func TestUseAzureWorkloadIdentity(t *testing.T) {
 		{
 			Name: "UseAzureWorkloadIdentity defined and set to true",
 			Settings: &ArgoCDSettings{
-				OIDCConfigRAW: "{ \"useAzureWorkloadIdentity\": true }",
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
 			},
 			ExpectedResult: true,
 		},
 		{
 			Name: "UseAzureWorkloadIdentity defined and set to false",
 			Settings: &ArgoCDSettings{
-				OIDCConfigRAW: "{ \"useAzureWorkloadIdentity\": false }",
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
 			},
 			ExpectedResult: false,
 		},
