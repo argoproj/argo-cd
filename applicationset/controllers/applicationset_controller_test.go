@@ -1351,8 +1351,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			}
 
 			kubeclientset := getDefaultTestClientSet(secret)
-
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 

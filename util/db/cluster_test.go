@@ -339,7 +339,7 @@ func TestGetCluster(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(appv1.KubernetesInternalAPIServerAddr),
+			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
 			"name":   []byte("in-cluster-renamed"),
 		},
 	}
@@ -386,9 +386,9 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		cluster, err := db.GetCluster(context.TODO(), appv1.KubernetesInternalAPIServerAddr)
+		cluster, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.NoError(t, err)
-		assert.Equal(t, appv1.KubernetesInternalAPIServerAddr, cluster.Server)
+		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster", cluster.Name)
 	})
 
@@ -397,7 +397,7 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		_, err := db.GetCluster(context.TODO(), appv1.KubernetesInternalAPIServerAddr)
+		_, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.Error(t, err)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -409,9 +409,9 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		cluster, err := db.GetCluster(context.TODO(), appv1.KubernetesInternalAPIServerAddr)
+		cluster, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.NoError(t, err)
-		assert.Equal(t, appv1.KubernetesInternalAPIServerAddr, cluster.Server)
+		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster-renamed", cluster.Name)
 	})
 
@@ -420,7 +420,7 @@ func TestGetCluster(t *testing.T) {
 		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		_, err := db.GetCluster(context.TODO(), appv1.KubernetesInternalAPIServerAddr)
+		_, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.Error(t, err)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
