@@ -12,18 +12,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	logutils "github.com/argoproj/argo-cd/v3/util/log"
-	"github.com/argoproj/argo-cd/v3/util/tls"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	logutils "github.com/argoproj/argo-cd/v2/util/log"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/controllers"
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/github_app"
+	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/github_app"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,13 +36,13 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v3/applicationset/services"
-	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
@@ -81,7 +81,7 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -120,7 +120,8 @@ func NewCommand() *cobra.Command {
 			}
 
 			// By default, watch all namespaces
-			var watchedNamespace string
+			var watchedNamespace string = ""
+
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
 				watchedNamespace = (applicationSetNamespaces)[0]
@@ -180,8 +181,8 @@ func NewCommand() *cobra.Command {
 
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				errors.CheckError(err)
 				tlsConfig.Certificates = pool

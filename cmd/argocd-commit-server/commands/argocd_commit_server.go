@@ -13,17 +13,17 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/commitserver"
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/askpass"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/healthz"
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/commitserver"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/askpass"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/healthz"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // NewCommand returns a new instance of an argocd-commit-server command
@@ -38,7 +38,7 @@ func NewCommand() *cobra.Command {
 		Use:   "argocd-commit-server",
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",

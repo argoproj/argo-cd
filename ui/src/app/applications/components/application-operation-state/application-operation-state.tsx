@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -16,7 +16,7 @@ interface Props {
     operationState: models.OperationState;
 }
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
-const FilterableMessageStatuses = ['Changed', 'Unchanged'];
+const FilterableMessageStatuses = ['configured', 'unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -183,12 +183,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             }
 
             if (pass && messageFilters.length !== 0) {
-                pass = messageFilters.some(filter => {
-                    if (filter === 'Changed') {
-                        return r.message?.toLowerCase().includes('configured');
-                    }
-                    return r.message?.toLowerCase().includes(filter.toLowerCase());
-                });
+                pass = messageFilters.some(filter => r.message?.toLowerCase().includes(filter.toLowerCase()));
             }
 
             return pass;
@@ -215,11 +210,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
+                            <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
                         </div>
                     </div>
                     <div className='argo-table-list'>

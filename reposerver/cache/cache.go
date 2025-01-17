@@ -16,12 +16,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/hash"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
 var (
@@ -162,14 +162,14 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
+	return fmt.Sprintf("helm-index|%s", repo)
 }
 
 // SetHelmIndex stores helm repository index.yaml content to cache
 func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	if indexData == nil {
 		// Logged as warning upstream
-		return errors.New("helm index data is nil, skipping cache")
+		return fmt.Errorf("helm index data is nil, skipping cache")
 	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
@@ -183,7 +183,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 }
 
 func gitRefsKey(repo string) string {
-	return "git-refs|" + repo
+	return fmt.Sprintf("git-refs|%s", repo)
 }
 
 // SetGitReferences saves resolved Git repository references to cache

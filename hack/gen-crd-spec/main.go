@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -94,13 +94,13 @@ func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.Custom
 	return &crd
 }
 
-func removeDescription(v any) {
+func removeDescription(v interface{}) {
 	switch v := v.(type) {
-	case []any:
+	case []interface{}:
 		for _, v := range v {
 			removeDescription(v)
 		}
-	case map[string]any:
+	case map[string]interface{}:
 		if _, ok := v["description"]; ok {
 			_, ok := v["description"].(string)
 			if ok {

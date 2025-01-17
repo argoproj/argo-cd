@@ -18,26 +18,26 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/controller"
-	"github.com/argoproj/argo-cd/v3/controller/sharding"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/util/tls"
-	"github.com/argoproj/argo-cd/v3/util/trace"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/controller"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -97,7 +97,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -149,8 +149,8 @@ func NewCommand() *cobra.Command {
 			// repository server, if strict TLS validation was requested.
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/tls.crt",
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/ca.crt",
+					fmt.Sprintf("%s/controller/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/controller/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
 					log.Fatalf("%v", err)

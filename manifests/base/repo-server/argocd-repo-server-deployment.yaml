@@ -47,12 +47,6 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.log.level
                 optional: true
-          - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: log.format.timestamp
-                optional: true
           - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
             valueFrom:
               configMapKeyRef:
