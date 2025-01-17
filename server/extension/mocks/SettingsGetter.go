@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	settings "github.com/argoproj/argo-cd/v2/util/settings"
+	settings "github.com/argoproj/argo-cd/v3/util/settings"
 	mock "github.com/stretchr/testify/mock"
 )
 

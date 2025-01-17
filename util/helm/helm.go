@@ -12,9 +12,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/config"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
 
 const (
@@ -84,7 +84,11 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+			helmPassword, err := repo.Creds.GetPassword()
+			if err != nil {
+				return fmt.Errorf("failed to get password for helm registry: %w", err)
+			}
+			if repo.Creds.GetUsername() != "" && helmPassword != "" {
 				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {

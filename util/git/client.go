@@ -34,11 +34,11 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/common"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
@@ -319,7 +319,16 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 
 		auth := githttp.BasicAuth{Username: username, Password: token}
 		return &auth, nil
+	case AzureWorkloadIdentityCreds:
+		token, err := creds.GetAzureDevOpsAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+
+		auth := githttp.TokenAuth{Token: token}
+		return &auth, nil
 	}
+
 	return nil, nil
 }
 
@@ -480,14 +489,14 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		if largeFiles, err := m.LsLargeFiles(); err == nil {
-			if len(largeFiles) > 0 {
-				if out, err := m.runCmd("lfs", "checkout"); err != nil {
-					return out, fmt.Errorf("failed to checkout LFS files: %w", err)
-				}
-			}
-		} else {
+		largeFiles, err := m.LsLargeFiles()
+		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
+		}
+		if len(largeFiles) > 0 {
+			if out, err := m.runCmd("lfs", "checkout"); err != nil {
+				return out, fmt.Errorf("failed to checkout LFS files: %w", err)
+			}
 		}
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
@@ -852,13 +861,12 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
-		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
-			out, err = m.runCmd("switch", "--orphan", branch)
-			if err != nil {
-				return out, fmt.Errorf("failed to create orphan branch: %w", err)
-			}
-		} else {
+		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+		out, err = m.runCmd("switch", "--orphan", branch)
+		if err != nil {
+			return out, fmt.Errorf("failed to create orphan branch: %w", err)
 		}
 
 		// Make an empty initial commit.
@@ -881,20 +889,19 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
 	out, err := m.Checkout(branch, submoduleEnabled)
 	if err != nil {
-		if strings.Contains(err.Error(), "did not match any file(s) known to git") {
-			// If the branch does not exist, create any empty branch based on the sync branch
-			// First, checkout the sync branch.
-			out, err = m.Checkout(base, submoduleEnabled)
-			if err != nil {
-				return out, fmt.Errorf("failed to checkout sync branch: %w", err)
-			}
-
-			out, err = m.runCmd("checkout", "-b", branch)
-			if err != nil {
-				return out, fmt.Errorf("failed to create branch: %w", err)
-			}
-		} else {
+		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
+		}
+		// If the branch does not exist, create any empty branch based on the sync branch
+		// First, checkout the sync branch.
+		out, err = m.Checkout(base, submoduleEnabled)
+		if err != nil {
+			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
+		}
+
+		out, err = m.runCmd("checkout", "-b", branch)
+		if err != nil {
+			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
 	}
 	return "", nil

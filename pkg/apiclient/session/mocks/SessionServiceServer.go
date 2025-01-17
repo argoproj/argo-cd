@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	session "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	session "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	mock "github.com/stretchr/testify/mock"
 )
 
