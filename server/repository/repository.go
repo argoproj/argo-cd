@@ -665,11 +665,11 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	}
 
 	repo := &v1alpha1.Repository{
-		Repo:     q.Repo,
-		Type:     q.Type,
-		Name:     q.Name,
-		Username: q.Username,
-		Password: q.Password,
+		Repo:                       q.Repo,
+		Type:                       q.Type,
+		Name:                       q.Name,
+		Username:                   q.Username,
+		Password:                   q.Password,
 		BearerToken:                q.BearerToken,
 		SSHPrivateKey:              q.SshPrivateKey,
 		Insecure:                   q.Insecure,
@@ -714,11 +714,11 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 	}
 
 	repo := &v1alpha1.Repository{
-		Repo:     q.Repo,
-		Type:     q.Type,
-		Name:     q.Name,
-		Username: q.Username,
-		Password: q.Password,
+		Repo:                       q.Repo,
+		Type:                       q.Type,
+		Name:                       q.Name,
+		Username:                   q.Username,
+		Password:                   q.Password,
 		BearerToken:                q.BearerToken,
 		SSHPrivateKey:              q.SshPrivateKey,
 		Insecure:                   q.Insecure,

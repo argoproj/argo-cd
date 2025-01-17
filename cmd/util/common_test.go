@@ -151,6 +151,7 @@ func TestValidateBearerTokenForHTTPSRepoOnly(t *testing.T) {
 }
 
 func runCmdAndCheckError(t *testing.T, expectError bool, testName, errorMsg string, validationFunc func()) {
+	t.Helper()
 	// All CLI commands do not return an error upon failure.
 	// Instead, the errors.CheckError(err) in each CLI command performs non-zero code system exit.
 	// So in order to test the commands, we need to run the command in a separate process and capture it's error message.
