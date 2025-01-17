@@ -161,8 +161,8 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
-		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+	completed := runWatchTest(t, db, []func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster){
+		func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster) {
 			assert.Fail(t, "The in-cluster should not be added when disabled")
 		},
 	})
