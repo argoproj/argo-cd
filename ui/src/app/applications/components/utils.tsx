@@ -1564,7 +1564,7 @@ export const userMsgsList: {[key: string]: string} = {
 
 export function getAppUrl(app: appModels.Application): string {
     if (typeof app.metadata.namespace === 'undefined') {
-        return `/applications/${app.metadata.name}`;
+        return `applications/${app.metadata.name}`;
     }
-    return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
+    return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
