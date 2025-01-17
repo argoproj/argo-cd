@@ -39,11 +39,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // Application is a definition of Application resource.
@@ -1104,17 +1104,6 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-
-	// nolint:govet
-	isServerInferred bool `json:"-"`
-	// nolint:govet
-	isNameInferred bool `json:"-"`
-}
-
-// SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
-// one server is inferred and the other is not.
-func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
-	d.isServerInferred = inferred
 }
 
 type ResourceHealthLocation string
@@ -3206,33 +3195,6 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	return &appType, nil
 }
 
-// Equals compares two instances of ApplicationDestination and returns true if instances are equal.
-func (d ApplicationDestination) Equals(other ApplicationDestination) bool {
-	// ignore destination cluster name and isServerInferred fields during comparison
-	// since server URL is inferred from cluster name
-	if d.isServerInferred {
-		d.Server = ""
-		d.isServerInferred = false
-	}
-
-	if other.isServerInferred {
-		other.Server = ""
-		other.isServerInferred = false
-	}
-
-	if d.isNameInferred {
-		d.Name = ""
-		d.isNameInferred = false
-	}
-
-	if other.isNameInferred {
-		other.Name = ""
-		other.isNameInferred = false
-	}
-
-	return reflect.DeepEqual(d, other)
-}
-
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
 func (spec ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
@@ -3486,44 +3448,10 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
-// SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
-func (d *ApplicationDestination) SetInferredServer(server string) {
-	d.isServerInferred = true
-	d.Server = server
-}
-
-// SetInferredName sets the Name field of the destination. See IsNameInferred() for details.
-func (d *ApplicationDestination) SetInferredName(name string) {
-	d.isNameInferred = true
-	d.Name = name
-}
-
-// An ApplicationDestination has an 'inferred server' if the ApplicationDestination
-// contains a Name, but not a Server URL. In this case it is necessary to retrieve
-// the Server URL by looking up the cluster name.
-//
-// As of this writing, looking up the cluster name, and setting the URL, is
-// performed by 'utils.ValidateDestination(...)', which then calls SetInferredServer.
-func (d *ApplicationDestination) IsServerInferred() bool {
-	return d.isServerInferred
-}
-
-func (d *ApplicationDestination) IsNameInferred() bool {
-	return d.isNameInferred
-}
-
 // MarshalJSON marshals an application destination to JSON format
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
 	dest := d
-	if d.isServerInferred {
-		dest = dest.DeepCopy()
-		dest.Server = ""
-	}
-	if d.isNameInferred {
-		dest = dest.DeepCopy()
-		dest.Name = ""
-	}
 
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }

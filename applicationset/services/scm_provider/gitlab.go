@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -131,37 +131,30 @@ func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path s
 	if err != nil {
 		return false, err
 	}
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
+
+	options := gitlab.ListTreeOptions{
+		Path: gitlab.Ptr(pathpkg.Dir(path)), // search parent folder
+		Ref:  &repo.Branch,
 	}
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
+	for {
+		treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+		if err != nil {
+			return false, err
 		}
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
-			if err != nil {
-				return false, err
+
+		// search for presence of the requested file in the parent folder
+		for i := range treeNode {
+			if treeNode[i].Path == path {
+				return true, nil
 			}
-			if path == directory {
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
 		}
+		if resp.NextPage == 0 {
+			// no future pages
+			break
+		}
+		options.Page = resp.NextPage
 	}
+
 	return false, nil
 }
 
