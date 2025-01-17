@@ -245,6 +245,31 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.False(t, serverRBACLogEnforceEnable)
 }
 
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.True(t, serverRBACLogEnforceEnable)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.False(t, flag)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.disableApplicationFineGrainedRBACInheritance": "true",
+	})
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.True(t, flag)
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -266,15 +291,6 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {

@@ -130,9 +130,9 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
     Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
     will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
 
-    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital 
-    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase. 
-    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four 
+    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital
+    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase.
+    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four
     slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
@@ -148,14 +148,28 @@ p, example-user, applications, delete, default/prod-app, deny
 p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-!!! note
+!!! note "Disable Application permission Inheritance"
 
-    It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
+    By default, it is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
     For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
     p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
+    ```
+
+    To change this behavior, you can set the config value
+    `server.rbac.disableApplicationFineGrainedRBACInheritance` to `true` in
+    the Argo CD ConfigMap `argocd-cm`.
+
+    When inheritance is disabled, it is now possible to deny fine-grained permissions for a sub-resource
+    if the action was **explicitly allowed on the application**.
+
+    For instance, if we want to explicitly allow updates to the application, but deny updates to any sub-resources:
+
+    ```csv
+    p, example-user, applications, update, default/prod-app, allow
+    p, example-user, applications, update/*, default/prod-app, deny
     ```
 
 #### The `action` action
