@@ -359,7 +359,6 @@ func isSelfReferencedApp(app *appv1.Application, ref corev1.ObjectReference) boo
 		gvk.Kind == application.ApplicationKind
 }
 
-// JAY-KULKARNI-FUNCTION
 func (ctrl *ApplicationController) isAppProjectWithExistingApplications(obj *unstructured.Unstructured) (bool, error) {
 	if obj.GetKind() != "AppProject" {
 		return false, nil
