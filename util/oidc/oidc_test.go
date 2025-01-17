@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -413,6 +415,88 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
+}
+
+func Test_getAzureKubernetesFederatedServiceAccountToken(t *testing.T) {
+	oidcTestServer := test.GetAzureOIDCTestServer(t, nil)
+	dexTestServer := test.GetDexTestServer(t)
+	signature, err := util.MakeSignature(32)
+	require.NoError(t, err)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL:             "https://argocd.example.com",
+		ServerSignature: signature,
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+azure: 
+  useWorkloadIdentity: true
+skipAudienceCheckWhenTokenHasNoAudience: true
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+	}
+
+	app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	tokenFilePath := "token.txt"
+	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+	file, _ := os.Create(tokenFilePath)
+	_, _ = file.Write([]byte("serviceAccountToken"))
+	defer os.Remove(tokenFilePath)
+
+	// Test case:  before the method call assertion should be empty.
+	assert.Equal(t, "", app.assertion)
+
+	// Test case: Fethc the token value from the file
+	_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "serviceAccountToken", app.assertion)
+
+	// Test case: Token file is not specified
+	os.Unsetenv("AZURE_FEDERATED_TOKEN_FILE")
+	_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+
+	if err == nil || err.Error() != "no token file specified. Check pod configuration or set TokenFilePath in the options" {
+		t.Errorf("Expected error 'no token file specified', got %v", err)
+	}
+
+	// Test case: Concurrent access to the function
+	currentExpiryTime := app.expires
+	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+	var wg sync.WaitGroup
+	numGoroutines := 10
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, "serviceAccountToken", app.assertion)
+		}()
+	}
+	wg.Wait()
+
+	// Event with multiple concurrent calls the expiry time should not change untile it passes.
+	assert.Equal(t, currentExpiryTime, app.expires)
+
+	// Test case: Concurrent access to the function when the current token expires
+	currentExpiryTime = app.expires
+	app.expires = time.Now()
+	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+	numGoroutines = 10
+	wg.Add(numGoroutines)
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+			require.NoError(t, err)
+			assert.Equal(t, "serviceAccountToken", app.assertion)
+		}()
+	}
+	wg.Wait()
+
+	assert.NotEqual(t, currentExpiryTime, app.expires)
 }
 
 func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {

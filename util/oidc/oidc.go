@@ -85,9 +85,10 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
-	assertion   string
-	expires     time.Time
-	mtx         *sync.RWMutex
+	// properties for azure workload identity.
+	assertion string
+	expires   time.Time
+	mtx       *sync.RWMutex
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -346,9 +347,9 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-// getAzureKubernetesServiceAccountToken returns the specified file's content, which is expected to be a Kubernetes service account token.
+// getAzureKubernetesFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
 // Kubernetes is responsible for updating the file as service account tokens expire.
-func (a *ClientApp) getAzureKubernetesServiceAccountToken(context.Context) (string, error) {
+func (a *ClientApp) getAzureKubernetesFederatedServiceAccountToken(context.Context) (string, error) {
 	file := ""
 	ok := false
 	if file == "" {
@@ -411,7 +412,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	options := []oauth2.AuthCodeOption{}
 
 	if a.useAzureWorkloadIdentity {
-		clientAssertion, err := a.getAzureKubernetesServiceAccountToken(ctx)
+		clientAssertion, err := a.getAzureKubernetesFederatedServiceAccountToken(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
 			return
