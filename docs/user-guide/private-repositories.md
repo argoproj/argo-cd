@@ -200,7 +200,35 @@ Using the UI:
     ![connect repo](../assets/repo-add-azure-workload-identity.png)
 - Click `Connect`
 
-   
+Using secret definition:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo
+  useAzureWorkloadIdentity: "true"
+```
 
 ## Credential templates
 

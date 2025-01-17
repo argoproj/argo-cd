@@ -1,8 +1,6 @@
 package util_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"testing"
 
@@ -96,19 +94,19 @@ func TestGenerateCacheKey(t *testing.T) {
 		{
 			format:    "Hello %s",
 			args:      []any{"World"},
-			expected:  generateExpectedKey("Hello World"),
+			expected:  "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e",
 			shouldErr: false,
 		},
 		{
 			format:    "",
 			args:      []any{},
-			expected:  generateExpectedKey(""),
+			expected:  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 			shouldErr: false,
 		},
 		{
 			format:    "Number: %d",
 			args:      []any{123},
-			expected:  generateExpectedKey("Number: 123"),
+			expected:  "665fb090bf37fa3cbba9b92b9f82e6fa4bb851bad4c0a0a6edfb0aefa542150b",
 			shouldErr: false,
 		},
 		// Add more test cases as needed
@@ -131,11 +129,4 @@ func TestGenerateCacheKey(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to generate the expected key
-func generateExpectedKey(input string) string {
-	h := sha256.New()
-	h.Write([]byte(input))
-	return hex.EncodeToString(h.Sum(nil))
 }
