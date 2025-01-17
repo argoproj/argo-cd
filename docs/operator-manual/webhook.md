@@ -12,6 +12,35 @@ a Git webhook for GitHub, but the same process should be applicable to other pro
     the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
     `targetRevision: refs/tags/x`.
 
+### Webhook Ingress
+
+The applicationset-controller is responsible for answering to webhook calls so a separate ingress has to be setup for it.
+
+Example Ingress:
+```
+# base/argocd-webhook-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argo-cd-webhook
+spec:
+  rules:
+    - host: cd.apps.argoproj.io
+      http:
+        paths:
+          - path: /api/webhook
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-applicationset-controller
+                port:
+                  number: 7000
+  tls:
+    - hosts:
+        - cd.apps.argoproj.io
+      secretName: argocd-secret
+```
+
 ## 1. Create The WebHook In The Git Provider
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
