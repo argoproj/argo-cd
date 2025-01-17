@@ -133,6 +133,8 @@ type HTTPSCreds struct {
 	username string
 	// Password for authentication
 	password string
+	// Bearer token for authentication
+	bearerToken string
 	// Whether to ignore invalid server certificates
 	insecure bool
 	// Client certificate to use
@@ -149,10 +151,11 @@ type HTTPSCreds struct {
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, bearerToken string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
+		bearerToken,
 		insecure,
 		clientCertData,
 		clientCertKey,

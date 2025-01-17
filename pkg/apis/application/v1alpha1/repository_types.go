@@ -51,6 +51,8 @@ type RepoCreds struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// BearerToken contains the bearer token used for Git auth at the repo server
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
 
 // Repository is a repository holding application configurations
@@ -104,6 +106,8 @@ type Repository struct {
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// BearerToken contains the bearer token used for Git auth at the repo server
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -118,7 +122,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -129,6 +133,9 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.Password == "" {
 			repo.Password = source.Password
+		}
+		if repo.BearerToken == "" {
+			repo.BearerToken = source.BearerToken
 		}
 		if repo.SSHPrivateKey == "" {
 			repo.SSHPrivateKey = source.SSHPrivateKey
@@ -167,6 +174,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		}
 		if repo.Password == "" {
 			repo.Password = source.Password
+		}
+		if repo.BearerToken == "" {
+			repo.BearerToken = source.BearerToken
 		}
 		if repo.SSHPrivateKey == "" {
 			repo.SSHPrivateKey = source.SSHPrivateKey
@@ -208,8 +218,8 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.ForceHttpBasicAuth)
+	if repo.Password != "" || repo.BearerToken != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store, repo.Proxy, repo.NoProxy)

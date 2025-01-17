@@ -34,6 +34,7 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
+      --bearer-token string                     bearer token to the Git repository
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --force-http-basic-auth                   whether to force basic auth when connecting via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform

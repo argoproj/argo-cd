@@ -54,6 +54,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
+  # Add a private Git repository via HTTPS using bearer token:
+  argocd admin repo generate-spec https://git.example.com/repos/repo --bearer-token secret-token
+
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
@@ -137,6 +140,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			if repoOpts.Repo.Username != "" && repoOpts.Repo.Password == "" {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
+
+			cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
 
 			argoCDCM := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
