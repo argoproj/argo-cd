@@ -721,7 +721,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(increase(http_requests_total{job=\"argocd-dex-server\", handler=\"/auth\", code=\"302\", method=\"GET\"}[1m]))",
+          "expr": "sum(increase(http_requests_total{job=\"argocd-dex-server\", handler=\"/auth\", code=\"302\", method=\"GET\"}[$interval]))",
           "instant": false,
           "legendFormat": "/auth",
           "range": true,
@@ -1880,7 +1880,9 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "linearThreshold": 1,
+                  "log": 2,
+                  "type": "symlog"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -2093,7 +2095,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -2234,7 +2237,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "auto",
                 "spanNulls": false,
@@ -2328,7 +2332,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -2428,7 +2433,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3138,7 +3144,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3237,7 +3244,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3336,7 +3344,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3435,7 +3444,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3534,7 +3544,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3636,7 +3647,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3738,7 +3750,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3838,7 +3851,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -3938,7 +3952,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -4079,7 +4094,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -4220,7 +4236,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "auto",
                 "spanNulls": false,
@@ -4275,7 +4292,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(rest_client_requests_total{job=\"argocd-metrics\"}[$__rate_interval])) by (pod)",
+              "expr": "sum(increase(rest_client_requests_total{job=\"argocd-metrics\"}[$interval])) by (pod)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{pod}}",
@@ -4283,7 +4300,7 @@
               "refId": "A"
             }
           ],
-          "title": "Rest Client Requests",
+          "title": "Rest Client Requests by Cluster",
           "type": "timeseries"
         },
         {
@@ -4314,7 +4331,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "auto",
                 "spanNulls": false,
@@ -4369,7 +4387,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(rest_client_requests_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[$__rate_interval])) by (host)",
+              "expr": "sum(increase(rest_client_requests_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[$interval])) by (host)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{host}}",
@@ -4537,7 +4555,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[1m])) by (pod, container)",
+              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[$interval])) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}/{{container}}",
@@ -4900,7 +4918,8 @@
                 "pointSize": 5,
                 "scaleDistribution": {
                   "linearThreshold": 0,
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -5344,7 +5363,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -5588,10 +5608,10 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "irate(process_cpu_seconds_total{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}[1m])",
+              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}[$interval])) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
-              "legendFormat": "{{pod}}",
+              "legendFormat": "{{pod}}/{{container}}",
               "range": true,
               "refId": "A"
             }
@@ -5689,7 +5709,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}",
+              "expr": "sum(go_memstats_heap_alloc_bytes{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -5790,7 +5810,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "go_goroutines{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}",
+              "expr": "sum (go_goroutines{job=\"argocd-applicationset-controller\",namespace=~\"$namespace\"}) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -5829,7 +5849,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "auto",
                 "spanNulls": false,
@@ -5884,7 +5905,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(rest_client_requests_total{job=\"argocd-applicationset-controller\"}[$__rate_interval])) by (method,code)",
+              "expr": "sum(increase(rest_client_requests_total{job=\"argocd-applicationset-controller\"}[$interval])) by (method,code)",
               "instant": false,
               "legendFormat": "{{method}}/{{code}}",
               "range": true,
@@ -6144,7 +6165,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-repo-server\",namespace=~\"$namespace\"}[1m])) by (pod, container)",
+              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-repo-server\",namespace=~\"$namespace\"}[$interval])) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}/{{container}}",
@@ -6377,7 +6398,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -6435,7 +6457,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[10m])) by (repo)",
+              "expr": "sum(increase(argocd_git_request_total{request_type=\"ls-remote\", namespace=~\"$namespace\"}[$interval])) by (repo)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{repo}}",
@@ -6474,7 +6496,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -6532,7 +6555,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[10m])) by (repo)",
+              "expr": "sum(increase(argocd_git_request_total{request_type=\"fetch\", namespace=~\"$namespace\"}[$interval])) by (repo)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{namespace}}",
@@ -6791,7 +6814,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -6849,7 +6873,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(increase(argocd_git_lsremote_fail_total{namespace=~\"$namespace\"}[10m])) by (namespace)",
+              "expr": "sum(increase(argocd_git_lsremote_fail_total{namespace=~\"$namespace\"}[$interval])) by (namespace)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{namespace}}",
@@ -6888,7 +6912,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -6946,7 +6971,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum(increase(argocd_repo_pending_request_total{namespace=~\"$namespace\"}[10m])) by (repo)",
+              "expr": "sum(increase(argocd_repo_pending_request_total{namespace=~\"$namespace\"}[$interval])) by (repo)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{repo}}",
@@ -7114,7 +7139,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}[1m])) by (pod)",
+              "expr": "sum (irate(process_cpu_seconds_total{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}[$interval])) by (pod)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -7211,7 +7236,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "sum(go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -7307,7 +7332,7 @@
                 "uid": "$datasource"
               },
               "editorMode": "code",
-              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "sum (go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}) by (pod, container)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -7477,8 +7502,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -7615,8 +7639,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -7753,8 +7776,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -7891,8 +7913,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red"
@@ -8578,7 +8599,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -8673,7 +8695,8 @@
                 "lineWidth": 1,
                 "pointSize": 5,
                 "scaleDistribution": {
-                  "type": "linear"
+                  "log": 2,
+                  "type": "log"
                 },
                 "showPoints": "never",
                 "spanNulls": false,
@@ -9205,6 +9228,7 @@
           }
         ],
         "query": "1m,5m,10m,30m,1h,2h,4h,8h",
+        "queryValue": "",
         "refresh": 2,
         "skipUrlSync": false,
         "type": "interval"
@@ -9399,6 +9423,6 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "LCAgc9rWz",
-  "version": 7,
+  "version": 2,
   "weekStart": ""
 }
