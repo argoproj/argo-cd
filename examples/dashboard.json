@@ -1711,6 +1711,417 @@
               },
               "unit": "short"
             },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 14
+          },
+          "id": 159,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "expr": "sum(argocd_cluster_api_resources{job=\"argocd-metrics\",namespace=~\"$namespace\",server=~\"$cluster\"}) by ($grouping)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{$grouping}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "API Resources Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 14
+          },
+          "id": 160,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "expr": "sum(argocd_cluster_api_resource_objects{job=\"argocd-metrics\",namespace=~\"$namespace\",server=~\"$cluster\"}) by ($grouping)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{$grouping}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Resource Objects Count",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byValue",
+                  "options": {
+                    "op": "gte",
+                    "reducer": "allIsZero",
+                    "value": 0
+                  }
+                },
+                "properties": [
+                  {
+                    "id": "custom.hideFrom",
+                    "value": {
+                      "legend": true,
+                      "tooltip": true,
+                      "viz": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 21
+          },
+          "id": 96,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "expr": "sum(workqueue_depth{job=\"argocd-metrics\",namespace=~\"$namespace\"}) by ($grouping,name)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{$grouping}}/{{name}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Workqueue Depth",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 21
+          },
+          "id": 146,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "max(argocd_cluster_cache_age_seconds{job=\"argocd-metrics\",server=~\"$cluster\"}) by (pod,sever)",
+              "instant": false,
+              "legendFormat": "{{pod}} / {{server}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Cluster Cache Age",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
             "overrides": [
               {
                 "matcher": {
@@ -1758,7 +2169,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 28
           },
           "id": 80,
           "links": [],
@@ -1856,7 +2267,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 28
           },
           "id": 147,
           "options": {
@@ -1952,7 +2363,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 35
           },
           "id": 145,
           "links": [],
@@ -2052,7 +2463,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 35
           },
           "id": 158,
           "links": [],
@@ -2090,219 +2501,6 @@
           "type": "timeseries"
         },
         {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$datasource"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": [
-              {
-                "matcher": {
-                  "id": "byValue",
-                  "options": {
-                    "op": "gte",
-                    "reducer": "allIsZero",
-                    "value": 0
-                  }
-                },
-                "properties": [
-                  {
-                    "id": "custom.hideFrom",
-                    "value": {
-                      "legend": true,
-                      "tooltip": true,
-                      "viz": false
-                    }
-                  }
-                ]
-              }
-            ]
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 0,
-            "y": 28
-          },
-          "id": 96,
-          "links": [],
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "10.0.3",
-          "targets": [
-            {
-              "datasource": {
-                "uid": "$datasource"
-              },
-              "editorMode": "code",
-              "expr": "sum(workqueue_depth{job=\"argocd-metrics\",namespace=~\"$namespace\"}) by ($grouping,name)",
-              "format": "time_series",
-              "intervalFactor": 1,
-              "legendFormat": "{{$grouping}}/{{name}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Workqueue Depth",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 7,
-            "w": 12,
-            "x": 12,
-            "y": 28
-          },
-          "id": 146,
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
-              },
-              "editorMode": "code",
-              "expr": "max(argocd_cluster_cache_age_seconds{job=\"argocd-metrics\",server=~\"$cluster\"}) by (pod,sever)",
-              "instant": false,
-              "legendFormat": "{{pod}} / {{server}}",
-              "range": true,
-              "refId": "A"
-            }
-          ],
-          "title": "Cluster Cache Age",
-          "type": "timeseries"
-        },
-        {
           "cards": {},
           "color": {
             "cardColor": "#b4ff00",
@@ -2335,7 +2533,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 35
+            "y": 42
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -2450,7 +2648,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 43
+            "y": 50
           },
           "heatmap": {},
           "hideZeroBuckets": false,
@@ -3175,6 +3373,204 @@
             "x": 0,
             "y": 38
           },
+          "id": 161,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "expr": "sum(argocd_cluster_api_resources{job=\"argocd-metrics\",namespace=~\"$namespace\",server=~\"$cluster\"}) by (pod)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{pod}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "API Resource Count by Replica",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
+          "id": 162,
+          "links": [],
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "list",
+              "placement": "right",
+              "showLegend": false
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "10.0.3",
+          "targets": [
+            {
+              "datasource": {
+                "uid": "$datasource"
+              },
+              "editorMode": "code",
+              "expr": "sum(argocd_cluster_api_resources{job=\"argocd-metrics\",namespace=~\"$namespace\",server=~\"$cluster\"}) by (server)",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{pod}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "API Resource Count by Cluster",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 45
+          },
           "id": 150,
           "links": [],
           "options": {
@@ -3275,7 +3671,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 45
           },
           "id": 155,
           "links": [],
@@ -3377,7 +3773,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 52
           },
           "id": 86,
           "links": [],
@@ -3477,7 +3873,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 52
           },
           "id": 154,
           "links": [],
@@ -3618,7 +4014,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 59
           },
           "id": 151,
           "links": [],
@@ -3759,7 +4155,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 52
+            "y": 59
           },
           "id": 156,
           "links": [],
@@ -3857,7 +4253,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 66
           },
           "id": 130,
           "options": {
@@ -3951,7 +4347,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 66
           },
           "id": 157,
           "options": {
@@ -3973,7 +4369,7 @@
                 "uid": "${DS_PROMETHEUS}"
               },
               "editorMode": "code",
-              "expr": "sum(rate(rest_client_requests_total{job=\"argocd-metrics\"}[$__rate_interval])) by (host)",
+              "expr": "sum(rate(rest_client_requests_total{job=\"argocd-metrics\",namespace=~\"$namespace\"}[$__rate_interval])) by (host)",
               "hide": false,
               "instant": false,
               "legendFormat": "{{host}}",
@@ -9003,6 +9399,6 @@
   "timezone": "",
   "title": "ArgoCD",
   "uid": "LCAgc9rWz",
-  "version": 6,
+  "version": 7,
   "weekStart": ""
 }
