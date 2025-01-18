@@ -6905,6 +6905,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                               scmProvider:
                                 properties:
@@ -12655,6 +12659,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                               scmProvider:
                                 properties:
@@ -15735,6 +15743,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     scmProvider:
