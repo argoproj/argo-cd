@@ -142,7 +142,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				"foo":       "bar",
 				"pr_branch": "{{ branch }}",
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
