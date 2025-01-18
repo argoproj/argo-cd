@@ -79,6 +79,5 @@ func ListPullRequests(ctx context.Context, provider PullRequestService, filters 
 			}
 		}
 	}
-
 	return filteredPullRequests, nil
 }
