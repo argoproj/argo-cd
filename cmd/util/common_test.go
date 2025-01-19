@@ -1,13 +1,9 @@
 package util
 
 import (
-	"bytes"
-	"errors"
-	"os"
-	"os/exec"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateBearerTokenAndPasswordCombo(t *testing.T) {
@@ -47,10 +43,12 @@ func TestValidateBearerTokenAndPasswordCombo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// if tt.expectError {
-			runCmdAndCheckError(t, tt.expectError, "TestValidateBearerTokenAndPasswordCombo", tt.errorMsg, func() {
-				ValidateBearerTokenAndPasswordCombo(tt.bearerToken, tt.password)
-			})
+			err := ValidateBearerTokenAndPasswordCombo(tt.bearerToken, tt.password)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
@@ -99,9 +97,12 @@ func TestValidateBearerTokenForGitOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runCmdAndCheckError(t, tt.expectError, "TestValidateBearerTokenForGitOnly", tt.errorMsg, func() {
-				ValidateBearerTokenForGitOnly(tt.bearerToken, tt.repoType)
-			})
+			err := ValidateBearerTokenForGitOnly(tt.bearerToken, tt.repoType)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
@@ -143,38 +144,12 @@ func TestValidateBearerTokenForHTTPSRepoOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			runCmdAndCheckError(t, tt.expectError, "TestValidateBearerTokenForHTTPSRepoOnly", tt.errorMsg, func() {
-				ValidateBearerTokenForHTTPSRepoOnly(tt.bearerToken, tt.isHTTPS)
-			})
+			err := ValidateBearerTokenForHTTPSRepoOnly(tt.bearerToken, tt.isHTTPS)
+			if tt.expectError {
+				require.ErrorContains(t, err, tt.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
 		})
-	}
-}
-
-func runCmdAndCheckError(t *testing.T, expectError bool, testName, errorMsg string, validationFunc func()) {
-	t.Helper()
-	// All CLI commands do not return an error upon failure.
-	// Instead, the errors.CheckError(err) in each CLI command performs non-zero code system exit.
-	// So in order to test the commands, we need to run the command in a separate process and capture it's error message.
-	// https://stackoverflow.com/a/33404435
-	// TODO: consider whether to change all the CLI commands to return an error instead of performing a non-zero code system exit.
-	if expectError {
-		if os.Getenv("BE_CRASHER") == "1" {
-			validationFunc()
-			return
-		}
-		cmd := exec.Command(os.Args[0], "-test.run="+testName)
-		cmd.Env = append(os.Environ(), "BE_CRASHER=1")
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		err := cmd.Run()
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) && !exitErr.Success() {
-			t.Log(stderr.String())
-			assert.Contains(t, stderr.String(), errorMsg)
-			return
-		}
-		t.Fatalf("process ran with err %v, want exit status 1", err)
-	} else {
-		validationFunc()
 	}
 }

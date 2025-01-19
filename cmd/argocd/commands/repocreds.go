@@ -160,17 +160,18 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
 			defer io.Close(conn)
 
-			// Specifying bearerToken is only valid for HTTPS repositories
-			cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repo.BearerToken, git.IsHTTPSURL(repo.URL))
-
 			// If the user set a username, but didn't supply password via --password,
 			// then we prompt for it
 			if repo.Username != "" && repo.Password == "" {
 				repo.Password = cli.PromptPassword(repo.Password)
 			}
 
-			cmdutil.ValidateBearerTokenAndPasswordCombo(repo.BearerToken, repo.Password)
-			cmdutil.ValidateBearerTokenForGitOnly(repo.BearerToken, repo.Type)
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repo.BearerToken, repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repo.BearerToken, repo.Type)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repo.BearerToken, git.IsHTTPSURL(repo.URL))
+			errors.CheckError(err)
 
 			repoCreateReq := repocredspkg.RepoCredsCreateRequest{
 				Creds:  &repo,

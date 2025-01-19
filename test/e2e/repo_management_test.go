@@ -177,3 +177,19 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 		assert.True(t, exists)
 	})
 }
+
+func TestFailOnPrivateRepoCreationWithPasswordAndBearerToken(t *testing.T) {
+	app.Given(t).And(func() {
+		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoUrl, "--password", "test", "--bearer-token", "test")
+		require.ErrorContains(t, err, "only --bearer-token or --password is allowed, not both")
+	})
+}
+
+func TestCreatePrivateRepoWithBearerToken(t *testing.T) {
+	app.Given(t).And(func() {
+		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoUrl, "--bearer-token", "test")
+		require.NoError(t, err)
+	})
+}

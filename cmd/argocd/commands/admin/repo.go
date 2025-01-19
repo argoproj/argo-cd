@@ -141,8 +141,12 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
-			cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
-			cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
 
 			argoCDCM := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
@@ -161,7 +165,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
+			_, err = argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), metav1.GetOptions{})
