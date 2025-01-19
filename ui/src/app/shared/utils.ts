@@ -1,4 +1,5 @@
 import React from 'react';
+import { Cluster } from './models';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -104,3 +105,10 @@ export const useTheme = (props: {theme: string}) => {
 
     return [theme];
 };
+
+export const formatClusterQueryParam = (cluster: Cluster) => {
+    if (cluster.name === cluster.server) {
+        return cluster.name;
+    }
+    return `${cluster.name} (${cluster.server})`;
+}
