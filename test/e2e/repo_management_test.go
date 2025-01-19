@@ -186,10 +186,10 @@ func TestFailOnPrivateRepoCreationWithPasswordAndBearerToken(t *testing.T) {
 	})
 }
 
-func TestCreatePrivateRepoWithBearerToken(t *testing.T) {
+func TestFailOnCreatePrivateNonHTTPSRepoWithBearerToken(t *testing.T) {
 	app.Given(t).And(func() {
 		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl, "--bearer-token", "test")
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "--bearer-token is only supported for HTTPS repositories")
 	})
 }
