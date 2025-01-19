@@ -89,19 +89,15 @@ test('OperationState.quiet', () => {
 });
 
 test('OperationState.Unknown', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)  //mock to ignore dynamic ids 
     const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application} />).toJSON();
 
-    expect(tree).toMatchSnapshot();  
-    jest.restoreAllMocks();  
+    expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Deleting', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<OperationState app={{metadata: {deletionTimestamp: zero}, status: {operationState: {}}} as Application} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks();
 });
 
 test('OperationState.Sync OK', () => {
@@ -125,13 +121,11 @@ test('OperationState.Sync failed', () => {
 });
 
 test('OperationState.Syncing', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer
         .create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Running}}} as Application} />)
         .toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 test('ComparisonStatusIcon.Synced', () => {
@@ -147,27 +141,20 @@ test('ComparisonStatusIcon.OutOfSync', () => {
 });
 
 test('ComparisonStatusIcon.Unknown', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<ComparisonStatusIcon status={SyncStatuses.Unknown} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 test('HealthStatusIcon.Unknown', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Unknown} as HealthStatus} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks();
 });
-
 test('HealthStatusIcon.Progressing', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Progressing} as HealthStatus} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 test('HealthStatusIcon.Suspended', () => {
@@ -188,11 +175,9 @@ test('HealthStatusIcon.Degraded', () => {
     expect(tree).toMatchSnapshot();
 });
 test('HealthStatusIcon.Missing', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Missing} as HealthStatus} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 test('ResourceResultIcon.Synced', () => {
@@ -214,7 +199,6 @@ test('ResourceResultIcon.SyncFailed', () => {
 });
 
 test('ResourceResultIcon.Hook.Running', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer
         .create(
             <ResourceResultIcon
@@ -230,7 +214,6 @@ test('ResourceResultIcon.Hook.Running', () => {
         .toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 test('ResourceResultIcon.Hook.Failed', () => {
@@ -252,11 +235,9 @@ test('ResourceResultIcon.Hook.Succeeded', () => {
 });
 
 test('ResourceResultIcon.Hook.Terminating', () => {
-    jest.spyOn(global.Math, 'random').mockImplementation(() => 0)
     const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult} />).toJSON();
 
     expect(tree).toMatchSnapshot();
-    jest.restoreAllMocks(); 
 });
 
 // These tests are equivalent to those in controller/cache/info_test.go. If you change a test here, update the corresponding test there.
