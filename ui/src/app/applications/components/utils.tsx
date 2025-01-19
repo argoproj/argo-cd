@@ -42,7 +42,7 @@ export function isSameNode(first: NodeId, second: NodeId) {
 export function helpTip(text: string) {
     return (
         <Tooltip content={text}>
-            <span style={{fSize: 'smaller'}}>
+            <span style={{fontSize: 'smaller'}}>
                 {' '}
                 <i className='fas fa-info-circle' />
             </span>
@@ -1569,4 +1569,4 @@ export function getAppUrl(app: appModels.Application): string {
     return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
 
-//trying to fix git issues
+//still trying
