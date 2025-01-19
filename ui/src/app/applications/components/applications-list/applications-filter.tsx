@@ -7,7 +7,7 @@ import {AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import * as LabelSelector from '../label-selector';
 import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon} from '../utils';
-import { formatClusterQueryParam } from '../../../shared/utils';
+import {formatClusterQueryParam} from '../../../shared/utils';
 
 export interface FilterResult {
     repos: boolean;

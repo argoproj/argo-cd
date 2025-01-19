@@ -10,7 +10,7 @@ import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, DataLoader, EditablePanel, Page, Timestamp, MapInputField} from '../../../shared/components';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import { formatClusterQueryParam } from '../../../shared/utils';
+import {formatClusterQueryParam} from '../../../shared/utils';
 
 function isRefreshRequested(cluster: Cluster): boolean {
     return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
@@ -91,7 +91,16 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                     title: 'APPLICATIONS',
                                     view: (
                                         <div>
-                                            <DataLoader load={() => services.applications.list([])}>{apps => <Link to={`/applications?cluster=${formatClusterQueryParam(cluster)}`}>{apps.items.filter(app => app.spec.destination.name === cluster.name || app.spec.destination.server === cluster.server).length}</Link>}</DataLoader>
+                                            <DataLoader load={() => services.applications.list([])}>
+                                                {apps => (
+                                                    <Link to={`/applications?cluster=${formatClusterQueryParam(cluster)}`}>
+                                                        {
+                                                            apps.items.filter(app => app.spec.destination.name === cluster.name || app.spec.destination.server === cluster.server)
+                                                                .length
+                                                        }
+                                                    </Link>
+                                                )}
+                                            </DataLoader>
                                         </div>
                                     )
                                 },

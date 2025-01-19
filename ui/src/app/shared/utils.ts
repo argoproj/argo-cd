@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cluster } from './models';
+import {Cluster} from './models';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -111,4 +111,4 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
         return cluster.name;
     }
     return `${cluster.name} (${cluster.server})`;
-}
+};
