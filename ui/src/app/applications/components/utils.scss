@@ -32,3 +32,19 @@ i.utils-health-status-icon {
     min-width: 13px;
     text-align: center;
 }
+
+.icon.spin {
+    animation: spin 2s linear infinite; 
+    width: 0.5em;
+    height: 0.5em;
+    vertical-align: -0.05em;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
