@@ -120,6 +120,7 @@ const (
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GitBearerToken                  = "test"
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"

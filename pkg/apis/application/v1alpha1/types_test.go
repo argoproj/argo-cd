@@ -1254,7 +1254,7 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &Repository{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &Repository{}, Repository{Password: "foo"}},
-		{"Password", &Repository{BearerToken: "foo"}, &Repository{}, Repository{BearerToken: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &Repository{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &Repository{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
@@ -1291,7 +1291,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &RepoCreds{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &RepoCreds{}, Repository{Password: "foo"}},
-		{"Password", &Repository{BearerToken: "foo"}, &RepoCreds{}, Repository{BearerToken: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &RepoCreds{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &RepoCreds{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &RepoCreds{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &RepoCreds{}, Repository{Insecure: true}},
@@ -1302,7 +1302,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 
 		{"SourceUsername", &Repository{}, &RepoCreds{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &RepoCreds{Password: "foo"}, Repository{Password: "foo"}},
-		{"SourcePassword", &Repository{}, &RepoCreds{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
+		{"SourceBearerToken", &Repository{}, &RepoCreds{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
