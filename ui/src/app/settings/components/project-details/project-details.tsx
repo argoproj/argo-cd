@@ -224,11 +224,6 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                             content: this.SyncWindowsTab(proj, ctx)
                                                         },
                                                         {
-                                                            key: 'applications',
-                                                            title: 'Applications',
-                                                            content: this.SyncWindowsTab(proj, ctx)
-                                                        },
-                                                        {
                                                             key: 'events',
                                                             title: 'Events',
                                                             content: this.eventsTab(proj)
