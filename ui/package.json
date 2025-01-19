@@ -12,9 +12,6 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.5.2",
-    "@fortawesome/fontawesome-svg-core": "^6.7.1",
-    "@fortawesome/free-solid-svg-icons": "^6.7.1",
-    "@fortawesome/react-fontawesome": "^0.2.2",
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^8.1.6",
     "ansi-to-react": "^6.1.6",

@@ -2,8 +2,6 @@ import {Autocomplete, Checkbox} from 'argo-ui/v2';
 import * as React from 'react';
 
 import './filter.scss';
-import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
-import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 
 interface FilterProps {
     selected: string[];
@@ -190,6 +188,6 @@ const FilterError = (props: {retry: () => void}) => (
 
 const FilterLoading = () => (
     <div className='filter__loading'>
-        <FontAwesomeIcon icon={faCircleNotch} spin title='Loading' /> LOADING
+        <i className='fa fa-circle-notch fa-spin' /> LOADING
     </div>
 );
