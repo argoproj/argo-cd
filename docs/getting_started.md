@@ -53,7 +53,7 @@ Also available in Mac, Linux and WSL Homebrew:
 brew install argocd
 ```
 !!! note
-    To ensure proper functionality, the Argo CD CLI requires HTTP/2 support. Verify that your CLI is set up to use HTTP/2, especially if connecting to an Argo CD server over HTTPS. Check your system’s configuration or proxy settings if issues arise.
+    To ensure proper functionality, the  ingress controller should be configured to use http/2. Check your system’s configuration or proxy settings if issues arise.
     
 ## 3. Access The Argo CD API Server
 
