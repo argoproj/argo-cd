@@ -16,11 +16,11 @@ builds:
     flags:
       - -v
     ldflags:
-      - -X github.com/argoproj/argo-cd/v2/common.version={{ .Version }}
-      - -X github.com/argoproj/argo-cd/v2/common.buildDate={{ .Date }}
-      - -X github.com/argoproj/argo-cd/v2/common.gitCommit={{ .FullCommit }}
-      - -X github.com/argoproj/argo-cd/v2/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
-      - -X github.com/argoproj/argo-cd/v2/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
+      - -X github.com/argoproj/argo-cd/v3/common.version={{ .Version }}
+      - -X github.com/argoproj/argo-cd/v3/common.buildDate={{ .Date }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
+      - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
+      - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
       - -extldflags="-static"
     goos:
       - linux

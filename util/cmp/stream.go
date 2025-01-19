@@ -15,10 +15,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/tgzstream"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
 
 // StreamSender defines the contract to send App files over stream
@@ -41,7 +41,7 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 		return nil, fmt.Errorf("error receiving stream header: %w", err)
 	}
 	if header == nil || header.GetMetadata() == nil {
-		return nil, fmt.Errorf("error getting stream metadata: metadata is nil")
+		return nil, errors.New("error getting stream metadata: metadata is nil")
 	}
 	metadata := header.GetMetadata()
 
@@ -186,7 +186,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 		f := req.GetFile()
 		if f == nil {
-			return nil, fmt.Errorf("stream request file is nil")
+			return nil, errors.New("stream request file is nil")
 		}
 		_, err = file.Write(f.Chunk)
 		if err != nil {
@@ -198,7 +198,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 	}
 	if hex.EncodeToString(hasher.Sum(nil)) != checksum {
-		return nil, fmt.Errorf("file checksum validation error")
+		return nil, errors.New("file checksum validation error")
 	}
 
 	_, err = file.Seek(0, io.SeekStart)

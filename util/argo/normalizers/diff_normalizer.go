@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -70,7 +70,7 @@ type jqNormalizerPatch struct {
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	dataJson := make(map[string]interface{})
+	dataJson := make(map[string]any)
 	err := json.Unmarshal(data, &dataJson)
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	iter := np.code.RunWithContext(ctx, dataJson)
 	first, ok := iter.Next()
 	if !ok {
-		return nil, fmt.Errorf("JQ patch did not return any data")
+		return nil, errors.New("JQ patch did not return any data")
 	}
 	if err, ok = first.(error); ok {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -92,7 +92,7 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	}
 	_, ok = iter.Next()
 	if ok {
-		return nil, fmt.Errorf("JQ patch returned multiple objects")
+		return nil, errors.New("JQ patch returned multiple objects")
 	}
 
 	patchedData, err := json.Marshal(first)
@@ -184,7 +184,7 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 // Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
 func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
-		return fmt.Errorf("invalid argument: unstructured is nil")
+		return errors.New("invalid argument: unstructured is nil")
 	}
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {

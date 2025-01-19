@@ -1990,6 +1990,39 @@
         }
       }
     },
+    "/api/v1/applicationsets/generate": {
+      "post": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Generate generates",
+        "operationId": "ApplicationSetService_Generate",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}": {
       "get": {
         "tags": [
@@ -3738,6 +3771,12 @@
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4073,6 +4112,510 @@
                   "$ref": "#/definitions/v1alpha1ApplicationTree"
                 }
               }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds": {
+      "get": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "ListWriteRepositoryCredentials gets a list of all configured repository credential sets that have write access",
+        "operationId": "RepoCredsService_ListWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "url",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCredsList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "CreateWriteRepositoryCredentials creates a new repository credential set with write access",
+        "operationId": "RepoCredsService_CreateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{creds.url}": {
+      "put": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "UpdateWriteRepositoryCredentials updates a repository credential set with write access",
+        "operationId": "RepoCredsService_UpdateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "URL is the URL to which these credentials match",
+            "name": "creds.url",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{url}": {
+      "delete": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "DeleteWriteRepositoryCredentials deletes a repository credential set with write access from the configuration",
+        "operationId": "RepoCredsService_DeleteWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repocredsRepoCredsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListWriteRepositories gets a list of all configured write repositories",
+        "operationId": "RepositoryService_ListWriteRepositories",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateWriteRepository creates a new write repository configuration",
+        "operationId": "RepositoryService_CreateWriteRepository",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to operate on credential set instead of repository.",
+            "name": "credsOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo.repo}": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateWriteRepository updates a write repository configuration",
+        "operationId": "RepositoryService_UpdateWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo contains the URL to the remote repository",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "GetWrite returns a repository or its write credentials",
+        "operationId": "RepositoryService_GetWrite",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteWriteRepository deletes a write repository from the configuration",
+        "operationId": "RepositoryService_DeleteWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}/validate": {
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ValidateWriteAccess validates write access to a repository with given parameters",
+        "operationId": "RepositoryService_ValidateWriteAccess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The URL to the repo",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The URL to the repo",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Username for accessing repo.",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Password for accessing repo.",
+            "name": "password",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Private key data for accessing SSH repository.",
+            "name": "sshPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to skip certificate or host key validation.",
+            "name": "insecure",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert data for accessing HTTPS repository.",
+            "name": "tlsClientCertData",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert key for accessing HTTPS repository.",
+            "name": "tlsClientCertKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The type of the repo.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The name of the repo.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether helm-oci support should be enabled for this repo.",
+            "name": "enableOci",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Private Key PEM data.",
+            "name": "githubAppPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App ID of the app used to access the repo.",
+            "name": "githubAppID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "name": "githubAppInstallationID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google Cloud Platform service account key.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force HTTP basic auth.",
+            "name": "forceHttpBasicAuth",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
             }
           },
           "default": {
@@ -4691,6 +5234,12 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "additionalUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "appLabelKey": {
           "type": "string"
         },
@@ -4718,6 +5267,9 @@
         },
         "help": {
           "$ref": "#/definitions/clusterHelp"
+        },
+        "hydratorEnabled": {
+          "type": "boolean"
         },
         "impersonationEnabled": {
           "type": "boolean"
@@ -6624,6 +7176,10 @@
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
+        "skipSchemaValidation": {
+          "type": "boolean",
+          "title": "SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)"
+        },
         "skipTests": {
           "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
           "type": "boolean"
@@ -6847,6 +7403,9 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
         "sources": {
           "type": "array",
           "title": "Sources is a reference to the location of the application's manifests or chart",
@@ -6903,6 +7462,9 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydratorStatus"
         },
         "sourceType": {
           "type": "string",
@@ -7331,6 +7893,24 @@
         }
       }
     },
+    "v1alpha1DrySource": {
+      "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the git repository that contains the application manifests"
+        },
+        "targetRevision": {
+          "type": "string",
+          "title": "TargetRevision defines the revision of the source to hydrate"
+        }
+      }
+    },
     "v1alpha1DuckTypeGenerator": {
       "description": "DuckType defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
@@ -7501,6 +8081,9 @@
       "type": "object",
       "title": "HealthStatus contains information about the currently observed health state of an application or resource",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
@@ -7579,6 +8162,47 @@
         },
         "resourceName": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "title": "HydrateOperation contains information about the most recent hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase indicates the status of the hydrate operation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "v1alpha1HydrateTo": {
+      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "targetBranch": {
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },
@@ -8328,6 +8952,10 @@
           "type": "string",
           "title": "URL is the URL to which these credentials match"
         },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
+        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"
@@ -8441,6 +9069,10 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
+        },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
         "username": {
           "type": "string",
@@ -9189,6 +9821,50 @@
         }
       }
     },
+    "v1alpha1SourceHydrator": {
+      "description": "SourceHydrator specifies a dry \"don't repeat yourself\" source for manifests, a sync source from which to sync\nhydrated manifests, and an optional hydrateTo location to act as a \"staging\" aread for hydrated manifests.",
+      "type": "object",
+      "properties": {
+        "drySource": {
+          "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateTo": {
+          "$ref": "#/definitions/v1alpha1HydrateTo"
+        },
+        "syncSource": {
+          "$ref": "#/definitions/v1alpha1SyncSource"
+        }
+      }
+    },
+    "v1alpha1SourceHydratorStatus": {
+      "type": "object",
+      "title": "SourceHydratorStatus contains information about the current state of source hydration",
+      "properties": {
+        "currentOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
+        },
+        "lastSuccessfulOperation": {
+          "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SuccessfulHydrateOperation": {
+      "type": "object",
+      "title": "SuccessfulHydrateOperation contains information about the most recent successful hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        }
+      }
+    },
     "v1alpha1SyncOperation": {
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
@@ -9345,6 +10021,20 @@
         "selfHeal": {
           "type": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncSource": {
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the\nassociated DrySource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+          "type": "string"
+        },
+        "targetBranch": {
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },

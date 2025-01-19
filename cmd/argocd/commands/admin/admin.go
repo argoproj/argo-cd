@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,13 +16,13 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -98,7 +98,7 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 // getReferencedSecrets examines the argocd-cm config for any referenced repo secrets and returns a
 // map of all referenced secrets.
 func getReferencedSecrets(un unstructured.Unstructured) map[string]bool {
-	var cm apiv1.ConfigMap
+	var cm corev1.ConfigMap
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 	referencedSecrets := make(map[string]bool)
@@ -192,8 +192,8 @@ func isArgoCDConfigMap(name string) bool {
 func specsEqual(left, right unstructured.Unstructured) bool {
 	leftAnnotation := left.GetAnnotations()
 	rightAnnotation := right.GetAnnotations()
-	delete(leftAnnotation, apiv1.LastAppliedConfigAnnotation)
-	delete(rightAnnotation, apiv1.LastAppliedConfigAnnotation)
+	delete(leftAnnotation, corev1.LastAppliedConfigAnnotation)
+	delete(rightAnnotation, corev1.LastAppliedConfigAnnotation)
 	if !reflect.DeepEqual(leftAnnotation, rightAnnotation) {
 		return false
 	}
@@ -242,9 +242,9 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
+	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
 	errors.CheckError(err)
-	var cm apiv1.ConfigMap
+	var cm corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
