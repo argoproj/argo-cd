@@ -138,7 +138,7 @@ spec:
         - /spec/syncPolicy
 ```
 
-Note that toggling auto-sync on an application created by an ApplicationSet without a sync-policy will always revert to the previous state during the next reconciliation cycle.. See more details [here](../../user-guide/auto_sync.md).
+Note that toggling auto-sync on an application created by an ApplicationSet without a sync-policy will always revert to the previous state during the next reconciliation cycle. See more details [here](../../user-guide/auto_sync.md).
 
 ### Limitations of `ignoreApplicationDifferences`
 
