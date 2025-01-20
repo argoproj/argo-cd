@@ -138,6 +138,8 @@ spec:
         - /spec/syncPolicy
 ```
 
+Note that toggling auto-sync on an application created by an ApplicationSet without a sync-policy will always revert to the previous state during the next reconciliation cycle.. See more details [here](../../userguide/auto_sync.md).
+
 ### Limitations of `ignoreApplicationDifferences`
 
 When an ApplicationSet is reconciled, the controller will compare the ApplicationSet spec with the spec of each Application
