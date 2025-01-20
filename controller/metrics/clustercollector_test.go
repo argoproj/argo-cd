@@ -4,13 +4,14 @@ import (
 	"errors"
 	"testing"
 
-	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/test"
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
+
+	argocommon "github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func createSecret(name, namespace, env, team, server, config string) *corev1.Secret {
@@ -33,7 +34,6 @@ func createSecret(name, namespace, env, team, server, config string) *corev1.Sec
 }
 
 func TestMetricClusterConnectivity(t *testing.T) {
-
 	argoCDNamespace := test.FakeArgoCDNamespace
 
 	cm := test.NewFakeConfigMap()

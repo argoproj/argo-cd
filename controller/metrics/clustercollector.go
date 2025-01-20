@@ -5,14 +5,14 @@ import (
 	"sync"
 	"time"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/gitops-engine/pkg/cache"
+	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/prometheus/client_golang/prometheus"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -144,7 +144,6 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 			}
 			ch <- prometheus.MustNewConstMetric(descClusterLabels, prometheus.GaugeValue, 1, labelValues...)
 		}
-
 	}
 }
 
