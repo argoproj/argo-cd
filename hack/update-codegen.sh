@@ -36,7 +36,7 @@ sed -e '/go install/d' ${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codegen
 # are in the path and invoke them without assumption of their location
 sed -i.bak -e 's#${gobin}/##g' ${TARGET_SCRIPT}
 
-[ -e ./v2 ] || ln -s . v2
+[ -e ./v3 ] || ln -s . v3
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")
 
 # shellcheck source=pkg/apis/application/v1alpha1/kube_codegen.sh
@@ -45,7 +45,7 @@ sed -i.bak -e 's#${gobin}/##g' ${TARGET_SCRIPT}
 kube::codegen::gen_helpers pkg/apis/application/v1alpha1
 kube::codegen::gen_client pkg/apis \
   --output-dir pkg/client \
-  --output-pkg github.com/argoproj/argo-cd/v2/pkg/client \
+  --output-pkg github.com/argoproj/argo-cd/v3/pkg/client \
   --boilerplate "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
   --with-watch
 
@@ -53,4 +53,4 @@ rm ${TARGET_SCRIPT}
 rm ${TARGET_SCRIPT}.bak
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
-[ -L ./v2 ] && rm -rf v2
+[ -L ./v3 ] && rm -rf v3

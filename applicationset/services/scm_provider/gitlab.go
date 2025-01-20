@@ -8,9 +8,9 @@ import (
 	pathpkg "path"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -24,7 +24,7 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -75,7 +75,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	return repos, nil
 }
 
-func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
@@ -131,37 +131,30 @@ func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path s
 	if err != nil {
 		return false, err
 	}
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
+
+	options := gitlab.ListTreeOptions{
+		Path: gitlab.Ptr(pathpkg.Dir(path)), // search parent folder
+		Ref:  &repo.Branch,
 	}
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
+	for {
+		treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+		if err != nil {
+			return false, err
 		}
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
-			if err != nil {
-				return false, err
+
+		// search for presence of the requested file in the parent folder
+		for i := range treeNode {
+			if treeNode[i].Path == path {
+				return true, nil
 			}
-			if path == directory {
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
 		}
+		if resp.NextPage == 0 {
+			// no future pages
+			break
+		}
+		options.Page = resp.NextPage
 	}
+
 	return false, nil
 }
 

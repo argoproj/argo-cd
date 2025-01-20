@@ -231,6 +231,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -378,6 +380,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -464,6 +502,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -863,6 +903,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -1010,6 +1052,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -1096,6 +1174,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -1494,6 +1574,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -1641,6 +1723,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -1727,6 +1845,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -2105,6 +2225,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -2252,6 +2374,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -2338,6 +2496,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -2741,6 +2901,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -2888,6 +3050,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -2974,6 +3172,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -3373,6 +3573,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -3520,6 +3722,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -3606,6 +3844,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -4004,6 +4244,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -4151,6 +4393,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -4237,6 +4515,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -4615,6 +4895,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -4762,6 +5044,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -4848,6 +5166,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -5234,6 +5554,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -5381,6 +5703,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -5467,6 +5825,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -6072,6 +6432,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -6219,6 +6581,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -6305,6 +6703,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -6905,6 +7305,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -7052,6 +7454,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -7138,6 +7576,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -7533,6 +7973,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -7680,6 +8122,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -7766,6 +8244,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -8171,6 +8651,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -8318,6 +8800,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -8404,6 +8922,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -8803,6 +9323,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -8950,6 +9472,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -9036,6 +9594,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -9434,6 +9994,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -9581,6 +10143,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -9667,6 +10265,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -10045,6 +10645,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10192,6 +10794,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -10278,6 +10916,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -10664,6 +11304,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10811,6 +11453,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -10897,6 +11575,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -11502,6 +12182,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -11649,6 +12331,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -11735,6 +12453,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -12335,6 +13055,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -12482,6 +13204,42 @@ spec:
                                             required:
                                             - repoURL
                                             type: object
+                                          sourceHydrator:
+                                            properties:
+                                              drySource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  repoURL:
+                                                    type: string
+                                                  targetRevision:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - repoURL
+                                                - targetRevision
+                                                type: object
+                                              hydrateTo:
+                                                properties:
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - targetBranch
+                                                type: object
+                                              syncSource:
+                                                properties:
+                                                  path:
+                                                    type: string
+                                                  targetBranch:
+                                                    type: string
+                                                required:
+                                                - path
+                                                - targetBranch
+                                                type: object
+                                            required:
+                                            - drySource
+                                            - syncSource
+                                            type: object
                                           sources:
                                             items:
                                               properties:
@@ -12568,6 +13326,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -12967,6 +13727,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -13114,6 +13876,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -13200,6 +13998,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -13585,6 +14385,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -13732,6 +14534,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -13818,6 +14656,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -14423,6 +15263,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -14570,6 +15412,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -14656,6 +15534,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -15256,6 +16136,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -15403,6 +16285,42 @@ spec:
                                   required:
                                   - repoURL
                                   type: object
+                                sourceHydrator:
+                                  properties:
+                                    drySource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        repoURL:
+                                          type: string
+                                        targetRevision:
+                                          type: string
+                                      required:
+                                      - path
+                                      - repoURL
+                                      - targetRevision
+                                      type: object
+                                    hydrateTo:
+                                      properties:
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - targetBranch
+                                      type: object
+                                    syncSource:
+                                      properties:
+                                        path:
+                                          type: string
+                                        targetBranch:
+                                          type: string
+                                      required:
+                                      - path
+                                      - targetBranch
+                                      type: object
+                                  required:
+                                  - drySource
+                                  - syncSource
+                                  type: object
                                 sources:
                                   items:
                                     properties:
@@ -15489,6 +16407,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -15959,6 +16879,8 @@ spec:
                                 type: string
                               skipCrds:
                                 type: boolean
+                              skipSchemaValidation:
+                                type: boolean
                               skipTests:
                                 type: boolean
                               valueFiles:
@@ -16106,6 +17028,42 @@ spec:
                         required:
                         - repoURL
                         type: object
+                      sourceHydrator:
+                        properties:
+                          drySource:
+                            properties:
+                              path:
+                                type: string
+                              repoURL:
+                                type: string
+                              targetRevision:
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            - targetRevision
+                            type: object
+                          hydrateTo:
+                            properties:
+                              targetBranch:
+                                type: string
+                            required:
+                            - targetBranch
+                            type: object
+                          syncSource:
+                            properties:
+                              path:
+                                type: string
+                              targetBranch:
+                                type: string
+                            required:
+                            - path
+                            - targetBranch
+                            type: object
+                        required:
+                        - drySource
+                        - syncSource
+                        type: object
                       sources:
                         items:
                           properties:
@@ -16192,6 +17150,8 @@ spec:
                                 releaseName:
                                   type: string
                                 skipCrds:
+                                  type: boolean
+                                skipSchemaValidation:
                                   type: boolean
                                 skipTests:
                                   type: boolean
@@ -16454,6 +17414,9 @@ spec:
                       type: string
                     health:
                       properties:
+                        lastTransitionTime:
+                          format: date-time
+                          type: string
                         message:
                           type: string
                         status:

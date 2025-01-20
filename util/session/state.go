@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
-	util "github.com/argoproj/argo-cd/v2/util/io"
+	util "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -125,6 +125,10 @@ func (storage *userStateStorage) IsTokenRevoked(id string) bool {
 	return storage.revokedTokens[id]
 }
 
+func (storage *userStateStorage) GetLockObject() *sync.RWMutex {
+	return &storage.lock
+}
+
 type UserStateStorage interface {
 	Init(ctx context.Context)
 	// GetLoginAttempts return number of concurrent login attempts
@@ -135,4 +139,6 @@ type UserStateStorage interface {
 	RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error
 	// IsTokenRevoked checks if given token is revoked
 	IsTokenRevoked(id string) bool
+	// GetLockObject returns a lock used by the storage
+	GetLockObject() *sync.RWMutex
 }

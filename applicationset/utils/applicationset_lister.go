@@ -6,8 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 )
 
 // Implements AppsetLister interface with controller-runtime client
@@ -19,7 +19,7 @@ func NewAppsetLister(client ctrlclient.Client) ApplicationSetLister {
 	return &AppsetLister{Client: client}
 }
 
-func (l *AppsetLister) List(selector labels.Selector) (ret []*ApplicationSet, err error) {
+func (l *AppsetLister) List(_ labels.Selector) (ret []*ApplicationSet, err error) {
 	return clientListAppsets(l.Client, ctrlclient.ListOptions{})
 }
 
@@ -37,11 +37,11 @@ type appsetNamespaceLister struct {
 	Namespace string
 }
 
-func (n *appsetNamespaceLister) List(selector labels.Selector) (ret []*ApplicationSet, err error) {
+func (n *appsetNamespaceLister) List(_ labels.Selector) (ret []*ApplicationSet, err error) {
 	return clientListAppsets(n.Client, ctrlclient.ListOptions{Namespace: n.Namespace})
 }
 
-func (n *appsetNamespaceLister) Get(name string) (*ApplicationSet, error) {
+func (n *appsetNamespaceLister) Get(_ string) (*ApplicationSet, error) {
 	appset := ApplicationSet{}
 	err := n.Client.Get(context.TODO(), ctrlclient.ObjectKeyFromObject(&appset), &appset)
 	return &appset, err
