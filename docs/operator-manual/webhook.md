@@ -1,70 +1,55 @@
 # Git Webhook Configuration
 
-## Overview
-
 Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
 this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
-a Git webhook for GitHub, but the same process should be applicable to other providers.
+Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs.
 
 !!! note
     The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
     the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
     `targetRevision: refs/tags/x`.
+    
+    
+!!! note
+    The ApplicationSet controller webhook does not use the same webhook as
+    the API server. ApplicationSet exposes a webhook server as a service of type
+    ClusterIP. An ApplicationSet specific Ingress resource needs to be created
+    to expose this service to the webhook source.
+    
+## 1. Configure the ApplicationSet WebHook ingress
 
-### Webhook Ingress
+the ApplicationSet controller has it's own endpoint for webhooks. You can
+configure a ingress path to point at the `argocd-applicationset-controller`
+service on the `webhook` named port. For example
+`applicationset.example.com/api/webhook`.
 
-The applicationset-controller is responsible for answering to webhook calls so a separate ingress has to be setup for it.
-
-Example Ingress:
-```
-# base/argocd-webhook-ingress.yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: argo-cd-webhook
-spec:
-  rules:
-    - host: cd.apps.argoproj.io
-      http:
-        paths:
-          - path: /api/webhook
-            pathType: Prefix
-            backend:
-              service:
-                name: argocd-applicationset-controller
-                port:
-                  number: 7000
-  tls:
-    - hosts:
-        - cd.apps.argoproj.io
-      secretName: argocd-secret
-```
-
-## 1. Create The WebHook In The Git Provider
+## 2. Create The WebHook In The Git Provider
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
-URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
-(e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
+URL configured in the Git provider should use the `/api/webhook` endpoint of your ApplicationSet instance
+(e.g. `https://applicationset.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
+
+!!! note
+    When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB.
 
-## Github
+### Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
 
 !!! note
     When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
 
-## Azure DevOps
+### Azure DevOps
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 
 Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
 `webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
 
-## 2. Configure Argo CD With The WebHook Secret (Optional)
+## 3. Configure Argo CD With The WebHook Secret (Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
 related to the Git repository, even with unauthenticated webhook events. This is safe to do since
@@ -138,3 +123,9 @@ Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 > NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
+
+## Repository credentials for ApplicationSets
+If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it, you need to add the repository as a "non project scoped" repository.  
+- When doing that through the UI, set this to a **blank** value in the dropdown menu.
+- When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
+- When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))
