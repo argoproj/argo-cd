@@ -19,7 +19,10 @@ spec:
     automated: {}
 ```
 
-Applications managed by an ApplicationSet inherit their configuration from the ApplicationSet manifest. To make persistent changes, such as enabling Auto Sync, you must update the SyncPolicy in the ApplicationSet manifest. This behavior can be confusing if you are transitioning from standalone Applications to using ApplicationSets. Consider reviewing the linked instructions for more details on configuring ApplicationSets effectively. Read more details [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
+## Temporarily toggling auto-sync for applications managed by ApplicationSets
+
+For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
+Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
 
 
 ## Automatic Pruning
