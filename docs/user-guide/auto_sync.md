@@ -19,6 +19,9 @@ spec:
     automated: {}
 ```
 
+Applications managed by an ApplicationSet inherit their configuration from the ApplicationSet manifest. To make persistent changes, such as enabling Auto Sync, you must update the SyncPolicy in the ApplicationSet manifest. This behavior can be confusing if you are transitioning from standalone Applications to using ApplicationSets. Consider reviewing the linked instructions for more details on configuring ApplicationSets effectively. Read more details [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
+
+
 ## Automatic Pruning
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
@@ -76,10 +79,6 @@ spec:
 ```
 
 Disabling self-heal does not guarantee that live cluster changes won't be reverted in multi-source applications. Even if a resource's source remains unchanged, changes in one of the sources can trigger `autosync`. To handle such cases, consider disabling `autosync`.
-
-## Temporarily toggling auto-sync for applications managed by ApplicationSets
-
-Applications managed by an ApplicationSet inherit their configuration from the ApplicationSet manifest. To make persistent changes, such as enabling Auto Sync, you must update the SyncPolicy in the ApplicationSet manifest. This behavior can be confusing if you are transitioning from standalone Applications to using ApplicationSets. Consider reviewing the linked instructions for more details on configuring ApplicationSets effectively.
 
 ## Automated Sync Semantics
 
