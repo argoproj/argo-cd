@@ -1044,7 +1044,15 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		// when a path is to a file instead of a directory. Our code should not hit this path, because
 		// we should only send requests for parent directories. But we leave this handler in place
 		// to prevent regressions.
-		case "/api/v4/projects/27084533/repository/tree?path=argocd/filepath.yaml&ref=master":
+		case "/api/v4/projects/27084533/repository/tree?path=argocd/notathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing/notathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing/notathing/notathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing/notathing&ref=master":
 			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
 			w.WriteHeader(http.StatusNotFound)
@@ -1201,8 +1209,13 @@ func TestGitlabHasPath(t *testing.T) {
 			exists: false,
 		},
 		{
-			name:   "send a file path",
-			path:   "argocd/filepath.yaml",
+			name:   "search noexistent file in noexistent directory",
+			path:   "notathing/notathing.yaml",
+			exists: false,
+		},
+		{
+			name:   "search noexistent file in nested noexistent directory",
+			path:   "notathing/notathing/notathing.yaml",
 			exists: false,
 		},
 	}

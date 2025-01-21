@@ -2,6 +2,7 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -129,30 +130,51 @@ func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*
 func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	p, _, err := g.client.Projects.GetProject(repo.Organization+"/"+repo.Repository, nil)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error getting Project Info: %w", err)
 	}
 
-	options := gitlab.ListTreeOptions{
-		Path: gitlab.Ptr(pathpkg.Dir(path)), // search parent folder
-		Ref:  &repo.Branch,
+	// first check the provided path
+	// if it's a directory, check for it's presence
+	// if it's a file, we'll get a first error then we check the parent folder
+	directories := []string{
+		path,
+		pathpkg.Dir(path),
 	}
-	for {
-		treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
-		if err != nil {
-			return false, err
+
+	for _, directory := range directories {
+		options := gitlab.ListTreeOptions{
+			Path: &directory,
+			Ref:  &repo.Branch,
 		}
 
-		// search for presence of the requested file in the parent folder
-		for i := range treeNode {
-			if treeNode[i].Path == path {
-				return true, nil
+		for {
+			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+			if err != nil {
+				if errors.Is(err, gitlab.ErrNotFound) {
+					break // no directory here, checking for files in the parent folder
+				}
+				return false, fmt.Errorf("error listing Project files %s(%s) on branch %s: %w", path, pathpkg.Dir(path), repo.Branch, err)
 			}
+
+			if path == directory {
+				// we found the requested directory
+				if resp.TotalItems > 0 {
+					return true, nil
+				}
+			}
+
+			// search for presence of the requested file in the parent folder
+			for i := range treeNode {
+				if treeNode[i].Path == path {
+					return true, nil
+				}
+			}
+			if resp.NextPage == 0 {
+				// no future pages
+				break
+			}
+			options.Page = resp.NextPage
 		}
-		if resp.NextPage == 0 {
-			// no future pages
-			break
-		}
-		options.Page = resp.NextPage
 	}
 
 	return false, nil
