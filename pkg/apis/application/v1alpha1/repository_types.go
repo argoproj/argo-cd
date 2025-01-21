@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,8 @@ type RepoCreds struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 }
 
 // Repository is a repository holding application configurations
@@ -99,6 +102,8 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -113,7 +118,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != ""
+	return repo.Username != "" || repo.Password != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -150,6 +155,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
+		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
 }
 
@@ -193,6 +199,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 			repo.NoProxy = source.NoProxy
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
+		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
 }
 
@@ -213,12 +220,26 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
+	if repo.UseAzureWorkloadIdentity {
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+	}
 	return git.NopCreds{}
 }
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
-	return helm.Creds{
+	if repo.UseAzureWorkloadIdentity {
+		return helm.NewAzureWorkloadIdentityCreds(
+			repo.Repo,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
+			workloadidentity.NewWorkloadIdentityTokenProvider(),
+		)
+	}
+
+	return helm.HelmCreds{
 		Username:           repo.Username,
 		Password:           repo.Password,
 		CAPath:             getCAPath(repo.Repo),
@@ -302,6 +323,7 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppId:                repo.GithubAppId,
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
 	}
 }
 

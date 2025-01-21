@@ -205,7 +205,7 @@ spec:
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git directory generator. Values added via the `values` field are added as `values.(field)`.
 
-In this example, a `cluster` parameter value is passed. It is interpolated from the `branch` and `path` variable, to then be used to determine the destination namespace.
+In this example, a `cluster` parameter value is passed. It is interpolated from the `path` variable, to then be used to determine the destination namespace.
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -222,7 +222,7 @@ spec:
       directories:
       - path: '*'
       values:
-        cluster: '{{.branch}}-{{.path.basename}}'
+        cluster: '{{.path.basename}}'
   template:
     metadata:
       name: '{{.path.basename}}'
