@@ -1529,6 +1529,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: q.ProjectName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
