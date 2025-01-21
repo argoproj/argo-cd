@@ -27,7 +27,7 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {
 	return &argoCDService{
 		getRepository:          db.GetRepository,
 		submoduleEnabled:       submoduleEnabled,
@@ -48,7 +48,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			defer io.Close(closer)
 			return client.GetGitDirectories(ctx, dirRequest)
 		},
-	}, nil
+	}
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
