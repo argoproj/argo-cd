@@ -116,13 +116,13 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 }
 
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-    filteredApps := make([]argoappv1.Application, 0)
-    for _, app := range apps {
-        if app.Spec.Source != nil && (app.Spec.Source.Path == path || strings.HasPrefix(app.Spec.Source.Path, path+"/")) {
-            filteredApps = append(filteredApps, app)
-        }
-    }
-    return filteredApps
+	filteredApps := make([]argoappv1.Application, 0)
+	for _, app := range apps {
+		if app.Spec.Source != nil && (app.Spec.Source.Path == path || strings.HasPrefix(app.Spec.Source.Path, path+"/")) {
+			filteredApps = append(filteredApps, app)
+		}
+	}
+	return filteredApps
 }
 
 func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
@@ -151,8 +151,6 @@ func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.App
 	}
 	return filteredApps
 }
-
-
 
 // FilterByProjectsP returns application pointers which belongs to the specified project
 func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argoappv1.Application {

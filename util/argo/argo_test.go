@@ -659,10 +659,10 @@ func TestFilterByPath(t *testing.T) {
 	})
 
 	t.Run("Exact path match", func(t *testing.T) {
-        res := FilterByPath(apps, "example/apps/foo/chart")
-        assert.Len(t, res, 1)
-        assert.Equal(t, "example/apps/foo/chart", res[0].Spec.Source.Path)
-    })
+		res := FilterByPath(apps, "example/apps/foo/chart")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/foo/chart", res[0].Spec.Source.Path)
+	})
 
 	t.Run("Multiple apps matching path", func(t *testing.T) {
 		res := FilterByPath(apps, "example/apps/foo")
