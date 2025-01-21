@@ -24,17 +24,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
+	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -220,9 +220,8 @@ func init() {
 	if err != nil {
 		if stderrors.Is(err, os.ErrNotExist) {
 			return
-		} else {
-			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
+		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -1115,7 +1114,7 @@ func AddTag(name string) {
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values interface{}) (string, error) {
+func Declarative(filename string, values any) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
@@ -1220,9 +1219,8 @@ func RestartAPIServer() {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
-	} else {
-		return base + "/local"
 	}
+	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.

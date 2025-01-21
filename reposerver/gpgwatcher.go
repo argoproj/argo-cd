@@ -9,7 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 const maxRecreateRetries = 5
@@ -47,15 +47,14 @@ func StartGPGWatcher(sourcePath string) error {
 							if err != nil {
 								log.Errorf("Error re-creating watcher on %s: %v", sourcePath, err)
 								if attempt < maxRecreateRetries {
-									attempt += 1
+									attempt++
 									log.Infof("Retrying to re-create watcher, attempt %d of %d", attempt, maxRecreateRetries)
 									time.Sleep(1 * time.Second)
 									continue
-								} else {
-									log.Errorf("Maximum retries exceeded.")
-									close(done)
-									return
 								}
+								log.Errorf("Maximum retries exceeded.")
+								close(done)
+								return
 							}
 							break
 						}

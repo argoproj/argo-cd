@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1040,6 +1040,12 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		// Recent versions of the Gitlab API (v17.7+) return 404 not only when a file doesn't exist, but also
+		// when a path is to a file instead of a directory. Our code should not hit this path, because
+		// we should only send requests for parent directories. But we leave this handler in place
+		// to prevent regressions.
+		case "/api/v4/projects/27084533/repository/tree?path=argocd/filepath.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
 			w.WriteHeader(http.StatusNotFound)
 		default:
@@ -1124,7 +1130,7 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
+			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -1163,7 +1169,7 @@ func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -1194,6 +1200,11 @@ func TestGitlabHasPath(t *testing.T) {
 			path:   "argocd/notathing.yaml",
 			exists: false,
 		},
+		{
+			name:   "send a file path",
+			path:   "argocd/filepath.yaml",
+			exists: false,
+		},
 	}
 
 	for _, c := range cases {
@@ -1209,7 +1220,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 
 	repo := &Repository{
 		RepositoryId: 27084533,
@@ -1286,7 +1297,7 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-			host, err := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
+			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
 			require.NoError(t, err)
 			repo := &Repository{
 				RepositoryId: 27084533,
