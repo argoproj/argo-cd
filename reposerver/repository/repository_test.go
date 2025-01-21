@@ -1811,6 +1811,7 @@ func Test_newEnv(t *testing.T) {
 	assert.Equal(t, &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: "my-project-name"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
@@ -1818,9 +1819,10 @@ func Test_newEnv(t *testing.T) {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
 	}, newEnv(&apiclient.ManifestRequest{
-		AppName:   "my-app-name",
-		Namespace: "my-namespace",
-		Repo:      &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
 		ApplicationSource: &v1alpha1.ApplicationSource{
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
