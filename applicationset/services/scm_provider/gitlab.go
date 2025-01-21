@@ -132,7 +132,7 @@ func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path s
 		return false, fmt.Errorf("error getting Project Info: %w", err)
 	}
 
-	// search if the path is a file and existe in the repo
+	// search if the path is a file and exists in the repo
 	fileOptions := gitlab.GetFileOptions{Ref: &repo.Branch}
 	_, _, err = g.client.RepositoryFiles.GetFile(p.ID, path, &fileOptions)
 	if err != nil {
