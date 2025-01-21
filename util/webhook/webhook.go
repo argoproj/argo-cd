@@ -195,8 +195,6 @@ func affectedRevisionInfo(payloadIf interface{}, webhookHandler *ArgoCDWebhookHa
 		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
-		// TODO: bitbucket includes multiple changes as part of a single event.
-		// We only pick the first but need to consider how to handle multiple
 		fullName := strings.Split(payload.Repository.FullName, "/")
 		workspace := fullName[0]
 		repoSlug := payload.Repository.Name
