@@ -3,8 +3,8 @@ package notification
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "then" part of given/when/then
@@ -16,6 +16,12 @@ type Consequences struct {
 func (c *Consequences) Services(block func(services *notification.ServiceList, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.listServices())
+	return c
+}
+
+func (c *Consequences) Healthy(block func(healthy bool)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.healthy)
 	return c
 }
 

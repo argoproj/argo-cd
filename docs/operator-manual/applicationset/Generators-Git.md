@@ -7,6 +7,8 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
     If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
     For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
     - in the case of git generators, PRs must require admin approval.
+    - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
+    
 
 ## Git Generator: Directories
 
@@ -202,7 +204,7 @@ spec:
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git directory generator. Values added via the `values` field are added as `values.(field)`.
 
-In this example, a `cluster` parameter value is passed. It is interpolated from the `branch` and `path` variable, to then be used to determine the destination namespace.
+In this example, a `cluster` parameter value is passed. It is interpolated from the `path` variable, to then be used to determine the destination namespace.
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -219,7 +221,7 @@ spec:
       directories:
       - path: '*'
       values:
-        cluster: '{{.branch}}-{{.path.basename}}'
+        cluster: '{{.path.basename}}'
   template:
     metadata:
       name: '{{.path.basename}}'
@@ -441,3 +443,9 @@ stringData:
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.
+
+## Repository credentials for ApplicationSets
+If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it, you need to add the repository as a "non project scoped" repository.  
+- When doing that through the UI, set this to a **blank** value in the dropdown menu.
+- When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
+- When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))

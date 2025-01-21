@@ -18,6 +18,8 @@ type PullRequest struct {
 	HeadSHA string
 	// Labels of the pull request.
 	Labels []string
+	// Author is the author of the pull request.
+	Author string
 }
 
 type PullRequestService interface {

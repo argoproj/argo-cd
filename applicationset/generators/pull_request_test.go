@@ -2,22 +2,22 @@ package generators
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected       []map[string]interface{}
+		expected       []map[string]any
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
@@ -32,12 +32,13 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							Branch:       "branch1",
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
+							Author:       "testName",
 						},
 					},
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -48,6 +49,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_sha":           "089d92cbf9ff857a39e6feccd32798ca700fb958",
 					"head_short_sha":     "089d92cb",
 					"head_short_sha_7":   "089d92c",
+					"author":             "testName",
 				},
 			},
 			expectedErr: nil,
@@ -63,12 +65,13 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							Branch:       "feat/areally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							TargetBranch: "feat/anotherreally+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
 							HeadSHA:      "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
+							Author:       "testName",
 						},
 					},
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "2",
 					"title":              "title2",
@@ -79,6 +82,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_sha":           "9b34ff5bd418e57d58891eb0aa0728043ca1e8be",
 					"head_short_sha":     "9b34ff5b",
 					"head_short_sha_7":   "9b34ff5",
+					"author":             "testName",
 				},
 			},
 			expectedErr: nil,
@@ -94,12 +98,13 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							Branch:       "a-very-short-sha",
 							TargetBranch: "master",
 							HeadSHA:      "abcd",
+							Author:       "testName",
 						},
 					},
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -110,6 +115,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_sha":           "abcd",
 					"head_short_sha":     "abcd",
 					"head_short_sha_7":   "abcd",
+					"author":             "testName",
 				},
 			},
 			expectedErr: nil,
@@ -119,11 +125,11 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					nil,
-					fmt.Errorf("fake error"),
+					errors.New("fake error"),
 				)
 			},
 			expected:    nil,
-			expectedErr: fmt.Errorf("error listing repos: fake error"),
+			expectedErr: errors.New("error listing repos: fake error"),
 		},
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -137,12 +143,13 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 							Labels:       []string{"preview"},
+							Author:       "testName",
 						},
 					},
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -154,6 +161,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_short_sha":     "089d92cb",
 					"head_short_sha_7":   "089d92c",
 					"labels":             []string{"preview"},
+					"author":             "testName",
 				},
 			},
 			expectedErr: nil,
@@ -176,12 +184,13 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 							TargetBranch: "master",
 							HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
 							Labels:       []string{"preview"},
+							Author:       "testName",
 						},
 					},
 					nil,
 				)
 			},
-			expected: []map[string]interface{}{
+			expected: []map[string]any{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -192,6 +201,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					"head_sha":           "089d92cbf9ff857a39e6feccd32798ca700fb958",
 					"head_short_sha":     "089d92cb",
 					"head_short_sha_7":   "089d92c",
+					"author":             "testName",
 				},
 			},
 			expectedErr: nil,
@@ -273,7 +283,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true, nil))
+			}, true, nil, true))
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -296,7 +306,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil))
+	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil, true))
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{

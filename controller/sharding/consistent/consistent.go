@@ -138,15 +138,14 @@ func (c *Consistent) GetLeast(client string) (string, error) {
 			foundItem = c.clients.Min()
 		}
 		key := c.clients.Get(foundItem)
-		if key != nil {
-			host := c.servers[key.(item).value]
-			if c.loadOK(host) {
-				return host, nil
-			}
-			h = key.(item).value
-		} else {
+		if key == nil {
 			return client, nil
 		}
+		host := c.servers[key.(item).value]
+		if c.loadOK(host) {
+			return host, nil
+		}
+		h = key.(item).value
 	}
 }
 

@@ -85,6 +85,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.log.level
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: log.format.timestamp
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -96,6 +102,30 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: controller.self.heal.timeout.seconds
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.timeout.seconds
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.factor
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.cap.seconds
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.sync.timeout.seconds
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
           valueFrom:
@@ -199,6 +229,24 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.diff.server.side
               optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: hydrator.enabled
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.batch.events.processing
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.events.processing.interval
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -225,6 +273,8 @@ spec:
           mountPath: /app/config/controller/tls
         - name: argocd-home
           mountPath: /home/argocd
+        - name: argocd-cmd-params-cm
+          mountPath: /home/argocd/params
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -255,3 +305,12 @@ spec:
             path: tls.key
           - key: ca.crt
             path: ca.crt
+      - name: argocd-cmd-params-cm
+        configMap:
+          optional: true
+          name: argocd-cmd-params-cm
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+      nodeSelector:
+        kubernetes.io/os: linux

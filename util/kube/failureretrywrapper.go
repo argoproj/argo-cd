@@ -17,7 +17,7 @@ type failureRetryRoundTripper struct {
 }
 
 // nolint:unparam
-func shouldRetry(counter int, r *http.Request, response *http.Response, err error) bool {
+func shouldRetry(counter int, _ *http.Request, response *http.Response, err error) bool {
 	if counter <= 0 {
 		return false
 	}
@@ -27,7 +27,7 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 			return true
 		}
 	}
-	if response != nil && (response.StatusCode == 504 || response.StatusCode == 503) {
+	if response != nil && (response.StatusCode == http.StatusGatewayTimeout || response.StatusCode == http.StatusServiceUnavailable) {
 		return true
 	}
 

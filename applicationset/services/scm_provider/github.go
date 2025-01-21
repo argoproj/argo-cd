@@ -6,8 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v63/github"
-	"golang.org/x/oauth2"
+	"github.com/google/go-github/v66/github"
 )
 
 type GithubProvider struct {
@@ -18,21 +17,15 @@ type GithubProvider struct {
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
-	var ts oauth2.TokenSource
+func NewGithubProvider(organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-	}
-	httpClient := oauth2.NewClient(ctx, ts)
+	httpClient := &http.Client{}
 	var client *github.Client
 	if url == "" {
-		client = github.NewClient(httpClient)
+		client = github.NewClient(httpClient).WithAuthToken(token)
 	} else {
 		var err error
 		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
@@ -107,7 +100,7 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 		Ref: repo.Branch,
 	})
 	// 404s are not an error here, just a normal false.
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if err != nil {

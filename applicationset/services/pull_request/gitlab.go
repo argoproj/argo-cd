@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
-	gitlab "github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GitLabService struct {
@@ -21,7 +21,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -56,11 +56,11 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	// Filter the merge requests on labels, if they are specified.
-	var labels *gitlab.Labels
+	var labels *gitlab.LabelOptions
 	if len(g.labels) > 0 {
-		labels = (*gitlab.Labels)(&g.labels)
+		var labelsList gitlab.LabelOptions = g.labels
+		labels = &labelsList
 	}
-
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
@@ -74,7 +74,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	pullRequests := []*PullRequest{}
 	for {
-		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts)
+		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts, gitlab.WithContext(ctx))
 		if err != nil {
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
@@ -86,6 +86,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 				TargetBranch: mr.TargetBranch,
 				HeadSHA:      mr.SHA,
 				Labels:       mr.Labels,
+				Author:       mr.Author.Username,
 			})
 		}
 		if resp.NextPage == 0 {

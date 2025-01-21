@@ -292,6 +292,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.scm.providers
                   optional: true
+            - name: ARGOCD_HYDRATOR_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: hydrator.enabled
+                  optional: true
           volumeMounts:
             - name: ssh-known-hosts
               mountPath: /app/config/ssh
@@ -305,6 +311,8 @@ spec:
               name: plugins-home
             - mountPath: /tmp
               name: tmp
+            - name: argocd-cmd-params-cm
+              mountPath: /home/argocd/params
           ports:
             - containerPort: 8080
             - containerPort: 8083
@@ -361,6 +369,13 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+            - key: server.profile.enabled
+              path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -376,3 +391,5 @@ spec:
                   matchLabels:
                     app.kubernetes.io/part-of: argocd
                 topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

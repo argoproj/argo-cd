@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be reported
+    inputPath: testdata/progressing_no_status.yaml
+  - healthStatus:
+      status: Degraded
+      message: At least once certificate does not comply with the policy
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: All certificates found comply with the policy
+    inputPath: testdata/healthy.yaml

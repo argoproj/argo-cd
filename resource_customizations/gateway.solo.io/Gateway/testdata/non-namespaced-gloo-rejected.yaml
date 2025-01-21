@@ -1,0 +1,13 @@
+apiVersion: gateway.solo.io/v1
+kind: Gateway
+status:
+      reason: "message that will describe all the reasons for rejection"
+      reportedBy: gateway
+      state: 2
+      subresourceStatuses:
+        '*v1.Proxy.gateway-proxy_gloo-system':
+          reportedBy: gloo
+          state: 1
+        '*v1.Proxy.internal-proxy_gloo-system':
+          reportedBy: gloo
+          state: 2

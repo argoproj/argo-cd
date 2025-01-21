@@ -12,10 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -38,6 +39,11 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 								"id": "refs/heads/feature-ABC-123",
 								"displayId": "feature-ABC-123",
 								"latestCommit": "cb3cf2e4d1517c83e720d2585b9402dbef71f992"
+							},
+							"author": {
+								"user": {
+									"name": "testName"
+								}
 							}
 						}
 					],
@@ -68,6 +74,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "master", pullRequests[0].TargetBranch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
+	assert.Equal(t, "testName", pullRequests[0].Author)
 }
 
 func TestListPullRequestPagination(t *testing.T) {
@@ -93,6 +100,11 @@ func TestListPullRequestPagination(t *testing.T) {
 								"id": "refs/heads/feature-101",
 								"displayId": "feature-101",
 								"latestCommit": "ab3cf2e4d1517c83e720d2585b9402dbef71f992"
+							},
+							"author": {
+								"user": {
+									"name": "testName"
+								}
 							}
 						},
 						{
@@ -107,6 +119,11 @@ func TestListPullRequestPagination(t *testing.T) {
 								"id": "refs/heads/feature-102",
 								"displayId": "feature-102",
 								"latestCommit": "bb3cf2e4d1517c83e720d2585b9402dbef71f992"
+							},
+							"author": {
+								"user": {
+									"name": "testName"
+								}
 							}
 						}
 					],
@@ -130,6 +147,11 @@ func TestListPullRequestPagination(t *testing.T) {
 							"id": "refs/heads/feature-200",
 							"displayId": "feature-200",
 							"latestCommit": "cb3cf2e4d1517c83e720d2585b9402dbef71f992"
+						},
+						"author": {
+							"user": {
+								"name": "testName"
+							}
 						}
 					}
 				],
@@ -155,6 +177,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		TargetBranch: "master",
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -163,6 +186,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:       200,
@@ -171,6 +195,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		TargetBranch: "master",
 		HeadSHA:      "cb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[2])
 }
 
@@ -278,7 +303,7 @@ func TestListPullRequestTLS(t *testing.T) {
 }
 
 func TestListResponseError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
@@ -362,6 +387,11 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 								"id": "refs/heads/feature-101",
 								"displayId": "feature-101",
 								"latestCommit": "ab3cf2e4d1517c83e720d2585b9402dbef71f992"
+							},
+							"author": {
+								"user": {
+									"name": "testName"
+								}
 							}
 						},
 						{
@@ -376,6 +406,11 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 								"id": "refs/heads/feature-102",
 								"displayId": "feature-102",
 								"latestCommit": "bb3cf2e4d1517c83e720d2585b9402dbef71f992"
+							},
+							"author": {
+								"user": {
+									"name": "testName"
+								}
 							}
 						}
 					],
@@ -399,6 +434,11 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 							"id": "refs/heads/feature-200",
 							"displayId": "feature-200",
 							"latestCommit": "cb3cf2e4d1517c83e720d2585b9402dbef71f992"
+						},
+						"author": {
+							"user": {
+								"name": "testName"
+							}
 						}
 					}
 				],
@@ -429,6 +469,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		TargetBranch: "master",
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -437,6 +478,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -456,6 +498,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		TargetBranch: "branch",
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
+		Author:       "testName",
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`

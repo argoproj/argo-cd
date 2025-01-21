@@ -16,7 +16,7 @@ If you want to submit a PR, please read this document carefully, as it contains 
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-contributors` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-cd-contributors` channel!
 
 ## Before you start
 
@@ -148,9 +148,7 @@ The following steps are required no matter whether you chose to use a virtualize
 
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `mkdir -p ~/go/src/github.com/argoproj`
-* `cd ~/go/src/github.com/argoproj`
-* `git clone https://github.com/yourghuser/argo-cd`
+* `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
 ### Optional: Setup an additional Git remote

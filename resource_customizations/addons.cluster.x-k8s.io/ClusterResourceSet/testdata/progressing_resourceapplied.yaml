@@ -1,0 +1,18 @@
+apiVersion: addons.cluster.x-k8s.io/v1beta1
+kind: ClusterResourceSet
+metadata:
+  finalizers:
+    - addons.cluster.x-k8s.io
+  generation: 2
+  labels:
+    app.argocd.io/instance: clustername
+  name: clustername-resource-set
+  namespace: capi-managed-cluster
+spec:
+  clusterSelector:
+    matchLabels:
+      clusterName: clustername
+  resources:
+    - kind: ConfigMap
+      name: clustername-default-rbac
+  strategy: ApplyOnce

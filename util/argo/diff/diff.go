@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -8,11 +9,11 @@ import (
 
 	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -340,7 +341,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
-		return nil, fmt.Errorf("left and right arrays have mismatched lengths")
+		return nil, errors.New("left and right arrays have mismatched lengths")
 	}
 
 	diffByKey := map[kube.ResourceKey]*v1alpha1.ResourceDiff{}
@@ -411,7 +412,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 // the diff. None of the attributes in the lives and targets params will be modified.
 func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	if diffConfig == nil {
-		return nil, fmt.Errorf("preDiffNormalize error: diffConfig can not be nil")
+		return nil, errors.New("preDiffNormalize error: diffConfig can not be nil")
 	}
 	err := diffConfig.Validate()
 	if err != nil {

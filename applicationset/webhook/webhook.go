@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -16,10 +15,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
@@ -29,18 +29,15 @@ import (
 
 const payloadQueueSize = 50000
 
-var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
-
 type WebhookHandler struct {
-	sync.WaitGroup         // for testing
-	namespace              string
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	azuredevops            *azuredevops.Webhook
-	azuredevopsAuthHandler func(r *http.Request) error
-	client                 client.Client
-	generators             map[string]generators.Generator
-	queue                  chan interface{}
+	sync.WaitGroup // for testing
+	namespace      string
+	github         *github.Webhook
+	gitlab         *gitlab.Webhook
+	azuredevops    *azuredevops.Webhook
+	client         client.Client
+	generators     map[string]generators.Generator
+	queue          chan any
 }
 
 type gitGeneratorInfo struct {
@@ -85,29 +82,19 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
 	}
-	azuredevopsHandler, err := azuredevops.New()
+	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
-	azuredevopsAuthHandler := func(r *http.Request) error {
-		if argocdSettings.WebhookAzureDevOpsUsername != "" && argocdSettings.WebhookAzureDevOpsPassword != "" {
-			username, password, ok := r.BasicAuth()
-			if !ok || username != argocdSettings.WebhookAzureDevOpsUsername || password != argocdSettings.WebhookAzureDevOpsPassword {
-				return errBasicAuthVerificationFailed
-			}
-		}
-		return nil
-	}
 
 	webhookHandler := &WebhookHandler{
-		namespace:              namespace,
-		github:                 githubHandler,
-		gitlab:                 gitlabHandler,
-		azuredevops:            azuredevopsHandler,
-		azuredevopsAuthHandler: azuredevopsAuthHandler,
-		client:                 client,
-		generators:             generators,
-		queue:                  make(chan interface{}, payloadQueueSize),
+		namespace:   namespace,
+		github:      githubHandler,
+		gitlab:      gitlabHandler,
+		azuredevops: azuredevopsHandler,
+		client:      client,
+		generators:  generators,
+		queue:       make(chan any, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -131,7 +118,7 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 	}
 }
 
-func (h *WebhookHandler) HandleEvent(payload interface{}) {
+func (h *WebhookHandler) HandleEvent(payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	if gitGenInfo == nil && prGenInfo == nil {
@@ -170,22 +157,16 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
+	var payload any
 	var err error
 
 	switch {
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
-		if err = h.azuredevopsAuthHandler(r); err != nil {
-			if errors.Is(err, errBasicAuthVerificationFailed) {
-				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-			}
-		} else {
-			payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-		}
+		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -198,7 +179,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
+		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
 		return
 	}
 
@@ -210,12 +191,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseRevision(ref string) string {
-	refParts := strings.SplitN(ref, "/", 3)
-	return refParts[len(refParts)-1]
-}
-
-func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
+func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	var (
 		webURL      string
 		revision    string
@@ -224,16 +200,16 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	switch payload := payload.(type) {
 	case github.PushPayload:
 		webURL = payload.Repository.HTMLURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Repository.DefaultBranch == revision
 	case gitlab.PushEventPayload:
 		webURL = payload.Project.WebURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL
-		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
+		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	default:
@@ -246,7 +222,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		log.Errorf("Failed to parse repoURL '%s'", webURL)
 		return nil
 	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
+	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?$"
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
@@ -260,7 +236,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 }
 
-func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
+func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
@@ -393,12 +369,12 @@ func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(gen.Revision)
+	targetRev := webhook.ParseRevision(gen.Revision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 
-	return targetRev == revision
+	return targetRev == revision || gen.Revision == revision
 }
 
 func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
@@ -541,7 +517,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 
 	// Generate params for first child generator
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
-	params := []map[string]interface{}{}
+	params := []map[string]any{}
 	for _, g := range relGenerators {
 		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {

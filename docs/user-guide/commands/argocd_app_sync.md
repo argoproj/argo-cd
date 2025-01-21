@@ -25,7 +25,8 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   argocd app sync -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 
   # Sync a multi-source application for specific revision of specific sources
-  argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+  argocd app sync my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+  argocd app sync my-app --revisions 0.0.1 --source-names my-chart --revisions 0.0.2 --source-names my-values
 
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
@@ -67,6 +68,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --server-side                                       Use server-side apply while syncing the application
+      --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
       --timeout uint                                      Time out after this many seconds
@@ -75,7 +77,8 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -92,6 +95,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
