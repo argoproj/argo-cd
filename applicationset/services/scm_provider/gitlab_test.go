@@ -1042,7 +1042,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				t.Fail()
 			}
 			// Recent versions of the Gitlab API (v17.7+) listTree return 404 not only when a file doesn't exist, but also
-			// when a path is to a file instead of a directory. Code was refactored to explicitely search for file then
+			// when a path is to a file instead of a directory. Code was refactored to explicitly search for file then
 			// search for directory, catching 404 errors as "file not found".
 		case "/api/v4/projects/27084533/repository/files/argocd?ref=master":
 			w.WriteHeader(http.StatusNotFound)
