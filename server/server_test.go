@@ -897,7 +897,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background() //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:staticcheck
 
 			argocd, oidcURL := getTestServer(t, testDataCopy.anonymousEnabled, true, testDataCopy.useDex, settings_util.OIDCConfig{})
 

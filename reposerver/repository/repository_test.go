@@ -859,30 +859,22 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					require.False(t, isCachedError)
 
 					require.NotNil(t, cachedManifestResponse)
-					// nolint:staticcheck
 					assert.Nil(t, cachedManifestResponse.ManifestResponse)
-					// nolint:staticcheck
 					assert.NotEqual(t, 0, cachedManifestResponse.FirstFailureTimestamp)
 
 					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, adjustedInvocation+1)
-					// nolint:staticcheck
 					assert.Equal(t, 0, cachedManifestResponse.NumberOfCachedResponsesReturned)
 				} else {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
 					require.NotNil(t, cachedManifestResponse)
-					// nolint:staticcheck
 					assert.Nil(t, cachedManifestResponse.ManifestResponse)
-					// nolint:staticcheck
 					assert.NotEqual(t, 0, cachedManifestResponse.FirstFailureTimestamp)
 
 					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfCachedResponsesReturned, (adjustedInvocation - service.initConstants.PauseGenerationAfterFailedGenerationAttempts + 1))
 				}
 			}
