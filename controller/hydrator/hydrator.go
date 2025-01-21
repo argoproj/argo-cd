@@ -125,7 +125,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			app.Status.SourceHydrator.CurrentOperation.Phase = appv1.HydrateOperationPhaseFailed
 			failedAt := metav1.Now()
 			app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
-			app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", drySHA, err.Error())
+			app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate revision %q: %v", drySHA, err.Error())
 			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
 			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 			logCtx = logCtx.WithField("app", app.QualifiedName())
