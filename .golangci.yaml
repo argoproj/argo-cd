@@ -20,6 +20,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - nolintlint
     - perfsprint
     - revive
     - staticcheck
@@ -74,6 +75,8 @@ linters-settings:
         pkg: k8s.io/client-go/informers/core/v1
       - alias: stderrors
         pkg: errors
+  nolintlint:
+    require-specific: true
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true

@@ -958,7 +958,6 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-// nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
