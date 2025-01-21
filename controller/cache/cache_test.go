@@ -152,7 +152,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
 		// Set the lock here so we can reference it later
-		// nolint We need to overwrite here to have access to the lock
+		//nolint:govet // We need to overwrite here to have access to the lock
 		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
