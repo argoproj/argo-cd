@@ -1630,29 +1630,26 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}).Info("Reconciliation completed")
 	}()
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-	if err != nil {
-		logCtx.Errorf("Failed to get destination cluster: %v", err)
-		return
-	}
-
 	if comparisonLevel == ComparisonWithNothing {
-		managedResources := make([]*appv1.ResourceDiff, 0)
-		err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources)
-		if err == nil {
-			var tree *appv1.ApplicationTree
-			if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
-				app.Status.Summary = tree.GetSummary(app)
-				if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
-					logCtx.Errorf("Failed to cache resources tree: %v", err)
-					return
+		// If the destination cluster is invalid, fallback to the normal reconciliation flow
+		if destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
+			managedResources := make([]*appv1.ResourceDiff, 0)
+			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
+				var tree *appv1.ApplicationTree
+				if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
+					app.Status.Summary = tree.GetSummary(app)
+					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
+						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						return
+					}
 				}
-			}
 
-			patchMs = ctrl.persistAppStatus(origApp, &app.Status)
-			return
+				patchMs = ctrl.persistAppStatus(origApp, &app.Status)
+				return
+			} else {
+				logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
+			}
 		}
-		logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 	}
 	ts.AddCheckpoint("comparison_with_nothing_ms")
 
@@ -1672,6 +1669,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
+		return
+	}
+
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.Errorf("Failed to get destination cluster: %v", err)
+		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
 		return
 	}
 
@@ -1722,6 +1726,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 	ts.AddCheckpoint("normalize_application_ms")
+
 	tree, err := ctrl.setAppManagedResources(destCluster, app, compareResult)
 	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {
