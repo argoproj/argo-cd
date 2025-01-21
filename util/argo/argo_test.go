@@ -640,6 +640,13 @@ func TestFilterByPath(t *testing.T) {
 		{
 			Spec: argoappv1.ApplicationSpec{
 				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo/chart2",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
 					Path: "example/apps/bar/chart",
 				},
 			},
@@ -651,20 +658,17 @@ func TestFilterByPath(t *testing.T) {
 		assert.Empty(t, res)
 	})
 
-	t.Run("Single app matching path", func(t *testing.T) {
-		res := FilterByPath(apps, "example/apps/foo/chart")
-		assert.Len(t, res, 1)
-	})
+	t.Run("Exact path match", func(t *testing.T) {
+        res := FilterByPath(apps, "example/apps/foo/chart")
+        assert.Len(t, res, 1)
+        assert.Equal(t, "example/apps/foo/chart", res[0].Spec.Source.Path)
+    })
 
 	t.Run("Multiple apps matching path", func(t *testing.T) {
 		res := FilterByPath(apps, "example/apps/foo")
 		assert.Len(t, res, 2)
 	})
 
-	t.Run("Partial match on path", func(t *testing.T) {
-		res := FilterByPath(apps, "example/apps/foo/")
-		assert.Len(t, res, 2)
-	})
 }
 func TestFilterByFiles(t *testing.T) {
 	apps := []argoappv1.Application{

@@ -115,39 +115,44 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	return items
 }
 
-// FilerByPath returns applications which have the specified path
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	filteredApps := make([]argoappv1.Application, 0)
+    filteredApps := make([]argoappv1.Application, 0)
+    for _, app := range apps {
+        if app.Spec.Source != nil && (app.Spec.Source.Path == path || strings.HasPrefix(app.Spec.Source.Path, path+"/")) {
+            filteredApps = append(filteredApps, app)
+        }
+    }
+    return filteredApps
+}
+
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	fileSet := make(map[string]bool)
+	for _, file := range files {
+		fileSet[file] = true
+	}
+	var filteredApps []argoappv1.Application
 	for _, app := range apps {
-		if strings.HasPrefix(app.Spec.Source.Path, path) {
+		annotationPaths := strings.Split(app.Annotations["argocd.argoproj.io/manifest-generate-paths"], ";")
+		matches := false
+		for _, annotationPath := range annotationPaths {
+			for file := range fileSet {
+				if strings.HasPrefix(file, annotationPath) {
+					matches = true
+					break
+				}
+			}
+			if matches {
+				break
+			}
+		}
+		if matches {
 			filteredApps = append(filteredApps, app)
 		}
 	}
 	return filteredApps
 }
 
-// FilterByFiles returns applications which have the specified files
-func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
 
-	fileSet := make(map[string]bool)
-	for _, file := range files {
-		fileSet[file] = true
-	}
-
-	filteredApps := make([]argoappv1.Application, 0)
-	for _, app := range apps {
-		annotationPaths := strings.Split(app.Annotations["argocd.argoproj.io/manifest-generate-paths"], ";")
-		for _, annotationPath := range annotationPaths {
-			for file := range fileSet {
-				if strings.HasPrefix(file, annotationPath) {
-					filteredApps = append(filteredApps, app)
-					break
-				}
-			}
-		}
-	}
-	return filteredApps
-}
 
 // FilterByProjectsP returns application pointers which belongs to the specified project
 func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argoappv1.Application {
