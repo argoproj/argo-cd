@@ -3,20 +3,22 @@ package service
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
+	"github.com/argoproj/argo-cd/v2/util/notification/expression/shared"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
+//go:generate mockgen -destination=./mocks/service.go -package=mocks github.com/argoproj-labs/argocd-notifications/shared/argocd Service
+
 type Service interface {
-	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
-	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
+	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error)
+	GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -45,9 +47,9 @@ type argoCDService struct {
 	dispose          func()
 }
 
-func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
+func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string) (*shared.CommitMetadata, error) {
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
-	repo, err := argocdDB.GetRepository(ctx, repoURL, project)
+	repo, err := argocdDB.GetRepository(ctx, repoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -74,11 +76,9 @@ func (svc *argoCDService) getKustomizeOptions(source *v1alpha1.ApplicationSource
 	return kustomizeSettings.GetOptions(*source)
 }
 
-func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error) {
-	appSource := app.Spec.GetSourcePtrByIndex(0)
-
+func (svc *argoCDService) GetAppDetails(ctx context.Context, appSource *v1alpha1.ApplicationSource, appName string) (*shared.AppDetail, error) {
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
-	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL, app.Spec.Project)
+	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		return nil, err
 	}
 	appDetail, err := svc.repoServerClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
-		AppName:          app.Name,
+		AppName:          appName,
 		Repo:             repo,
 		Source:           appSource,
 		Repos:            helmRepos,

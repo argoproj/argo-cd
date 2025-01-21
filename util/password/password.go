@@ -2,7 +2,7 @@ package password
 
 import (
 	"crypto/subtle"
-	"errors"
+	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,10 +21,8 @@ type BcryptPasswordHasher struct {
 	Cost int
 }
 
-var (
-	_ PasswordHasher = DummyPasswordHasher{}
-	_ PasswordHasher = BcryptPasswordHasher{0}
-)
+var _ PasswordHasher = DummyPasswordHasher{}
+var _ PasswordHasher = BcryptPasswordHasher{0}
 
 // PreferredHashers holds the list of preferred hashing algorithms, in order of most to least preferred.  Any password that does not validate with the primary algorithm will be considered "stale."  DO NOT ADD THE DUMMY HASHER FOR USE IN PRODUCTION.
 var preferredHashers = []PasswordHasher{
@@ -35,7 +33,7 @@ var preferredHashers = []PasswordHasher{
 func hashPasswordWithHashers(password string, hashers []PasswordHasher) (string, error) {
 	// Even though good hashers will disallow blank passwords, let's be explicit that ALL BLANK PASSWORDS ARE INVALID.  Full stop.
 	if password == "" {
-		return "", errors.New("blank passwords are not allowed")
+		return "", fmt.Errorf("blank passwords are not allowed")
 	}
 	return hashers[0].HashPassword(password)
 }

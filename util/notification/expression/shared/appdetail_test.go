@@ -1,12 +1,10 @@
 package shared
 
 import (
-	"testing"
-
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"testing"
 )
 
 func TestGetParameterValueByName(t *testing.T) {

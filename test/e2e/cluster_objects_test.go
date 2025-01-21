@@ -6,12 +6,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/argo"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
 func TestClusterRoleBinding(t *testing.T) {
@@ -26,7 +25,7 @@ func TestClusterRoleBinding(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--revision=HEAD")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
 		When().
@@ -38,7 +37,7 @@ func TestClusterRoleBinding(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--revision=HEAD")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		})
 }

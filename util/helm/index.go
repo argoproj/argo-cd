@@ -1,7 +1,6 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -34,20 +33,20 @@ func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, e
 	for _, entry := range e {
 		v, err := semver.NewVersion(entry.Version)
 
-		// Invalid semantic version ignored
-		if errors.Is(err, semver.ErrInvalidSemVer) {
+		//Invalid semantic version ignored
+		if err == semver.ErrInvalidSemVer {
 			log.Debugf("Invalid sementic version: %s", entry.Version)
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("invalid constraint in index: %w", err)
+			return nil, fmt.Errorf("invalid constraint in index: %v", err)
 		}
 		if constraints.Check(v) {
 			versions = append(versions, v)
 		}
 	}
 	if len(versions) == 0 {
-		return nil, errors.New("constraint not found in index")
+		return nil, fmt.Errorf("constraint not found in index")
 	}
 	maxVersion := versions[0]
 	for _, v := range versions {

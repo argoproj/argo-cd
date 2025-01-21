@@ -3,10 +3,10 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
+	reflect "reflect"
 	"strings"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -19,15 +19,15 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 	} else {
 		data, err := yaml.YAMLToJSON([]byte(value))
 		if err != nil {
-			return fmt.Errorf("failed converting yaml to json: %w", err)
+			return fmt.Errorf("failed converting yaml to json: %v", err)
 		}
-		var v any
+		var v interface{}
 		if err := json.Unmarshal(data, &v); err != nil {
-			return fmt.Errorf("failed to unmarshal json: %w", err)
+			return fmt.Errorf("failed to unmarshal json: %v", err)
 		}
 		switch v.(type) {
 		case string:
-		case map[string]any:
+		case map[string]interface{}:
 		default:
 			return fmt.Errorf("invalid type %q", reflect.TypeOf(v))
 		}

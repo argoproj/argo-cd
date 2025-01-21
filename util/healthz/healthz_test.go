@@ -1,12 +1,10 @@
 package healthz
 
 import (
-	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestHealthCheck(t *testing.T) {
@@ -23,9 +21,9 @@ func TestHealthCheck(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeHealthCheck(mux, func(_ *http.Request) error {
+		ServeHealthCheck(mux, func(r *http.Request) error {
 			if sentinel {
-				return errors.New("This is a dummy error")
+				return fmt.Errorf("This is a dummy error")
 			}
 			return nil
 		})
@@ -43,11 +41,19 @@ func TestHealthCheck(t *testing.T) {
 	server := "http://" + address
 
 	resp, err := http.Get(server + "/healthz")
-	require.NoError(t, err)
-	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from health check, but got %d instead", resp.StatusCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Was expecting status code 200 from health check, but got %d instead", resp.StatusCode)
+	}
 
 	sentinel = true
 
 	resp, _ = http.Get(server + "/healthz")
-	require.Equalf(t, http.StatusServiceUnavailable, resp.StatusCode, "Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
+	}
+
 }

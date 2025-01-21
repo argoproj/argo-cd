@@ -1,7 +1,6 @@
 package git
 
 import (
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -36,19 +35,9 @@ func IsTruncatedCommitSHA(sha string) bool {
 
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
-	normalLeft := NormalizeGitURLAllowInvalid(leftRepo)
-	normalRight := NormalizeGitURLAllowInvalid(rightRepo)
+	normalLeft := NormalizeGitURL(leftRepo)
+	normalRight := NormalizeGitURL(rightRepo)
 	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
-}
-
-// Similar to NormalizeGitURL, except returning an original url if the url is invalid.
-// Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
-func NormalizeGitURLAllowInvalid(repo string) string {
-	normalized := NormalizeGitURL(repo)
-	if normalized == "" {
-		return repo
-	}
-	return normalized
 }
 
 // NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
@@ -94,14 +83,11 @@ func IsHTTPURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string) error {
-	client, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
+func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string) error {
+	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy)
 	if err != nil {
-		return fmt.Errorf("unable to initialize git client: %w", err)
+		return err
 	}
-	_, err = client.LsRemote("HEAD")
-	if err != nil {
-		return fmt.Errorf("unable to ls-remote HEAD on repository: %w", err)
-	}
-	return nil
+	_, err = clnt.LsRemote("HEAD")
+	return err
 }

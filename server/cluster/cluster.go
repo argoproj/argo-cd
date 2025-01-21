@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"time"
 
@@ -10,19 +9,19 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 // Server provides a Cluster service
@@ -54,14 +53,14 @@ func CreateClusterRBACObject(project string, server string) string {
 func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list clusters: %w", err)
+		return nil, err
 	}
 
 	filteredItems := clusterList.Items
 
 	// Filter clusters by id
 	if filteredItems, err = filterClustersById(filteredItems, q.Id); err != nil {
-		return nil, fmt.Errorf("error filtering clusters by id: %w", err)
+		return nil, err
 	}
 
 	// Filter clusters by name
@@ -81,7 +80,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error running async cluster responses: %w", err)
+		return nil, err
 	}
 
 	cl := *clusterList
@@ -103,7 +102,7 @@ func filterClustersById(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv
 	case "name_escaped":
 		nameUnescaped, err := url.QueryUnescape(id.Value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unescape cluster name: %w", err)
+			return nil, err
 		}
 		items = filterClustersByName(clusters, nameUnescaped)
 	default:
@@ -144,36 +143,32 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 // Create creates a cluster
 func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*appv1.Cluster, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionCreate, CreateClusterRBACObject(q.Cluster.Project, q.Cluster.Server)); err != nil {
-		return nil, fmt.Errorf("permission denied while creating cluster: %w", err)
+		return nil, err
 	}
 	c := q.Cluster
-	clusterRESTConfig, err := c.RESTConfig()
+	serverVersion, err := s.kubectl.GetServerVersion(c.RESTConfig())
 	if err != nil {
-		return nil, fmt.Errorf("error getting REST config: %w", err)
-	}
-
-	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error getting server version: %w", err)
+		return nil, err
 	}
 
 	clust, err := s.db.CreateCluster(ctx, c)
 	if err != nil {
-		if status.Convert(err).Code() != codes.AlreadyExists {
-			return nil, fmt.Errorf("error creating cluster: %w", err)
-		}
-		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetCluster(ctx, c.Server)
-		if getErr != nil {
-			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
-		}
+		if status.Convert(err).Code() == codes.AlreadyExists {
+			// act idempotent if existing spec matches new spec
+			existing, getErr := s.db.GetCluster(ctx, c.Server)
+			if getErr != nil {
+				return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
+			}
 
-		if existing.Equals(c) {
-			clust = existing
-		} else if q.Upsert {
-			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+			if existing.Equals(c) {
+				clust = existing
+			} else if q.Upsert {
+				return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
+			} else {
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+			}
 		} else {
-			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+			return nil, err
 		}
 	}
 
@@ -181,11 +176,11 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
+			ModifiedAt: &v1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error setting cluster info in cache: %w", err)
+		return nil, err
 	}
 	return s.toAPIResponse(clust), err
 }
@@ -194,7 +189,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	c, err := s.getClusterAndVerifyAccess(ctx, q, rbacpolicy.ActionGet)
 	if err != nil {
-		return nil, fmt.Errorf("error verifying access to update cluster: %w", err)
+		return nil, err
 	}
 
 	return s.toAPIResponse(c), nil
@@ -211,7 +206,7 @@ func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.Clu
 func (s *Server) getClusterAndVerifyAccess(ctx context.Context, q *cluster.ClusterQuery, action string) (*appv1.Cluster, error) {
 	c, err := s.getClusterWith403IfNotExist(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
+		return nil, err
 	}
 
 	// verify that user can do the specified action inside project where cluster is located
@@ -232,7 +227,7 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		} else if q.Id.Type == "name_escaped" {
 			nameUnescaped, err := url.QueryUnescape(q.Id.Value)
 			if err != nil {
-				return nil, fmt.Errorf("failed to unescape cluster name: %w", err)
+				return nil, err
 			}
 			q.Name = nameUnescaped
 		} else {
@@ -243,17 +238,17 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	if q.Server != "" {
 		c, err := s.db.GetCluster(ctx, q.Server)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get cluster by server: %w", err)
+			return nil, err
 		}
 		return c, nil
 	}
 
-	// we only get the name when we specify Name in ApplicationDestination and next
-	// we want to find the server in order to populate ApplicationDestination.Server
+	//we only get the name when we specify Name in ApplicationDestination and next
+	//we want to find the server in order to populate ApplicationDestination.Server
 	if q.Name != "" {
 		clusterList, err := s.db.ListClusters(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list clusters: %w", err)
+			return nil, err
 		}
 		for _, c := range clusterList.Items {
 			if c.Name == q.Name {
@@ -299,8 +294,9 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		Name:   q.Cluster.Name,
 		Id:     q.Id,
 	}, rbacpolicy.ActionUpdate)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify access for updating cluster: %w", err)
+		return nil, err
 	}
 
 	if len(q.UpdatedFields) == 0 || sets.NewString(q.UpdatedFields...).Has("project") {
@@ -318,30 +314,26 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		}
 		q.Cluster = c
 	}
-	clusterRESTConfig, err := q.Cluster.RESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get REST config for cluster: %w", err)
-	}
 
 	// Test the token we just created before persisting it
-	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
+	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get server version: %w", err)
+		return nil, err
 	}
 
 	clust, err := s.db.UpdateCluster(ctx, q.Cluster)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
+		return nil, err
 	}
 	err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
+			ModifiedAt: &v1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
+		return nil, err
 	}
 	return s.toAPIResponse(clust), nil
 }
@@ -350,7 +342,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	c, err := s.getClusterWith403IfNotExist(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
+		return nil, err
 	}
 
 	if q.Name != "" {
@@ -360,20 +352,20 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 			return nil, common.PermissionDeniedAPIError
 		}
 		for _, server := range servers {
-			if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
-				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+			if err := enforceAndDelete(s, ctx, server, c.Project); err != nil {
+				return nil, err
 			}
 		}
 	} else {
-		if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
-			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
+		if err := enforceAndDelete(s, ctx, q.Server, c.Project); err != nil {
+			return nil, err
 		}
 	}
 
 	return &cluster.ClusterResponse{}, nil
 }
 
-func enforceAndDelete(ctx context.Context, s *Server, server, project string) error {
+func enforceAndDelete(s *Server, ctx context.Context, server, project string) error {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
@@ -388,7 +380,7 @@ func enforceAndDelete(ctx context.Context, s *Server, server, project string) er
 func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	clust, err := s.getClusterWith403IfNotExist(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster with permissions check: %w", err)
+		return nil, err
 	}
 
 	var servers []string
@@ -415,57 +407,50 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	for _, server := range servers {
 		logCtx := log.WithField("cluster", server)
 		logCtx.Info("Rotating auth")
-		restCfg, err := clust.RESTConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get REST config for cluster: %w", err)
-		}
+		restCfg := clust.RESTConfig()
 		if restCfg.BearerToken == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", server)
 		}
 
 		claims, err := clusterauth.ParseServiceAccountToken(restCfg.BearerToken)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse service account token: %w", err)
+			return nil, err
 		}
 		kubeclientset, err := kubernetes.NewForConfig(restCfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create Kubernetes clientset: %w", err)
+			return nil, err
 		}
 		newSecret, err := clusterauth.GenerateNewClusterManagerSecret(kubeclientset, claims)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate new cluster manager secret: %w", err)
+			return nil, err
 		}
 		// we are using token auth, make sure we don't store client-cert information
 		clust.Config.KeyData = nil
 		clust.Config.CertData = nil
 		clust.Config.BearerToken = string(newSecret.Data["token"])
 
-		clusterRESTConfig, err := clust.RESTConfig()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get REST config for cluster: %w", err)
-		}
 		// Test the token we just created before persisting it
-		serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
+		serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get server version: %w", err)
+			return nil, err
 		}
 		_, err = s.db.UpdateCluster(ctx, clust)
 		if err != nil {
-			return nil, fmt.Errorf("failed to update cluster in database: %w", err)
+			return nil, err
 		}
 		err = s.cache.SetClusterInfo(clust.Server, &appv1.ClusterInfo{
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
-				ModifiedAt: &metav1.Time{Time: time.Now()},
+				ModifiedAt: &v1.Time{Time: time.Now()},
 			},
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to set cluster info in cache: %w", err)
+			return nil, err
 		}
 		err = clusterauth.RotateServiceAccountSecrets(kubeclientset, claims, newSecret)
 		if err != nil {
-			return nil, fmt.Errorf("failed to rotate service account secrets: %w", err)
+			return nil, err
 		}
 		logCtx.Infof("Rotated auth (old: %s, new: %s)", claims.SecretName, newSecret.Name)
 	}
@@ -487,9 +472,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Args = nil
 	}
 	// populate deprecated fields for backward compatibility
-	// nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
-	// nolint:staticcheck
 	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
 }
@@ -498,13 +481,13 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
 	cls, err := s.getClusterAndVerifyAccess(ctx, q, rbacpolicy.ActionUpdate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to verify access for cluster: %w", err)
+		return nil, err
 	}
-	now := metav1.Now()
+	now := v1.Now()
 	cls.RefreshRequestedAt = &now
 	cls, err = s.db.UpdateCluster(ctx, cls)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update cluster in database: %w", err)
+		return nil, err
 	}
 	return s.toAPIResponse(cls), nil
 }

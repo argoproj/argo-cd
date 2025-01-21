@@ -2,7 +2,7 @@ package manifeststream_test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -10,14 +10,13 @@ import (
 	"testing"
 	"time"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/io/files"
-	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 )
 
 type applicationStreamMock struct {
@@ -32,7 +31,7 @@ func (m *applicationStreamMock) Recv() (*applicationpkg.ApplicationManifestQuery
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, errors.New("timeout receiving message mock")
+		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }
 
@@ -62,7 +61,7 @@ func (m *repoStreamMock) Recv() (*apiclient.ManifestRequestWithFiles, error) {
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, errors.New("timeout receiving message mock")
+		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }
 
@@ -90,7 +89,7 @@ func TestManifestStream(t *testing.T) {
 
 	go func() {
 		err := manifeststream.SendApplicationManifestQueryWithFiles(context.Background(), appStreamMock, "test", "test", appDir, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		appStreamMock.done <- true
 	}()
 
@@ -102,7 +101,7 @@ func TestManifestStream(t *testing.T) {
 
 	go func() {
 		err = manifeststream.SendRepoStream(repoStreamMock, appStreamMock, req, *query.Checksum)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		repoStreamMock.done <- true
 	}()
 
@@ -113,7 +112,7 @@ func TestManifestStream(t *testing.T) {
 
 	files, err := os.ReadDir(workdir)
 	require.NoError(t, err)
-	require.Len(t, files, 1)
+	require.Equal(t, 1, len(files))
 	names := []string{}
 	for _, f := range files {
 		names = append(names, f.Name())
@@ -122,6 +121,5 @@ func TestManifestStream(t *testing.T) {
 }
 
 func getTestDataDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

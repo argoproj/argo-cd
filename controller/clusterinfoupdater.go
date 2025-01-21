@@ -3,24 +3,22 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/argoproj/argo-cd/v3/util/env"
-
-	"github.com/argoproj/argo-cd/v3/controller/metrics"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
 )
 
 const (
@@ -29,7 +27,9 @@ const (
 	EnvClusterInfoTimeout = "ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT"
 )
 
-var clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
+var (
+	clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
+)
 
 type clusterInfoUpdater struct {
 	infoSource    metrics.HasClustersInfo
@@ -49,8 +49,8 @@ func NewClusterInfoUpdater(
 	cache *appstatecache.Cache,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
-	namespace string,
-) *clusterInfoUpdater {
+	namespace string) *clusterInfoUpdater {
+
 	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace, time.Time{}}
 }
 
@@ -136,7 +136,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			continue
 		}
 		if a.Spec.Destination.Server == cluster.Server {
-			appCount++
+			appCount += 1
 		}
 	}
 	clusterInfo := appv1.ClusterInfo{

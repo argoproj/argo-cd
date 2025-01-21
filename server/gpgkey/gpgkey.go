@@ -1,18 +1,18 @@
 package gpgkey
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"strings"
 
-	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"context"
+
+	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
 // Server provides a service of type GPGKeyService
@@ -36,7 +36,7 @@ func NewServer(
 }
 
 // ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
-func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
+func (s *Server) List(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceGPGKeys, rbacpolicy.ActionGet, ""); err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*ap
 
 	keyID := gpg.KeyID(q.KeyID)
 	if keyID == "" {
-		return nil, errors.New("KeyID is malformed or empty")
+		return nil, fmt.Errorf("KeyID is malformed or empty")
 	}
 
 	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
@@ -84,7 +84,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 
 	keyData := strings.TrimSpace(q.Publickey.KeyData)
 	if keyData == "" {
-		return nil, errors.New("Submitted key data is empty")
+		return nil, fmt.Errorf("Submitted key data is empty")
 	}
 
 	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)

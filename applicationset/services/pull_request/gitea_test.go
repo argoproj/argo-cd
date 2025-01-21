@@ -10,11 +10,9 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Println(r.RequestURI)
@@ -251,17 +249,15 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", false)
-	require.NoError(t, err)
+	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
+	assert.Nil(t, err)
 	prs, err := host.List(context.Background())
-	require.NoError(t, err)
-	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
-	assert.Equal(t, "add an empty file", prs[0].Title)
-	assert.Equal(t, "test", prs[0].Branch)
-	assert.Equal(t, "main", prs[0].TargetBranch)
-	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
-	assert.Equal(t, "graytshirt", prs[0].Author)
+	assert.Nil(t, err)
+	assert.Equal(t, len(prs), 1)
+	assert.Equal(t, prs[0].Number, 1)
+	assert.Equal(t, prs[0].Branch, "test")
+	assert.Equal(t, prs[0].TargetBranch, "main")
+	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

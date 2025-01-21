@@ -121,7 +121,7 @@ export const Filters = (props: FiltersProps) => {
     };
 
     return (
-        <FiltersGroup title='Resource filters' content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
+        <FiltersGroup content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
             {ResourceFilter({
                 label: 'KINDS',
@@ -145,7 +145,7 @@ export const Filters = (props: FiltersProps) => {
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
-                options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
+                options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
                     label,
                     count: getOptionCount(label, 'Health'),
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />

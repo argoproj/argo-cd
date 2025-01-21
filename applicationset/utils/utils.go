@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -23,8 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	argoappsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/glob"
+	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -42,14 +40,11 @@ func init() {
 }
 
 type Renderer interface {
-	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error)
-	Replace(tmpl string, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) (string, error)
+	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error)
+	Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error)
 }
 
-type Render struct{}
-
-func IsNamespaceAllowed(namespaces []string, namespace string) bool {
-	return glob.MatchStringInList(namespaces, namespace, glob.REGEXP)
+type Render struct {
 }
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
@@ -59,7 +54,7 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 }
 
 func copyUnexported(copy, original reflect.Value) {
-	unexported := reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
+	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
 }
 
@@ -81,7 +76,7 @@ func ConvertYAMLToJSON(str string) (string, error) {
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
 // thanks to https://gist.github.com/randallmlough/1fd78ec8a1034916ca52281e3b886dc7
-func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
+func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) error {
 	switch original.Kind() {
 	// The first cases handle nested structures and translate them recursively
 	// If it is a pointer we need to unwrap and call once again
@@ -131,13 +126,13 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
-		for i := 0; i < original.NumField(); i++ {
-			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+		for i := 0; i < original.NumField(); i += 1 {
+			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
 			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
-				var unmarshaled any
+				var unmarshaled interface{}
 				originalBytes := original.Field(i).Bytes()
 				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))
 				if err != nil {
@@ -153,7 +148,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 				if err != nil {
 					return fmt.Errorf("failed to deeply replace JSON field contents: %w", err)
 				}
-				jsonCopyInterface := jsonCopy.Interface().(*any)
+				jsonCopyInterface := jsonCopy.Interface().(*interface{})
 				data, err := json.Marshal(jsonCopyInterface)
 				if err != nil {
 					return fmt.Errorf("failed to marshal templated JSON field: %w", err)
@@ -173,7 +168,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			copyValueIntoUnexported(copy, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		}
 
-		for i := 0; i < original.Len(); i++ {
+		for i := 0; i < original.Len(); i += 1 {
 			if err := r.deeplyReplace(copy.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
@@ -250,9 +245,9 @@ func isNillable(v reflect.Value) bool {
 	return false
 }
 
-func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error) {
+func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error) {
 	if tmpl == nil {
-		return nil, errors.New("application template is empty")
+		return nil, fmt.Errorf("application template is empty")
 	}
 
 	if len(params) == 0 {
@@ -274,16 +269,17 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		len(replacedTmpl.ObjectMeta.Finalizers) == 0 {
-		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
+
+		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
 }
 
-func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
+func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
 	if gen == nil {
-		return nil, errors.New("generator is empty")
+		return nil, fmt.Errorf("generator is empty")
 	}
 
 	if len(params) == 0 {
@@ -306,7 +302,7 @@ var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
 
 // Replace executes basic string substitution of a template with replacement values.
 // remaining in the substituted template.
-func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+func (r *Render) Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
 	if useGoTemplate {
 		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
 		if err != nil {
@@ -395,20 +391,20 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoappsv1.ApplicationSet, index int) {
 	// The generator names are stored in the "kubectl.kubernetes.io/last-applied-configuration" annotation
 	config := applicationSetInfo.ObjectMeta.Annotations["kubectl.kubernetes.io/last-applied-configuration"]
-	var values map[string]any
+	var values map[string]interface{}
 	err := json.Unmarshal([]byte(config), &values)
 	if err != nil {
 		log.Warnf("couldn't unmarshal kubectl.kubernetes.io/last-applied-configuration: %+v", config)
 		return
 	}
 
-	spec, ok := values["spec"].(map[string]any)
+	spec, ok := values["spec"].(map[string]interface{})
 	if !ok {
 		log.Warn("coundn't get spec from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
 	}
 
-	generators, ok := spec["generators"].([]any)
+	generators, ok := spec["generators"].([]interface{})
 	if !ok {
 		log.Warn("coundn't get generators from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
@@ -419,7 +415,7 @@ func addInvalidGeneratorNames(names map[string]bool, applicationSetInfo *argoapp
 		return
 	}
 
-	generator, ok := generators[index].(map[string]any)
+	generator, ok := generators[index].(map[string]interface{})
 	if !ok {
 		log.Warn("coundn't get generator from kubectl.kubernetes.io/last-applied-configuration annotation")
 		return
@@ -457,7 +453,7 @@ func NormalizeBitbucketBasePath(basePath string) string {
 //
 // Returns:
 // - string: The generated URL-friendly slug based on the input name and options.
-func SlugifyName(args ...any) string {
+func SlugifyName(args ...interface{}) string {
 	// Default values for arguments
 	maxSize := 50
 	EnableSmartTruncate := true
@@ -489,7 +485,8 @@ func SlugifyName(args ...any) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -503,12 +500,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
 			return tlsConfig
 		}
-		caCerts = append(caCerts, rootCA...)
-	}
-
-	if len(caCerts) > 0 {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM(caCerts)
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
 		if !ok {
 			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
 		} else {
@@ -518,8 +511,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true

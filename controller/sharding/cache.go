@@ -3,10 +3,9 @@ package sharding
 import (
 	"sync"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/db"
 )
 
 type ClusterShardingCache interface {
@@ -19,6 +18,7 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
+	GetAppDistribution() map[string]int
 }
 
 type ClusterSharding struct {
@@ -51,21 +51,21 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 	return clusterSharding
 }
 
-// IsManagedCluster returns whether or not the cluster should be processed by a given shard.
-func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
-	sharding.lock.RLock()
-	defer sharding.lock.RUnlock()
+// IsManagedCluster returns wheter or not the cluster should be processed by a given shard.
+func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
 		return true
 	}
 	clusterShard := 0
-	if shard, ok := sharding.Shards[c.Server]; ok {
+	if shard, ok := s.Shards[c.Server]; ok {
 		clusterShard = shard
 	} else {
 		log.Warnf("The cluster %s has no assigned shard.", c.Server)
 	}
-	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, sharding.Shard)
-	return clusterShard == sharding.Shard
+	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, s.Shard)
+	return clusterShard == s.Shard
 }
 
 func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1alpha1.ApplicationList) {
@@ -187,11 +187,11 @@ func hasShardingUpdates(old, new *v1alpha1.Cluster) bool {
 }
 
 // A read lock should be acquired before calling getClusterAccessor.
-func (sharding *ClusterSharding) getClusterAccessor() clusterAccessor {
+func (d *ClusterSharding) getClusterAccessor() clusterAccessor {
 	return func() []*v1alpha1.Cluster {
 		// no need to lock, as this is only called from the updateDistribution function
-		clusters := make([]*v1alpha1.Cluster, 0, len(sharding.Clusters))
-		for _, c := range sharding.Clusters {
+		clusters := make([]*v1alpha1.Cluster, 0, len(d.Clusters))
+		for _, c := range d.Clusters {
 			clusters = append(clusters, c)
 		}
 		return clusters
@@ -199,10 +199,10 @@ func (sharding *ClusterSharding) getClusterAccessor() clusterAccessor {
 }
 
 // A read lock should be acquired before calling getAppAccessor.
-func (sharding *ClusterSharding) getAppAccessor() appAccessor {
+func (d *ClusterSharding) getAppAccessor() appAccessor {
 	return func() []*v1alpha1.Application {
-		apps := make([]*v1alpha1.Application, 0, len(sharding.Apps))
-		for _, a := range sharding.Apps {
+		apps := make([]*v1alpha1.Application, 0, len(d.Apps))
+		for _, a := range d.Apps {
 			apps = append(apps, a)
 		}
 		return apps
@@ -242,4 +242,23 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
 	}
+}
+
+// GetAppDistribution should be not be called from a DestributionFunction because
+// it could cause a deadlock when updateDistribution is called.
+func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
+	sharding.lock.RLock()
+	clusters := sharding.Clusters
+	apps := sharding.Apps
+	sharding.lock.RUnlock()
+
+	appDistribution := make(map[string]int, len(clusters))
+
+	for _, a := range apps {
+		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
+			appDistribution[a.Spec.Destination.Server] = 0
+		}
+		appDistribution[a.Spec.Destination.Server]++
+	}
+	return appDistribution
 }

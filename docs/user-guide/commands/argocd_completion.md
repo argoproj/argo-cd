@@ -2,11 +2,11 @@
 
 ## argocd completion
 
-output shell completion code for the specified shell (bash, zsh or fish)
+output shell completion code for the specified shell (bash or zsh)
 
 ### Synopsis
 
-Write bash, zsh or fish shell completion code to standard output.
+Write bash or zsh shell completion code to standard output.
 
 For bash, ensure you have bash completions installed and enabled.
 To access completions in your current shell, run
@@ -36,11 +36,6 @@ $ source <(argocd completion bash)
 $ argocd completion zsh > _argocd
 $ source _argocd
 
-# For fish
-$ argocd completion fish > ~/.config/fish/completions/argocd.fish
-$ source ~/.config/fish/completions/argocd.fish
-
-
 ```
 
 ### Options
@@ -52,8 +47,7 @@ $ source ~/.config/fish/completions/argocd.fish
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -70,7 +64,6 @@ $ source ~/.config/fish/completions/argocd.fish
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

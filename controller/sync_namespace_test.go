@@ -1,14 +1,13 @@
 package controller
 
 import (
-	"testing"
-
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"testing"
 )
 
 func createFakeNamespace(uid string, resourceVersion string, labels map[string]string, annotations map[string]string) *unstructured.Unstructured {
@@ -248,8 +247,8 @@ func Test_shouldNamespaceSync(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actual, err := syncNamespace(tt.syncPolicy)(tt.managedNs, tt.liveNs)
-			require.NoError(t, err)
+			actual, err := syncNamespace(argo.NewResourceTracking(), common.LabelKeyAppInstance, argo.TrackingMethodAnnotation, "some-app", tt.syncPolicy)(tt.managedNs, tt.liveNs)
+			assert.NoError(t, err)
 
 			if tt.managedNs != nil {
 				assert.Equal(t, tt.expectedLabels, tt.managedNs.GetLabels())

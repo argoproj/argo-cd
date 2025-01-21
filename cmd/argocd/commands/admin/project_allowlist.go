@@ -17,10 +17,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -29,7 +29,7 @@ import (
 	// load the azure plugin (required to authenticate with AKS clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 // NewProjectAllowListGenCommand generates a project from clusterRole
@@ -38,7 +38,7 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		out          string
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "generate-allow-list CLUSTERROLE_PATH PROJ_NAME",
 		Short: "Generates project allow list from the specified clusterRole file",
 		Example: `# Generates project allow list from the specified clusterRole file
@@ -88,15 +88,15 @@ argocd admin proj generate-allow-list /path/to/clusterrole.yaml my-project`,
 func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResourceList, error) {
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error while creating client config: %w", err)
+		return nil, fmt.Errorf("error while creating client config: %s", err)
 	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating discovery client: %w", err)
+		return nil, fmt.Errorf("error while creating discovery client: %s", err)
 	}
 	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
-		return nil, fmt.Errorf("error while getting server resources: %w", err)
+		return nil, fmt.Errorf("error while getting server resources: %s", err)
 	}
 	return serverResources, nil
 }
@@ -104,23 +104,23 @@ func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResource
 func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := os.ReadFile(clusterRoleFileName)
 	if err != nil {
-		return nil, fmt.Errorf("error reading cluster role file: %w", err)
+		return nil, fmt.Errorf("error reading cluster role file: %s", err)
 	}
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %w", err)
+		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %s", err)
 	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %w", err)
+		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %s", err)
 	}
 
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
-		if len(rule.APIGroups) == 0 {
+		if len(rule.APIGroups) <= 0 {
 			continue
 		}
 

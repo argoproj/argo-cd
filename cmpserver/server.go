@@ -18,15 +18,14 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
+	"github.com/argoproj/argo-cd/v2/common"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 	"google.golang.org/grpc/keepalive"
-
-	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/cmpserver/plugin"
-	"github.com/argoproj/argo-cd/v3/common"
-	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v3/server/version"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
 // ArgoCDCMPServer is the config management plugin server implementation
@@ -35,7 +34,7 @@ type ArgoCDCMPServer struct {
 	opts          []grpc.ServerOption
 	initConstants plugin.CMPServerInitConstants
 	stopCh        chan os.Signal
-	doneCh        chan any
+	doneCh        chan interface{}
 	sig           os.Signal
 }
 
@@ -75,7 +74,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		log:           serverLog,
 		opts:          serverOpts,
 		stopCh:        make(chan os.Signal),
-		doneCh:        make(chan any),
+		doneCh:        make(chan interface{}),
 		initConstants: initConstants,
 	}, nil
 }
@@ -111,7 +110,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	pluginService := plugin.NewService(a.initConstants)
 	err := pluginService.Init(common.GetCMPWorkDir())
 	if err != nil {
-		return nil, fmt.Errorf("error initializing plugin service: %w", err)
+		return nil, fmt.Errorf("error initializing plugin service: %s", err)
 	}
 	apiclient.RegisterConfigManagementPluginServiceServer(server, pluginService)
 

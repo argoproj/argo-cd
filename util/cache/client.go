@@ -6,15 +6,13 @@ import (
 	"time"
 )
 
-var (
-	ErrCacheMiss      = errors.New("cache: key is missing")
-	ErrCacheKeyLocked = errors.New("cache: key is locked")
-	CacheLockedValue  = "locked"
-)
+var ErrCacheMiss = errors.New("cache: key is missing")
+var ErrCacheKeyLocked = errors.New("cache: key is locked")
+var CacheLockedValue = "locked"
 
 type Item struct {
 	Key             string
-	Object          any
+	Object          interface{}
 	CacheActionOpts CacheActionOpts
 }
 
@@ -30,7 +28,7 @@ type CacheActionOpts struct {
 type CacheClient interface {
 	Set(item *Item) error
 	Rename(oldKey string, newKey string, expiration time.Duration) error
-	Get(key string, obj any) error
+	Get(key string, obj interface{}) error
 	Delete(key string) error
 	OnUpdated(ctx context.Context, key string, callback func() error) error
 	NotifyUpdated(key string) error

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -17,13 +18,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
-
-	"github.com/argoproj/argo-cd/v3/common"
 )
 
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
 func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ any, err error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -36,7 +35,7 @@ func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterc
 
 // PanicLoggerStreamServerInterceptor returns a new streaming server interceptor for recovering from panics and returning error
 func PanicLoggerStreamServerInterceptor(log *logrus.Entry) grpc.StreamServerInterceptor {
-	return func(srv any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
+	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -55,8 +54,8 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// grpc.Dial doesn't provide any information on permanent connection errors (like
 	// TLS handshake failures). So in order to provide good error messages, we need a
 	// custom dialer that can provide that info. That means we manage the TLS handshake.
-	result := make(chan any, 1)
-	writeResult := func(res any) {
+	result := make(chan interface{}, 1)
+	writeResult := func(res interface{}) {
 		// non-blocking write: we only need the first result
 		select {
 		case result <- res:
@@ -65,6 +64,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	}
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
+
 		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
@@ -86,17 +86,14 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// channel to either get the channel or fail-fast.
 	go func() {
 		opts = append(opts,
-			// nolint:staticcheck
 			grpc.WithBlock(),
-			// nolint:staticcheck
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
-		// nolint:staticcheck
 		conn, err := grpc.DialContext(ctx, address, opts...)
-		var res any
+		var res interface{}
 		if err != nil {
 			res = err
 		} else {
@@ -169,7 +166,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 }
 
 func WithTimeout(duration time.Duration) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		clientDeadline := time.Now().Add(duration)
 		ctx, cancel := context.WithDeadline(ctx, clientDeadline)
 		defer cancel()

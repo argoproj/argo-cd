@@ -7,24 +7,25 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2/google"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
-// defaultGCPScopes:
-//   - cloud-platform is the base scope to authenticate to GCP.
-//   - userinfo.email is used to authenticate to GKE APIs with gserviceaccount
-//     email instead of numeric uniqueID.
-//
-// https://github.com/kubernetes/client-go/blob/be758edd136e61a1bffadf1c0235fceb8aee8e9e/plugin/pkg/client/auth/gcp/gcp.go#L59
-var defaultGCPScopes = []string{
-	"https://www.googleapis.com/auth/cloud-platform",
-	"https://www.googleapis.com/auth/userinfo.email",
-}
+var (
+	// defaultGCPScopes:
+	// - cloud-platform is the base scope to authenticate to GCP.
+	// - userinfo.email is used to authenticate to GKE APIs with gserviceaccount
+	//   email instead of numeric uniqueID.
+	// https://github.com/kubernetes/client-go/blob/be758edd136e61a1bffadf1c0235fceb8aee8e9e/plugin/pkg/client/auth/gcp/gcp.go#L59
+	defaultGCPScopes = []string{
+		"https://www.googleapis.com/auth/cloud-platform",
+		"https://www.googleapis.com/auth/userinfo.email",
+	}
+)
 
 func newGCPCommand() *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use: "gcp",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			// Preferred way to retrieve GCP credentials

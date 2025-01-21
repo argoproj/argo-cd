@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +50,7 @@ func mustUnmarshalYAML(yamlStr string) *unstructured.Unstructured {
 }
 
 // nolint:unparam
-func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, error) {
+func nestedSliceMap(obj map[string]interface{}, i int, path ...string) (map[string]interface{}, error) {
 	items, ok, err := unstructured.NestedSlice(obj, path...)
 	if err != nil {
 		return nil, err
@@ -61,11 +61,11 @@ func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, 
 	if len(items) < i {
 		return nil, fmt.Errorf("field %s has less than %d items", strings.Join(path, "."), i)
 	}
-	item, ok := items[i].(map[string]any)
-	if !ok {
+	if item, ok := items[i].(map[string]interface{}); !ok {
 		return nil, fmt.Errorf("field %s[%d] is not map", strings.Join(path, "."), i)
+	} else {
+		return item, nil
 	}
-	return item, nil
 }
 
 func TestNormalize_MapField(t *testing.T) {
@@ -77,28 +77,36 @@ func TestNormalize_MapField(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	rollout := mustUnmarshalYAML(someCRDYaml)
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2", cpu)
 
 	volumeMount, err := nestedSliceMap(container, 0, "volumeMounts")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	_, ok, err = unstructured.NestedBool(volumeMount, "readOnly")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -112,17 +120,24 @@ func TestNormalize_FieldInNestedSlice(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2", cpu)
 }
@@ -157,20 +172,29 @@ spec:
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	template, err := nestedSliceMap(rollout.Object, 0, "spec", "templates")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(template, 0, "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 	assert.Equal(t, "2", cpu)
 }
 
@@ -189,14 +213,19 @@ spec:
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	ram, ok, err := unstructured.NestedFieldNoCopy(rollout.Object, "spec", "ram")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 	assert.Equal(t, "1250M", ram)
 }
 
@@ -237,24 +266,33 @@ func TestFieldDoesNotExist(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2000m", cpu)
 }
 
 func TestRolloutPreConfigured(t *testing.T) {
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	_, ok := normalizer.typeFields[schema.GroupKind{Group: application.Group, Kind: "Rollout"}]
 	assert.True(t, ok)
 }
@@ -268,14 +306,18 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	_, ok := normalizer.typeFields[schema.GroupKind{Group: "", Kind: "ConfigMap"}]
 	assert.True(t, ok)
 }
 
 func TestKnownTypes(t *testing.T) {
 	typesData, err := os.ReadFile("./diffing_known_types.txt")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	for _, typeName := range strings.Split(string(typesData), "\n") {
 		if typeName = strings.TrimSpace(typeName); typeName == "" {
 			continue

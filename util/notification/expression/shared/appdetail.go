@@ -1,11 +1,10 @@
 package shared
 
 import (
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 type CommitMetadata struct {
@@ -35,26 +34,26 @@ type CustomHelmAppSpec struct {
 	HelmParameterOverrides []v1alpha1.HelmParameter
 }
 
-func (has CustomHelmAppSpec) GetParameterValueByName(name string) string {
+func (has CustomHelmAppSpec) GetParameterValueByName(Name string) string {
 	// Check in overrides first
 	for i := range has.HelmParameterOverrides {
-		if has.HelmParameterOverrides[i].Name == name {
+		if has.HelmParameterOverrides[i].Name == Name {
 			return has.HelmParameterOverrides[i].Value
 		}
 	}
 
 	for i := range has.HelmAppSpec.Parameters {
-		if has.HelmAppSpec.Parameters[i].Name == name {
+		if has.HelmAppSpec.Parameters[i].Name == Name {
 			return has.HelmAppSpec.Parameters[i].Value
 		}
 	}
 	return ""
 }
 
-func (has CustomHelmAppSpec) GetFileParameterPathByName(name string) string {
+func (has CustomHelmAppSpec) GetFileParameterPathByName(Name string) string {
 	var path string
 	for i := range has.HelmAppSpec.FileParameters {
-		if has.HelmAppSpec.FileParameters[i].Name == name {
+		if has.HelmAppSpec.FileParameters[i].Name == Name {
 			path = has.HelmAppSpec.FileParameters[i].Path
 			break
 		}

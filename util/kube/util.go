@@ -3,7 +3,7 @@ package kube
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -18,10 +18,10 @@ type kubeUtil struct {
 
 // updateFn will be called to set data for secret s. new will be true if the
 // secret was created by the caller, or false if it has existed before.
-type updateFn func(s *corev1.Secret, new bool) error
+type updateFn func(s *apiv1.Secret, new bool) error
 
 // NewKubeUtil NewUtil returns a new kubeUtil receiver
-func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
+func NewKubeUtil(client kubernetes.Interface, ctx context.Context) *kubeUtil {
 	return &kubeUtil{client: client, ctx: ctx}
 }
 
@@ -30,7 +30,7 @@ func NewKubeUtil(ctx context.Context, client kubernetes.Interface) *kubeUtil {
 // the receiver. If the secret is updated, labels and annotations will not be
 // touched.
 func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn) error {
-	var s *corev1.Secret
+	var s *apiv1.Secret
 	var err error
 	var new bool
 
@@ -43,7 +43,7 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 	}
 
 	if new {
-		s = &corev1.Secret{
+		s = &apiv1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,
 				Namespace:   ns,
@@ -66,11 +66,12 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 	}
 
 	return err
+
 }
 
 // CreateOrUpdateSecretField creates or updates a secret name in namespace ns, with given value for given field
 func (ku *kubeUtil) CreateOrUpdateSecretField(ns string, name string, field string, value string) error {
-	err := ku.CreateOrUpdateSecret(ns, name, func(s *corev1.Secret, _ bool) error {
+	err := ku.CreateOrUpdateSecret(ns, name, func(s *apiv1.Secret, new bool) error {
 		s.Data[field] = []byte(value)
 		return nil
 	})
@@ -80,7 +81,7 @@ func (ku *kubeUtil) CreateOrUpdateSecretField(ns string, name string, field stri
 // CreateOrUpdateSecretData creates or updates a secret name in namespace ns, with given data.
 // If merge is true, merges data with the existing data, otherwise overwrites it.
 func (ku *kubeUtil) CreateOrUpdateSecretData(ns string, name string, data map[string][]byte, merge bool) error {
-	err := ku.CreateOrUpdateSecret(ns, name, func(s *corev1.Secret, new bool) error {
+	err := ku.CreateOrUpdateSecret(ns, name, func(s *apiv1.Secret, new bool) error {
 		if !merge || new {
 			s.Data = data
 		} else {

@@ -14,23 +14,23 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v3/util/dex"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
-	passwordutil "github.com/argoproj/argo-cd/v3/util/password"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	passwordutil "github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // SessionManager generates and validates JWT tokens for login sessions.
@@ -93,7 +93,9 @@ const (
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
-var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+var (
+	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+)
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -210,7 +212,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (any, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -265,7 +267,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", errors.New("account password has changed since token issued")
+		return nil, "", fmt.Errorf("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -290,7 +292,7 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	var failures map[string]LoginAttempts
 	err := mgr.storage.GetLoginAttempts(&failures)
 	if err != nil {
-		if !errors.Is(err, appstate.ErrCacheMiss) {
+		if err != appstate.ErrCacheMiss {
 			log.Errorf("Could not retrieve login attempts: %v", err)
 		}
 		failures = make(map[string]LoginAttempts)
@@ -303,7 +305,7 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 	expiredCount := 0
 	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
-			expiredCount++
+			expiredCount += 1
 			delete(failures, key)
 		}
 	}
@@ -362,19 +364,22 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// On login failure, increase fail count and update last failed timestamp.
 	// On login success, remove the entry from the cache.
 	if failed {
-		attempt.FailCount++
+		attempt.FailCount += 1
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
-	} else if attempt.FailCount > 0 {
-		// Forget username for cache size enforcement, since entry in cache was deleted
-		delete(failures, username)
+	} else {
+		if attempt.FailCount > 0 {
+			// Forget username for cache size enforcement, since entry in cache was deleted
+			delete(failures, username)
+		}
 	}
 
 	err := mgr.storage.SetLoginAttempts(failures)
 	if err != nil {
 		log.Errorf("Could not update login attempts: %v", err)
 	}
+
 }
 
 // Get the current login failure attempts for given username
@@ -536,10 +541,11 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
 		if argoSettings == nil {
-			return nil, "", errors.New("settings are not available while verifying the token")
+			return nil, "", fmt.Errorf("settings are not available while verifying the token")
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
+
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
@@ -573,7 +579,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 		return nil, err
 	}
 	if !settings.IsSSOConfigured() {
-		return nil, errors.New("SSO is not configured")
+		return nil, fmt.Errorf("SSO is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil

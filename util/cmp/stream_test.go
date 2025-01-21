@@ -2,7 +2,7 @@ package cmp_test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/cmp"
-	"github.com/argoproj/argo-cd/v3/util/io/files"
+	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 type streamMock struct {
@@ -30,7 +30,7 @@ func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, errors.New("timeout receiving message mock")
+		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 		assert.NotEmpty(t, workdir)
 		files, err := os.ReadDir(workdir)
 		require.NoError(t, err)
-		require.Len(t, files, 2)
+		require.Equal(t, 2, len(files))
 		names := []string{}
 		for _, f := range files {
 			names = append(names, f.Name())
@@ -94,6 +94,5 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

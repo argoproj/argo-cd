@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/typed"
@@ -42,7 +42,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
+				return nil, nil, fmt.Errorf("error normalizing manager %s: %s", mf.Manager, err)
 			}
 			normalized = true
 		}
@@ -52,14 +52,14 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 		return liveCopy, configCopy, nil
 	}
 	lvu := results.live.AsValue().Unstructured()
-	l, ok := lvu.(map[string]any)
+	l, ok := lvu.(map[string]interface{})
 	if !ok {
 		return nil, nil, fmt.Errorf("error converting live typedValue: expected map got %T", lvu)
 	}
 	normLive := &unstructured.Unstructured{Object: l}
 
 	cvu := results.config.AsValue().Unstructured()
-	c, ok := cvu.(map[string]any)
+	c, ok := cvu.(map[string]interface{})
 	if !ok {
 		return nil, nil, fmt.Errorf("error converting config typedValue: expected map got %T", cvu)
 	}
@@ -70,7 +70,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 // normalize will check if the modified set has fields that are present
 // in the managed fields entry. If so, it will remove the fields from
 // the live and config objects so it is ignored in diffs.
-func normalize(mf metav1.ManagedFieldsEntry, tr *typedResults) error {
+func normalize(mf v1.ManagedFieldsEntry, tr *typedResults) error {
 	mfs := &fieldpath.Set{}
 	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
 	if err != nil {
@@ -92,21 +92,21 @@ type typedResults struct {
 }
 
 // newTypedResults will convert live and config into a TypedValue using the given pt
-// and compare them. Returns a typedResults with the converted types and the comparison.
+// and compare them. Returns a typedResults with the coverted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedLive: %w", err)
+		return nil, fmt.Errorf("error creating typedLive: %s", err)
 	}
 
 	typedConfig, err := pt.FromUnstructured(config.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedConfig: %w", err)
+		return nil, fmt.Errorf("error creating typedConfig: %s", err)
 	}
 	comparison, err := typedLive.Compare(typedConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error comparing typed resources: %w", err)
+		return nil, fmt.Errorf("error comparing typed resources: %s", err)
 	}
 	return &typedResults{
 		live:       typedLive,

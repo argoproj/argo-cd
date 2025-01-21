@@ -1,12 +1,12 @@
 package log
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func TestCreateFormatter(t *testing.T) {
@@ -25,12 +25,12 @@ func TestCreateFormatter(t *testing.T) {
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{}, result)
 		})
-		t.Run(common.EnvLogFormatEnableFullTimestamp+" == 1", func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s == 1", common.EnvLogFormatEnableFullTimestamp), func(t *testing.T) {
 			t.Setenv(common.EnvLogFormatEnableFullTimestamp, "1")
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{FullTimestamp: true}, result)
 		})
-		t.Run(common.EnvLogFormatEnableFullTimestamp+" != 1", func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s != 1", common.EnvLogFormatEnableFullTimestamp), func(t *testing.T) {
 			t.Setenv(common.EnvLogFormatEnableFullTimestamp, "0")
 			result := CreateFormatter("text")
 			assert.Equal(t, &logrus.TextFormatter{}, result)
