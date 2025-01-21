@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	pathpkg "path"
 
 	"github.com/hashicorp/go-retryablehttp"
 	gitlab "gitlab.com/gitlab-org/api/client-go"
@@ -133,51 +132,28 @@ func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path s
 		return false, fmt.Errorf("error getting Project Info: %w", err)
 	}
 
-	// first check the provided path
-	// if it's a directory, check for it's presence
-	// if it's a file, we'll get a first error then we check the parent folder
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
-	}
-
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
-		}
-
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+	// search if the path is a file and existe in the repo
+	fileOptions := gitlab.GetFileOptions{Ref: &repo.Branch}
+	_, _, err = g.client.RepositoryFiles.GetFile(p.ID, path, &fileOptions)
+	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) {
+			// no file found, check for a directory
+			options := gitlab.ListTreeOptions{
+				Path: &path,
+				Ref:  &repo.Branch,
+			}
+			_, _, err := g.client.Repositories.ListTree(p.ID, &options)
 			if err != nil {
 				if errors.Is(err, gitlab.ErrNotFound) {
-					break // no directory here, checking for files in the parent folder
+					return false, nil // no file or directory found
 				}
-				return false, fmt.Errorf("error listing Project files %s(%s) on branch %s: %w", path, pathpkg.Dir(path), repo.Branch, err)
+				return false, err
 			}
-
-			if path == directory {
-				// we found the requested directory
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-
-			// search for presence of the requested file in the parent folder
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
+			return true, nil // directory found
 		}
+		return false, err
 	}
-
-	return false, nil
+	return true, nil // file found
 }
 
 func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gitlab.Branch, error) {
