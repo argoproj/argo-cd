@@ -669,6 +669,7 @@ func TestFilterByPath(t *testing.T) {
 		assert.Len(t, res, 2)
 	})
 }
+
 func TestFilterByFiles(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
