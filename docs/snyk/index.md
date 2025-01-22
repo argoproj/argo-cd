@@ -32,7 +32,7 @@ recent minor releases.
 | [dex:v2.41.1](v2.14.0-rc5/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 0 | 0 | 2 |
 | [haproxy:2.6.17-alpine](v2.14.0-rc5/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 0 | 2 | 4 |
 | [redis:7.0.15-alpine](v2.14.0-rc5/public.ecr.aws_docker_library_redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
-| [argocd:v2.14.0-rc5](v2.14.0-rc5/quay.io_argoproj_argocd_v2.14.0-rc5.html) | 0 | 0 | 4 | 10 |
+| [argocd:v2.14.0-rc5](v2.14.0-rc5/quay.io_argoproj_argocd_v2.14.0-rc5.html) | 0 | 0 | 6 | 10 |
 | [redis:7.0.15-alpine](v2.14.0-rc5/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
 | [install.yaml](v2.14.0-rc5/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](v2.14.0-rc5/argocd-iac-namespace-install.html) | - | - | - | - |
@@ -46,7 +46,7 @@ recent minor releases.
 | [dex:v2.41.1](v2.13.3/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 0 | 0 | 2 |
 | [haproxy:2.6.17-alpine](v2.13.3/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 0 | 2 | 4 |
 | [redis:7.0.15-alpine](v2.13.3/public.ecr.aws_docker_library_redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
-| [argocd:v2.13.3](v2.13.3/quay.io_argoproj_argocd_v2.13.3.html) | 0 | 0 | 4 | 10 |
+| [argocd:v2.13.3](v2.13.3/quay.io_argoproj_argocd_v2.13.3.html) | 0 | 0 | 6 | 10 |
 | [redis:7.0.15-alpine](v2.13.3/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
 | [install.yaml](v2.13.3/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](v2.13.3/argocd-iac-namespace-install.html) | - | - | - | - |
@@ -60,7 +60,7 @@ recent minor releases.
 | [dex:v2.38.0](v2.12.9/ghcr.io_dexidp_dex_v2.38.0.html) | 0 | 0 | 6 | 7 |
 | [haproxy:2.6.17-alpine](v2.12.9/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 0 | 2 | 4 |
 | [redis:7.0.15-alpine](v2.12.9/public.ecr.aws_docker_library_redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
-| [argocd:v2.12.9](v2.12.9/quay.io_argoproj_argocd_v2.12.9.html) | 0 | 0 | 4 | 10 |
+| [argocd:v2.12.9](v2.12.9/quay.io_argoproj_argocd_v2.12.9.html) | 0 | 0 | 6 | 10 |
 | [redis:7.0.15-alpine](v2.12.9/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
 | [install.yaml](v2.12.9/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](v2.12.9/argocd-iac-namespace-install.html) | - | - | - | - |
@@ -73,7 +73,7 @@ recent minor releases.
 | [ui/yarn.lock](v2.11.12/argocd-test.html) | 0 | 0 | 1 | 0 |
 | [dex:v2.38.0](v2.11.12/ghcr.io_dexidp_dex_v2.38.0.html) | 0 | 0 | 6 | 7 |
 | [haproxy:2.6.14-alpine](v2.11.12/haproxy_2.6.14-alpine.html) | 0 | 1 | 7 | 7 |
-| [argocd:v2.11.12](v2.11.12/quay.io_argoproj_argocd_v2.11.12.html) | 0 | 0 | 5 | 21 |
+| [argocd:v2.11.12](v2.11.12/quay.io_argoproj_argocd_v2.11.12.html) | 0 | 0 | 7 | 21 |
 | [redis:7.0.15-alpine](v2.11.12/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 1 |
 | [install.yaml](v2.11.12/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](v2.11.12/argocd-iac-namespace-install.html) | - | - | - | - |
