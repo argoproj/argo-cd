@@ -1229,6 +1229,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sourcePositions      []int64
 		sourceNames          []string
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+		compareDesired       bool
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -1285,6 +1286,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
+			diffOption.compareDesired = compareDesired
 			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
 				numOfSources := int64(len(app.Spec.GetSources()))
 				for _, pos := range sourcePositions {
@@ -1360,6 +1362,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
+	command.Flags().BoolVar(&compareDesired, "compare-desired", false, "Compare revison with desired state instead of live state")
+
 	return command
 }
 
@@ -1373,6 +1377,7 @@ type DifferenceOption struct {
 	serversideRes   *repoapiclient.ManifestResponse
 	revisions       []string
 	sourcePositions []int64
+	compareDesired  bool
 }
 
 // findandPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
@@ -1384,6 +1389,65 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+	} else if diffOptions.compareDesired && diffOptions.revision != "" {
+		var revisionObjs, desiredObjs []*unstructured.Unstructured
+
+		// Extract revision objects from manifests
+		for _, mfst := range diffOptions.res.Manifests {
+			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
+			errors.CheckError(err)
+			revisionObjs = append(revisionObjs, obj)
+		}
+
+		// Extract desired state objects from TargetState
+		for _, res := range resources.Items {
+			if res.TargetState != "" { // Ensure TargetState is not empty
+				desired := &unstructured.Unstructured{}
+				err := json.Unmarshal([]byte(res.TargetState), desired)
+				errors.CheckError(err)
+				desiredObjs = append(desiredObjs, desired)
+			}
+		}
+
+		groupedObjs := groupObjsByKey(revisionObjs, desiredObjs, app.Spec.Destination.Namespace)
+		items = groupObjsForDiffRev(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
+
+		for _, item := range items {
+			if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
+				continue
+			}
+			overrides := make(map[string]argoappv1.ResourceOverride)
+			for k := range argoSettings.ResourceOverrides {
+				val := argoSettings.ResourceOverrides[k]
+				overrides[k] = *val
+			}
+
+			// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
+			// compareOptions in the protobuf
+			ignoreAggregatedRoles := false
+			diffConfig, err := argodiff.NewDiffConfigBuilder().
+				WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
+				WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
+				WithNoCache().
+				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+				Build()
+			errors.CheckError(err)
+			diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
+			errors.CheckError(err)
+
+			if diffRes.Modified || item.target == nil || item.live == nil {
+				fmt.Printf("\n===== %s/%s %s/%s ======\n", item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name)
+				var revision *unstructured.Unstructured
+				var target *unstructured.Unstructured
+				revision = item.target
+				target = item.live
+				if !foundDiffs {
+					foundDiffs = true
+				}
+				_ = cli.PrintDiff(item.key.Name, revision, target)
+			}
+		}
+		return foundDiffs
 	} else if diffOptions.revision != "" || len(diffOptions.revisions) > 0 {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
@@ -1482,6 +1546,42 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 			}
 
 			items = append(items, objKeyLiveTarget{key, live, local})
+			delete(objs, key)
+		}
+	}
+	for key, local := range objs {
+		if key.Kind == kube.SecretKind && key.Group == "" {
+			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+			delete(objs, key)
+			continue
+		}
+		items = append(items, objKeyLiveTarget{key, nil, local})
+	}
+	return items
+}
+
+// Grouping logic for target and revision objects
+func groupObjsForDiffRev(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
+	resourceTracking := argo.NewResourceTracking()
+	for _, res := range resources.Items {
+		target := &unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(res.TargetState), &target)
+		errors.CheckError(err)
+
+		key := kube.ResourceKey{Name: res.Name, Namespace: res.Namespace, Group: res.Group, Kind: res.Kind}
+		if key.Kind == kube.SecretKind && key.Group == "" {
+			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
+			delete(objs, key)
+			continue
+		}
+
+		if local, ok := objs[key]; ok || target != nil {
+			if local != nil && !kube.IsCRD(local) {
+				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()), argoSettings.GetInstallationID())
+				errors.CheckError(err)
+			}
+
+			items = append(items, objKeyLiveTarget{key, target, local})
 			delete(objs, key)
 		}
 	}
