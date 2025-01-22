@@ -37,7 +37,7 @@ func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, au
 }
 
 // Get returns Argo CD settings
-func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
@@ -152,7 +152,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 }
 
 // GetPlugins returns a list of plugins
-func (s *Server) GetPlugins(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
+func (s *Server) GetPlugins(ctx context.Context, q *settingspkg.SettingsQuery) (*settingspkg.SettingsPluginsResponse, error) {
 	plugins, err := s.plugins(ctx)
 	if err != nil {
 		return nil, err

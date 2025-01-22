@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"sort"
@@ -132,7 +131,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 	}
 	kubeconfig, ok := clusterInfo.Data["kubeconfig"]
 	if !ok {
-		return "", stderrors.New("cluster-info does not contain a public kubeconfig")
+		return "", fmt.Errorf("cluster-info does not contain a public kubeconfig")
 	}
 	// Parse Kubeconfig and get server address
 	config := &clientcmdapiv1.Config{}
@@ -141,7 +140,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
-		return "", stderrors.New("cluster-info kubeconfig does not have any clusters")
+		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
 	}
 
 	return config.Clusters[0].Cluster.Server, nil

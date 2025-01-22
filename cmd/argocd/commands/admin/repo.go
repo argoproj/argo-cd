@@ -1,13 +1,13 @@
 package admin
 
 import (
-	stderrors "errors"
+	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
@@ -92,7 +92,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories")
+					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -100,7 +100,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (repoOpts.TlsClientCertPath != "" && repoOpts.TlsClientCertKeyPath == "") || (repoOpts.TlsClientCertPath == "" && repoOpts.TlsClientCertKeyPath != "") {
-				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -114,7 +114,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -128,7 +128,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))
+				errors.CheckError(fmt.Errorf("must specify --name for repos of type 'helm'"))
 			}
 
 			// If the user set a username, but didn't supply password via --password,
@@ -137,12 +137,12 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
-			argoCDCM := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
+			argoCDCM := &apiv1.ConfigMap{
+				TypeMeta: v1.TypeMeta{
 					Kind:       "ConfigMap",
 					APIVersion: "v1",
 				},
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: v1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: ArgoCDNamespace,
 					Labels: map[string]string{
@@ -157,7 +157,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), metav1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), v1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

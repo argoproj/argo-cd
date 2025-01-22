@@ -22,7 +22,7 @@ const (
 func newAzureCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "azure",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			o := token.OptionsWithEnv()
 			if o.LoginMethod == "" { // no environment variable overrides
 				// we'll use default of WorkloadIdentityLogin for the login flow

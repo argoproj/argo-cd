@@ -806,11 +806,11 @@ func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
 }
 
-func (m *MockParametersAnnouncementStream) SendMsg(any) error {
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -54,14 +55,14 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
 	Given(t).
 		Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
-			FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
+			FailOnErr(Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
 		}).
 		SelectedResource("apps:Deployment:guestbook-ui").
 		When().
@@ -84,14 +85,14 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
 		if !t.Skipped() {
-			FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
+			FailOnErr(Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
 	Given(t).
 		Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
-			FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
+			FailOnErr(Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
 		}).
 		SelectedResource(fmt.Sprintf("apps:Deployment:%s/guestbook-ui", selectedResourceNamespace)).
 		When().
@@ -115,5 +116,5 @@ func getNewNamespace(t *testing.T) string {
 	require.NoError(t, err)
 	postFix := "-" + strings.ToLower(randStr)
 	name := fixture.DnsFriendly(t.Name(), "")
-	return fixture.DnsFriendly("argocd-e2e-"+name, postFix)
+	return fixture.DnsFriendly(fmt.Sprintf("argocd-e2e-%s", name), postFix)
 }

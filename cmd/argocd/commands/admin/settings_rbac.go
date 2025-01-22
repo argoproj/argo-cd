@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
@@ -248,11 +248,12 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 					fmt.Println("Yes")
 				}
 				os.Exit(0)
+			} else {
+				if !quiet {
+					fmt.Println("No")
+				}
+				os.Exit(1)
 			}
-			if !quiet {
-				fmt.Println("No")
-			}
-			os.Exit(1)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -320,11 +321,13 @@ argocd admin settings rbac validate --namespace argocd
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
 					os.Exit(0)
+				} else {
+					fmt.Printf("Policy is invalid: %v\n", err)
+					os.Exit(1)
 				}
-				fmt.Printf("Policy is invalid: %v\n", err)
-				os.Exit(1)
+			} else {
+				log.Fatalf("Policy is empty or could not be loaded.")
 			}
-			log.Fatalf("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -399,7 +402,7 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
 func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namespace string) (*corev1.ConfigMap, error) {
-	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +466,9 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 func resolveRBACResourceName(name string) string {
 	if res, ok := resourceMap[name]; ok {
 		return res
+	} else {
+		return name
 	}
-	return name
 }
 
 // validateRBACResourceAction checks whether a given resource is a valid RBAC resource.

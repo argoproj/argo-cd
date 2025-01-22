@@ -332,7 +332,7 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 
 // RbacEnforcer defines the contract to enforce rbac rules
 type RbacEnforcer interface {
-	EnforceErr(rvals ...any) error
+	EnforceErr(rvals ...interface{}) error
 }
 
 // Manager is the object that will be responsible for registering
@@ -411,12 +411,12 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 
 func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
 	if len(s.ExtensionConfig) == 0 {
-		return nil, errors.New("no extensions configurations found")
+		return nil, fmt.Errorf("no extensions configurations found")
 	}
 
 	configs := ExtensionConfigs{}
 	for extName, extConfig := range s.ExtensionConfig {
-		extConfigMap := map[string]any{}
+		extConfigMap := map[string]interface{}{}
 		err := yaml.Unmarshal([]byte(extConfig), &extConfigMap)
 		if err != nil {
 			return nil, fmt.Errorf("invalid extension config: %w", err)
@@ -461,10 +461,10 @@ func validateConfigs(configs *ExtensionConfigs) error {
 	exts := make(map[string]struct{})
 	for _, ext := range configs.Extensions {
 		if ext.Name == "" {
-			return errors.New("extensions.name must be configured")
+			return fmt.Errorf("extensions.name must be configured")
 		}
 		if !nameSafeRegex.MatchString(ext.Name) {
-			return errors.New("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
+			return fmt.Errorf("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
 		}
 		if _, found := exts[ext.Name]; found {
 			return fmt.Errorf("duplicated extension found in the configs for %q", ext.Name)
@@ -476,23 +476,23 @@ func validateConfigs(configs *ExtensionConfigs) error {
 		}
 		for _, svc := range ext.Backend.Services {
 			if svc.URL == "" {
-				return errors.New("extensions.backend.services.url must be configured")
+				return fmt.Errorf("extensions.backend.services.url must be configured")
 			}
 			if svcTotal > 1 && svc.Cluster == nil {
-				return errors.New("extensions.backend.services.cluster must be configured when defining more than one service per extension")
+				return fmt.Errorf("extensions.backend.services.cluster must be configured when defining more than one service per extension")
 			}
 			if svc.Cluster != nil {
 				if svc.Cluster.Name == "" && svc.Cluster.Server == "" {
-					return errors.New("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
+					return fmt.Errorf("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
 				}
 			}
 			if len(svc.Headers) > 0 {
 				for _, header := range svc.Headers {
 					if header.Name == "" {
-						return errors.New("header.name must be defined when providing service headers in the configuration")
+						return fmt.Errorf("header.name must be defined when providing service headers in the configuration")
 					}
 					if header.Value == "" {
-						return errors.New("header.value must be defined when providing service headers in the configuration")
+						return fmt.Errorf("header.value must be defined when providing service headers in the configuration")
 					}
 				}
 			}
@@ -654,7 +654,7 @@ func appendProxy(registry ProxyRegistry,
 // If all validations are satified it will return the Application resource
 func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName string) (*v1alpha1.Application, error) {
 	if m.rbac == nil {
-		return nil, errors.New("rbac enforcer not set in extension manager")
+		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
 	}
 	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
@@ -690,7 +690,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
 	if !permitted {
-		return nil, errors.New("the provided project is not allowed to access the cluster configured in the Application destination")
+		return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
 	}
 
 	return app, nil
@@ -729,7 +729,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 		if segments[0] != "extensions" {
-			http.Error(w, "Invalid URL: first segment must be "+URLPrefix, http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid URL: first segment must be %s", URLPrefix), http.StatusBadRequest)
 			return
 		}
 		extName := segments[1]

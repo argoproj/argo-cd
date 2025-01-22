@@ -9,7 +9,7 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/portforward"
@@ -42,7 +42,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	var pod *corev1.Pod
 
 	for _, podSelector := range podSelectors {
-		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
+		pods, err := clientSet.CoreV1().Pods(namespace).List(context.Background(), v1.ListOptions{
 			LabelSelector: podSelector,
 		})
 		if err != nil {

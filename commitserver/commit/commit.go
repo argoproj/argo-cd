@@ -2,7 +2,6 @@ package commit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -34,7 +33,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
-func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
+func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
 	startTime := time.Now()
@@ -79,16 +78,16 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	if r.Repo == nil {
-		return "", "", errors.New("repo is required")
+		return "", "", fmt.Errorf("repo is required")
 	}
 	if r.Repo.Repo == "" {
-		return "", "", errors.New("repo URL is required")
+		return "", "", fmt.Errorf("repo URL is required")
 	}
 	if r.TargetBranch == "" {
-		return "", "", errors.New("target branch is required")
+		return "", "", fmt.Errorf("target branch is required")
 	}
 	if r.SyncBranch == "" {
-		return "", "", errors.New("sync branch is required")
+		return "", "", fmt.Errorf("sync branch is required")
 	}
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)

@@ -1,15 +1,15 @@
 package localconfig
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
 	"strings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
+	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -79,7 +79,7 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
-	var localconfig LocalConfig
+	var config LocalConfig
 
 	// check file permission only when argocd config exists
 	if fi, err := os.Stat(path); err == nil {
@@ -89,15 +89,15 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 		}
 	}
 
-	err = config.UnmarshalLocalFile(path, &localconfig)
+	err = configUtil.UnmarshalLocalFile(path, &config)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	err = ValidateLocalConfig(localconfig)
+	err = ValidateLocalConfig(config)
 	if err != nil {
 		return nil, err
 	}
-	return &localconfig, nil
+	return &config, nil
 }
 
 func ValidateLocalConfig(config LocalConfig) error {
@@ -111,12 +111,12 @@ func ValidateLocalConfig(config LocalConfig) error {
 }
 
 // WriteLocalConfig writes a new local configuration file.
-func WriteLocalConfig(localconfig LocalConfig, configPath string) error {
+func WriteLocalConfig(config LocalConfig, configPath string) error {
 	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	return config.MarshalLocalYAMLFile(configPath, localconfig)
+	return configUtil.MarshalLocalYAMLFile(configPath, config)
 }
 
 func DeleteLocalConfig(configPath string) error {
@@ -131,7 +131,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, errors.New("Local config: current-context unset")
+			return nil, fmt.Errorf("Local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}

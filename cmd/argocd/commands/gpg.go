@@ -1,7 +1,6 @@
 package commands
 
 import (
-	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -54,7 +53,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg list -o yaml
   		`),
 
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
@@ -97,7 +96,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
@@ -133,11 +132,11 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg add --from /path/to/keyfile
   		`),
 
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			if fromFile == "" {
-				errors.CheckError(stderrors.New("--from is mandatory"))
+				errors.CheckError(fmt.Errorf("--from is mandatory"))
 			}
 			keyData, err := os.ReadFile(fromFile)
 			if err != nil {
@@ -167,7 +166,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
 
 			keyId := args[0]

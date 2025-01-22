@@ -2,7 +2,6 @@ package generators
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -60,7 +59,7 @@ func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Appl
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
-func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -97,13 +96,13 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	// Validate the fields
 	if kind == "" || versionIdx < 1 {
 		log.Warningf("kind=%v, resourceName=%v, versionIdx=%v", kind, resourceName, versionIdx)
-		return nil, errors.New("There is a problem with the apiVersion, kind or resourceName provided")
+		return nil, fmt.Errorf("There is a problem with the apiVersion, kind or resourceName provided")
 	}
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
-		return nil, errors.New("There is a problem with the definition of the ClusterDecisionResource generator")
+		return nil, fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator")
 	}
 
 	// Split up the apiVersion
@@ -131,7 +130,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	if len(duckResources.Items) == 0 {
 		log.Warning("no resource found, make sure you clusterDecisionResource is defined correctly")
-		return nil, errors.New("no clusterDecisionResources found")
+		return nil, fmt.Errorf("no clusterDecisionResources found")
 	}
 
 	// Override the duck type in the status of the resource
@@ -147,21 +146,21 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		return nil, nil
 	}
 
-	res := []map[string]any{}
-	clusterDecisions := []any{}
+	res := []map[string]interface{}{}
+	clusterDecisions := []interface{}{}
 
 	// Build the decision slice
 	for _, duckResource := range duckResources.Items {
 		log.WithField("duckResourceName", duckResource.GetName()).Debug("found resource")
 
-		if duckResource.Object["status"] == nil || len(duckResource.Object["status"].(map[string]any)) == 0 {
+		if duckResource.Object["status"] == nil || len(duckResource.Object["status"].(map[string]interface{})) == 0 {
 			log.Warningf("clusterDecisionResource: %s, has no status", duckResource.GetName())
 			continue
 		}
 
 		log.WithField("duckResourceStatus", duckResource.Object["status"]).Debug("found resource")
 
-		clusterDecisions = append(clusterDecisions, duckResource.Object["status"].(map[string]any)[statusListKey].([]any)...)
+		clusterDecisions = append(clusterDecisions, duckResource.Object["status"].(map[string]interface{})[statusListKey].([]interface{})...)
 	}
 	log.Infof("Number of decisions found: %v", len(clusterDecisions))
 
@@ -171,12 +170,12 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	if len(clusterDecisions) > 0 {
 		for _, cluster := range clusterDecisions {
 			// generated instance of cluster params
-			params := map[string]any{}
+			params := map[string]interface{}{}
 
 			log.Infof("cluster: %v", cluster)
-			matchValue := cluster.(map[string]any)[matchKey]
+			matchValue := cluster.(map[string]interface{})[matchKey]
 			if matchValue == nil || matchValue.(string) == "" {
-				log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]any))
+				log.Warningf("matchKey=%v not found in \"%v\" list: %v\n", matchKey, statusListKey, cluster.(map[string]interface{}))
 				continue
 			}
 
@@ -201,7 +200,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 				continue
 			}
 
-			for key, value := range cluster.(map[string]any) {
+			for key, value := range cluster.(map[string]interface{}) {
 				params[key] = value.(string)
 			}
 
@@ -212,7 +211,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 					}
 					params["values"].(map[string]string)[key] = value
 				} else {
-					params["values."+key] = value
+					params[fmt.Sprintf("values.%s", key)] = value
 				}
 			}
 

@@ -12,7 +12,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -29,7 +30,7 @@ func NewApplicationGenerator(argoClientSet *appclientset.Clientset, clientSet *k
 	return &ApplicationGenerator{argoClientSet, clientSet, db}
 }
 
-func (generator *ApplicationGenerator) buildRandomSource(repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
+func (pg *ApplicationGenerator) buildRandomSource(repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
 	seed := rand.New(rand.NewSource(time.Now().Unix()))
 	repoNumber := seed.Int() % len(repositories)
 	return &v1alpha1.ApplicationSource{
@@ -39,14 +40,15 @@ func (generator *ApplicationGenerator) buildRandomSource(repositories []*v1alpha
 	}, nil
 }
 
-func (generator *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
-	if opts.ApplicationOpts.SourceOpts.Strategy == "Random" {
-		return generator.buildRandomSource(repositories)
+func (ag *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
+	switch opts.ApplicationOpts.SourceOpts.Strategy {
+	case "Random":
+		return ag.buildRandomSource(repositories)
 	}
-	return generator.buildRandomSource(repositories)
+	return ag.buildRandomSource(repositories)
 }
 
-func (generator *ApplicationGenerator) buildRandomDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
+func (pg *ApplicationGenerator) buildRandomDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
 	seed := rand.New(rand.NewSource(time.Now().Unix()))
 	clusterNumber := seed.Int() % len(clusters)
 	return &v1alpha1.ApplicationDestination{
@@ -55,39 +57,40 @@ func (generator *ApplicationGenerator) buildRandomDestination(opts *util.Generat
 	}, nil
 }
 
-func (generator *ApplicationGenerator) buildDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
-	if opts.ApplicationOpts.DestinationOpts.Strategy == "Random" {
-		return generator.buildRandomDestination(opts, clusters)
+func (ag *ApplicationGenerator) buildDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
+	switch opts.ApplicationOpts.DestinationOpts.Strategy {
+	case "Random":
+		return ag.buildRandomDestination(opts, clusters)
 	}
-	return generator.buildRandomDestination(opts, clusters)
+	return ag.buildRandomDestination(opts, clusters)
 }
 
-func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
-	settingsMgr := settings.NewSettingsManager(context.TODO(), generator.clientSet, opts.Namespace)
-	repositories, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListRepositories(context.TODO())
+func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
+	settingsMgr := settings.NewSettingsManager(context.TODO(), pg.clientSet, opts.Namespace)
+	repositories, err := db.NewDB(opts.Namespace, settingsMgr, pg.clientSet).ListRepositories(context.TODO())
 	if err != nil {
 		return err
 	}
-	clusters, err := db.NewDB(opts.Namespace, settingsMgr, generator.clientSet).ListClusters(context.TODO())
+	clusters, err := db.NewDB(opts.Namespace, settingsMgr, pg.clientSet).ListClusters(context.TODO())
 	if err != nil {
 		return err
 	}
-	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
+	applications := pg.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
 	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
 		log.Printf("Generate application #%v", i)
-		source, err := generator.buildSource(opts, repositories)
+		source, err := pg.buildSource(opts, repositories)
 		if err != nil {
 			return err
 		}
 		log.Printf("Pick source %q", source)
-		destination, err := generator.buildDestination(opts, clusters.Items)
+		destination, err := pg.buildDestination(opts, clusters.Items)
 		if err != nil {
 			return err
 		}
 		log.Printf("Pick destination %q", destination)
 		log.Printf("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				GenerateName: "application-",
 				Namespace:    opts.Namespace,
 				Labels:       labels,
@@ -97,7 +100,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 				Destination: *destination,
 				Source:      source,
 			},
-		}, metav1.CreateOptions{})
+		}, v1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -105,10 +108,10 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 	return nil
 }
 
-func (generator *ApplicationGenerator) Clean(opts *util.GenerateOpts) error {
+func (ag *ApplicationGenerator) Clean(opts *util.GenerateOpts) error {
 	log.Printf("Clean applications")
-	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
-	return applications.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
+	applications := ag.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
+	return applications.DeleteCollection(context.TODO(), v1.DeleteOptions{}, v1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

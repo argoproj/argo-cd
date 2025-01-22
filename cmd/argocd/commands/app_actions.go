@@ -21,7 +21,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -84,7 +84,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
 		errors.CheckError(err)
@@ -176,7 +176,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -207,7 +207,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
-func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
+func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServiceClient, ctx context.Context, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
 		AppNamespace:    appNs,

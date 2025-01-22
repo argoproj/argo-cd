@@ -22,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
 	"github.com/stretchr/testify/assert"
@@ -58,7 +59,7 @@ var ExpectedConditions = []v1alpha1.ApplicationSetCondition{
 func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -68,21 +69,21 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 			Namespace:  externalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -97,14 +98,14 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -120,7 +121,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -130,7 +131,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -146,21 +147,21 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("simple-list-generator-external", ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -170,21 +171,21 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 			Namespace:  externalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
 
-	expectedAppExternalNamespace2 := v1alpha1.Application{
+	expectedAppExternalNamespace2 := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -194,22 +195,22 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 			Namespace:  externalNamespace2,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
 
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -224,14 +225,14 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -247,7 +248,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		CreateNamespace(externalNamespace).Create(v1alpha1.ApplicationSet{
@@ -259,14 +260,14 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -282,11 +283,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Then().
@@ -298,11 +299,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Then().
@@ -320,30 +321,30 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("simple-list-generator-external", ExpectedConditions)).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Then().
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppExternalNamespace2}))
 }
 
 func TestSimpleListGenerator(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -353,21 +354,21 @@ func TestSimpleListGenerator(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -378,14 +379,14 @@ func TestSimpleListGenerator(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{url}}",
 						Namespace: "guestbook",
 					},
@@ -401,7 +402,7 @@ func TestSimpleListGenerator(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -411,7 +412,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -423,18 +424,18 @@ func TestSimpleListGenerator(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("simple-list-generator", ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -444,21 +445,21 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -470,14 +471,14 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -493,7 +494,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -503,7 +504,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -515,18 +516,18 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("simple-list-generator", ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestRenderHelmValuesObject(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -536,20 +537,20 @@ func TestRenderHelmValuesObject(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
-				Helm: &v1alpha1.ApplicationSourceHelm{
+				Helm: &argov1alpha1.ApplicationSourceHelm{
 					ValuesObject: &runtime.RawExtension{
 						// This will always be converted as yaml
 						Raw: []byte(`{"some":{"string":"Hello world"}}`),
 					},
 				},
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -566,19 +567,19 @@ func TestRenderHelmValuesObject(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
-						Helm: &v1alpha1.ApplicationSourceHelm{
+						Helm: &argov1alpha1.ApplicationSourceHelm{
 							ValuesObject: &runtime.RawExtension{
 								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
 							},
 						},
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -594,14 +595,14 @@ func TestRenderHelmValuesObject(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestTemplatePatch(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -614,19 +615,19 @@ func TestTemplatePatch(t *testing.T) {
 				"annotation-some-key": "annotation-some-value",
 			},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
-			SyncPolicy: &v1alpha1.SyncPolicy{
-				SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+			SyncPolicy: &argov1alpha1.SyncPolicy{
+				SyncOptions: argov1alpha1.SyncOptions{"CreateNamespace=true"},
 			},
 		},
 	}
@@ -651,8 +652,8 @@ func TestTemplatePatch(t *testing.T) {
 	}
 	`
 
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -664,14 +665,14 @@ func TestTemplatePatch(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -695,7 +696,7 @@ func TestTemplatePatch(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -705,7 +706,7 @@ func TestTemplatePatch(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -717,18 +718,18 @@ func TestTemplatePatch(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("patch-template", ExpectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -738,20 +739,20 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "helm-guestbook",
-				Helm: &v1alpha1.ApplicationSourceHelm{
+				Helm: &argov1alpha1.ApplicationSourceHelm{
 					ValuesObject: &runtime.RawExtension{
 						// This will always be converted as yaml
 						Raw: []byte(`{"some":{"foo":"bar"}}`),
 					},
 				},
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -768,19 +769,19 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "helm-guestbook",
-						Helm: &v1alpha1.ApplicationSourceHelm{
+						Helm: &argov1alpha1.ApplicationSourceHelm{
 							ValuesObject: &runtime.RawExtension{
 								Raw: []byte(`{"some":{"string":"{{.test}}"}}`),
 							},
 						},
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -800,20 +801,20 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		Expect(ApplicationSetHasConditions("test-values-object-patch", ExpectedConditions)).
 		When().
 		// Update the app spec with some knew ValuesObject to force a merge
-		Update(func(as *v1alpha1.ApplicationSet) {
+		Update(func(as *argov1alpha1.ApplicationSet) {
 			as.Spec.Template.Spec.Source.Helm.ValuesObject = &runtime.RawExtension{
 				Raw: []byte(`{"some":{"foo":"bar"}}`),
 			}
 		}).
 		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+		Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 		When().
 		// Delete the ApplicationSet, and verify it deletes the Applications
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -823,21 +824,21 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
-	var expectedAppNewMetadata *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
+	var expectedAppNewMetadata *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -852,14 +853,14 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 					Name:       "{{.cluster}}-guestbook-sync-policy-create-update",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -875,7 +876,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -885,7 +886,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template
 		// Update as well the policy
@@ -903,18 +904,18 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
-			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateUpdate
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// Update the list and remove element
 		// As policy is create-update, app deletion must not be reflected
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
@@ -923,11 +924,11 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -937,20 +938,20 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -962,14 +963,14 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-delete"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -985,7 +986,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -995,7 +996,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template
 		// Update as well the policy
@@ -1004,29 +1005,29 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
-			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateDelete
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the list and remove element
 		// As policy is create-delete, app deletion must be reflected
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-delete", ExpectedConditions)).
 
 		// Delete the ApplicationSet
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -1036,20 +1037,20 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 			Namespace:  utils.ArgoCDNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
 		},
 	}
-	var expectedAppNewNamespace *v1alpha1.Application
+	var expectedAppNewNamespace *argov1alpha1.Application
 
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
@@ -1064,14 +1065,14 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 					Name:       "{{.cluster}}-guestbook-sync-policy-create-only",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -1087,7 +1088,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -1097,7 +1098,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template
 		// Update as well the policy
@@ -1106,18 +1107,18 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
-			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
+			applicationsSyncPolicy := argov1alpha1.ApplicationsSyncPolicyCreateOnly
+			appset.Spec.SyncPolicy = &argov1alpha1.ApplicationSetSyncPolicy{
 				ApplicationsSync: &applicationsSyncPolicy,
 			}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the list and remove element
 		// As policy is create-only, app deletion must not be reflected
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
-		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
@@ -1126,12 +1127,12 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1141,14 +1142,14 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -1156,14 +1157,13 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -1175,14 +1175,14 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -1240,8 +1240,8 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 }
 
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1251,14 +1251,14 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -1266,14 +1266,13 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -1286,14 +1285,14 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{.path.basename}}",
 						},
@@ -1373,8 +1372,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		},
 	}
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1384,14 +1383,14 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -1399,7 +1398,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("guestbook"),
 	}
 	project := "gpg"
@@ -1415,14 +1414,14 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: project,
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -1472,8 +1471,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		},
 	}
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1483,14 +1482,14 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -1498,7 +1497,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("guestbook"),
 	}
 
@@ -1520,20 +1519,20 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: project,
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
 						// Automatically create resources
-						SyncPolicy: &v1alpha1.SyncPolicy{
-							Automated: &v1alpha1.SyncPolicyAutomated{},
+						SyncPolicy: &argov1alpha1.SyncPolicy{
+							Automated: &argov1alpha1.SyncPolicyAutomated{},
 						},
 					},
 				},
@@ -1559,8 +1558,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGenerator(t *testing.T) {
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1570,14 +1569,14 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "guestbook",
 				},
@@ -1585,13 +1584,13 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -1603,14 +1602,14 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "guestbook",
 						},
@@ -1691,8 +1690,8 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		},
 	}
 	project := "gpg"
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1702,14 +1701,14 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: project,
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "guestbook",
 				},
@@ -1717,7 +1716,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
@@ -1733,14 +1732,14 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: project,
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "guestbook",
 						},
@@ -1790,8 +1789,8 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		},
 	}
 	project := "gpg"
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1801,14 +1800,14 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: project,
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "guestbook",
 				},
@@ -1818,7 +1817,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 
 	str, _ := rand.RandString(1)
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
@@ -1837,14 +1836,14 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: project,
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "guestbook",
 						},
@@ -1872,8 +1871,8 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -1883,14 +1882,14 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 					TargetRevision: "HEAD",
 					Path:           "guestbook",
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "guestbook",
 				},
@@ -1898,13 +1897,13 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
-	var expectedAppsNewMetadata []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
+	var expectedAppsNewMetadata []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -1917,14 +1916,14 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "guestbook",
 						},
@@ -1993,21 +1992,21 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: utils.ApplicationsResourcesNamespace,
 						},
 
 						// Automatically create resources
-						SyncPolicy: &v1alpha1.SyncPolicy{
-							Automated: &v1alpha1.SyncPolicyAutomated{},
+						SyncPolicy: &argov1alpha1.SyncPolicy{
+							Automated: &argov1alpha1.SyncPolicyAutomated{},
 						},
 					},
 				},
@@ -2054,21 +2053,21 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: utils.ApplicationsResourcesNamespace,
 						},
 
 						// Automatically create resources
-						SyncPolicy: &v1alpha1.SyncPolicy{
-							Automated: &v1alpha1.SyncPolicyAutomated{},
+						SyncPolicy: &argov1alpha1.SyncPolicy{
+							Automated: &argov1alpha1.SyncPolicyAutomated{},
 						},
 					},
 				},
@@ -2313,7 +2312,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2323,14 +2322,14 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2349,14 +2348,14 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ url }}",
 						TargetRevision: "{{ branch }}",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
@@ -2378,7 +2377,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
@@ -2388,7 +2387,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2398,14 +2397,14 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2425,14 +2424,14 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ .repository }}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ .url }}",
 						TargetRevision: "{{ .branch }}",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
@@ -2454,11 +2453,11 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2468,14 +2467,14 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2495,14 +2494,14 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ .repository }}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ .url }}",
 						TargetRevision: "{{ .branch }}",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
@@ -2524,7 +2523,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
 		And(func() {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "scm-provider-generator-scm-provider-not-allowed")
@@ -2534,7 +2533,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 }
 
 func TestCustomApplicationFinalizers(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2544,14 +2543,14 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2570,14 +2569,14 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 					Name:       "{{cluster}}-guestbook",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{url}}",
 						Namespace: "guestbook",
 					},
@@ -2593,15 +2592,15 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2611,14 +2610,14 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2638,14 +2637,14 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 					Name:       "{{.cluster}}-guestbook",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 						TargetRevision: "HEAD",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "{{.url}}",
 						Namespace: "guestbook",
 					},
@@ -2661,11 +2660,11 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -2715,7 +2714,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2725,14 +2724,14 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2767,14 +2766,14 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ url }}",
 						TargetRevision: "{{ branch }}",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
@@ -2786,7 +2785,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 						Github: &v1alpha1.SCMProviderGeneratorGithub{
 							Organization: "argoproj",
 							API:          ts.URL,
-							TokenRef: &v1alpha1.SecretRef{
+							TokenRef: &argov1alpha1.SecretRef{
 								SecretName: secretName,
 								Key:        "hello",
 							},
@@ -2800,7 +2799,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
 		When().And(func() {
 		err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 		assert.NoError(t, err)
@@ -2817,7 +2816,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2830,14 +2829,14 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
 			},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:argoproj/argo-cd.git",
 				TargetRevision: "master",
 				Path:           "guestbook",
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook",
 			},
@@ -2873,14 +2872,14 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "{{ url }}",
 						TargetRevision: "{{ branch }}",
 						Path:           "guestbook",
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
@@ -2892,7 +2891,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 						Github: &v1alpha1.SCMProviderGeneratorGithub{
 							Organization: "argoproj",
 							API:          ts.URL,
-							TokenRef: &v1alpha1.SecretRef{
+							TokenRef: &argov1alpha1.SecretRef{
 								SecretName: secretName,
 								Key:        "hello",
 							},
@@ -2906,7 +2905,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
 		When().
 		And(func() {
 			// app should be listed
@@ -2926,7 +2925,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -2936,17 +2935,17 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
-				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 					NamePrefix: "guestbook-1",
 				},
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook-pull-request",
 			},
@@ -2962,17 +2961,17 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ head_sha }}",
 						Path:           "kustomize-guestbook",
-						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 							NamePrefix: "guestbook-{{ number }}",
 						},
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook-{{ branch }}",
 					},
@@ -2993,7 +2992,7 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
@@ -3004,7 +3003,7 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 	ts.Start()
 	defer ts.Close()
 
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -3015,17 +3014,17 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			Labels:     map[string]string{"app": "preview"},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
-				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 					NamePrefix: "guestbook-1",
 				},
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook-pull-request",
 			},
@@ -3045,17 +3044,17 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 					Name:   "guestbook-{{ .number }}",
 					Labels: map[string]string{"app": "{{index .labels 0}}"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ .head_sha }}",
 						Path:           "kustomize-guestbook",
-						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 							NamePrefix: "guestbook-{{ .number }}",
 						},
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook-{{ .branch }}",
 					},
@@ -3076,11 +3075,11 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp}))
 }
 
 func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
-	expectedApp := v1alpha1.Application{
+	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -3093,17 +3092,17 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 				"app": "preview",
 			},
 		},
-		Spec: v1alpha1.ApplicationSpec{
+		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &v1alpha1.ApplicationSource{
+			Source: &argov1alpha1.ApplicationSource{
 				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
 				Path:           "kustomize-guestbook",
-				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+				Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 					NamePrefix: "guestbook-1",
 				},
 			},
-			Destination: v1alpha1.ApplicationDestination{
+			Destination: argov1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: "guestbook-pull-request",
 			},
@@ -3123,17 +3122,17 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 					Name:   "guestbook-{{ .number }}",
 					Labels: map[string]string{"app": "{{index .labels 0}}"},
 				},
-				Spec: v1alpha1.ApplicationSpec{
+				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
+					Source: &argov1alpha1.ApplicationSource{
 						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
 						TargetRevision: "{{ .head_sha }}",
 						Path:           "kustomize-guestbook",
-						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+						Kustomize: &argov1alpha1.ApplicationSourceKustomize{
 							NamePrefix: "guestbook-{{ .number }}",
 						},
 					},
-					Destination: v1alpha1.ApplicationDestination{
+					Destination: argov1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook-{{ .branch }}",
 					},
@@ -3154,7 +3153,7 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 				},
 			},
 		},
-	}).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
 		And(func() {
 			// app should be listed
 			output, err := fixture.RunCli("appset", "get", "pull-request-generator-not-allowed-scm")
@@ -3165,8 +3164,8 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 
 func TestGitGeneratorPrivateRepo(t *testing.T) {
 	FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -3176,14 +3175,14 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -3191,11 +3190,11 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("https-kustomize-base"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -3207,14 +3206,14 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{path.basename}}",
 						},
@@ -3241,8 +3240,8 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 
 func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
-	generateExpectedApp := func(name string) v1alpha1.Application {
-		return v1alpha1.Application{
+	generateExpectedApp := func(name string) argov1alpha1.Application {
+		return argov1alpha1.Application{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       application.ApplicationKind,
 				APIVersion: "argoproj.io/v1alpha1",
@@ -3252,14 +3251,14 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 				Namespace:  fixture.TestNamespace(),
 				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 			},
-			Spec: v1alpha1.ApplicationSpec{
+			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
+				Source: &argov1alpha1.ApplicationSource{
 					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 					TargetRevision: "HEAD",
 					Path:           name,
 				},
-				Destination: v1alpha1.ApplicationDestination{
+				Destination: argov1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: name,
 				},
@@ -3267,11 +3266,11 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("https-kustomize-base"),
 	}
 
-	var expectedAppsNewNamespace []v1alpha1.Application
+	var expectedAppsNewNamespace []argov1alpha1.Application
 
 	Given(t).
 		When().
@@ -3284,14 +3283,14 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
-					Spec: v1alpha1.ApplicationSpec{
+					Spec: argov1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &v1alpha1.ApplicationSource{
+						Source: &argov1alpha1.ApplicationSource{
 							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeHTTPS),
 							TargetRevision: "HEAD",
 							Path:           "{{.path.path}}",
 						},
-						Destination: v1alpha1.ApplicationDestination{
+						Destination: argov1alpha1.ApplicationDestination{
 							Server:    "https://kubernetes.default.svc",
 							Namespace: "{{.path.basename}}",
 						},

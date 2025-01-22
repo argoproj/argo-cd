@@ -51,7 +51,7 @@ type failureData struct {
 // dealing with max failures and expiration/resets are up dependent on the cooldown period
 type ItemExponentialRateLimiterWithAutoReset[T comparable] struct {
 	failuresLock sync.Mutex
-	failures     map[any]failureData
+	failures     map[interface{}]failureData
 
 	baseDelay     time.Duration
 	maxDelay      time.Duration
@@ -63,7 +63,7 @@ var _ workqueue.TypedRateLimiter[string] = &ItemExponentialRateLimiterWithAutoRe
 
 func NewItemExponentialRateLimiterWithAutoReset[T comparable](baseDelay, maxDelay, failureCoolDown time.Duration, backoffFactor float64) workqueue.TypedRateLimiter[T] {
 	return &ItemExponentialRateLimiterWithAutoReset[T]{
-		failures:      map[any]failureData{},
+		failures:      map[interface{}]failureData{},
 		baseDelay:     baseDelay,
 		maxDelay:      maxDelay,
 		coolDown:      failureCoolDown,

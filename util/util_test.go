@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/util"
@@ -44,31 +44,31 @@ func TestParseRevision(t *testing.T) {
 
 func TestSecretCopy(t *testing.T) {
 	type args struct {
-		secrets []*corev1.Secret
+		secrets []*apiv1.Secret
 	}
 	tests := []struct {
 		name string
 		args args
-		want []*corev1.Secret
+		want []*apiv1.Secret
 	}{
-		{name: "nil", args: args{secrets: nil}, want: []*corev1.Secret{}},
+		{name: "nil", args: args{secrets: nil}, want: []*apiv1.Secret{}},
 		{
-			name: "Three", args: args{secrets: []*corev1.Secret{
+			name: "Three", args: args{secrets: []*apiv1.Secret{
 				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
 			}},
-			want: []*corev1.Secret{
+			want: []*apiv1.Secret{
 				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
 			},
 		},
 		{
-			name: "One", args: args{secrets: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
-			want: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}},
+			name: "One", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
+			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}},
 		},
-		{name: "Zero", args: args{secrets: []*corev1.Secret{}}, want: []*corev1.Secret{}},
+		{name: "Zero", args: args{secrets: []*apiv1.Secret{}}, want: []*apiv1.Secret{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -26,7 +26,7 @@ func Test_getQueryBySelector(t *testing.T) {
 	assert.Equal(t, "https://my-server", query.Server)
 }
 
-func Test_printClusterTable(_ *testing.T) {
+func Test_printClusterTable(t *testing.T) {
 	printClusterTable([]v1alpha1.Cluster{
 		{
 			Server: "my-server",

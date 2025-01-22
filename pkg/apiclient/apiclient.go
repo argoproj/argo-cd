@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -402,8 +402,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	validator := jwt.NewValidator()
-	if validator.Validate(claims) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -559,7 +558,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, errors.New("credentials: failed to append certificates")
+			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}

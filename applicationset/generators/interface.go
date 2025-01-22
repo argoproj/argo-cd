@@ -1,7 +1,7 @@
 package generators
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,7 +15,7 @@ type Generator interface {
 	// GenerateParams interprets the ApplicationSet and generates all relevant parameters for the application template.
 	// The expected / desired list of parameters is returned, it then will be render and reconciled
 	// against the current state of the Applications in the cluster.
-	GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error)
+	GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error)
 
 	// GetRequeueAfter is the generator can controller the next reconciled loop
 	// In case there is more then one generator the time will be the minimum of the times.
@@ -27,7 +27,7 @@ type Generator interface {
 }
 
 var (
-	EmptyAppSetGeneratorError = errors.New("ApplicationSet is empty")
+	EmptyAppSetGeneratorError = fmt.Errorf("ApplicationSet is empty")
 	NoRequeueAfter            time.Duration
 )
 

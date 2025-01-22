@@ -9,12 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -51,7 +52,7 @@ func Test_URIToSecretName(t *testing.T) {
 func Test_secretToCluster(t *testing.T) {
 	labels := map[string]string{"key1": "val1"}
 	annotations := map[string]string{"key2": "val2"}
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "mycluster",
 			Namespace:   fakeNamespace,
@@ -78,11 +79,11 @@ func Test_secretToCluster(t *testing.T) {
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "mycluster",
 			Namespace:   fakeNamespace,
-			Annotations: map[string]string{corev1.LastAppliedConfigAnnotation: "val2"},
+			Annotations: map[string]string{v1.LastAppliedConfigAnnotation: "val2"},
 		},
 		Data: map[string][]byte{
 			"name":   []byte("test"),
@@ -96,7 +97,7 @@ func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 }
 
 func TestClusterToSecret(t *testing.T) {
-	cluster := &v1alpha1.Cluster{
+	cluster := &appv1.Cluster{
 		Server:      "server",
 		Labels:      map[string]string{"test": "label"},
 		Annotations: map[string]string{"test": "annotation"},
@@ -105,7 +106,7 @@ func TestClusterToSecret(t *testing.T) {
 		Project:     "project",
 		Namespaces:  []string{"default"},
 	}
-	s := &corev1.Secret{}
+	s := &v1.Secret{}
 	err := clusterToSecret(cluster, s)
 	require.NoError(t, err)
 
@@ -118,22 +119,22 @@ func TestClusterToSecret(t *testing.T) {
 }
 
 func TestClusterToSecret_LastAppliedConfigurationRejected(t *testing.T) {
-	cluster := &v1alpha1.Cluster{
+	cluster := &appv1.Cluster{
 		Server:      "server",
-		Annotations: map[string]string{corev1.LastAppliedConfigAnnotation: "val2"},
+		Annotations: map[string]string{v1.LastAppliedConfigAnnotation: "val2"},
 		Name:        "test",
 		Config:      v1alpha1.ClusterConfig{},
 		Project:     "project",
 		Namespaces:  []string{"default"},
 	}
-	s := &corev1.Secret{}
+	s := &v1.Secret{}
 	err := clusterToSecret(cluster, s)
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func Test_secretToCluster_NoConfig(t *testing.T) {
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -154,7 +155,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -171,7 +172,7 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 }
 
 func TestUpdateCluster(t *testing.T) {
-	kubeclientset := fake.NewClientset(&corev1.Secret{
+	kubeclientset := fake.NewClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -201,7 +202,7 @@ func TestUpdateCluster(t *testing.T) {
 }
 
 func TestDeleteUnknownCluster(t *testing.T) {
-	kubeclientset := fake.NewClientset(&corev1.Secret{
+	kubeclientset := fake.NewClientset(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: fakeNamespace,
@@ -220,7 +221,7 @@ func TestDeleteUnknownCluster(t *testing.T) {
 }
 
 func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
-	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
+	argoCDConfigMapWithInClusterServerAddressDisabled := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -230,7 +231,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
-	argoCDSecret := &corev1.Secret{
+	argoCDSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -246,8 +247,8 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
-		Server: v1alpha1.KubernetesInternalAPIServerAddr,
+	_, err := db.CreateCluster(context.Background(), &appv1.Cluster{
+		Server: appv1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
 	require.Error(t, err)
@@ -296,7 +297,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 }
 
 func TestListClusters(t *testing.T) {
-	emptyArgoCDConfigMap := &corev1.ConfigMap{
+	emptyArgoCDConfigMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -306,7 +307,7 @@ func TestListClusters(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
+	argoCDConfigMapWithInClusterServerAddressDisabled := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -316,7 +317,7 @@ func TestListClusters(t *testing.T) {
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
-	argoCDSecret := &corev1.Secret{
+	argoCDSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -329,7 +330,7 @@ func TestListClusters(t *testing.T) {
 			"server.secretkey": nil,
 		},
 	}
-	secretForServerWithInClusterAddr := &corev1.Secret{
+	secretForServerWithInClusterAddr := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster1",
 			Namespace: fakeNamespace,
@@ -338,12 +339,12 @@ func TestListClusters(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
+			"server": []byte(appv1.KubernetesInternalAPIServerAddr),
 			"name":   []byte("in-cluster"),
 		},
 	}
 
-	secretForServerWithExternalClusterAddr := &corev1.Secret{
+	secretForServerWithExternalClusterAddr := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster2",
 			Namespace: fakeNamespace,
@@ -357,7 +358,7 @@ func TestListClusters(t *testing.T) {
 		},
 	}
 
-	invalidSecret := &corev1.Secret{
+	invalidSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster3",
 			Namespace: fakeNamespace,
@@ -424,8 +425,8 @@ func TestListClusters(t *testing.T) {
 // TestClusterRaceConditionClusterSecrets reproduces a race condition
 // on the cluster secrets. The test isn't asserting anything because
 // before the fix it would cause a panic from concurrent map iteration and map write
-func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
-	clusterSecret := &corev1.Secret{
+func TestClusterRaceConditionClusterSecrets(t *testing.T) {
+	clusterSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
 			Namespace: "default",
@@ -439,7 +440,7 @@ func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 		},
 	}
 	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
+		&v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -449,7 +450,7 @@ func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 			},
 			Data: map[string]string{},
 		},
-		&corev1.Secret{
+		&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",

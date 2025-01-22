@@ -2,7 +2,7 @@ package manifeststream_test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -32,7 +32,7 @@ func (m *applicationStreamMock) Recv() (*applicationpkg.ApplicationManifestQuery
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, errors.New("timeout receiving message mock")
+		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }
 
@@ -62,7 +62,7 @@ func (m *repoStreamMock) Recv() (*apiclient.ManifestRequestWithFiles, error) {
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, errors.New("timeout receiving message mock")
+		return nil, fmt.Errorf("timeout receiving message mock")
 	}
 }
 

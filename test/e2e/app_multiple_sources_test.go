@@ -195,7 +195,7 @@ func TestMultiSourceAppWithSourceName(t *testing.T) {
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			// we remove the first source
 			output, err := RunCli("app", "remove-source", Name(), "--source-name", sources[0].Name)
 			require.NoError(t, err)
@@ -257,7 +257,7 @@ func TestMultiSourceAppSetWithSourceName(t *testing.T) {
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			_, err := RunCli("app", "set", Name(), "--source-name", sources[1].Name, "--path", "deployment")
 			require.NoError(t, err)
 		}).
@@ -284,12 +284,12 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 		CreateMultiSourceAppFromFile().
 		Then().
 		Expect(Event(EventReasonResourceCreated, "create")).
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			_, err := RunCli("app", "get", Name(), "--source-name", sources[1].Name, "--source-position", "1")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "Only one of source-position and source-name can be specified.")
 		}).
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			_, err := RunCli("app", "manifests", Name(), "--revisions", "0.0.2", "--source-names", sources[0].Name, "--revisions", "0.0.2", "--source-positions", "1")
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "Only one of source-positions and source-names can be specified.")

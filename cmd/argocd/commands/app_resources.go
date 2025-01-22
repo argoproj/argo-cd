@@ -236,7 +236,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
 	} else {
-		headers := []any{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
 		if !orphaned || listAll {

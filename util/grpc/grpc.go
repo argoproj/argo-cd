@@ -23,7 +23,7 @@ import (
 
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
 func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ any, err error) {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -36,7 +36,7 @@ func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterc
 
 // PanicLoggerStreamServerInterceptor returns a new streaming server interceptor for recovering from panics and returning error
 func PanicLoggerStreamServerInterceptor(log *logrus.Entry) grpc.StreamServerInterceptor {
-	return func(srv any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
+	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
@@ -55,8 +55,8 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// grpc.Dial doesn't provide any information on permanent connection errors (like
 	// TLS handshake failures). So in order to provide good error messages, we need a
 	// custom dialer that can provide that info. That means we manage the TLS handshake.
-	result := make(chan any, 1)
-	writeResult := func(res any) {
+	result := make(chan interface{}, 1)
+	writeResult := func(res interface{}) {
 		// non-blocking write: we only need the first result
 		select {
 		case result <- res:
@@ -96,7 +96,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		)
 		// nolint:staticcheck
 		conn, err := grpc.DialContext(ctx, address, opts...)
-		var res any
+		var res interface{}
 		if err != nil {
 			res = err
 		} else {
@@ -169,7 +169,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 }
 
 func WithTimeout(duration time.Duration) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		clientDeadline := time.Now().Add(duration)
 		ctx, cancel := context.WithDeadline(ctx, clientDeadline)
 		defer cancel()

@@ -28,9 +28,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -539,8 +539,8 @@ func createFakeApp(testApp string) *v1alpha1.Application {
 	return &app
 }
 
-func newFakeCM() map[string]any {
-	var cm map[string]any
+func newFakeCM() map[string]interface{} {
+	var cm map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
 	if err != nil {
 		panic(err)
@@ -548,8 +548,8 @@ func newFakeCM() map[string]any {
 	return cm
 }
 
-func newFakePostDeleteHook() map[string]any {
-	var hook map[string]any
+func newFakePostDeleteHook() map[string]interface{} {
+	var hook map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakePostDeleteHook), &hook)
 	if err != nil {
 		panic(err)
@@ -557,8 +557,8 @@ func newFakePostDeleteHook() map[string]any {
 	return hook
 }
 
-func newFakeRoleBinding() map[string]any {
-	var roleBinding map[string]any
+func newFakeRoleBinding() map[string]interface{} {
+	var roleBinding map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeRoleBinding), &roleBinding)
 	if err != nil {
 		panic(err)
@@ -566,8 +566,8 @@ func newFakeRoleBinding() map[string]any {
 	return roleBinding
 }
 
-func newFakeRole() map[string]any {
-	var role map[string]any
+func newFakeRole() map[string]interface{} {
+	var role map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeRole), &role)
 	if err != nil {
 		panic(err)
@@ -575,8 +575,8 @@ func newFakeRole() map[string]any {
 	return role
 }
 
-func newFakeServiceAccount() map[string]any {
-	var serviceAccount map[string]any
+func newFakeServiceAccount() map[string]interface{} {
+	var serviceAccount map[string]interface{}
 	err := yaml.Unmarshal([]byte(fakeServiceAccount), &serviceAccount)
 	if err != nil {
 		panic(err)
@@ -880,11 +880,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -932,11 +932,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -966,11 +966,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -994,7 +994,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1033,11 +1033,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1053,8 +1053,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.SetPostDeleteFinalizer()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		conditions := []any{
-			map[string]any{
+		conditions := []interface{}{
+			map[string]interface{}{
 				"type":   "Complete",
 				"status": "True",
 			},
@@ -1077,11 +1077,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1097,8 +1097,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		liveRole := &unstructured.Unstructured{Object: newFakeRole()}
 		liveServiceAccount := &unstructured.Unstructured{Object: newFakeServiceAccount()}
 		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		conditions := []any{
-			map[string]any{
+		conditions := []interface{}{
+			map[string]interface{}{
 				"type":   "Complete",
 				"status": "True",
 			},
@@ -1124,11 +1124,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return defaultReactor.React(action)
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1307,9 +1307,9 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
-		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
+		return true, &v1alpha1.Application{}, apierr.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -1338,7 +1338,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
 	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
 			return true, &v1alpha1.Application{}, errors.New("fake error")
@@ -1654,7 +1654,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	key, _ := cache.MetaNamespaceKeyFunc(app)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -1663,7 +1663,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 
 	t.Run("UpdatedOnFullReconciliation", func(t *testing.T) {
-		receivedPatch = map[string]any{}
+		receivedPatch = map[string]interface{}{}
 		ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
 		ctrl.appRefreshQueue.AddRateLimited(key)
 
@@ -1679,7 +1679,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 
 	t.Run("NotUpdatedOnPartialReconciliation", func(t *testing.T) {
-		receivedPatch = map[string]any{}
+		receivedPatch = map[string]interface{}{}
 		ctrl.appRefreshQueue.AddRateLimited(key)
 		ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 
@@ -1696,7 +1696,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 }
 
 func TestUpdateHealthStatusTransitionTime(t *testing.T) {
-	deployment := kube.MustToUnstructured(&appsv1.Deployment{
+	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -1798,7 +1798,7 @@ apps/Deployment:
 
 func TestUpdateHealthStatusProgression(t *testing.T) {
 	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
-	deployment := kube.MustToUnstructured(&appsv1.Deployment{
+	deployment := kube.MustToUnstructured(&v1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -1807,7 +1807,7 @@ func TestUpdateHealthStatusProgression(t *testing.T) {
 			Name:      "demo",
 			Namespace: "default",
 		},
-		Status: appsv1.DeploymentStatus{
+		Status: v1.DeploymentStatus{
 			ObservedGeneration: 0,
 		},
 	})
@@ -1935,7 +1935,7 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	patched := false
-	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1950,7 +1950,7 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{&defaultProj}}, nil)
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -1960,8 +1960,8 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 
 	err := ctrl.finalizeProjectDeletion(proj)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{
-		"metadata": map[string]any{
+	assert.Equal(t, map[string]interface{}{
+		"metadata": map[string]interface{}{
 			"finalizers": nil,
 		},
 	}, receivedPatch)
@@ -1975,7 +1975,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -2000,7 +2000,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &proj}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	func() {
 		fakeAppCs.Lock()
 		defer fakeAppCs.Unlock()
@@ -2029,7 +2029,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -2072,7 +2072,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	}
 	ctrl := newFakeController(data, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -2105,7 +2105,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	}
 	ctrl := newFakeController(data, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -2132,7 +2132,7 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 		}},
 	}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
+	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
@@ -2275,7 +2275,7 @@ func Test_canProcessAppSkipReconcileAnnotation(t *testing.T) {
 	ctrl := newFakeController(&fakeData{}, nil)
 	tests := []struct {
 		name     string
-		input    any
+		input    interface{}
 		expected bool
 	}{
 		{"No skip reconcile annotation", newFakeApp(), true},
@@ -2355,7 +2355,7 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 			Source: v1alpha1.ApplicationSource{
 				Helm: &v1alpha1.ApplicationSourceHelm{
 					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]any{"key": []string{"value"}}},
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
 					},
 				},
 			},
@@ -2367,7 +2367,7 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 			Source: v1alpha1.ApplicationSource{
 				Helm: &v1alpha1.ApplicationSourceHelm{
 					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]any{"key": []string{"value-modified1"}}},
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
 					},
 				},
 			},
@@ -2402,7 +2402,7 @@ func TestAppStatusIsReplaced(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, ok)
-	patchObj := map[string]any{}
+	patchObj := map[string]interface{}{}
 	require.NoError(t, json.Unmarshal(patchData, &patchObj))
 
 	val, has, err := unstructured.NestedFieldNoCopy(patchObj, "sync", "comparedTo", "destination", "server")
@@ -2514,7 +2514,7 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	ctrl.selfHealBackOff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
-		Cap:      2 * time.Minute,
+		Cap:      5 * time.Minute,
 	}
 
 	app := &v1alpha1.Application{
@@ -2551,21 +2551,6 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		attempts:         3,
 		finishedAt:       nil,
 		expectedDuration: 18 * time.Second,
-		shouldSelfHeal:   false,
-	}, {
-		attempts:         4,
-		finishedAt:       nil,
-		expectedDuration: 54 * time.Second,
-		shouldSelfHeal:   false,
-	}, {
-		attempts:         5,
-		finishedAt:       nil,
-		expectedDuration: 120 * time.Second,
-		shouldSelfHeal:   false,
-	}, {
-		attempts:         6,
-		finishedAt:       nil,
-		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
 	}}
 

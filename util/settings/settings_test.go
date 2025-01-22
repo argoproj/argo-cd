@@ -12,21 +12,22 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/test"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
-	cm := &corev1.ConfigMap{
+func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -36,7 +37,7 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		},
 		Data: data,
 	}
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
@@ -56,49 +57,13 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 }
 
 func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
-	var argocdCM *corev1.ConfigMap
+	var argocdCM *v1.ConfigMap
 	settings := ArgoCDSettings{}
 	data, err := os.ReadFile("../../docs/operator-manual/argocd-cm.yaml")
 	require.NoError(t, err)
 	err = yaml.Unmarshal(data, &argocdCM)
 	require.NoError(t, err)
 	updateSettingsFromConfigMap(&settings, argocdCM)
-}
-
-func TestGetConfigMapByName(t *testing.T) {
-	t.Run("data is never nil", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
-		cm, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
-		require.NoError(t, err)
-		assert.NotNil(t, cm.Data)
-	})
-	t.Run("cannot update informer value", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
-		cm1, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
-		require.NoError(t, err)
-		cm1.Data["test"] = "invalid"
-		cm2, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
-		require.NoError(t, err)
-		assert.NotContains(t, cm2.Data, "test")
-	})
-}
-
-func TestGetSecretByName(t *testing.T) {
-	t.Run("data is never nil", func(t *testing.T) {
-		_, settingsManager := fixtures(nil, func(secret *corev1.Secret) { secret.Data = nil })
-		secret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
-		require.NoError(t, err)
-		assert.NotNil(t, secret.Data)
-	})
-	t.Run("cannot update informer value", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
-		s1, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
-		require.NoError(t, err)
-		s1.Data["test"] = []byte("invalid")
-		s2, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
-		require.NoError(t, err)
-		assert.NotContains(t, s2.Data, "test")
-	})
 }
 
 func TestGetRepositories(t *testing.T) {
@@ -133,8 +98,8 @@ func TestGetExtensionConfigs(t *testing.T) {
 			name:        "will return main and additional config successfully",
 			expectedLen: 2,
 			input: map[string]string{
-				extensionConfig:                       "main config",
-				extensionConfig + ".anotherExtension": "another config",
+				extensionConfig: "main config",
+				fmt.Sprintf("%s.anotherExtension", extensionConfig): "another config",
 			},
 			expected: map[string]string{
 				"":                 "main config",
@@ -234,7 +199,7 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
+		&v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -244,7 +209,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 			Data: map[string]string{},
 		},
-		&corev1.Secret{
+		&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -956,7 +921,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 func TestSettingsManager_GetSettings(t *testing.T) {
 	t.Run("UserSessionDurationNotProvided", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -966,7 +931,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 				Data: nil,
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -986,7 +951,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 	})
 	t.Run("UserSessionDurationInvalidFormat", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -998,7 +963,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					"users.session.duration": "10hh",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1018,7 +983,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 	})
 	t.Run("UserSessionDurationProvided", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1030,7 +995,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					"users.session.duration": "10h",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1052,7 +1017,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 
 func TestGetOIDCConfig(t *testing.T) {
 	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
+		&v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -1064,7 +1029,7 @@ func TestGetOIDCConfig(t *testing.T) {
 				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
 			},
 		},
-		&corev1.Secret{
+		&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -1132,7 +1097,7 @@ func Test_validateExternalURL(t *testing.T) {
 
 func TestGetOIDCSecretTrim(t *testing.T) {
 	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
+		&v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -1144,7 +1109,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 				"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 			},
 		},
-		&corev1.Secret{
+		&v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -1178,7 +1143,7 @@ func getCNFromCertificate(cert *tls.Certificate) string {
 func Test_GetTLSConfiguration(t *testing.T) {
 	t.Run("Valid external TLS secret with success", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1190,7 +1155,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1203,7 +1168,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1224,7 +1189,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 	t.Run("Valid external TLS secret overrides argocd-secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1236,7 +1201,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1251,7 +1216,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1271,7 +1236,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 	})
 	t.Run("Invalid external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1283,7 +1248,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1296,7 +1261,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1314,7 +1279,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
-			&corev1.ConfigMap{
+			&v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1326,7 +1291,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&corev1.Secret{
+			&v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1385,7 +1350,7 @@ requestedScopes: ["openid", "profile", "email"]
 # Optional set of OIDC claims to request on the ID token.
 requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	}
-	cm := &corev1.ConfigMap{
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -1395,7 +1360,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 		Data: data,
 	}
-	argocdSecret := &corev1.Secret{
+	argocdSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
@@ -1406,7 +1371,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			"webhook.github.secret": []byte("$ext:webhook.github.secret"),
 		},
 	}
-	secret := &corev1.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ext",
 			Namespace: "default",
@@ -1457,7 +1422,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
+			cm := &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1467,7 +1432,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 				},
 				Data: tc.data,
 			}
-			argocdSecret := &corev1.Secret{
+			argocdSecret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1515,7 +1480,7 @@ func TestGetHelmSettings(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			cm := &corev1.ConfigMap{
+			cm := &v1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1525,7 +1490,7 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 				Data: tc.data,
 			}
-			argocdSecret := &corev1.Secret{
+			argocdSecret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1535,7 +1500,7 @@ func TestGetHelmSettings(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			}
-			secret := &corev1.Secret{
+			secret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "acme",
 					Namespace: "default",

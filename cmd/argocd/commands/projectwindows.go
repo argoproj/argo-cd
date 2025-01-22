@@ -354,13 +354,13 @@ argocd proj windows list test-project`,
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []any{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
+	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
 	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
 			isActive, _ := window.Active()
-			vals := []any{
+			vals := []interface{}{
 				strconv.Itoa(i),
 				formatBoolOutput(isActive),
 				window.Kind,

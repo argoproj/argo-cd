@@ -125,7 +125,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			app.Status.SourceHydrator.CurrentOperation.Phase = appv1.HydrateOperationPhaseFailed
 			failedAt := metav1.Now()
 			app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
-			app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", drySHA, err.Error())
+			app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate revision %q: %v", drySHA, err.Error())
+			// We may or may not have gotten far enough in the hydration process to get a non-empty SHA, but set it just
+			// in case we did.
+			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
 			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 			logCtx = logCtx.WithField("app", app.QualifiedName())
 			logCtx.Errorf("Failed to hydrate app: %v", err)
@@ -164,7 +167,7 @@ func (h *Hydrator) hydrateAppsLatestCommit(logCtx *log.Entry, hydrationKey Hydra
 		return nil, "", "", fmt.Errorf("failed to get relevant apps for hydration: %w", err)
 	}
 
-	hydratedRevision, dryRevision, err := h.hydrate(logCtx, relevantApps)
+	dryRevision, hydratedRevision, err := h.hydrate(logCtx, relevantApps)
 	if err != nil {
 		return relevantApps, dryRevision, "", fmt.Errorf("failed to hydrate apps: %w", err)
 	}
@@ -259,6 +262,8 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 			return "", "", fmt.Errorf("failed to get repo objects: %w", err)
 		}
 
+		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
+		// using the same SHA.
 		targetRevision = resp.Revision
 
 		// Set up a ManifestsRequest
@@ -304,18 +309,18 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
 		DrySha:        targetRevision,
-		CommitMessage: "[Argo CD Bot] hydrate " + targetRevision,
+		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", targetRevision),
 		Paths:         paths,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create commit service: %w", err)
+		return targetRevision, "", fmt.Errorf("failed to create commit service: %w", err)
 	}
 	defer argoio.Close(closer)
 	resp, err := commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
+		return targetRevision, "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
 	return targetRevision, resp.HydratedSha, nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 	"time"
 
@@ -235,7 +236,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 					Destinations: data.projDest,
 				},
 			}
-			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -402,7 +403,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -1129,7 +1130,9 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := AppProjectSpec{Destinations: tt.destinations}
-			require.Equal(t, tt.want, d.DestinationClusters(), "AppProjectSpec.DestinationClusters()")
+			if got := d.DestinationClusters(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1173,7 +1176,9 @@ func TestRepository_HasCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.HasCredentials(), "Repository.HasCredentials()")
+			if got := tt.repo.HasCredentials(); got != tt.want {
+				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1212,7 +1217,9 @@ func TestRepository_IsInsecure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsInsecure(), "Repository.IsInsecure()")
+			if got := tt.repo.IsInsecure(); got != tt.want {
+				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1251,7 +1258,9 @@ func TestRepository_IsLFSEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsLFSEnabled(), "Repository.IsLFSEnabled()")
+			if got := tt.repo.IsLFSEnabled(); got != tt.want {
+				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1367,7 +1376,9 @@ func TestSyncStrategy_Force(t *testing.T) {
 				Apply: tt.fields.Apply,
 				Hook:  tt.fields.Hook,
 			}
-			assert.Equalf(t, tt.want, m.Force(), "SyncStrategy.Force()")
+			if got := m.Force(); got != tt.want {
+				t.Errorf("SyncStrategy.Force() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1390,7 +1401,9 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 			o := &SyncOperation{
 				SyncStrategy: tt.fields.SyncStrategy,
 			}
-			assert.Equalf(t, tt.want, o.IsApplyStrategy(), "SyncOperation.IsApplyStrategy()")
+			if got := o.IsApplyStrategy(); got != tt.want {
+				t.Errorf("SyncOperation.IsApplyStrategy() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1422,8 +1435,12 @@ func TestResourceResults_Find(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := tt.r.Find(tt.args.group, tt.args.kind, tt.args.namespace, tt.args.name, tt.args.phase)
-			assert.Equal(t, tt.want, got, "ResourceResults.Find()")
-			assert.Equal(t, tt.want1, got1, "ResourceResults.Find()")
+			if got != tt.want {
+				t.Errorf("ResourceResults.Find() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
+			}
 		})
 	}
 }
@@ -1441,7 +1458,9 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.wantNum, tt.r.PruningRequired(), "ResourceResults.PruningRequired()")
+			if gotNum := tt.r.PruningRequired(); gotNum != tt.wantNum {
+				t.Errorf("ResourceResults.PruningRequired() = %v, want %v", gotNum, tt.wantNum)
+			}
 		})
 	}
 }

@@ -24,7 +24,7 @@ argocd configure --prompts-enabled=true
 
 # Disable optional interactive prompts
 argocd configure --prompts-enabled=false`,
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
 			errors.CheckError(err)
 

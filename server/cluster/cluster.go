@@ -10,7 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
@@ -182,7 +182,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
+			ModifiedAt: &v1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		ServerVersion: serverVersion,
 		ConnectionState: appv1.ConnectionState{
 			Status:     appv1.ConnectionStatusSuccessful,
-			ModifiedAt: &metav1.Time{Time: time.Now()},
+			ModifiedAt: &v1.Time{Time: time.Now()},
 		},
 	})
 	if err != nil {
@@ -361,12 +361,12 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 			return nil, common.PermissionDeniedAPIError
 		}
 		for _, server := range servers {
-			if err := enforceAndDelete(ctx, s, server, c.Project); err != nil {
+			if err := enforceAndDelete(s, ctx, server, c.Project); err != nil {
 				return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 			}
 		}
 	} else {
-		if err := enforceAndDelete(ctx, s, q.Server, c.Project); err != nil {
+		if err := enforceAndDelete(s, ctx, q.Server, c.Project); err != nil {
 			return nil, fmt.Errorf("failed to enforce and delete cluster server: %w", err)
 		}
 	}
@@ -374,7 +374,7 @@ func (s *Server) Delete(ctx context.Context, q *cluster.ClusterQuery) (*cluster.
 	return &cluster.ClusterResponse{}, nil
 }
 
-func enforceAndDelete(ctx context.Context, s *Server, server, project string) error {
+func enforceAndDelete(s *Server, ctx context.Context, server, project string) error {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceClusters, rbacpolicy.ActionDelete, CreateClusterRBACObject(project, server)); err != nil {
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
@@ -458,7 +458,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 			ServerVersion: serverVersion,
 			ConnectionState: appv1.ConnectionState{
 				Status:     appv1.ConnectionStatusSuccessful,
-				ModifiedAt: &metav1.Time{Time: time.Now()},
+				ModifiedAt: &v1.Time{Time: time.Now()},
 			},
 		})
 		if err != nil {
@@ -501,7 +501,7 @@ func (s *Server) InvalidateCache(ctx context.Context, q *cluster.ClusterQuery) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify access for cluster: %w", err)
 	}
-	now := metav1.Now()
+	now := v1.Now()
 	cls.RefreshRequestedAt = &now
 	cls, err = s.db.UpdateCluster(ctx, cls)
 	if err != nil {

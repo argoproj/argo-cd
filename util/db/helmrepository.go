@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -35,12 +35,12 @@ func (db *db) getHelmRepo(repoURL string, helmRepositories []settings.HelmRepoCr
 		Type: "helm",
 		Name: repoInfo.Name,
 	}
-	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*corev1.SecretKeySelector{
+	err := db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*v1.SecretKeySelector{
 		{Dest: &repo.Username, Transform: StripCRLFCharacter}:          repoInfo.UsernameSecret,
 		{Dest: &repo.Password, Transform: StripCRLFCharacter}:          repoInfo.PasswordSecret,
 		{Dest: &repo.TLSClientCertData, Transform: StripCRLFCharacter}: repoInfo.CertSecret,
 		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:  repoInfo.KeySecret,
-	}, make(map[string]*corev1.Secret))
+	}, make(map[string]*v1.Secret))
 	return repo, err
 }
 

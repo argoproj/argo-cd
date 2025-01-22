@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	appv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,7 +27,7 @@ const (
 )
 
 func getClientset(config map[string]string, objects ...runtime.Object) *fake.Clientset {
-	secret := corev1.Secret{
+	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -37,7 +37,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 			"server.secretkey": []byte("test"),
 		},
 	}
-	cm := corev1.ConfigMap{
+	cm := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -292,8 +292,8 @@ func TestGetRepository(t *testing.T) {
 	}
 }
 
-func newManagedSecret() *corev1.Secret {
-	return &corev1.Secret{
+func newManagedSecret() *v1.Secret {
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -347,7 +347,7 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
     key: password
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "unmanaged-secret",
 			Namespace: testNamespace,
@@ -387,7 +387,7 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
     key: sshPrivateKey
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -447,7 +447,7 @@ func TestRepositorySecretsTrim(t *testing.T) {
     key: githubAppPrivateKey
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -505,7 +505,7 @@ func TestRepositorySecretsTrim(t *testing.T) {
 func TestGetClusterSuccessful(t *testing.T) {
 	server := "my-cluster"
 	name := "my-name"
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Labels: map[string]string{
@@ -559,7 +559,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "cluster-mycluster-3274446258"
 
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -590,7 +590,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "mycluster-443"
 
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -662,7 +662,7 @@ func TestListHelmRepositories(t *testing.T) {
     key: key
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: testNamespace,
@@ -710,7 +710,7 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
     key: key
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: testNamespace,
@@ -753,7 +753,7 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
 }
 
 func TestGetClusterServersByName(t *testing.T) {
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: testNamespace,
@@ -785,7 +785,7 @@ func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
 }
 
 func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-cluster-secret",
 			Namespace: testNamespace,
@@ -817,12 +817,12 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	assert.Equal(t, int(expectedReplicas), replicas)
 
 	expectedReplicas = int32(3)
-	clientset = getClientset(nil, &appsv1.Deployment{
+	clientset = getClientset(nil, &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ApplicationController,
 			Namespace: testNamespace,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: appv1.DeploymentSpec{
 			Replicas: &expectedReplicas,
 		},
 	})

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
@@ -24,7 +24,7 @@ const (
 
 func TestInitGetVars(t *testing.T) {
 	notificationsCm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -36,7 +36,7 @@ func TestInitGetVars(t *testing.T) {
 		},
 	}
 	notificationsSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      "argocd-notifications-secret",
 			Namespace: testNamespace,
 		},
@@ -45,14 +45,14 @@ func TestInitGetVars(t *testing.T) {
 		},
 	}
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
 		Data: notificationsCm.Data,
 	},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: v1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},
@@ -66,12 +66,12 @@ func TestInitGetVars(t *testing.T) {
 	testDestination := services.Destination{
 		Service: "webhook",
 	}
-	emptyAppData := map[string]any{}
+	emptyAppData := map[string]interface{}{}
 
 	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
-		appData := map[string]any{
+		appData := map[string]interface{}{
 			"name": "app-name",
 		}
 		result := varsProvider(appData, testDestination)

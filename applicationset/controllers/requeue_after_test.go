@@ -36,20 +36,20 @@ func TestRequeueAfter(t *testing.T) {
 	appClientset := kubefake.NewSimpleClientset()
 	k8sClient := fake.NewClientBuilder().Build()
 	duckType := &unstructured.Unstructured{
-		Object: map[string]any{
+		Object: map[string]interface{}{
 			"apiVersion": "v2quack",
 			"kind":       "Duck",
-			"metadata": map[string]any{
+			"metadata": map[string]interface{}{
 				"name":      "mightyduck",
 				"namespace": "namespace",
-				"labels":    map[string]any{"duck": "all-species"},
+				"labels":    map[string]interface{}{"duck": "all-species"},
 			},
-			"status": map[string]any{
-				"decisions": []any{
-					map[string]any{
+			"status": map[string]interface{}{
+				"decisions": []interface{}{
+					map[string]interface{}{
 						"clusterName": "staging-01",
 					},
-					map[string]any{
+					map[string]interface{}{
 						"clusterName": "production-01",
 					},
 				},
@@ -60,7 +60,7 @@ func TestRequeueAfter(t *testing.T) {
 	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil, true)
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
-		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
+		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
@@ -90,7 +90,7 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,

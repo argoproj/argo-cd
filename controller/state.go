@@ -11,7 +11,7 @@ import (
 	"time"
 
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -488,15 +488,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				},
 				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
 			}, nil
+		} else {
+			return &comparisonResult{
+				syncStatus: &v1alpha1.SyncStatus{
+					ComparedTo: app.Spec.BuildComparedToStatus(),
+					Status:     v1alpha1.SyncStatusCodeUnknown,
+					Revision:   revisions[0],
+				},
+				healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
+			}, nil
 		}
-		return &comparisonResult{
-			syncStatus: &v1alpha1.SyncStatus{
-				ComparedTo: app.Spec.BuildComparedToStatus(),
-				Status:     v1alpha1.SyncStatusCodeUnknown,
-				Revision:   revisions[0],
-			},
-			healthStatus: &v1alpha1.HealthStatus{Status: health.HealthStatusUnknown, LastTransitionTime: &now},
-		}, nil
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
@@ -533,7 +534,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		targetObjs, manifestInfos, revisionUpdated, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, rollback, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
-			msg := "Failed to load target state: " + err.Error()
+			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
@@ -563,7 +564,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			targetObjs, err = unmarshalManifests(localManifests)
 			if err != nil {
 				targetObjs = make([]*unstructured.Unstructured, 0)
-				msg := "Failed to load local manifests: " + err.Error()
+				msg := fmt.Sprintf("Failed to load local manifests: %s", err.Error())
 				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 				failedToLoadObjs = true
 			}
@@ -580,7 +581,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
-		msg := "Failed to deduplicate target state: " + err.Error()
+		msg := fmt.Sprintf("Failed to deduplicate target state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
@@ -608,7 +609,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(app, targetObjs)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := "Failed to load live state: " + err.Error()
+		msg := fmt.Sprintf("Failed to load live state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 		failedToLoadObjs = true
 	}
@@ -663,7 +664,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
 			// targetObjs array.
 			if isManagedNamespace(liveObj, app) && !targetNsExists {
-				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
+				nsSpec := &v1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
@@ -760,7 +761,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
-		msg := "Failed to compare desired state to live state: " + err.Error()
+		msg := fmt.Sprintf("Failed to compare desired state to live state: %s", err.Error())
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	ts.AddCheckpoint("diff_ms")
@@ -779,7 +780,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), trackingMethod, installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), appLabelKey, trackingMethod, installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:       obj.GetNamespace(),
@@ -902,7 +903,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: fmt.Sprintf("error setting app health: %s", err.Error()), LastTransitionTime: &now})
 	}
 
 	// Git has already performed the signature verification via its GPG interface, and the result is available
@@ -1107,7 +1108,7 @@ func NewAppStateManager(
 // group and kind) match the properties of the live object, or if the tracking method
 // used does not provide the required properties for matching.
 // Reference: https://github.com/argoproj/argo-cd/issues/8683
-func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
+func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstructured, appName, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, installationID string) bool {
 	if live == nil {
 		return true
 	}
@@ -1140,7 +1141,7 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 	// to match the properties from the live object. Cluster scoped objects
 	// carry the app's destination namespace in the tracking annotation,
 	// but are unique in GVK + name combination.
-	appInstance := m.resourceTracking.GetAppInstance(live, trackingMethod, installationID)
+	appInstance := m.resourceTracking.GetAppInstance(live, appLabelKey, trackingMethod, installationID)
 	if appInstance != nil {
 		return isSelfReferencedObj(live, *appInstance)
 	}

@@ -143,8 +143,9 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
+	} else {
+		return &account.CanIResponse{Value: "no"}, nil
 	}
-	return &account.CanIResponse{Value: "no"}, nil
 }
 
 func toApiAccount(name string, a settings.Account) *account.Account {
@@ -179,7 +180,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 }
 
 // ListAccounts returns the list of accounts
-func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
+func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
 	accounts, err := s.settingsMgr.GetAccounts()
 	if err != nil {

@@ -25,7 +25,7 @@ func NewCommand() *cobra.Command {
 		Use:               cliName,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			if len(os.Args) != 2 {

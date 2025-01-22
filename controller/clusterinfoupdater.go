@@ -136,7 +136,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			continue
 		}
 		if a.Spec.Destination.Server == cluster.Server {
-			appCount++
+			appCount += 1
 		}
 	}
 	clusterInfo := appv1.ClusterInfo{

@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -220,12 +220,20 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 	})
 }
 
+type claimsMock struct {
+	err error
+}
+
+func (cm *claimsMock) Valid() error {
+	return cm.err
+}
+
 type tokenVerifierMock struct {
-	claims *jwt.RegisteredClaims
+	claims *claimsMock
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -238,7 +246,7 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, _ *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
@@ -250,7 +258,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *jwt.RegisteredClaims
+		verifiedClaims       *claimsMock
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -261,7 +269,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
@@ -279,7 +287,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
@@ -288,7 +296,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
@@ -681,7 +689,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -751,7 +759,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
