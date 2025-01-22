@@ -380,10 +380,7 @@ func enforceAndDelete(ctx context.Context, s *Server, server, project string) er
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
 	}
-	if err := s.db.DeleteCluster(ctx, server); err != nil {
-		return err
-	}
-	return nil
+	return s.db.DeleteCluster(ctx, server)
 }
 
 // RotateAuth rotates the bearer token used for a cluster
