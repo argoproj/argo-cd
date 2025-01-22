@@ -1648,7 +1648,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				return
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
-
 		}
 	}
 	ts.AddCheckpoint("comparison_with_nothing_ms")
