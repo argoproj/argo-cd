@@ -3314,7 +3314,7 @@ func TestSetConditions(t *testing.T) {
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
 	t.Helper()
-	assert.Equal(t, len(expected), len(actual))
+	assert.Len(t, actual, len(expected))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)
