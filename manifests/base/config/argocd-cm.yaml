@@ -59,7 +59,12 @@ data:
       - reports.kyverno.io
       - wgpolicyk8s.io
       kinds:
-      - ClusterPolicyReport
       - PolicyReport
+      - ClusterPolicyReport
       - EphemeralReport
+      - ClusterEphemeralReport
+      - AdmissionReport
+      - ClusterAdmissionReport
+      - BackgroundScanReport
+      - ClusterBackgroundScanReport
       - UpdateRequest
