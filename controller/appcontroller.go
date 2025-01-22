@@ -1365,7 +1365,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
 		// Failed  operation with retry strategy might have be in-progress and has completion time
-		if state.FinishedAt != nil && !terminating {
+		switch {
+		case state.FinishedAt != nil && !terminating:
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
 				state.Phase = synccommon.OperationFailed
@@ -1385,12 +1386,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			ctrl.setOperationState(app, state)
 			// Get rid of sync results and null out previous operation completion time
 			state.SyncResult = nil
-		} else if ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating {
+		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			ctrl.setOperationState(app, state)
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
-		} else {
+		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
