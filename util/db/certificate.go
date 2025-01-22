@@ -191,7 +191,8 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			}
 		}
 
-		if certificate.CertType == "ssh" {
+		switch {
+		case certificate.CertType == "ssh":
 			// Whether we have a new certificate entry
 			newEntry := true
 			// Whether we have upserted an existing certificate entry
@@ -241,7 +242,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				created = append(created, certificate)
 				saveSSHData = true
 			}
-		} else if certificate.CertType == "https" {
+		case certificate.CertType == "https":
 			var tlsCertificate *TLSCertificate
 			newEntry := true
 			upserted := false
@@ -308,7 +309,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				}
 				saveTLSData = true
 			}
-		} else {
+		default:
 			// Invalid/unknown certificate type
 			return nil, fmt.Errorf("Unknown certificate type: %s", certificate.CertType)
 		}
