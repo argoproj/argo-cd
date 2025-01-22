@@ -3,13 +3,13 @@
 There are two general ways to populate secrets when doing GitOps: on the destination cluster, or in Argo CD during 
 manifest hydration. We strongly recommend the former, as it is more secure and provides a better user experience.
 
-For discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364).
+For further discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364).
 
 ## Destination Cluster Secret Management
 
 In this approach, secrets are populated on the destination cluster, and Argo CD does not need to directly manage them.
-[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) and [External Secrets Operator](https://github.com/external-secrets/external-secrets)
-are examples of this style of secret management.
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), [External Secrets Operator](https://github.com/external-secrets/external-secrets),
+and [Kubernetes Secrets Store CSI Driver](https://github.com/kubernetes-sigs/secrets-store-csi-driver) are examples of this style of secret management.
 
 This approach has two main advantages:
 
