@@ -107,8 +107,8 @@ data:
     - /spec/replicas
 
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
-  # to resources are applied to the cluster cache. Default is false.
-  resource.ignoreResourceUpdatesEnabled: "false"
+  # to resources are applied to the cluster cache. Default is true.
+  resource.ignoreResourceUpdatesEnabled: "true"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
@@ -222,6 +222,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of annotation keys to mask in UI/CLI on secrets
+  resource.sensitive.mask.annotations: openshift.io/token-secret.value,api-key
+
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
@@ -325,7 +328,8 @@ data:
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
-  # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
+  # > Note: The argocd-repo-server deployment and the argocd-application-controller statefulset (or deployment, if
+  # configured) must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
   # With a large number of applications, the periodic refresh for each application can cause a spike in the refresh queue
   # and can cause a spike in the repo-server component. To avoid this, you can set a jitter to the sync timeout, which will
@@ -428,7 +432,7 @@ data:
                 name: some-cluster
                 server: https://some-cluster
   # The maximum size of the payload that can be sent to the webhook server.
-  webhook.maxPayloadSizeMB: "1024"
+  webhook.maxPayloadSizeMB: "50"
 
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"

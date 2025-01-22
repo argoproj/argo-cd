@@ -14,23 +14,23 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/dex"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
-	passwordutil "github.com/argoproj/argo-cd/v2/util/password"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/dex"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
+	passwordutil "github.com/argoproj/argo-cd/v3/util/password"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // SessionManager generates and validates JWT tokens for login sessions.
@@ -210,7 +210,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (any, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -265,7 +265,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("account password has changed since token issued")
+		return nil, "", errors.New("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -303,7 +303,7 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 	expiredCount := 0
 	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
-			expiredCount += 1
+			expiredCount++
 			delete(failures, key)
 		}
 	}
@@ -362,7 +362,7 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// On login failure, increase fail count and update last failed timestamp.
 	// On login success, remove the entry from the cache.
 	if failed {
-		attempt.FailCount += 1
+		attempt.FailCount++
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
@@ -503,7 +503,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 			}
 			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
-			// nolint:staticcheck
+			//nolint:staticcheck
 			ctx = context.WithValue(ctx, "claims", claims)
 			r = r.WithContext(ctx)
 		}
@@ -536,7 +536,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
 		if argoSettings == nil {
-			return nil, "", fmt.Errorf("settings are not available while verifying the token")
+			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
@@ -573,7 +573,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 		return nil, err
 	}
 	if !settings.IsSSOConfigured() {
-		return nil, fmt.Errorf("SSO is not configured")
+		return nil, errors.New("SSO is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil

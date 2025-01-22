@@ -14,6 +14,7 @@ import (
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -82,6 +83,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func verifyDefaultRepo(t *testing.T, err error, repos []*Repository) {
+	t.Helper()
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{
@@ -305,8 +307,7 @@ func TestGetBranchesBranchPagination(t *testing.T) {
 func TestGetBranchesDefaultOnly(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			_, err := io.WriteString(w, `{
 				"id": "refs/heads/default",
 				"displayId": "default",
@@ -348,8 +349,7 @@ func TestGetBranchesDefaultOnly(t *testing.T) {
 func TestGetBranchesMissingDefault(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 		defaultHandler(t)(w, r)
@@ -369,10 +369,9 @@ func TestGetBranchesMissingDefault(t *testing.T) {
 }
 
 func TestGetBranchesEmptyRepo(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			return
 		}
 	}))
@@ -393,8 +392,7 @@ func TestGetBranchesEmptyRepo(t *testing.T) {
 func TestGetBranchesErrorDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		defaultHandler(t)(w, r)
@@ -508,8 +506,7 @@ func TestListReposBearerAuth(t *testing.T) {
 func TestListReposDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			_, err := io.WriteString(w, `{
 				"id": "refs/heads/default",
 				"displayId": "default",
@@ -545,8 +542,7 @@ func TestListReposDefaultBranch(t *testing.T) {
 func TestListReposMissingDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Not found", http.StatusNotFound)
 		}
 		defaultHandler(t)(w, r)
@@ -562,8 +558,7 @@ func TestListReposMissingDefaultBranch(t *testing.T) {
 func TestListReposErrorDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
-		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default":
+		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		defaultHandler(t)(w, r)

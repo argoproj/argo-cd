@@ -1,5 +1,8 @@
 local actions = {}
-actions["restart"] = {["disabled"] = false}
+actions["restart"] = {
+    ["disabled"] = false,
+    ["displayName"] = "Restart Pods"
+}
 
 local paused = false
 if obj.status ~= nil and obj.status.pauseConditions ~= nil then

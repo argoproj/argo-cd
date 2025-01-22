@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -17,10 +18,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 // CreateOrUpdate overrides "sigs.k8s.io/controller-runtime" function
@@ -114,7 +115,7 @@ func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Applicati
 		logCtx.Errorf("failed to generate patch: %v", err)
 	}
 	// Get the patch as a plain object so it is easier to work with in json logs.
-	var patchObj map[string]interface{}
+	var patchObj map[string]any
 	err = json.Unmarshal(patchBytes, &patchObj)
 	if err != nil {
 		logCtx.Errorf("failed to unmarshal patch: %v", err)
@@ -128,7 +129,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 		return fmt.Errorf("error while wrapping using MutateFn: %w", err)
 	}
 	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
-		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
+		return stderrors.New("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
 }

@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 const (
@@ -29,6 +29,7 @@ const (
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
+	tb.Helper()
 	res := tb.TempDir()
 	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {
@@ -118,8 +119,7 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		switch image {
-		case "nginx":
+		if image == "nginx" {
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
@@ -488,14 +488,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]interface{}),
+		ports[0].(map[string]any),
 		"containerPort",
 	)
 
@@ -504,7 +504,7 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]interface{}),
+		containers[0].(map[string]any),
 		"name",
 	)
 	assert.True(t, found)

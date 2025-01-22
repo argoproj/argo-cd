@@ -15,11 +15,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
@@ -37,7 +37,7 @@ type WebhookHandler struct {
 	azuredevops    *azuredevops.Webhook
 	client         client.Client
 	generators     map[string]generators.Generator
-	queue          chan interface{}
+	queue          chan any
 }
 
 type gitGeneratorInfo struct {
@@ -94,7 +94,7 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 		azuredevops: azuredevopsHandler,
 		client:      client,
 		generators:  generators,
-		queue:       make(chan interface{}, payloadQueueSize),
+		queue:       make(chan any, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -118,7 +118,7 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 	}
 }
 
-func (h *WebhookHandler) HandleEvent(payload interface{}) {
+func (h *WebhookHandler) HandleEvent(payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	if gitGenInfo == nil && prGenInfo == nil {
@@ -157,14 +157,14 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
+	var payload any
 	var err error
 
 	switch {
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
+		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
@@ -179,7 +179,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
+		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
+func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	var (
 		webURL      string
 		revision    string
@@ -222,7 +222,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		log.Errorf("Failed to parse repoURL '%s'", webURL)
 		return nil
 	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
+	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?$"
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
@@ -236,7 +236,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 }
 
-func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
+func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 	var info prGeneratorInfo
 	switch payload := payload.(type) {
 	case github.PullRequestPayload:
@@ -517,7 +517,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 
 	// Generate params for first child generator
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
-	params := []map[string]interface{}{}
+	params := []map[string]any{}
 	for _, g := range relGenerators {
 		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {

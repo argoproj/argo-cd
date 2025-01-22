@@ -12,37 +12,37 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Repository service
 type Server struct {
-	db            db.ArgoDB
-	repoClientset apiclient.Clientset
-	enf           *rbac.Enforcer
-	cache         *servercache.Cache
-	appLister     applisters.ApplicationLister
-	projLister    cache.SharedIndexInformer
-	settings      *settings.SettingsManager
-	namespace     string
+	db              db.ArgoDB
+	repoClientset   apiclient.Clientset
+	enf             *rbac.Enforcer
+	cache           *servercache.Cache
+	appLister       applisters.ApplicationLister
+	projLister      cache.SharedIndexInformer
+	settings        *settings.SettingsManager
+	namespace       string
+	hydratorEnabled bool
 }
 
 // NewServer returns a new instance of the Repository service
@@ -55,25 +55,33 @@ func NewServer(
 	projLister cache.SharedIndexInformer,
 	namespace string,
 	settings *settings.SettingsManager,
+	hydratorEnabled bool,
 ) *Server {
 	return &Server{
-		db:            db,
-		repoClientset: repoClientset,
-		enf:           enf,
-		cache:         cache,
-		appLister:     appLister,
-		projLister:    projLister,
-		namespace:     namespace,
-		settings:      settings,
+		db:              db,
+		repoClientset:   repoClientset,
+		enf:             enf,
+		cache:           cache,
+		appLister:       appLister,
+		projLister:      projLister,
+		namespace:       namespace,
+		settings:        settings,
+		hydratorEnabled: hydratorEnabled,
 	}
 }
 
-var errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
-
-func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
+func (s *Server) getRepo(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)
 	if err != nil {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
+	}
+	return repo, nil
+}
+
+func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+	repo, err := s.db.GetWriteRepository(ctx, url, project)
+	if err != nil {
+		return nil, common.PermissionDeniedAPIError
 	}
 	return repo, nil
 }
@@ -88,15 +96,15 @@ func createRBACObject(project string, repo string) string {
 // Get the connection state for a given repository URL by connecting to the
 // repo and evaluate the results. Unless forceRefresh is set to true, the
 // result may be retrieved out of the cache.
-func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) appsv1.ConnectionState {
+func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) v1alpha1.ConnectionState {
 	if !forceRefresh {
 		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
 			return connectionState
 		}
 	}
 	now := metav1.Now()
-	connectionState := appsv1.ConnectionState{
-		Status:     appsv1.ConnectionStatusSuccessful,
+	connectionState := v1alpha1.ConnectionState{
+		Status:     v1alpha1.ConnectionStatusSuccessful,
 		ModifiedAt: &now,
 	}
 	var err error
@@ -105,7 +113,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 		err = s.testRepo(ctx, repo)
 	}
 	if err != nil {
-		connectionState.Status = appsv1.ConnectionStatusFailed
+		connectionState.Status = v1alpha1.ConnectionStatusFailed
 		if errors.IsCredentialsConfigurationError(err) {
 			connectionState.Message = "Configuration error - please check the server logs"
 			log.Warnf("could not retrieve repo: %s", err.Error())
@@ -122,12 +130,13 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 
 // List returns list of repositories
 // Deprecated: Use ListRepositories instead
-func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
+func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	return s.ListRepositories(ctx, q)
 }
 
 // Get return the requested configured repository by URL and the state of its connections.
-func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.Repository, error) {
+	// ListRepositories normalizes the repo, sanitizes it, and augments it with connection details.
 	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
@@ -137,7 +146,6 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, err
 	}
 
-	// getRepo does not return an error for unconfigured repositories, so we are checking here
 	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
 	if err != nil {
 		return nil, err
@@ -146,65 +154,78 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
 
-	// For backwards compatibility, if we have no repo type set assume a default
-	rType := repo.Type
-	if rType == "" {
-		rType = common.DefaultRepoType
-	}
-	// remove secrets
-	item := appsv1.Repository{
-		Repo:                       repo.Repo,
-		Type:                       rType,
-		Name:                       repo.Name,
-		Username:                   repo.Username,
-		Insecure:                   repo.IsInsecure(),
-		EnableLFS:                  repo.EnableLFS,
-		GithubAppId:                repo.GithubAppId,
-		GithubAppInstallationId:    repo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
-		Proxy:                      repo.Proxy,
-		Project:                    repo.Project,
-		InheritedCreds:             repo.InheritedCreds,
+	return repo, nil
+}
+
+func (s *Server) GetWrite(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.Repository, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
-	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
+	repo, err := getRepository(ctx, s.ListWriteRepositories, q)
+	if err != nil {
+		return nil, err
+	}
 
-	return &item, nil
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	exists, err := s.db.WriteRepositoryExists(ctx, q.Repo, repo.Project)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "write repo '%s' not found", q.Repo)
+	}
+
+	return repo, nil
 }
 
 // ListRepositories returns a list of all configured repositories and the state of their connections
-func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
+func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
-	items := appsv1.Repositories{}
-	for _, repo := range repos {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)) {
-			// For backwards compatibility, if we have no repo type set assume a default
-			rType := repo.Type
-			if rType == "" {
-				rType = common.DefaultRepoType
-			}
-			// remove secrets
-			items = append(items, &appsv1.Repository{
-				Repo:               repo.Repo,
-				Type:               rType,
-				Name:               repo.Name,
-				Username:           repo.Username,
-				Insecure:           repo.IsInsecure(),
-				EnableLFS:          repo.EnableLFS,
-				EnableOCI:          repo.EnableOCI,
-				Proxy:              repo.Proxy,
-				NoProxy:            repo.NoProxy,
-				Project:            repo.Project,
-				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
-				InheritedCreds:     repo.InheritedCreds,
-			})
-		}
+	items, err := s.prepareRepoList(ctx, rbacpolicy.ResourceRepositories, repos, q.ForceRefresh)
+	if err != nil {
+		return nil, err
 	}
-	err = kube.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, q.ForceRefresh)
+	return &v1alpha1.RepositoryList{Items: items}, nil
+}
+
+// ListWriteRepositories returns a list of all configured repositories where the user has write access and the state of
+// their connections
+func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
+	}
+
+	repos, err := s.db.ListWriteRepositories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.prepareRepoList(ctx, rbacpolicy.ResourceWriteRepositories, repos, q.ForceRefresh)
+	if err != nil {
+		return nil, err
+	}
+	return &v1alpha1.RepositoryList{Items: items}, nil
+}
+
+// ListRepositoriesByAppProject returns a list of all configured repositories and the state of their connections. It
+// normalizes, sanitizes, and filters out repositories that the user does not have access to in the specified project.
+// It also sorts the repositories by project and repo name.
+func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos []*v1alpha1.Repository, forceRefresh bool) (v1alpha1.Repositories, error) {
+	items := v1alpha1.Repositories{}
+	for _, repo := range repos {
+		items = append(items, repo.Normalize().Sanitized())
+	}
+	items = items.Filter(func(r *v1alpha1.Repository) bool {
+		return s.enf.Enforce(ctx.Value("claims"), resourceType, rbacpolicy.ActionGet, createRBACObject(r.Project, r.Repo))
+	})
+	err := kube.RunAllAsync(len(items), func(i int) error {
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, forceRefresh)
 		return nil
 	})
 	if err != nil {
@@ -215,7 +236,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 		second := items[j]
 		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
 	})
-	return &appsv1.RepositoryList{Items: items}, nil
+	return items, nil
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
@@ -258,7 +279,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
 	if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACresource) &&
 		!s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, appRBACresource) {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 	// Also ensure the repo is actually allowed in the project in question
 	if err := s.isRepoPermittedInProject(ctx, q.Repo, q.AppProject); err != nil {
@@ -308,7 +329,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACObj); err != nil {
 		return nil, err
 	}
-	if apierr.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
 		// app doesn't exist since it still is being formulated. verify they can create the app
 		// before we reveal repo details
 		if err := s.enf.EnforceErr(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, appRBACObj); err != nil {
@@ -317,11 +338,11 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	} else {
 		// if we get here we are returning repo details of an existing app
 		if q.AppProject != app.Spec.Project {
-			return nil, errPermissionDenied
+			return nil, common.PermissionDeniedAPIError
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
 		if !isSourceInHistory(app, *q.Source, q.SourceIndex, q.VersionId) {
-			return nil, errPermissionDenied
+			return nil, common.PermissionDeniedAPIError
 		}
 	}
 	// Ensure the repo is actually allowed in the project in question
@@ -351,7 +372,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
-	refSources := make(appsv1.RefTargetRevisionMapping)
+	refSources := make(v1alpha1.RefTargetRevisionMapping)
 	if app != nil && app.Spec.HasMultipleSources() {
 		// Store the map of all sources having ref field into a map for applications with sources field
 		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
@@ -390,12 +411,12 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 
 // Create creates a repository or repository credential set
 // Deprecated: Use CreateRepository() instead
-func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	return s.CreateRepository(ctx, q)
 }
 
 // CreateRepository creates a repository configuration
-func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
@@ -404,7 +425,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 		return nil, err
 	}
 
-	var repo *appsv1.Repository
+	var repo *v1alpha1.Repository
 	var err error
 
 	// check we can connect to the repo, copying any existing creds (not supported for project scoped repositories)
@@ -425,7 +446,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	}
 
 	r := q.Repo
-	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
+	r.ConnectionState = v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful}
 	repo, err = s.db.CreateRepository(ctx, r)
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
@@ -441,7 +462,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			repo, err = existing, nil
 		} else if q.Upsert {
 			r.Project = q.Repo.Project
-			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			return s.db.UpdateRepository(ctx, r)
 		} else {
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
@@ -449,17 +470,61 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	if err != nil {
 		return nil, err
 	}
-	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, nil
+	return &v1alpha1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, nil
+}
+
+// CreateWriteRepository creates a repository configuration with write credentials
+func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
+	}
+
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	if !q.Repo.HasCredentials() {
+		return nil, status.Errorf(codes.InvalidArgument, "missing credentials in request")
+	}
+
+	err := s.testRepo(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := s.db.CreateWriteRepository(ctx, q.Repo)
+	if status.Convert(err).Code() == codes.AlreadyExists {
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetWriteRepository(ctx, q.Repo.Repo, q.Repo.Project)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
+		}
+		if reflect.DeepEqual(existing, q.Repo) {
+			repo, err = existing, nil
+		} else if q.Upsert {
+			return s.db.UpdateWriteRepository(ctx, q.Repo)
+		} else {
+			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("write repository", existing, q.Repo))
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &v1alpha1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, nil
 }
 
 // Update updates a repository or credential set
 // Deprecated: Use UpdateRepository() instead
-func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	return s.UpdateRepository(ctx, q)
 }
 
 // UpdateRepository updates a repository configuration
-func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
@@ -478,7 +543,34 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 		return nil, err
 	}
 	_, err = s.db.UpdateRepository(ctx, q.Repo)
-	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
+	return &v1alpha1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
+}
+
+// UpdateWriteRepository updates a repository configuration with write credentials
+func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
+	}
+
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
+
+	repo, err := s.getWriteRepo(ctx, q.Repo.Repo, q.Repo.Project)
+	if err != nil {
+		return nil, err
+	}
+
+	// verify that user can do update inside project where repository is located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionUpdate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+	// verify that user can do update inside project where repository will be located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
+		return nil, err
+	}
+	_, err = s.db.UpdateWriteRepository(ctx, q.Repo)
+	return &v1alpha1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
 // Delete removes a repository from the configuration
@@ -507,10 +599,29 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	return &repositorypkg.RepoResponse{}, err
 }
 
+// DeleteWriteRepository removes a repository from the configuration
+func (s *Server) DeleteWriteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
+	}
+
+	repo, err := getRepository(ctx, s.ListWriteRepositories, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionDelete, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	err = s.db.DeleteWriteRepository(ctx, repo.Repo, repo.Project)
+	return &repositorypkg.RepoResponse{}, err
+}
+
 // getRepository fetches a single repository which the user has access to. If only one repository can be found which
 // matches the same URL, that will be returned (this is for backward compatibility reasons). If multiple repositories
 // are matched, a repository is only returned if it matches the app project of the incoming request.
-func getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+func getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*v1alpha1.Repository, error) {
 	repositories, err := listRepositories(ctx, q)
 	if err != nil {
 		return nil, err
@@ -524,7 +635,7 @@ func getRepository(ctx context.Context, listRepositories func(context.Context, *
 	}
 
 	if len(foundRepos) == 0 {
-		return nil, errPermissionDenied
+		return nil, common.PermissionDeniedAPIError
 	}
 
 	var foundRepo *v1alpha1.Repository
@@ -553,7 +664,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		return nil, err
 	}
 
-	repo := &appsv1.Repository{
+	repo := &v1alpha1.Repository{
 		Repo:                       q.Repo,
 		Type:                       q.Type,
 		Name:                       q.Name,
@@ -590,10 +701,47 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 	return &repositorypkg.RepoResponse{}, nil
 }
 
-func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
+// ValidateWriteAccess checks whether write access to a repository is possible with the
+// given URL and credentials.
+func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
+	if !s.hydratorEnabled {
+		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
+		return nil, err
+	}
+
+	repo := &v1alpha1.Repository{
+		Repo:                       q.Repo,
+		Type:                       q.Type,
+		Name:                       q.Name,
+		Username:                   q.Username,
+		Password:                   q.Password,
+		SSHPrivateKey:              q.SshPrivateKey,
+		Insecure:                   q.Insecure,
+		TLSClientCertData:          q.TlsClientCertData,
+		TLSClientCertKey:           q.TlsClientCertKey,
+		EnableOCI:                  q.EnableOci,
+		GithubAppPrivateKey:        q.GithubAppPrivateKey,
+		GithubAppId:                q.GithubAppID,
+		GithubAppInstallationId:    q.GithubAppInstallationID,
+		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
+		Proxy:                      q.Proxy,
+		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+	}
+
+	err := s.testRepo(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	return &repositorypkg.RepoResponse{}, nil
+}
+
+func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error {
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to repo-server: %w", err)
 	}
 	defer io.Close(conn)
 
@@ -604,11 +752,11 @@ func (s *Server) testRepo(ctx context.Context, repo *appsv1.Repository) error {
 }
 
 func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, projName string) error {
-	proj, err := argo.GetAppProjectByName(projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.settings, s.db, ctx)
+	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.settings, s.db)
 	if err != nil {
 		return err
 	}
-	if !proj.IsSourcePermitted(appsv1.ApplicationSource{RepoURL: repo}) {
+	if !proj.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: repo}) {
 		return status.Errorf(codes.PermissionDenied, "repository '%s' not permitted in project '%s'", repo, projName)
 	}
 	return nil

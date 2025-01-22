@@ -117,6 +117,35 @@ template.app-sync-status: |
       }]
 ```
 
+If you want to specify an icon and username for each message, you can specify values for `username` and `icon` in the `slack` field.
+For icon you can specify emoji and image URL, just like in the service definition.
+If you set `username` and `icon` in template, the values set in template will be used even if values are specified in the service definition.
+
+```yaml
+template.app-sync-status: |
+  message: |
+    Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.
+    Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+  slack:
+    username: "testbot"
+    icon: https://example.com/image.png
+    attachments: |
+      [{
+        "title": "{{.app.metadata.name}}",
+        "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+        "color": "#18be52",
+        "fields": [{
+          "title": "Sync Status",
+          "value": "{{.app.status.sync.status}}",
+          "short": true
+        }, {
+          "title": "Repository",
+          "value": "{{.app.spec.source.repoURL}}",
+          "short": true
+        }]
+      }]
+```
+
 The messages can be aggregated to the slack threads by grouping key which can be specified in a `groupingKey` string field under `slack` field.
 `groupingKey` is used across each template and works independently on each slack channel.
 When multiple applications will be updated at the same time or frequently, the messages in slack channel can be easily read by aggregating with git commit hash, application name, etc.

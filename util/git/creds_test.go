@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -17,8 +18,10 @@ import (
 
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 
-	"github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 type cred struct {
@@ -43,7 +46,7 @@ func (s *memoryCredsStore) Remove(id string) {
 	delete(s.creds, id)
 }
 
-func (s *memoryCredsStore) Environ(id string) []string {
+func (s *memoryCredsStore) Environ(_ string) []string {
 	return nil
 }
 
@@ -100,7 +103,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -118,7 +121,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -135,7 +138,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -153,7 +156,7 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 		defer closer.Close()
 		var header string
 		for _, envVar := range env {
-			if strings.HasPrefix(envVar, fmt.Sprintf("%s=", forceBasicAuthHeaderEnv)) {
+			if strings.HasPrefix(envVar, forceBasicAuthHeaderEnv+"=") {
 				header = envVar[len(forceBasicAuthHeaderEnv)+1:]
 			}
 			if header != "" {
@@ -219,7 +222,7 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
@@ -252,7 +255,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
 
@@ -288,7 +291,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		} else {
 			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
 			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
 
@@ -387,4 +390,52 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	credsLenBefore := len(store.creds)
 	io.Close(closer)
 	assert.Len(t, store.creds, credsLenBefore-1)
+}
+
+func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	_, _, err := creds.Environ()
+	require.NoError(t, err)
+	assert.Len(t, store.creds, 1)
+
+	for _, value := range store.creds {
+		assert.Equal(t, "", value.username)
+		assert.Equal(t, "accessToken", value.password)
+	}
+}
+
+func TestAzureWorkloadIdentityCreds_Environ_cleanup(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+	closer, _, err := creds.Environ()
+	require.NoError(t, err)
+	credsLenBefore := len(store.creds)
+	io.Close(closer)
+	assert.Len(t, store.creds, credsLenBefore-1)
+}
+
+func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
+	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
+
+	user, email, err := creds.GetUserInfo(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, workloadidentity.EmptyGuid, user)
+	assert.Equal(t, "", email)
+}
+
+func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {
+	var creds Creds = NewAzureWorkloadIdentityCreds(NoopCredsStore{}, new(mocks.TokenProvider))
+
+	_, ok := creds.(AzureWorkloadIdentityCreds)
+	if !ok {
+		t.Fatalf("expected HelmCreds but got %T", creds)
+	}
 }
