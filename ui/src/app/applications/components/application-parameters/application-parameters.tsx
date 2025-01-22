@@ -270,7 +270,7 @@ export const ApplicationParameters = (props: {
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
             return (
-                <DataLoader input={app} load={application => getSingleSource(application)}>
+                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
                         attributes = [];
                         const attr = gatherDetails(
