@@ -447,15 +447,16 @@ type SCMProviderGenerator struct {
 }
 
 func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
+	switch {
+	case g.Github != nil:
 		return g.Github.API
-	} else if g.Gitlab != nil {
+	case g.Gitlab != nil:
 		return g.Gitlab.API
-	} else if g.Gitea != nil {
+	case g.Gitea != nil:
 		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
+	case g.BitbucketServer != nil:
 		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
+	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
 	}
 	return ""

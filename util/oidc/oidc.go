@@ -705,11 +705,12 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// only use configured expiry if the token lives longer and the expiry is configured
 	// if the token has no expiry, use the expiry of the actual token
 	// otherwise use the expiry of the token
-	if settingExpiry < tokenExpiry && settingExpiry != 0 {
+	switch {
+	case settingExpiry < tokenExpiry && settingExpiry != 0:
 		cacheExpiry = settingExpiry
-	} else if tokenExpiry < 0 {
+	case tokenExpiry < 0:
 		cacheExpiry = getTokenExpiration(actualClaims)
-	} else {
+	default:
 		cacheExpiry = tokenExpiry
 	}
 
