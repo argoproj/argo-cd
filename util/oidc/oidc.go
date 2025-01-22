@@ -272,9 +272,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			//if b.Path == r.Path {
-			//	return true
-			//}
+			// if b.Path == r.Path {
+			//	 return true
+			// }
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true

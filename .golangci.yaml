@@ -35,12 +35,9 @@ linters-settings:
     disabled-checks:
       - appendAssign
       - assignOp  # Keep it disabled for readability
-      - badCond
-      - commentFormatting
       - exitAfterDefer
       - ifElseChain
       - mapKey
-      - singleCaseSwitch
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v3
