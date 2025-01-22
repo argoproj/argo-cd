@@ -19,7 +19,6 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Println(r.RequestURI)
 		switch r.RequestURI {
 		case "/api/v4":
 		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100&topic=&with_shared=false", "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100&topic=&with_shared=false":
