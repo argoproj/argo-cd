@@ -94,7 +94,7 @@ ARG UID
 
 # Prepare user configuration & build environments
 RUN userdel -r ubuntu && \
-	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+    useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \
