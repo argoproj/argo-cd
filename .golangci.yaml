@@ -36,7 +36,6 @@ linters-settings:
       - appendAssign
       - assignOp  # Keep it disabled for readability
       - exitAfterDefer
-      - ifElseChain
       - mapKey
       - typeSwitchVar
   goimports:
@@ -86,92 +85,57 @@ linters-settings:
     # Optimizes into strings concatenation.
     strconcat: true
   revive:
+    # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
     rules:
-      # Blank import should be only in a main or test package, or have a comment justifying it.
+      - name: bool-literal-in-expr
       - name: blank-imports
         disabled: true
-      # context.Context() should be the first parameter of a function when provided as argument.
       - name: context-as-argument
-        disabled: false
         arguments:
-          # Allow functions with test or bench signatures.
           - allowTypesBefore: "*testing.T,testing.TB"
-      # Basic types should not be used as a key in `context.WithValue`
       - name: context-keys-type
         disabled: true
-      # Importing with `.` makes the programs much harder to understand
       - name: dot-imports
         disabled: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#duplicated-imports
       - name: duplicated-imports
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#early-return
       - name: early-return
-        disabled: false
         arguments:
           - "preserveScope"
-      # Empty blocks make code less readable and could be a symptom of a bug or unfinished refactoring.
       - name: empty-block
         disabled: true
-      # for better readability, variables of type `error` must be named with the prefix `err`.
       - name: error-naming
         disabled: true
-      # for better readability, the errors should be last in the list of returned values by a function.
       - name: error-return
-        disabled: false
-      # for better readability, error messages should not be capitalized or end with punctuation or a newline.
       - name: error-strings
         disabled: true
-      # report when replacing `errors.New(fmt.Sprintf())` with `fmt.Errorf()` is possible
       - name: errorf
-        disabled: false
-      # incrementing an integer variable by 1 is recommended to be done using the `++` operator
+      - name: identical-branches
+      - name: if-return
       - name: increment-decrement
-        disabled: false
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#indent-error-flow
       - name: indent-error-flow
-        disabled: false
         arguments:
           - "preserveScope"
-      # This rule suggests a shorter way of writing ranges that do not use the second value.
+      - name: modifies-parameter
+      - name: optimize-operands-order
       - name: range
-        disabled: false
-      # receiver names in a method should reflect the struct name (p for Person, for example)
       - name: receiver-naming
-        disabled: false
-      # redefining built in names (true, false, append, make) can lead to bugs very difficult to detect.
       - name: redefines-builtin-id
         disabled: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#redundant-import-alias
       - name: redundant-import-alias
-        disabled: false
-      # redundant else-blocks that can be eliminated from the code.
       - name: superfluous-else
-        disabled: false
         arguments:
           - "preserveScope"
-       # prevent confusing name for variables when using `time` package
+      - name: time-equal
       - name: time-naming
         disabled: true
-      # warns when an exported function or method returns a value of an un-exported type.
       - name: unexported-return
         disabled: true
-      # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md#unnecessary-stmt
       - name: unnecessary-stmt
-        disabled: false
-      # spots and proposes to remove unreachable code. also helps to spot errors
       - name: unreachable-code
-        disabled: false
-      # Functions or methods with unused parameters can be a symptom of an unfinished refactoring or a bug.
       - name: unused-parameter
-        disabled: false
-      # Since Go 1.18, interface{} has an alias: any. This rule proposes to replace instances of interface{} with any.
       - name: use-any
-        disabled: false
-      # report when a variable declaration can be simplified
+      - name: useless-break
       - name: var-declaration
-        disabled: false
-      # warns when initialism, variable or package naming conventions are not followed.
       - name: var-naming
         disabled: true
   testifylint:

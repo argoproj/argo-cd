@@ -63,7 +63,7 @@ func TestPasswordHashing(t *testing.T) {
 	}
 
 	valid, _ = verifyPasswordWithHashers(blankPassword, "", hashers)
-	if valid != false {
+	if valid {
 		t.Errorf("Blank password should have failed verification")
 	}
 }

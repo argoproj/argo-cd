@@ -41,6 +41,39 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+// getDefaultTestClientSet creates a Clientset with the default argo objects
+// and objects specified in parameters
+func getDefaultTestClientSet(obj ...runtime.Object) *kubefake.Clientset {
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocommon.ArgoCDSecretName,
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocommon.ArgoCDConfigMapName,
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+
+	objects := append(obj, emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := kubefake.NewClientset(objects...)
+	return kubeclientset
+}
+
 func TestCreateOrUpdateInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -1317,8 +1350,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
-			objects := append([]runtime.Object{}, secret)
-			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			kubeclientset := getDefaultTestClientSet(secret)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
@@ -2054,8 +2086,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			}
 
-			objects := append([]runtime.Object{}, secret)
-			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			kubeclientset := getDefaultTestClientSet(secret)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2117,7 +2148,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
+	kubeclientset := getDefaultTestClientSet()
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2404,8 +2435,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	objects := append([]runtime.Object{}, secret)
-	kubeclientset := kubefake.NewSimpleClientset(objects...)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2580,8 +2610,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	objects := append([]runtime.Object{}, secret)
-	kubeclientset := kubefake.NewSimpleClientset(objects...)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2700,7 +2729,7 @@ func TestPolicies(t *testing.T) {
 		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
+	kubeclientset := getDefaultTestClientSet()
 
 	for _, c := range []struct {
 		name          string
