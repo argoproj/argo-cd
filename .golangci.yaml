@@ -36,7 +36,6 @@ linters-settings:
       - appendAssign
       - assignOp  # Keep it disabled for readability
       - exitAfterDefer
-      - ifElseChain
       - mapKey
       - typeSwitchVar
   goimports:

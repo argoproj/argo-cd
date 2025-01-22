@@ -123,13 +123,14 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			log.Warnf("Could not parse URL %s: %v", k.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
+			switch {
+			case err != nil:
 				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
+			case caPath == "":
 				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
+			default:
 				// Make Git use CA bundle
 				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
