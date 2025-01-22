@@ -44,11 +44,9 @@ func TestListMatrixGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -169,11 +167,9 @@ func TestClusterMatrixGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -297,12 +293,10 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 	expectedApps1 := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 	}
 	expectedApps2 := []v1alpha1.Application{
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	Given(t).

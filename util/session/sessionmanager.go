@@ -503,7 +503,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 			}
 			ctx := r.Context()
 			// Add claims to the context to inspect for RBAC
-			// nolint:staticcheck
+			//nolint:staticcheck
 			ctx = context.WithValue(ctx, "claims", claims)
 			r = r.WithContext(ctx)
 		}

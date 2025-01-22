@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/pkg/grpc/http"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
