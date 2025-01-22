@@ -61,7 +61,7 @@ type clusterCollector struct {
 
 func (c *clusterCollector) Run(ctx context.Context) {
 	// FIXME: complains about SA1015
-	// nolint:staticcheck
+	//nolint:staticcheck
 	tick := time.Tick(metricsCollectionInterval)
 	for {
 		select {

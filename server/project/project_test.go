@@ -362,7 +362,7 @@ func TestProjectServer(t *testing.T) {
 	enforcer = newEnforcer(kubeclientset)
 	_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 	enforcer.SetClaimsEnforcerFunc(nil)
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enforcer, nil)
 	policyEnf.SetScopes([]string{"groups"})
@@ -731,7 +731,7 @@ p, role:admin, projects, update, *, allow`)
 		enforcer = newEnforcer(kubeclientset)
 		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
 		enforcer.SetClaimsEnforcerFunc(nil)
-		// nolint:staticcheck
+		//nolint:staticcheck
 		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))

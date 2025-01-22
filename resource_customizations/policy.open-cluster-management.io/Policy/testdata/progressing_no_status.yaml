@@ -1,0 +1,51 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+  labels:
+    argocd.argoproj.io/instance: acm
+  name: acm-hub-ca-policy
+  namespace: open-cluster-management
+spec:
+  disabled: false
+  policy-templates:
+  - objectDefinition:
+      apiVersion: policy.open-cluster-management.io/v1
+      kind: ConfigurationPolicy
+      metadata:
+        name: acm-hub-ca-config-policy
+      spec:
+        namespaceSelector:
+          include:
+          - default
+        object-templates:
+        - complianceType: mustonlyhave
+          objectDefinition:
+            apiVersion: v1
+            data:
+              hub-kube-root-ca.crt: '{{hub fromConfigMap "" "kube-root-ca.crt" "ca.crt"
+                | base64enc hub}}'
+              hub-openshift-service-ca.crt: '{{hub fromConfigMap "" "openshift-service-ca.crt"
+                "service-ca.crt" | base64enc hub}}'
+            kind: Secret
+            metadata:
+              name: hub-ca
+              namespace: golang-external-secrets
+            type: Opaque
+        - complianceType: mustonlyhave
+          objectDefinition:
+            apiVersion: v1
+            data:
+              hub-kube-root-ca.crt: |
+                {{hub fromConfigMap "" "kube-root-ca.crt" "ca.crt" | autoindent hub}}
+              hub-openshift-service-ca.crt: |
+                {{hub fromConfigMap "" "openshift-service-ca.crt" "service-ca.crt" | autoindent hub}}
+            kind: ConfigMap
+            metadata:
+              name: trusted-hub-bundle
+              namespace: imperative
+        remediationAction: enforce
+        severity: medium
+  remediationAction: enforce
