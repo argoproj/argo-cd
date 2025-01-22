@@ -229,7 +229,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
@@ -517,7 +517,7 @@ argocd admin cluster stats target-cluster`,
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command

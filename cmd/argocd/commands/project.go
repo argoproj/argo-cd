@@ -489,7 +489,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			errors.CheckError(err)
 
 			for _, item := range proj.Spec.SourceRepos {
-				if item == "*" && item == url {
+				if item == "*" {
 					fmt.Printf("Source repository '*' already allowed in project\n")
 					return
 				}
