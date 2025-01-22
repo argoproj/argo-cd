@@ -5,3 +5,61 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
+data:
+  ### Default configuration for exclusions.
+  # The exclusion list are K8s resources that we assume will never be declared in Git,
+  # and are never child objects of managed resources that need to be presented in the resource tree.
+  # This list contains high volume and  high churn metadata objects which we exclude for performance
+  # reasons, reducing connections and load to the K8s API servers of managed clusters.
+  resource.exclusions: |
+    - apiGroups:
+      - ''
+      kinds:
+      - Endpoints
+    - apiGroups:
+      - apiregistration.k8s.io
+      kinds:
+      - APIService
+    - apiGroups:
+      - authentication.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+    - apiGroups:
+      - authorization.k8s.io
+      kinds:
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    - apiGroups:
+      - discovery.k8s.io
+      kinds:
+      - EndpointSlice
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - ClusterPolicyReport
+      - PolicyReport
+      - EphemeralReport
+      - UpdateRequest
