@@ -63,7 +63,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
+		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "skip_reconcile"),
 		nil,
 	)
 
@@ -414,10 +414,16 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if healthStatus == "" {
 		healthStatus = health.HealthStatusUnknown
 	}
+	var skipReconcile bool
+	if annotations := app.GetAnnotations(); annotations != nil {
+		if skipVal, ok := annotations[common.AnnotationKeyAppSkipReconcile]; ok {
+			skipReconcile, _ = strconv.ParseBool(skipVal)
+		}
+	}
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, strconv.FormatBool(skipReconcile))
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}
