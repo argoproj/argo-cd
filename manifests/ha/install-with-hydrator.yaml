@@ -24234,6 +24234,59 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - ''
+      kinds:
+      - Endpoints
+    - apiGroups:
+      - apiregistration.k8s.io
+      kinds:
+      - APIService
+    - apiGroups:
+      - authentication.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+    - apiGroups:
+      - authorization.k8s.io
+      kinds:
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    - apiGroups:
+      - discovery.k8s.io
+      kinds:
+      - EndpointSlice
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - ClusterPolicyReport
+      - PolicyReport
+      - EphemeralReport
+      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
