@@ -50,6 +50,13 @@ export enum AppsListViewKey {
     Tiles = 'tiles'
 }
 
+export type ResourcesListViewType = 'list' | 'tiles';
+
+export enum ResourcesListViewKey {
+    List = 'list',
+    Tiles = 'tiles'
+}
+
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
         return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
@@ -121,6 +128,9 @@ export class ResourcesListPreferences {
     public hideFilters: boolean;
     public apiGroupFilter: string[];
     public kindFilter: string[];
+    public view: ResourcesListViewType;
+
+    public statusBarView: HealthStatusBarPreferences;
 }
 
 export interface ViewPreferences {
@@ -187,7 +197,11 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         healthFilter: new Array<string>(),
         kindFilter: new Array<string>(),
         apiGroupFilter: new Array<string>(),
-        hideFilters: false
+        hideFilters: false,
+        view: 'list' as ResourcesListViewType,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
     },
     pageSizes: {},
     hideBannerContent: '',

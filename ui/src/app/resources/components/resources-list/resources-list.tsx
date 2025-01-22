@@ -1,4 +1,4 @@
-import {MockupList, Toolbar} from 'argo-ui';
+import {MockupList, Toolbar, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
@@ -8,13 +8,15 @@ import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, ObservableQuery, Page, Paginate, Query} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {services, ResourcesListPreferences} from '../../../shared/services';
+import {services, ResourcesListPreferences, HealthStatusBarPreferences, ResourcesListViewKey} from '../../../shared/services';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import * as AppUtils from '../../../applications/components/utils';
 import './resources-list.scss';
 import './flex-top-bar.scss';
 import {ResourceTiles} from './resources-tiles';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
+import classNames from 'classnames';
+import {ResourcesTable} from './resources-table';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -267,6 +269,15 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
         );
     }
 
+    function getPageTitle(view: string) {
+        switch (view) {
+            case ResourcesListViewKey.List:
+                return 'Resources List';
+            case ResourcesListViewKey.Tiles:
+                return 'Resources Tiles';
+        }
+        return '';
+    }
     const sidebarTarget = useSidebarTarget();
 
     return (
@@ -276,7 +287,12 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                     {ctx => (
                         <ViewPref>
                             {pref => (
-                                <Page title={'Resource List'} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}} hideAuth={true}>
+                                <Page
+                                    key={pref.view}
+                                    title={getPageTitle(pref.view)}
+                                    useTitleOnly={true}
+                                    toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}}
+                                    hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -287,6 +303,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                             </div>
                                         )}>
                                         {(applications: models.Application[]) => {
+                                            const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const resources = applications
                                                 .map(app =>
                                                     app.status.resources.map(
@@ -310,6 +327,53 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
                                                                     <Query>{q => <SearchBar content={q.get('search')} resources={resources} ctx={ctx} />}</Query>
+                                                                    <Tooltip content='Toggle Health Status Bar'>
+                                                                        <button
+                                                                            className={`resources-list__accordion argo-button argo-button--base${
+                                                                                healthBarPrefs.showHealthStatusBar ? '-o' : ''
+                                                                            }`}
+                                                                            style={{border: 'none'}}
+                                                                            onClick={() => {
+                                                                                healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                                                                                services.viewPreferences.updatePreferences({
+                                                                                    resourcesList: {
+                                                                                        ...pref,
+                                                                                        statusBarView: {
+                                                                                            ...healthBarPrefs,
+                                                                                            showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                                                                        }
+                                                                                    }
+                                                                                });
+                                                                            }}>
+                                                                            <i className={`fas fa-ruler-horizontal`} />
+                                                                        </button>
+                                                                    </Tooltip>
+                                                                    <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
+                                                                        <i
+                                                                            className={classNames('fa fa-th', {selected: pref.view === ResourcesListViewKey.Tiles}, 'menu_icon')}
+                                                                            title='Tiles'
+                                                                            onClick={() => {
+                                                                                ctx.navigation.goto('.', {view: ResourcesListViewKey.Tiles});
+                                                                                services.viewPreferences.updatePreferences({
+                                                                                    resourcesList: {...pref, view: ResourcesListViewKey.Tiles}
+                                                                                });
+                                                                            }}
+                                                                        />
+                                                                        <i
+                                                                            className={classNames(
+                                                                                'fa fa-th-list',
+                                                                                {selected: pref.view === ResourcesListViewKey.List},
+                                                                                'menu_icon'
+                                                                            )}
+                                                                            title='List'
+                                                                            onClick={() => {
+                                                                                ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
+                                                                                services.viewPreferences.updatePreferences({
+                                                                                    resourcesList: {...pref, view: ResourcesListViewKey.List}
+                                                                                });
+                                                                            }}
+                                                                        />
+                                                                    </div>
                                                                 </React.Fragment>
                                                             )
                                                         }}
@@ -362,7 +426,12 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                     sortOptions={[{title: 'Name', compare: (a, b) => a.name.localeCompare(b.name)}]}
                                                                     data={filteredResources}
                                                                     onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                    {data => <ResourceTiles resources={data} />}
+                                                                    {data => {
+                                                                        if (pref.view === ResourcesListViewKey.Tiles) {
+                                                                            return <ResourceTiles resources={data} />;
+                                                                        }
+                                                                        return <ResourcesTable resources={data} />;
+                                                                    }}
                                                                 </Paginate>
                                                             </>
                                                         )}
