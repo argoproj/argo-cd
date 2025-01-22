@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
 
@@ -36,16 +37,6 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-<<<<<<< HEAD
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/pkg/pprof"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
-=======
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -53,7 +44,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
->>>>>>> master
 )
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)

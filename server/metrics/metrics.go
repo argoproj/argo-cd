@@ -9,12 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-<<<<<<< HEAD
-	"github.com/argoproj/argo-cd/v2/common"
-=======
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/profile"
->>>>>>> master
 )
 
 type MetricsServer struct {

@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/argo"

@@ -3,7 +3,6 @@ package pprof
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -13,16 +12,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	listener net.Listener
-)
+var listener net.Listener
 
 func init() {
 	addr, exist := os.LookupEnv("ARGO_PPROF")
 	if !exist {
 		return
 	}
-	listener, _ = net.Listen("tcp", fmt.Sprintf(":%s", addr))
+	listener, _ = net.Listen("tcp", ":%s"+addr)
 }
 
 func IsEnabled() bool {
@@ -35,7 +32,7 @@ type pprofServer struct {
 
 func NewPprofServer() (*pprofServer, error) {
 	if listener == nil {
-		return nil, fmt.Errorf("pprof server is disabled")
+		return nil, errors.New("pprof server is disabled")
 	}
 	mux := http.NewServeMux()
 	srv := &http.Server{
@@ -57,7 +54,7 @@ func NewPprofServer() (*pprofServer, error) {
 
 func (s *pprofServer) Start(ctx context.Context) error {
 	if listener == nil {
-		return fmt.Errorf("pprof server is disabled")
+		return errors.New("pprof server is disabled")
 	}
 	serverShutdown := make(chan struct{})
 	go func() {

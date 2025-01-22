@@ -11,15 +11,9 @@ import (
 	"sync"
 	"syscall"
 
-<<<<<<< HEAD
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/pprof"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-=======
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
->>>>>>> master
-
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
