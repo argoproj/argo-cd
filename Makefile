@@ -355,11 +355,6 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
-# Deprecated - replace by install-tools-local
-.PHONY: install-lint-tools
-install-lint-tools:
-	./hack/install.sh lint-tools
-
 # Run linter on the code
 .PHONY: lint
 lint: test-tools-image
@@ -599,6 +594,7 @@ install-codegen-tools-local:
 .PHONY: install-go-tools-local
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
+	./hack/install.sh lint-tools
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
@@ -679,7 +675,6 @@ help:
 	@echo 'debug:'
 	@echo '  list -- list all make targets'
 	@echo '  install-tools-local -- install all the tools below'
-	@echo '  install-lint-tools(-local)'
 	@echo
 	@echo 'codegen:'
 	@echo '  codegen(-local) -- if using -local, run the following targets first'
