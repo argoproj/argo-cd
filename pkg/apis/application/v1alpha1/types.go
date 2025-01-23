@@ -1506,11 +1506,12 @@ type SyncStrategy struct {
 
 // Force returns true if the sync strategy specifies to perform a forced sync
 func (m *SyncStrategy) Force() bool {
-	if m == nil {
+	switch {
+	case m == nil:
 		return false
-	} else if m.Apply != nil {
+	case m.Apply != nil:
 		return m.Apply.Force
-	} else if m.Hook != nil {
+	case m.Hook != nil:
 		return m.Hook.Force
 	}
 	return false
@@ -3314,7 +3315,9 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
+
+	switch {
+	case c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false):
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
@@ -3326,9 +3329,9 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			}
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
-	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	case c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "":
 		config, err = rest.InClusterConfig()
-	} else if c.Server == KubernetesInternalAPIServerAddr {
+	case c.Server == KubernetesInternalAPIServerAddr:
 		config, err = rest.InClusterConfig()
 		if err == nil {
 			config.Username = c.Config.Username
@@ -3336,7 +3339,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			config.BearerToken = c.Config.BearerToken
 			config.BearerTokenFile = ""
 		}
-	} else {
+	default:
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
 			ServerName: c.Config.TLSClientConfig.ServerName,
@@ -3344,7 +3347,8 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			KeyData:    c.Config.TLSClientConfig.KeyData,
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
-		if c.Config.AWSAuthConfig != nil {
+		switch {
+		case c.Config.AWSAuthConfig != nil:
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
@@ -3362,7 +3366,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else if c.Config.ExecProviderConfig != nil {
+		case c.Config.ExecProviderConfig != nil:
 			var env []api.ExecEnvVar
 			if c.Config.ExecProviderConfig.Env != nil {
 				for key, value := range c.Config.ExecProviderConfig.Env {
@@ -3384,7 +3388,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else {
+		default:
 			config = &rest.Config{
 				Host:            c.Server,
 				Username:        c.Config.Username,
