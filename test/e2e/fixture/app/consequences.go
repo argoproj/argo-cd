@@ -8,9 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	util "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // this implements the "then" part of given/when/then
@@ -112,7 +114,15 @@ func (c *Consequences) get() (*Application, error) {
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
-	for _, r := range c.app().Status.Resources {
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	errors.CheckError(err)
+	defer util.Close(closer)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeout)*time.Second)
+	defer cancel()
+	appName := c.context.AppName()
+	app, err := client.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+	errors.CheckError(err)
+	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
 		}
