@@ -295,15 +295,16 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		if repository.Name == "ArgoCD" {
+		switch {
+		case repository.Name == "ArgoCD":
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		} else if repository.Name == "UserManagedRepo" {
+		case repository.Name == "UserManagedRepo":
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
-		} else {
+		default:
 			assert.Fail(t, "unexpected repository found in list")
 		}
 	}
