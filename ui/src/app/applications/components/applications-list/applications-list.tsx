@@ -372,12 +372,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                     {ctx => (
                         <ViewPref>
                             {pref => (
-                                <Page
-                                    key={pref.view}
-                                    title={getPageTitle(pref.view)}
-                                    useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}}
-                                    hideAuth={true}>
+                                <Page title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}} hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -407,12 +402,14 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
                                                                     <Query>{q => <SearchBar content={q.get('search')} apps={applications} ctx={ctx} />}</Query>
                                                                     <Tooltip content='Toggle Health Status Bar'>
                                                                         <button
+                                                                            key={`healthBarPrefs.showHealthStatusBar-${healthBarPrefs.showHealthStatusBar}`}
                                                                             className={`applications-list__accordion argo-button argo-button--base${
                                                                                 healthBarPrefs.showHealthStatusBar ? '-o' : ''
                                                                             }`}

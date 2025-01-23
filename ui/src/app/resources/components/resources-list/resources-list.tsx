@@ -17,6 +17,7 @@ import {ResourceTiles} from './resources-tiles';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
 import classNames from 'classnames';
 import {ResourcesTable} from './resources-table';
+import {ResourcesStatusBar} from './resources-status-bar';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -287,12 +288,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                     {ctx => (
                         <ViewPref>
                             {pref => (
-                                <Page
-                                    key={pref.view}
-                                    title={getPageTitle(pref.view)}
-                                    useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}}
-                                    hideAuth={true}>
+                                <Page title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'Resources', path: '/resources'}]}} hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -323,6 +319,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
                                                             tools: (
                                                                 <React.Fragment key='app-list-tools'>
@@ -406,6 +403,8 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                     sidebarTarget?.current
                                                                 )}
                                                                 <Paginate
+                                                                    header={filteredResources.length > 1 && <ResourcesStatusBar resources={filteredResources} />}
+                                                                    showHeader={healthBarPrefs.showHealthStatusBar}
                                                                     preferencesKey='resources-list'
                                                                     page={pref.page}
                                                                     emptyState={() => (
