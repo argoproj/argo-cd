@@ -22,5 +22,5 @@ url=https://github.com/gotestyourself/gotestsum/releases/download/v${gotestsum_v
 mkdir -p /tmp/gotestsum-${gotestsum_version}
 tar -xvzf ${temp_path} -C /tmp/gotestsum-${gotestsum_version}
 sudo cp /tmp/gotestsum-${gotestsum_version}/gotestsum ${INSTALL_PATH}/gotestsum
-chmod +x ${INSTALL_PATH}/gotestsum
+sudo chmod +x ${INSTALL_PATH}/gotestsum
 gotestsum --version
