@@ -20,18 +20,18 @@ import (
 
 	"github.com/argoproj/pkg/rand"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 var ExpectedConditions = []v1alpha1.ApplicationSetCondition{
@@ -1159,7 +1159,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -1269,7 +1268,6 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application

@@ -27,10 +27,10 @@ import (
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"

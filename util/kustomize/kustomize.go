@@ -19,11 +19,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -123,13 +123,14 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			log.Warnf("Could not parse URL %s: %v", k.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
+			switch {
+			case err != nil:
 				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
+			case caPath == "":
 				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
+			default:
 				// Make Git use CA bundle
 				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}

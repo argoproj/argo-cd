@@ -45,6 +45,7 @@ export interface NewHTTPSRepoParams {
     insecureOCIForceHttp: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -99,6 +100,7 @@ interface NewHTTPSRepoCredsParams {
     insecureOCIForceHttp: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -723,6 +725,14 @@ export class ReposList extends React.Component<
                                                             <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
                                                         )}
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Use Azure Workload Identity'
+                                                            field='useAzureWorkloadIdentity'
+                                                            component={CheckboxField}
+                                                        />
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GITHUBAPP && (
@@ -940,8 +950,9 @@ export class ReposList extends React.Component<
                 noProxy: params.noProxy,
                 forceHttpBasicAuth: params.forceHttpBasicAuth,
                 enableOCI: params.enableOCI,
-                insecureOCIForceHttp: params.insecureOCIForceHttp,
-                write: params.write
+                write: params.write,
+                useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {
             this.setState({connecting: true});

@@ -16,6 +16,7 @@ export interface HTTPSQuery {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
 }
 
@@ -105,6 +106,7 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -128,6 +130,7 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -151,6 +154,7 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
@@ -174,6 +178,7 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);

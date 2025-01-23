@@ -26,21 +26,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
-	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
+	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -701,6 +702,58 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		Expect(DoesNotExist())
 }
 
+func TestComparisonFailsIfDestinationClusterIsInvalid(t *testing.T) {
+	clusterActions := clusterFixture.Given(t).
+		Name("temp-cluster").
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create()
+
+	GivenWithSameState(t).
+		Path(guestbookPath).
+		DestName("temp-cluster").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			clusterActions.DeleteByName()
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, "there are no clusters with this name"))
+}
+
+func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
+}
+
 func TestCannotSetInvalidPath(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -1115,15 +1168,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1131,18 +1184,18 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource = {}
     impactedResource.operation = "create"
     impactedResource.resource = job
     result = {}
     result[1] = impactedResource
-  
+
     return result`
 
 func TestNewStyleResourceActionPermitted(t *testing.T) {
@@ -1219,15 +1272,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1235,12 +1288,12 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource1 = {}
     impactedResource1.operation = "create"
     impactedResource1.resource = job
@@ -1253,7 +1306,7 @@ definitions:
     impactedResource2.resource = obj
 
     result[2] = impactedResource2
-  
+
     return result`
 
 func TestNewStyleResourceActionMixedOk(t *testing.T) {
@@ -2156,6 +2209,19 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 			assert.Equal(t, ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[1].Type)
 		})
+}
+
+func TestCreateAppWithInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		// RPC error messages are quoted: time="2024-12-18T04:13:58Z" level=fatal msg="<Quoted value>"
+		Expect(Error("", fmt.Sprintf(`cluster \"%s\" is disabled`, KubernetesInternalAPIServerAddr)))
 }
 
 func TestListResource(t *testing.T) {

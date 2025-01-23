@@ -13,7 +13,7 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_newCluster(t *testing.T) {
@@ -96,8 +96,23 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		name             string
 		clusterInfo      *corev1.ConfigMap
 		expectedEndpoint string
+		expectedCAData   []byte
 		expectError      bool
 	}{
+		{
+			name: "has public endpoint and certificate authority data",
+			clusterInfo: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-public",
+					Name:      "cluster-info",
+				},
+				Data: map[string]string{
+					"kubeconfig": kubeconfigFixture("https://test-cluster:6443", []byte("test-ca-data")),
+				},
+			},
+			expectedEndpoint: "https://test-cluster:6443",
+			expectedCAData:   []byte("test-ca-data"),
+		},
 		{
 			name: "has public endpoint",
 			clusterInfo: &corev1.ConfigMap{
@@ -106,10 +121,11 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 					Name:      "cluster-info",
 				},
 				Data: map[string]string{
-					"kubeconfig": kubeconfigFixture("https://test-cluster:6443"),
+					"kubeconfig": kubeconfigFixture("https://test-cluster:6443", nil),
 				},
 			},
 			expectedEndpoint: "https://test-cluster:6443",
+			expectedCAData:   nil,
 		},
 		{
 			name:        "no cluster-info",
@@ -136,7 +152,7 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 					Name:      "cluster-info",
 				},
 				Data: map[string]string{
-					"kubeconfig": kubeconfigFixture(""),
+					"kubeconfig": kubeconfigFixture("", nil),
 				},
 			},
 			expectError: true,
@@ -163,25 +179,27 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 				objects = append(objects, tc.clusterInfo)
 			}
 			clientset := fake.NewClientset(objects...)
-			endpoint, err := GetKubePublicEndpoint(clientset)
+			endpoint, caData, err := GetKubePublicEndpoint(clientset)
 			if tc.expectError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
 			require.Equalf(t, tc.expectedEndpoint, endpoint, "expected endpoint %s, got %s", tc.expectedEndpoint, endpoint)
+			require.Equalf(t, tc.expectedCAData, caData, "expected caData %s, got %s", tc.expectedCAData, caData)
 		})
 	}
 }
 
-func kubeconfigFixture(endpoint string) string {
+func kubeconfigFixture(endpoint string, certificateAuthorityData []byte) string {
 	kubeconfig := &clientcmdapiv1.Config{}
 	if len(endpoint) > 0 {
 		kubeconfig.Clusters = []clientcmdapiv1.NamedCluster{
 			{
 				Name: "test-kube",
 				Cluster: clientcmdapiv1.Cluster{
-					Server: endpoint,
+					Server:                   endpoint,
+					CertificateAuthorityData: certificateAuthorityData,
 				},
 			},
 		}

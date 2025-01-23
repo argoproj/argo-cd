@@ -8,11 +8,11 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 func TestListMergeGenerator(t *testing.T) {
@@ -166,11 +166,9 @@ func TestClusterMergeGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook", "1"),
 		generateExpectedApp("cluster1", "helm-guestbook", "0"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook", "0"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook", "0"),
 		generateExpectedApp("cluster2", "helm-guestbook", "2"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook", "0"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application

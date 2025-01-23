@@ -3,8 +3,8 @@ package util
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 type RepoOptions struct {
@@ -26,6 +26,7 @@ type RepoOptions struct {
 	NoProxy                        string
 	GCPServiceAccountKeyPath       string
 	ForceHttpBasicAuth             bool
+	UseAzureWorkloadIdentity       bool
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -49,4 +50,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.NoProxy, "no-proxy", "", "don't access these targets via proxy")
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
+	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 }

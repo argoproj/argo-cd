@@ -15,10 +15,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 var _ Generator = (*GitGenerator)(nil)
@@ -83,11 +83,12 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	var err error
 	var res []map[string]any
-	if len(appSetGenerator.Git.Directories) != 0 {
+	switch {
+	case len(appSetGenerator.Git.Directories) != 0:
 		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
-	} else if len(appSetGenerator.Git.Files) != 0 {
+	case len(appSetGenerator.Git.Files) != 0:
 		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
-	} else {
+	default:
 		return nil, EmptyAppSetGeneratorError
 	}
 	if err != nil {

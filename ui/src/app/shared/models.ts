@@ -618,6 +618,7 @@ export interface Repository {
     forceHttpBasicAuth?: boolean;
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
