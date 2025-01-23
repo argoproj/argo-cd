@@ -29,8 +29,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	argoutils "github.com/argoproj/argo-cd/v3/util"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	argoioutils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 var (
@@ -38,12 +40,17 @@ var (
 	githubAppTokenCache *gocache.Cache
 	// In memory cache for storing oauth2.TokenSource used to generate Google Cloud OAuth tokens
 	googleCloudTokenSource *gocache.Cache
+
+	// In memory cache for storing Azure tokens
+	azureTokenCache *gocache.Cache
 )
 
 const (
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
+	// This is the resource id of the OAuth application of Azure Devops.
+	azureDevopsEntraResourceId = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
 
 func init() {
@@ -57,6 +64,7 @@ func init() {
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
 
 type NoopCredsStore struct{}
@@ -670,4 +678,64 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	}
 
 	return token.AccessToken, nil
+}
+
+var _ Creds = AzureWorkloadIdentityCreds{}
+
+type AzureWorkloadIdentityCreds struct {
+	store         CredsStore
+	tokenProvider workloadidentity.TokenProvider
+}
+
+func NewAzureWorkloadIdentityCreds(store CredsStore, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
+	return AzureWorkloadIdentityCreds{
+		store:         store,
+		tokenProvider: tokenProvider,
+	}
+}
+
+// GetUserInfo returns the username and email address for the credentials, if they're available.
+func (creds AzureWorkloadIdentityCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	// Email not implemented for HTTPS creds.
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (creds AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
+	token, err := creds.GetAzureDevOpsAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := creds.store.Add("", token)
+	env := creds.store.Environ(nonce)
+
+	return argoioutils.NewCloser(func() error {
+		creds.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error) {
+	// Compute hash of creds for lookup in cache
+	key, err := argoutils.GenerateCacheKey("%s", scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure credentials: %w", err)
+	}
+
+	t, found := azureTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	token, err := creds.tokenProvider.GetToken(scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+
+	azureTokenCache.Set(key, token, 2*time.Hour)
+	return token, nil
+}
+
+func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
+	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
+	return accessToken, err
 }

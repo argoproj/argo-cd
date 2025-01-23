@@ -1343,9 +1343,16 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
+	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	if fineGrainedInheritanceDisabled && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
+		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
+	}
 	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
-	if err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
-		// If users dont have permission on the whole applications, maybe they have fine-grained access to the specific resources
+	if !fineGrainedInheritanceDisabled && err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbacpolicy.ActionDelete || action == rbacpolicy.ActionUpdate) {
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	}
@@ -1466,14 +1473,15 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		return nil, err
 	}
 	var deleteOption metav1.DeleteOptions
-	if q.GetOrphan() {
+	switch {
+	case q.GetOrphan():
 		propagationPolicy := metav1.DeletePropagationOrphan
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
-	} else if q.GetForce() {
+	case q.GetForce():
 		propagationPolicy := metav1.DeletePropagationBackground
 		zeroGracePeriod := int64(0)
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy, GracePeriodSeconds: &zeroGracePeriod}
-	} else {
+	default:
 		propagationPolicy := metav1.DeletePropagationForeground
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}

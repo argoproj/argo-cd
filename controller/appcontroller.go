@@ -936,7 +936,7 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 	key := ctrl.toAppKey(appName)
 
 	if compareWith != nil && after != nil {
-		ctrl.appComparisonTypeRefreshQueue.AddAfter(fmt.Sprintf("%s/%d", key, compareWith), *after)
+		ctrl.appComparisonTypeRefreshQueue.AddAfter(fmt.Sprintf("%s/%d", key, *compareWith), *after)
 	} else {
 		if compareWith != nil {
 			ctrl.refreshRequestedAppsMutex.Lock()
@@ -1365,7 +1365,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state = app.Status.OperationState.DeepCopy()
 		terminating = state.Phase == synccommon.OperationTerminating
 		// Failed  operation with retry strategy might have be in-progress and has completion time
-		if state.FinishedAt != nil && !terminating {
+		switch {
+		case state.FinishedAt != nil && !terminating:
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
 			if err != nil {
 				state.Phase = synccommon.OperationFailed
@@ -1385,12 +1386,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			ctrl.setOperationState(app, state)
 			// Get rid of sync results and null out previous operation completion time
 			state.SyncResult = nil
-		} else if ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating {
+		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating:
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			ctrl.setOperationState(app, state)
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
-		} else {
+		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
@@ -1630,29 +1631,25 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}).Info("Reconciliation completed")
 	}()
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
-	if err != nil {
-		logCtx.Errorf("Failed to get destination cluster: %v", err)
-		return
-	}
-
 	if comparisonLevel == ComparisonWithNothing {
-		managedResources := make([]*appv1.ResourceDiff, 0)
-		err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources)
-		if err == nil {
-			var tree *appv1.ApplicationTree
-			if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
-				app.Status.Summary = tree.GetSummary(app)
-				if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
-					logCtx.Errorf("Failed to cache resources tree: %v", err)
-					return
+		// If the destination cluster is invalid, fallback to the normal reconciliation flow
+		if destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err == nil {
+			managedResources := make([]*appv1.ResourceDiff, 0)
+			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
+				var tree *appv1.ApplicationTree
+				if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
+					app.Status.Summary = tree.GetSummary(app)
+					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
+						logCtx.Errorf("Failed to cache resources tree: %v", err)
+						return
+					}
 				}
-			}
 
-			patchMs = ctrl.persistAppStatus(origApp, &app.Status)
-			return
+				patchMs = ctrl.persistAppStatus(origApp, &app.Status)
+				return
+			}
+			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 		}
-		logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
 	}
 	ts.AddCheckpoint("comparison_with_nothing_ms")
 
@@ -1672,6 +1669,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Warnf("failed to set app managed resources tree: %v", err)
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
+		return
+	}
+
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.Errorf("Failed to get destination cluster: %v", err)
+		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
 		return
 	}
 
@@ -1722,6 +1726,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ctrl.normalizeApplication(origApp, app)
 	ts.AddCheckpoint("normalize_application_ms")
+
 	tree, err := ctrl.setAppManagedResources(destCluster, app, compareResult)
 	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {

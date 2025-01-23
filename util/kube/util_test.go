@@ -12,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-// nolint:unparam
 func getSecret(client kubernetes.Interface, ns, name string) (*corev1.Secret, error) {
 	s, err := client.CoreV1().Secrets(ns).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
