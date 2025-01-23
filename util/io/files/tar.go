@@ -113,7 +113,7 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		}
-		if header == nil || header.Name == "." {
+		if header == nil || header.Name == "." || header.Name == "./" {
 			continue
 		}
 

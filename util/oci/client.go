@@ -501,63 +501,34 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 			return fmt.Errorf("could not decompress layer: %w", err)
 		}
 
-		infos, err := os.ReadDir(tempDir)
-		if err != nil {
-			return err
-		}
-
-		if isHelmOCI(desc.MediaType) {
-			// For a Helm chart we expect a single tarfile in the directory
-			if len(infos) != 1 {
-				return fmt.Errorf("expected 1 file, found %v", len(infos))
-			}
-		}
-
-		if len(infos) == 1 && infos[0].IsDir() {
-			// Here we assume that this is a directory which has been decompressed. We need to move the contents of
-			// the dir into our intended destination.
-			srcDir, err := securejoin.SecureJoin(tempDir, infos[0].Name())
-			if err != nil {
-				return err
-			}
-
-			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, _ error) error {
-				if path != srcDir {
-					// Calculate the relative path from srcDir
-					relPath, err := filepath.Rel(srcDir, path)
-					if err != nil {
-						return err
-					}
-
-					dstPath, err := securejoin.SecureJoin(s.dest, relPath)
-					if err != nil {
-						return err
-					}
-
-					// Move the file by renaming it
-					if d.IsDir() {
-						info, err := d.Info()
-						if err != nil {
-							return err
-						}
-
-						return os.MkdirAll(dstPath, info.Mode())
-					}
-
-					return os.Rename(path, dstPath)
+		return filepath.WalkDir(tempDir, func(path string, d fs.DirEntry, _ error) error {
+			if path != tempDir {
+				// Calculate the relative path from srcDir
+				relPath, err := filepath.Rel(tempDir, path)
+				if err != nil {
+					return err
 				}
 
-				return nil
-			})
-		}
+				dstPath, err := securejoin.SecureJoin(s.dest, relPath)
+				if err != nil {
+					return err
+				}
 
-		err = os.Remove(s.dest)
-		if err != nil {
-			return err
-		}
+				// Move the file by renaming it
+				if d.IsDir() {
+					info, err := d.Info()
+					if err != nil {
+						return err
+					}
 
-		// For any other OCI content, we assume that this should be rendered as-is
-		return os.Rename(tempDir, s.dest)
+					return os.MkdirAll(dstPath, info.Mode())
+				}
+
+				return os.Rename(path, dstPath)
+			}
+
+			return nil
+		})
 	}
 
 	return s.Store.Push(ctx, desc, content)

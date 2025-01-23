@@ -385,8 +385,14 @@ func (s *Service) runRepoOperation(
 				return err
 			}
 		}
+
+		appPath, err := apppathutil.Path(ociPath, source.Path)
+		if err != nil {
+			return err
+		}
+
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{ociPath, ""}, nil
+			return &operationContext{appPath, ""}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
