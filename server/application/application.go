@@ -1578,36 +1578,31 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 }
 
 func (s *Server) GetOCIMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.OCIMetadata, error) {
-	return nil, nil
-	/*
-		a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
-		if err != nil {
-			return nil, err
-		}
+	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	if err != nil {
+		return nil, err
+	}
 
-		source, err := getAppSourceBySourceIndexAndVersionId(a, q.SourceIndex, q.VersionId)
-		if err != nil {
-			return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
-		}
+	source, err := getAppSourceBySourceIndexAndVersionId(a, q.SourceIndex, q.VersionId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
+	}
 
-		repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error getting repository by URL: %w", err)
-		}
-		conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-		if err != nil {
-			return nil, fmt.Errorf("error creating repo server client: %w", err)
-		}
-		defer ioutil.Close(conn)
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository by URL: %w", err)
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(conn)
 
-
-		return repoClient.GetOCIMetadata(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
-			Repo:     repo,
-			Name:     source.Chart,
-			Revision: q.GetRevision(),
-		})
-
-	*/
+	return repoClient.GetOCIMetadata(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+		Repo:     repo,
+		Name:     source.Chart,
+		Revision: q.GetRevision(),
+	})
 }
 
 // getAppSourceBySourceIndexAndVersionId returns the source for a specific source index and version ID. Source index and

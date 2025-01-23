@@ -368,7 +368,7 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
@@ -382,10 +382,6 @@ func fileExists(filePath string) (bool, error) {
 		return false, err
 	}
 	return true, nil
-}
-
-func isHelmOCI(mediaType string) bool {
-	return mediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
 }
 
 func isCompressedLayer(mediaType string) bool {
