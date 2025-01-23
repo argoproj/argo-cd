@@ -199,11 +199,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		source, visited = ConstructSource(source, *appOpts, flags)
 		if spec.HasMultipleSources() {
-			if sourcePosition == 0 {
+			switch {
+			case sourcePosition == 0:
 				spec.Sources[sourcePosition] = *source
-			} else if sourcePosition > 0 {
+			case sourcePosition > 0:
 				spec.Sources[sourcePosition-1] = *source
-			} else {
+			default:
 				spec.Sources = append(spec.Sources, *source)
 			}
 		} else {
@@ -259,7 +260,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.SyncPolicy = nil
 			}
 		case "sync-retry-limit":
-			if appOpts.retryLimit > 0 {
+			switch {
+			case appOpts.retryLimit > 0:
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
@@ -271,13 +273,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
-			} else if appOpts.retryLimit == 0 {
+			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				} else {
 					spec.SyncPolicy.Retry = nil
 				}
-			} else {
+			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}

@@ -493,11 +493,12 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		dstNamespaceMatched := globMatch(item.Namespace, dst.Namespace, true)
 
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
-		if matched {
+		switch {
+		case matched:
 			anyDestinationMatched = true
-		} else if (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched {
+		case (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched:
 			return false
-		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched {
+		case !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched:
 			return false
 		}
 	}

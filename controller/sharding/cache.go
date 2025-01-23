@@ -153,11 +153,12 @@ func (sharding *ClusterSharding) updateDistribution() {
 		}
 
 		existingShard, ok := sharding.Shards[k]
-		if ok && existingShard != shard {
+		switch {
+		case ok && existingShard != shard:
 			log.Infof("Cluster %s has changed shard from %d to %d", k, existingShard, shard)
-		} else if !ok {
+		case !ok:
 			log.Infof("Cluster %s has been assigned to shard %d", k, shard)
-		} else {
+		default:
 			log.Debugf("Cluster %s has not changed shard", k)
 		}
 		sharding.Shards[k] = shard

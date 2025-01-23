@@ -336,15 +336,16 @@ func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duratio
 		hydratedAt = &app.Status.SourceHydrator.CurrentOperation.StartedAt
 	}
 
-	if app.IsHydrateRequested() {
+	switch {
+	case app.IsHydrateRequested():
 		return true, "hydrate requested"
-	} else if app.Status.SourceHydrator.CurrentOperation == nil {
+	case app.Status.SourceHydrator.CurrentOperation == nil:
 		return true, "no previous hydrate operation"
-	} else if !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator) {
+	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
 		return true, "spec.sourceHydrator differs"
-	} else if app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute {
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
 		return true, "previous hydrate operation failed more than 2 minutes ago"
-	} else if hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()) {
+	case hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()):
 		return true, "hydration expired"
 	}
 

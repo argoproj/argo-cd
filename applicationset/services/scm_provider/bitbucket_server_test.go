@@ -452,7 +452,7 @@ func TestListReposTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts == true {
+			if test.passCerts {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)
