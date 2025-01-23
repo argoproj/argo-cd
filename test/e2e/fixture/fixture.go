@@ -886,7 +886,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
 			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-			// nolint:errcheck
+			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {

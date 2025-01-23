@@ -1159,7 +1159,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -1269,7 +1268,6 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook"),
 		generateExpectedApp("helm-guestbook"),
-		generateExpectedApp("ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application

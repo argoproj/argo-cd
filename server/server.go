@@ -26,7 +26,7 @@ import (
 	"syscall"
 	"time"
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	golang_proto "github.com/golang/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -521,7 +521,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	} else {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
 	if err != nil {
 		io.Close(mainLn)
@@ -1477,7 +1477,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	claims, newToken, claimsErr := server.getClaims(ctx)
 	if claims != nil {
 		// Add claims to the context to inspect for RBAC
-		// nolint:staticcheck
+		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", claims)
 		if newToken != "" {
 			// Session tokens that are expiring soon should be regenerated if user stays active.
@@ -1489,7 +1489,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		}
 	}
 	if claimsErr != nil {
-		// nolint:staticcheck
+		//nolint:staticcheck
 		ctx = context.WithValue(ctx, util_session.AuthErrorCtxKey, claimsErr)
 	}
 
@@ -1501,7 +1501,7 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		if !argoCDSettings.AnonymousUserEnabled {
 			return ctx, claimsErr
 		}
-		// nolint:staticcheck
+		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", "")
 	}
 
