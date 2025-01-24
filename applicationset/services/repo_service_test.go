@@ -81,9 +81,9 @@ func TestGetDirectories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &argoCDService{
-				getRepository:     tt.fields.getRepository,
-				submoduleEnabled:  tt.fields.submoduleEnabled,
-				getGitDirectories: tt.fields.getGitDirectories,
+				getRepository:                   tt.fields.getRepository,
+				submoduleEnabled:                tt.fields.submoduleEnabled,
+				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
 			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
@@ -385,8 +385,8 @@ func TestGetDirectoriesRepoFiltering(t *testing.T) {
 					}
 					return testDB.GetRepository(ctx, url, project)
 				},
-				submoduleEnabled:  tt.fields.submoduleEnabled,
-				getGitDirectories: tt.fields.getGitDirectories,
+				submoduleEnabled:                tt.fields.submoduleEnabled,
+				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
 			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, "", tt.args.project, false, false)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)) {
@@ -463,9 +463,9 @@ func TestGetFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := &argoCDService{
-				getRepository:    tt.fields.getRepository,
-				submoduleEnabled: tt.fields.submoduleEnabled,
-				getGitFiles:      tt.fields.getGitFiles,
+				getRepository:             tt.fields.getRepository,
+				submoduleEnabled:          tt.fields.submoduleEnabled,
+				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
 			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
@@ -767,8 +767,8 @@ func TestGetFilesRepoFiltering(t *testing.T) {
 					}
 					return testDB.GetRepository(ctx, url, project)
 				},
-				submoduleEnabled: tt.fields.submoduleEnabled,
-				getGitFiles:      tt.fields.getGitFiles,
+				submoduleEnabled:          tt.fields.submoduleEnabled,
+				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
 			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, "", tt.args.project, "", false, false)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.project)) {

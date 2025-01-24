@@ -12,11 +12,11 @@ import (
 )
 
 type argoCDService struct {
-	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
-	submoduleEnabled       bool
-	newFileGlobbingEnabled bool
-	getGitFiles            func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
-	getGitDirectories      func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
+	getRepository                   func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+	submoduleEnabled                bool
+	newFileGlobbingEnabled          bool
+	getGitFilesFromRepoServer       func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
+	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
 
 type Repos interface {
@@ -32,7 +32,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 		getRepository:          db.GetRepository,
 		submoduleEnabled:       submoduleEnabled,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
-		getGitFiles: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+		getGitFilesFromRepoServer: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 			closer, client, err := repoClientset.NewRepoServerClient()
 			if err != nil {
 				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
@@ -40,7 +40,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			defer io.Close(closer)
 			return client.GetGitFiles(ctx, fileRequest)
 		},
-		getGitDirectories: func(ctx context.Context, dirRequest *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+		getGitDirectoriesFromRepoServer: func(ctx context.Context, dirRequest *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 			closer, client, err := repoClientset.NewRepoServerClient()
 			if err != nil {
 				return nil, fmt.Errorf("error initialising new repo server client: %w", err)
@@ -66,7 +66,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		NoRevisionCache:           noRevisionCache,
 		VerifyCommit:              verifyCommit,
 	}
-	fileResponse, err := a.getGitFiles(ctx, fileRequest)
+	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git files: %w", err)
 	}
@@ -87,7 +87,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		VerifyCommit:     verifyCommit,
 	}
 
-	dirResponse, err := a.getGitDirectories(ctx, dirRequest)
+	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
