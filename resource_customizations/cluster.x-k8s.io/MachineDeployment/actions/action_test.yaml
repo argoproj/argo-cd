@@ -1,0 +1,10 @@
+actionTests:
+- action: restart
+  inputPath: testdata/md.yaml
+  expectedOutputPath: testdata/md-restarted.yaml
+- action: pause
+  inputPath: testdata/md.yaml
+  expectedOutputPath: testdata/md-pause.yaml
+- action: resume
+  inputPath: testdata/md-pause.yaml
+  expectedOutputPath: testdata/md-resume.yaml

@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: 'RollingUpdateInProgress'
+  inputPath: testdata/processing_RollingUpdateInProgress.yaml
+- healthStatus:
+    status: Progressing
+    message: 'ScalingDown'
+  inputPath: testdata/processing_ScalingDown.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Error message'
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Suspended
+    message: 'KubeadmControlPlane is paused'
+  inputPath: testdata/suspended_paused.yaml
+- healthStatus:
+    status: Healthy
+    message: 'KubeadmControlPlane is ready'
+  inputPath: testdata/healthy_provisioned.yaml
