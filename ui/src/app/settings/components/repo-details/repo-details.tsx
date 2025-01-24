@@ -85,7 +85,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         noProxy: repo.noProxy || '',
         project: repo.project || '',
         enableOCI: repo.enableOCI || false,
-        forceHttpBasicAuth: repo.forceHttpBasicAuth || false
+        forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
+        useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false
     };
 
     return (
