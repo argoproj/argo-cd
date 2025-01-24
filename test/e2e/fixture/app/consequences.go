@@ -37,8 +37,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 		300 * time.Millisecond,
 		500 * time.Millisecond,
 		1 * time.Second,
-		2 * time.Second,
-		3 * time.Second,
 	}
 	sleepIntervalsIdx := -1
 	timeout := time.Duration(c.timeout) * time.Second
@@ -120,9 +118,7 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	errors.CheckError(err)
 	defer util.Close(closer)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeout)*time.Second)
-	defer cancel()
-	app, err := client.Get(ctx, &applicationpkg.ApplicationQuery{
+	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},
 		AppNamespace: ptr.To(c.context.appNamespace),
