@@ -29,7 +29,7 @@ func TestSelectiveSync(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthIs("Service", "guestbook-ui", health.HealthStatusHealthy)).
-		Expect(ResourceHealthIs("Deployment", "guestbook-ui", health.HealthStatusMissing))
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), SyncStatusCodeOutOfSync))
 }
 
 // when running selective sync, hooks do not run
