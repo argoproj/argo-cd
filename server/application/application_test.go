@@ -1639,6 +1639,10 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "true"}
+	appServerWithoutRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithoutRBACInheritance.enf.SetDefaultRole("")
+
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
 		AppNamespace: &testApp.Namespace,
@@ -1650,12 +1654,29 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 
 	expectedErrorWhenDeleteAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
 
+	t.Run("delete with application permission without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServerWithoutRBACInheritance.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
 	t.Run("delete with application permission", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, delete, default/test-app, allow
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
+	})
+
+	t.Run("delete with application permission but deny subresource without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServerWithoutRBACInheritance.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
 	})
 
 	t.Run("delete with application permission but deny subresource", func(t *testing.T) {
@@ -1672,6 +1693,15 @@ p, test-user, applications, delete/*, default/test-app, deny
 p, test-user, applications, delete/*, default/test-app, allow
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
+	})
+
+	t.Run("delete with subresource but deny applications without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServerWithoutRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1702,6 +1732,10 @@ func TestPatchResourcesRBAC(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
 
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "true"}
+	appServerWithoutRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithoutRBACInheritance.enf.SetDefaultRole("")
+
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
 		AppNamespace: &testApp.Namespace,
@@ -1713,12 +1747,29 @@ func TestPatchResourcesRBAC(t *testing.T) {
 
 	expectedErrorWhenUpdateAllowed := "rpc error: code = InvalidArgument desc = PodTest fake.io my-pod-test not found as part of application test-app"
 
+	t.Run("patch with application permission without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServerWithoutRBACInheritance.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
 	t.Run("patch with application permission", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, update, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
+	})
+
+	t.Run("patch with application permission but deny subresource without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServerWithoutRBACInheritance.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
 	})
 
 	t.Run("patch with application permission but deny subresource", func(t *testing.T) {
@@ -1735,6 +1786,15 @@ p, test-user, applications, update/*, default/test-app, deny
 p, test-user, applications, update/*, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
+	})
+
+	t.Run("patch with subresource but deny applications without inheritance", func(t *testing.T) {
+		_ = appServerWithoutRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServerWithoutRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
