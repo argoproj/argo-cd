@@ -44,7 +44,7 @@ var (
 	descClusterConnectionStatus = prometheus.NewDesc(
 		"argocd_cluster_connection_status",
 		"The k8s cluster current connection status.",
-		append(descClusterDefaultLabels, "k8s_version"),
+		append(descClusterDefaultLabels, "k8s_version", "name"),
 		nil,
 	)
 )
