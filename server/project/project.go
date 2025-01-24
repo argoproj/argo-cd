@@ -291,6 +291,10 @@ func (s *Server) List(ctx context.Context, _ *project.ProjectQuery) (*v1alpha1.A
 		for i := range list.Items {
 			project := list.Items[i]
 			if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, project.Name) {
+				if q.Name != "" && q.Name == project.Name {
+					newItems = append(newItems, project)
+					continue
+				}
 				newItems = append(newItems, project)
 			}
 		}
