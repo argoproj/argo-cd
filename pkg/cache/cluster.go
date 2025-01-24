@@ -939,8 +939,9 @@ func (c *clusterCache) sync() error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
+						newRes := c.newResource(un)
 						lock.Lock()
-						c.setNode(c.newResource(un))
+						c.setNode(newRes)
 						lock.Unlock()
 					}
 					return nil

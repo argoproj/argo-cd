@@ -146,6 +146,48 @@ func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resour
 	return hierarchy[1:]
 }
 
+// Benchmark_sync is meant to simulate cluster initialization when populateResourceInfoHandler does nontrivial work.
+func Benchmark_sync(t *testing.B) {
+	var resources = []runtime.Object{}
+	for i := 0; i < 100; i++ {
+		resources = append(resources, &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("pod-%d", i),
+				Namespace: "default",
+			},
+		}, &appsv1.ReplicaSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("rs-%d", i),
+				Namespace: "default",
+			},
+		}, &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("deploy-%d", i),
+				Namespace: "default",
+			},
+		}, &appsv1.StatefulSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("sts-%d", i),
+				Namespace: "default",
+			},
+		})
+	}
+
+	c := newCluster(t, resources...)
+
+	c.populateResourceInfoHandler = func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+		time.Sleep(10 * time.Microsecond)
+		return nil, false
+	}
+
+	t.ResetTimer()
+
+	for n := 0; n < t.N; n++ {
+		err := c.sync()
+		require.NoError(t, err)
+	}
+}
+
 func TestEnsureSynced(t *testing.T) {
 	obj1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
