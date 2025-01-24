@@ -37,6 +37,8 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 		300 * time.Millisecond,
 		500 * time.Millisecond,
 		1 * time.Second,
+		2 * time.Second,
+		3 * time.Second,
 	}
 	sleepIntervalsIdx := -1
 	timeout := time.Duration(c.timeout) * time.Second
