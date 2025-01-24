@@ -111,9 +111,9 @@ func (db *db) GetWriteRepository(ctx context.Context, repoURL, project string) (
 	}
 
 	// TODO: enrich with write credentials.
-	//if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-	//	return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
-	//}
+	// if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+	//	 return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
+	// }
 
 	return repository, err
 }
@@ -367,9 +367,9 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 	}
 
 	// TODO: enrich with write credentials.
-	//if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-	//	return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
-	//}
+	// if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+	//	 return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
+	// }
 
 	creds, err := secretBackend.GetRepoCreds(ctx, repoURL)
 	if err != nil {

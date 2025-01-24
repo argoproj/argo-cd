@@ -20,6 +20,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		fmt.Println(r.RequestURI)
 		switch r.RequestURI {
 		case "/api/v4":
 			fmt.Println("here1")
@@ -1040,11 +1041,31 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		// Recent versions of the Gitlab API (v17.7+) return 404 not only when a file doesn't exist, but also
-		// when a path is to a file instead of a directory. Our code should not hit this path, because
-		// we should only send requests for parent directories. But we leave this handler in place
-		// to prevent regressions.
-		case "/api/v4/projects/27084533/repository/tree?path=argocd/filepath.yaml&ref=master":
+			// Recent versions of the Gitlab API (v17.7+) listTree return 404 not only when a file doesn't exist, but also
+			// when a path is to a file instead of a directory. Code was refactored to explicitly search for file then
+			// search for directory, catching 404 errors as "file not found".
+		case "/api/v4/projects/27084533/repository/files/argocd?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/argocd%2Finstall%2Eyaml?ref=master":
+			_, err := io.WriteString(w, `{"file_name":"install.yaml","file_path":"argocd/install.yaml","size":0,"encoding":"base64","content_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","ref":"main","blob_id":"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","commit_id":"6d4c0f9d34534ccc73aa3f3180b25e2aebe630eb","last_commit_id":"b50eb63f9c0e09bfdb070db26fd32c7210291f52","execute_filemode":false,"content":""}`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v4/projects/27084533/repository/files/notathing?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/argocd%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=argocd%2Fnotathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/notathing%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing%2Fnotathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/notathing%2Fnotathing%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing%2Fnotathing%2Fnotathing.yaml&ref=master":
 			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
 			w.WriteHeader(http.StatusNotFound)
@@ -1201,8 +1222,13 @@ func TestGitlabHasPath(t *testing.T) {
 			exists: false,
 		},
 		{
-			name:   "send a file path",
-			path:   "argocd/filepath.yaml",
+			name:   "noexistent file in noexistent directory",
+			path:   "notathing/notathing.yaml",
+			exists: false,
+		},
+		{
+			name:   "noexistent file in nested noexistent directory",
+			path:   "notathing/notathing/notathing.yaml",
 			exists: false,
 		},
 	}
@@ -1284,7 +1310,7 @@ func TestGetBranchesTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts == true {
+			if test.passCerts {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)
