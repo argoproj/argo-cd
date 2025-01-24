@@ -76,6 +76,8 @@ const (
 	defaultMaxLoginFailures = 5
 	// The default time in seconds for the failure window
 	defaultFailureWindow = 300
+	// defaultLoginFieldKey specifies the default field or key used during the login process when not overridden by environment variables.
+	defaultLoginFieldKey = "name"
 	// The password verification delay max
 	verificationDelayNoiseMin = 500 * time.Millisecond
 	// The password verification delay max
@@ -91,6 +93,10 @@ const (
 
 	// Max number of stored usernames
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
+
+	// envDefaultLoginField specifies the default field or key used during the login process.
+	// This allows administrators to dynamically change the default login field based on their configuration or requirements.
+	envDefaultLoginField = "ARGOCD_DEFAULT_LOGIN_FIELD"
 )
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
@@ -108,6 +114,12 @@ func getMaxLoginFailures() int {
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginFailureWindow() time.Duration {
 	return time.Duration(env.ParseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
+}
+
+// getDefaultLoginField retrieves the default login field or key from environment variables.
+// If the environment variable is not set, it falls back to a predefined default value.
+func getDefaultLoginField() string {
+	return env.StringFromEnv(envDefaultLoginField, defaultLoginFieldKey)
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
@@ -593,9 +605,12 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.StringField(mapClaims, "iss") {
-	case SessionManagerClaimsIssuer:
+	if issuer := jwtutil.StringField(mapClaims, "iss"); issuer == SessionManagerClaimsIssuer {
 		return jwtutil.StringField(mapClaims, "sub")
+	}
+	switch name := jwtutil.StringField(mapClaims, getDefaultLoginField()); {
+	case name != "":
+		return name
 	default:
 		return jwtutil.StringField(mapClaims, "email")
 	}
