@@ -52,7 +52,7 @@ export enum AppsListViewKey {
 
 export class AppsListPreferences {
     public static countEnabledFilters(pref: AppsListPreferences) {
-        return [pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
+        return [pref.searchFilter, pref.clustersFilter, pref.healthFilter, pref.labelsFilter, pref.namespacesFilter, pref.projectsFilter, pref.reposFilter, pref.syncFilter].reduce(
             (count, filter) => {
                 if (filter && filter.length > 0) {
                     return count + 1;
@@ -64,6 +64,7 @@ export class AppsListPreferences {
     }
 
     public static clearFilters(pref: AppsListPreferences) {
+        pref.searchFilter = '';
         pref.clustersFilter = [];
         pref.healthFilter = [];
         pref.labelsFilter = [];
@@ -75,6 +76,7 @@ export class AppsListPreferences {
         pref.showFavorites = false;
     }
 
+    public searchFilter: string;
     public labelsFilter: string[];
     public projectsFilter: string[];
     public reposFilter: string[];
@@ -130,6 +132,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     },
     appList: {
         view: 'tiles' as AppsListViewType,
+        searchFilter: '',
         labelsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
