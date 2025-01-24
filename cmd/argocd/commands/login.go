@@ -67,11 +67,12 @@ argocd login cd.argoproj.io --core`,
 				os.Exit(1)
 			}
 
-			if globalClientOpts.PortForward {
+			switch {
+			case globalClientOpts.PortForward:
 				server = "port-forward"
-			} else if globalClientOpts.Core {
+			case globalClientOpts.Core:
 				server = "kubernetes"
-			} else {
+			default:
 				server = args[0]
 
 				if !skipTestTLS {

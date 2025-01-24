@@ -45,8 +45,8 @@ func TestRefreshApp(t *testing.T) {
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
-	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
-	//assert.True(t, ok)
+	// _, ok := newApp.Annotations[common.AnnotationKeyRefresh]
+	// assert.True(t, ok)
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
