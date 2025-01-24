@@ -362,15 +362,30 @@ func (proj *AppProject) normalizePolicy(policy string) string {
 	return normalizedPolicy
 }
 
-// ProjectPoliciesString returns a Casbin formatted string of a project's policies for each role
+func (proj *AppProject) generatePolicies(role *ProjectRole) []string {
+	var policies []string
+	projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
+	policies = append(policies, projectPolicy)
+	policies = append(policies, role.Policies...)
+	for _, groupName := range role.Groups {
+		policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.ObjectMeta.Name, role.Name))
+	}
+	return policies
+}
+
 func (proj *AppProject) ProjectPoliciesString() string {
 	var policies []string
 	for _, role := range proj.Spec.Roles {
-		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.ObjectMeta.Name, role.Name, proj.ObjectMeta.Name)
-		policies = append(policies, projectPolicy)
-		policies = append(policies, role.Policies...)
-		for _, groupName := range role.Groups {
-			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.ObjectMeta.Name, role.Name))
+		policies = append(policies, proj.generatePolicies(&role)...)
+	}
+	return strings.Join(policies, "\n")
+}
+
+func (proj *AppProject) GetRolePolicies(projRole *ProjectRole) string {
+	var policies []string
+	for _, role := range proj.Spec.Roles {
+		if role.Name == projRole.Name {
+			policies = append(policies, proj.generatePolicies(&role)...)
 		}
 	}
 	return strings.Join(policies, "\n")
