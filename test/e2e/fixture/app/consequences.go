@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -119,8 +120,11 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	defer util.Close(closer)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(c.timeout)*time.Second)
 	defer cancel()
-	appName := c.context.AppName()
-	app, err := client.Get(ctx, &applicationpkg.ApplicationQuery{Name: &appName})
+	app, err := client.Get(ctx, &applicationpkg.ApplicationQuery{
+		Name:         ptr.To(c.context.AppName()),
+		Projects:     []string{c.context.project},
+		AppNamespace: ptr.To(c.context.appNamespace),
+	})
 	errors.CheckError(err)
 	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
