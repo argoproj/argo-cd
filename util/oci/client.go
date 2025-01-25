@@ -19,9 +19,8 @@ import (
 	"time"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content/oci"
-
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/pkg/sync"
@@ -58,7 +57,7 @@ type Client interface {
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
 
 	// DigestMetadata retrieves an OCI manifest for a given digest and project.
-	DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error)
+	DigestMetadata(ctx context.Context, digest, project string) (*imagev1.Manifest, error)
 
 	// CleanCache is invoked on a hard-refresh or when the manifest cache has expired. This removes the OCI image from
 	// the cached path, which is looked up by the specified revision and project.
@@ -262,7 +261,7 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 }
 
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
-func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error) {
+func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*imagev1.Manifest, error) {
 	path, err := c.getCachedPath(digest, project)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
@@ -479,7 +478,7 @@ func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, allowedMed
 
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
-func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
+func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
 	if isCompressedLayer(desc.MediaType) {
 		tempDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
@@ -530,7 +529,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 	return s.Store.Push(ctx, desc, content)
 }
 
-func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*v1.Manifest, error) {
+func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*imagev1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
 		return nil, fmt.Errorf("error resolving oci repo from digest %s: %w", digest, err)
@@ -541,7 +540,7 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 		return nil, fmt.Errorf("error fetching oci manifest for digest %s: %w", digest, err)
 	}
 
-	manifest := v1.Manifest{}
+	manifest := imagev1.Manifest{}
 	decoder := json.NewDecoder(rc)
 	err = decoder.Decode(&manifest)
 	if err != nil {

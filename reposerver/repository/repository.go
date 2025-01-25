@@ -20,7 +20,7 @@ import (
 	"github.com/TomOnTime/utfutil"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
@@ -1792,7 +1792,7 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 				return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 			}
 			defer closeReader(reader)
-			manifest := v1.Manifest{}
+			manifest := imagev1.Manifest{}
 			decoder := json.NewDecoder(reader)
 			err = decoder.Decode(&manifest)
 			if err != nil {

@@ -15,7 +15,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
@@ -26,28 +26,28 @@ import (
 )
 
 type layerConf struct {
-	desc  v1.Descriptor
+	desc  imagev1.Descriptor
 	bytes []byte
 }
 
 func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
 	t.Helper()
 	configBlob := []byte("Hello config")
-	configDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageConfig, configBlob)
+	configDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, configBlob)
 
-	var layers []v1.Descriptor
+	var layers []imagev1.Descriptor
 
 	for _, layer := range layerDescs {
 		layers = append(layers, layer.desc)
 	}
 
-	manifestBlob, err := json.Marshal(v1.Manifest{
+	manifestBlob, err := json.Marshal(imagev1.Manifest{
 		Config:    configDesc,
 		Layers:    layers,
 		Versioned: specs.Versioned{SchemaVersion: 2},
 	})
 	require.NoError(t, err)
-	manifestDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBlob)
+	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
 
 	for _, layer := range layerDescs {
 		require.NoError(t, store.Push(context.Background(), layer.desc, bytes.NewReader(layer.bytes)))
@@ -104,12 +104,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		{
 			name: "extraction fails due to size limit",
 			fields: fields{
-				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
@@ -119,13 +119,13 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		{
 			name: "extraction fails due to multiple layers",
 			fields: fields{
-				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
 					otherLayerBlob := createGzippedTarWithContent(t, "some-other-path", "some other content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, otherLayerBlob), otherLayerBlob})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, otherLayerBlob), otherLayerBlob})
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
@@ -140,7 +140,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := "Hello layer"
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), []byte(layerBlob)})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, []byte(layerBlob)), []byte(layerBlob)})
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
@@ -201,12 +201,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		{
 			name: "extraction with standard gzip layer",
 			fields: fields{
-				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
 				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
 					manifestDir, err := os.ReadDir(path)
@@ -226,12 +226,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		{
 			name: "extraction with standard gzip layer using cache",
 			fields: fields{
-				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
@@ -247,12 +247,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		{
 			name: "extraction with standard gzip layer using cache, invalid project",
 			fields: fields{
-				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
@@ -307,7 +307,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	store := memory.New()
 	data := []byte("")
-	descriptor := v1.Descriptor{
+	descriptor := imagev1.Descriptor{
 		MediaType: "",
 		Digest:    digest.FromBytes(data),
 	}
