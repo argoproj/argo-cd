@@ -928,7 +928,6 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
-		grpc_util.PanicLoggerStreamServerInterceptor(server.log),
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(server.log),
 		grpc_prometheus.StreamServerInterceptor,
@@ -939,9 +938,9 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		}),
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
 		grpc_util.ErrorCodeGitStreamServerInterceptor(),
+		grpc_util.PanicLoggerStreamServerInterceptor(server.log),
 	)))
 	sOpts = append(sOpts, grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-		grpc_util.PanicLoggerUnaryServerInterceptor(server.log),
 		bug21955WorkaroundInterceptor,
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(server.log),
@@ -953,6 +952,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		}),
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
+		grpc_util.PanicLoggerUnaryServerInterceptor(server.log),
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 
