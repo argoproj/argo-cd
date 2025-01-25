@@ -314,6 +314,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	require.NoError(t, store.Push(context.Background(), descriptor, bytes.NewReader(data)))
 	require.NoError(t, store.Tag(context.Background(), descriptor, "latest"))
 	require.NoError(t, store.Tag(context.Background(), descriptor, "1.2.0"))
+	require.NoError(t, store.Tag(context.Background(), descriptor, "v1.2.0"))
 	require.NoError(t, store.Tag(context.Background(), descriptor, descriptor.Digest.String()))
 
 	type fields struct {
@@ -379,7 +380,6 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			}},
 			expectedError: errors.New("cannot get digest for revision sha256:abc123: not found"),
 		},
-		// new tests
 		{
 			name:     "resolve latest tag",
 			revision: "latest",
@@ -403,6 +403,15 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				return []string{"latest", "stable", "prod", "dev"}, nil
 			}},
 			expectedError: errors.New("no version for constraints: constraint not found in 4 tags"),
+		},
+		{
+			name:     "resolve explicit tag",
+			revision: "v1.2.0",
+			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
+				return []string{}, errors.New("this should not be invoked")
+			}},
+			expectedError:  nil,
+			expectedDigest: descriptor.Digest.String(),
 		},
 		{
 			name:     "resolve with empty tag list",

@@ -276,20 +276,24 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project st
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
-	constraints, err := semver.NewConstraint(revision)
-	if err == nil {
-		tags, err := c.getTags(ctx, noCache)
-		if err != nil {
-			return "", fmt.Errorf("error fetching tags: %w", err)
+	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
+	if err != nil {
+		// Look to see if revision is a semver constraint
+		if constraints, err := semver.NewConstraint(revision); err == nil {
+			tags, err := c.getTags(ctx, noCache)
+			if err != nil {
+				return "", fmt.Errorf("error fetching tags: %w", err)
+			}
+			version, err := tags.MaxVersion(constraints)
+			if err != nil {
+				return "", fmt.Errorf("no version for constraints: %w", err)
+			}
+			return c.resolveDigest(ctx, version.String())
 		}
-		version, err := tags.MaxVersion(constraints)
-		if err != nil {
-			return "", fmt.Errorf("no version for constraints: %w", err)
-		}
-		return c.resolveDigest(ctx, version.String())
+		return "", err
 	}
 
-	return c.resolveDigest(ctx, revision)
+	return digest, nil
 }
 
 func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList, error) {
