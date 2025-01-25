@@ -2702,7 +2702,6 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 		var matched, isSet bool
 
 		for _, window := range *w {
-
 			matched = false
 			isSet = false
 

@@ -371,8 +371,9 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Applications),
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
-				formatManualOutput(window.ManualSync),
+				formatBoolEnabledOutput(window.ManualSync),
 				window.TimeZone,
+				formatBoolEnabledOutput(window.UseAndOperator),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
@@ -400,7 +401,7 @@ func formatBoolOutput(active bool) string {
 	return o
 }
 
-func formatManualOutput(active bool) string {
+func formatBoolEnabledOutput(active bool) string {
 	var o string
 	if active {
 		o = "Enabled"
