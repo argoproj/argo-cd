@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 19th 2025, 12:30:22 am (UTC+00:00)</p>
+                <p class="timestamp">January 26th 2025, 12:29:17 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -2176,7 +2176,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>git</code> package and not the <code>git</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>Git is a fast, scalable, distributed revision control system with an unusually rich command set that provides both high-level operations and full access to internals. Git defines a line-based protocol that is used to exchange information between Git and Git credential helpers. Some ecosystems (most notably, .NET and node.js) interpret single Carriage Return characters as newlines, which renders the protections against CVE-2020-5260 incomplete for credential helpers that treat Carriage Returns in this way. This issue has been addressed in commit <code>b01b9b8</code> which is included in release versions v2.48.1, v2.47.1, v2.46.3, v2.45.3, v2.44.3, v2.43.6, v2.42.4, v2.41.3, and v2.40.4. Users are advised to upgrade. Users unable to upgrade should avoid cloning from untrusted URLs, especially recursive clones.</p>
+        <p>Git is a fast, scalable, distributed revision control system with an unusually rich command set that provides both high-level operations and full access to internals. Git defines a line-based protocol that is used to exchange information between Git and Git credential helpers. Some ecosystems (most notably, .NET and node.js) interpret single Carriage Return characters as newlines, which renders the protections against CVE-2020-5260 incomplete for credential helpers that treat Carriage Returns in this way. This issue has been addressed in commit <code>b01b9b8</code> which is included in release versions v2.48.1, v2.47.2, v2.46.3, v2.45.3, v2.44.3, v2.43.6, v2.42.4, v2.41.3, and v2.40.4. Users are advised to upgrade. Users unable to upgrade should avoid cloning from untrusted URLs, especially recursive clones.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>git</code> to version 1:2.34.1-1ubuntu1.12 or higher.</p>
         <h2 id="references">References</h2>
@@ -2271,7 +2271,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>git</code> package and not the <code>git</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
-        <p>Git is a fast, scalable, distributed revision control system with an unusually rich command set that provides both high-level operations and full access to internals. When Git asks for credentials via a terminal prompt (i.e. without using any credential helper), it prints out the host name for which the user is expected to provide a username and/or a password. At this stage, any URL-encoded parts have been decoded already, and are printed verbatim. This allows attackers to craft URLs that contain ANSI escape sequences that the terminal interpret to confuse users e.g. into providing passwords for trusted Git hosting sites when in fact they are then sent to untrusted sites that are under the attacker&#39;s control. This issue has been patch via commits <code>7725b81</code> and <code>c903985</code> which are included in release versions v2.48.1, v2.47.1, v2.46.3, v2.45.3, v2.44.3, v2.43.6, v2.42.4, v2.41.3, and v2.40.4. Users are advised to upgrade. Users unable to upgrade should avoid cloning from untrusted URLs, especially recursive clones.</p>
+        <p>Git is a fast, scalable, distributed revision control system with an unusually rich command set that provides both high-level operations and full access to internals. When Git asks for credentials via a terminal prompt (i.e. without using any credential helper), it prints out the host name for which the user is expected to provide a username and/or a password. At this stage, any URL-encoded parts have been decoded already, and are printed verbatim. This allows attackers to craft URLs that contain ANSI escape sequences that the terminal interpret to confuse users e.g. into providing passwords for trusted Git hosting sites when in fact they are then sent to untrusted sites that are under the attacker&#39;s control. This issue has been patch via commits <code>7725b81</code> and <code>c903985</code> which are included in release versions v2.48.1, v2.47.2, v2.46.3, v2.45.3, v2.44.3, v2.43.6, v2.42.4, v2.41.3, and v2.40.4. Users are advised to upgrade. Users unable to upgrade should avoid cloning from untrusted URLs, especially recursive clones.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Ubuntu:22.04</code> <code>git</code> to version 1:2.34.1-1ubuntu1.12 or higher.</p>
         <h2 id="references">References</h2>
@@ -5705,6 +5705,7 @@
         <li><a href="https://curl.se/docs/CVE-2024-11053.json">https://curl.se/docs/CVE-2024-11053.json</a></li>
         <li><a href="https://hackerone.com/reports/2829063">https://hackerone.com/reports/2829063</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2024/12/11/1">http://www.openwall.com/lists/oss-security/2024/12/11/1</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20250124-0012/">https://security.netapp.com/advisory/ntap-20250124-0012/</a></li>
         </ul>
         
               <hr/>
