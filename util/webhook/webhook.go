@@ -21,16 +21,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type settingsSource interface {
@@ -62,7 +62,7 @@ type ArgoCDWebhookHandler struct {
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
-	queue                  chan interface{}
+	queue                  chan any
 	maxWebhookPayloadSizeB int64
 }
 
@@ -106,7 +106,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
-		queue:                  make(chan interface{}, payloadQueueSize),
+		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 	}
 
@@ -138,7 +138,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -205,8 +205,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
-				link := l.(map[string]interface{})
+			for _, l := range payload.Repository.Links["clone"].([]any) {
+				link := l.(map[string]any)
 				if link["name"] == "http" {
 					webURLs = append(webURLs, link["href"].(string))
 				}
@@ -250,7 +250,7 @@ type changeInfo struct {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
+func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -350,13 +350,13 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
-	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
+	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
 	var clusterInfo v1alpha1.ClusterInfo
-	err = a.serverCache.GetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
+	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
@@ -408,7 +408,7 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
+	var payload any
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)

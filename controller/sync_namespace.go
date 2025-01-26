@@ -4,7 +4,7 @@ import (
 	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // syncNamespace determine if Argo CD should create and/or manage the namespace

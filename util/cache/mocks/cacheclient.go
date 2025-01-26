@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache"
 )
 
 type MockCacheClient struct {
@@ -35,7 +35,7 @@ func (c *MockCacheClient) Set(item *cache.Item) error {
 	return c.BaseCache.Set(item)
 }
 
-func (c *MockCacheClient) Get(key string, obj interface{}) error {
+func (c *MockCacheClient) Get(key string, obj any) error {
 	args := c.Called(key, obj)
 	if len(args) > 0 && args.Get(0) != nil {
 		return args.Get(0).(error)

@@ -14,8 +14,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/transport"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -64,11 +64,12 @@ func splitCookie(key, value, attributes string) []string {
 		}
 
 		var cookie string
-		if j == 0 && numberOfChunks == 1 {
+		switch {
+		case j == 0 && numberOfChunks == 1:
 			cookie = fmt.Sprintf("%s=%s", key, value[i:end])
-		} else if j == 0 {
+		case j == 0:
 			cookie = fmt.Sprintf("%s=%d:%s", key, numberOfChunks, value[i:end])
-		} else {
+		default:
 			cookie = fmt.Sprintf("%s-%d=%s", key, j, value[i:end])
 		}
 		if attributes != "" {
@@ -102,15 +103,16 @@ func JoinCookies(key string, cookieList []*http.Cookie) (string, error) {
 	}
 	parts := strings.Split(token, ":")
 
-	if len(parts) == 2 {
+	switch len(parts) {
+	case 2:
 		if numOfChunks, err = strconv.Atoi(parts[0]); err != nil {
 			return "", err
 		}
 		sb.WriteString(parts[1])
-	} else if len(parts) == 1 {
+	case 1:
 		numOfChunks = 1
 		sb.WriteString(parts[0])
-	} else {
+	default:
 		return "", fmt.Errorf("invalid cookie for key %s", key)
 	}
 

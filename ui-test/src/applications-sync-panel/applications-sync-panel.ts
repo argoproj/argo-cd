@@ -23,12 +23,12 @@ export class ApplicationsSyncPanel extends Base {
             await this.driver.wait(until.elementIsEnabled(synchronizeButton), Const.TEST_TIMEOUT);
             await synchronizeButton.click();
 
-            await this.driver.wait(until.elementIsNotVisible(synchronizeButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch(e => {
+            await this.driver.wait(until.elementIsNotVisible(synchronizeButton), Const.TEST_SLIDING_PANEL_TIMEOUT).catch((e) => {
                 UiTestUtilities.logError('The Synchronization Sliding Panel did not disappear');
                 throw e;
             });
             UiTestUtilities.log('Synchronize sliding panel disappeared');
-        } catch (err) {
+        } catch (err: any) {
             throw new Error(err);
         }
     }

@@ -148,9 +148,7 @@ The following steps are required no matter whether you chose to use a virtualize
 
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `mkdir -p ~/go/src/github.com/argoproj`
-* `cd ~/go/src/github.com/argoproj`
-* `git clone https://github.com/yourghuser/argo-cd`
+* `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
 ### Optional: Setup an additional Git remote
@@ -348,5 +346,7 @@ The final step is running the End-to-End testsuite, which makes sure that your K
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
+
+To run a single test, you can use `TEST_FLAGS="-run TestName" make test-e2e-local`.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).

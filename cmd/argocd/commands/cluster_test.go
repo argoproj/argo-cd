@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_getQueryBySelector(t *testing.T) {
@@ -26,7 +26,7 @@ func Test_getQueryBySelector(t *testing.T) {
 	assert.Equal(t, "https://my-server", query.Server)
 }
 
-func Test_printClusterTable(t *testing.T) {
+func Test_printClusterTable(_ *testing.T) {
 	printClusterTable([]v1alpha1.Cluster{
 		{
 			Server: "my-server",

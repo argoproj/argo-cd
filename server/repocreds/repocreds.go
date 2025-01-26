@@ -4,18 +4,18 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Repository service
@@ -42,7 +42,7 @@ func NewServer(
 }
 
 // ListRepositoryCredentials returns a list of all configured repository credential sets
-func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
+func (s *Server) ListRepositoryCredentials(ctx context.Context, _ *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
 	urls, err := s.db.ListRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, q *repocredspkg.
 }
 
 // ListWriteRepositoryCredentials returns a list of all configured repository credential sets
-func (s *Server) ListWriteRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
+func (s *Server) ListWriteRepositoryCredentials(ctx context.Context, _ *repocredspkg.RepoCredsQuery) (*appsv1.RepoCredsList, error) {
 	urls, err := s.db.ListRepositoryCredentials(ctx)
 	if err != nil {
 		return nil, err
@@ -112,11 +112,12 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository credentials details: %v", getErr)
 		}
 
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			err = nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}
@@ -146,11 +147,12 @@ func (s *Server) CreateWriteRepositoryCredentials(ctx context.Context, q *repocr
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository credentials details: %v", getErr)
 		}
 
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			err = nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.UpdateWriteRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}

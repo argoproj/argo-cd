@@ -8,13 +8,13 @@ import (
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
+	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -112,7 +112,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -169,7 +169,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -312,7 +312,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
-	values := map[string]interface{}{
+	values := map[string]any{
 		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),

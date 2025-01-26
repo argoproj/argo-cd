@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -52,10 +52,10 @@ func (a *Actions) AddSource(repo string) *Actions {
 }
 
 func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, v1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, metav1.GetOptions{})
 	require.NoError(a.context.t, err)
 	updater(proj)
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, v1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, metav1.UpdateOptions{})
 	require.NoError(a.context.t, err)
 	return a
 }

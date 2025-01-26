@@ -1,13 +1,13 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/commitserver/apiclient";
+option go_package = "github.com/argoproj/argo-cd/v3/commitserver/apiclient";
 
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 
 // CommitHydratedManifestsRequest is the request to commit hydrated manifests to a repository.
 message CommitHydratedManifestsRequest {
   // Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
   // repo credentials.
-  github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+  github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
   // SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch.
   string syncBranch = 2;
   // TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated.

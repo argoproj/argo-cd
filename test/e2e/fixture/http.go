@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 // DoHttpRequest executes a http request against the Argo CD API server
@@ -44,7 +44,7 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 }
 
 // DoHttpJsonRequest executes a http request against the Argo CD API server and unmarshals the response body as JSON
-func DoHttpJsonRequest(method string, path string, result interface{}, data ...byte) error {
+func DoHttpJsonRequest(method string, path string, result any, data ...byte) error {
 	resp, err := DoHttpRequest(method, path, "", data...)
 	if err != nil {
 		return err

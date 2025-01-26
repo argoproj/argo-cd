@@ -149,6 +149,12 @@ branch to the `syncSource` branch.
 
 ## Limitations
 
+### Signature Verification
+
+The source hydrator **does not currently support signature verification of the DRY sources it hydrates/commits**. It
+also does not sign the commits it pushes to git, so if signature verification is enabled, the commits will fail
+verification when Argo CD attempts to sync the hydrated manifests.
+
 ### Project-Scoped Push Secrets
 
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any

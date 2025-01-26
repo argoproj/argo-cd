@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 var resourceNamePattern = regexp.MustCompile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
@@ -47,7 +47,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 				return err
 			}
 			if !ok || templateLabels == nil {
-				templateLabels = make(map[string]interface{})
+				templateLabels = make(map[string]any)
 			}
 			templateLabels[key] = val
 			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
@@ -78,14 +78,13 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 			}
 		}
 	case "batch":
-		switch gvk.Kind {
-		case kube.JobKind:
+		if gvk.Kind == kube.JobKind {
 			templateLabels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
 			if err != nil {
 				return err
 			}
 			if !ok || templateLabels == nil {
-				templateLabels = make(map[string]interface{})
+				templateLabels = make(map[string]any)
 			}
 			templateLabels[key] = val
 			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
@@ -186,8 +185,8 @@ func RemoveAnnotation(un *unstructured.Unstructured, key string) error {
 }
 
 // nestedNullableStringMap returns a copy of map[string]string value of a nested field.
-// Returns false if value is not found and an error if not one of map[string]interface{} or nil, or contains non-string values in the map.
-func nestedNullableStringMap(obj map[string]interface{}, fields ...string) (map[string]string, error) {
+// Returns false if value is not found and an error if not one of map[string]any or nil, or contains non-string values in the map.
+func nestedNullableStringMap(obj map[string]any, fields ...string) (map[string]string, error) {
 	var m map[string]string
 	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
 	if err != nil {

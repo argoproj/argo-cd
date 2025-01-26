@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	core "github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
@@ -41,7 +41,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
+func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
 	organizationUrl := buildURL(url, organization)
 
 	var connection *azuredevops.Connection

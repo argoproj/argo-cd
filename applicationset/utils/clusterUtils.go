@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -68,12 +68,12 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := clientset.Discovery().ServerVersion()
 		if err == nil {
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -82,7 +82,7 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }

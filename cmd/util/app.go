@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -18,15 +19,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 type AppOptions struct {
@@ -198,11 +199,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		source, visited = ConstructSource(source, *appOpts, flags)
 		if spec.HasMultipleSources() {
-			if sourcePosition == 0 {
+			switch {
+			case sourcePosition == 0:
 				spec.Sources[sourcePosition] = *source
-			} else if sourcePosition > 0 {
+			case sourcePosition > 0:
 				spec.Sources[sourcePosition-1] = *source
-			} else {
+			default:
 				spec.Sources = append(spec.Sources, *source)
 			}
 		} else {
@@ -258,7 +260,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.SyncPolicy = nil
 			}
 		case "sync-retry-limit":
-			if appOpts.retryLimit > 0 {
+			switch {
+			case appOpts.retryLimit > 0:
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
@@ -270,13 +273,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
-			} else if appOpts.retryLimit == 0 {
+			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				} else {
 					spec.SyncPolicy.Retry = nil
 				}
-			} else {
+			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
@@ -602,11 +605,11 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
 		},
@@ -636,7 +639,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			app.Name = appName
 		}
 		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			return nil, stderrors.New("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
 		mergeLabels(app, labels)
@@ -895,10 +898,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, fmt.Errorf("No matching resource found")
+		return nil, stderrors.New("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }
