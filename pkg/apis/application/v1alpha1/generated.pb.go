@@ -7818,6 +7818,16 @@ func (m *ApplicationSourceKustomize) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.IgnoreMissingComponents {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0x88
 	if len(m.APIVersions) > 0 {
 		for iNdEx := len(m.APIVersions) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.APIVersions[iNdEx])
@@ -16461,6 +16471,7 @@ func (m *ApplicationSourceKustomize) Size() (n int) {
 			n += 2 + l + sovGenerated(uint64(l))
 		}
 	}
+	n += 3
 	return n
 }
 
@@ -19923,6 +19934,7 @@ func (this *ApplicationSourceKustomize) String() string {
 		`LabelWithoutSelector:` + fmt.Sprintf("%v", this.LabelWithoutSelector) + `,`,
 		`KubeVersion:` + fmt.Sprintf("%v", this.KubeVersion) + `,`,
 		`APIVersions:` + fmt.Sprintf("%v", this.APIVersions) + `,`,
+		`IgnoreMissingComponents:` + fmt.Sprintf("%v", this.IgnoreMissingComponents) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -29568,6 +29580,26 @@ func (m *ApplicationSourceKustomize) Unmarshal(dAtA []byte) error {
 			}
 			m.APIVersions = append(m.APIVersions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 17:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IgnoreMissingComponents", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IgnoreMissingComponents = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
