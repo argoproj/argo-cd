@@ -7,7 +7,7 @@ function isPaused(obj)
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
       if condition.type == "MonoVertexPausingOrPaused" and condition.status == "True" then
-        return true, pausedCondition.message
+        return true, condition.message
       end
     end
   end

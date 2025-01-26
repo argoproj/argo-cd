@@ -17,13 +17,13 @@ tests:
   inputPath: testdata/MonoVertexRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Progressing"
+    message: "Child Progressing"
   inputPath: testdata/MonoVertexRollout/progressing-reason.yaml
-#- healthStatus:
-#    status: Progressing
-#    message: "Phase=Pending"
-#  inputPath: testdata/MonoVertexRollout/pending-upgrade-in-progress.yaml
-#- healthStatus:
-#    status: Degraded
-#    message: "Progressive upgrade failed"
-#  inputPath: testdata/PipelineRollout/progressive-failed.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/MonoVertexRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/MonoVertexRollout/progressive-failed.yaml
