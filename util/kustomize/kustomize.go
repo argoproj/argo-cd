@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -310,8 +311,21 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				for _, c := range opts.Components {
+					resolvedPath := path.Join(k.path, c)
+					_, err := os.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
