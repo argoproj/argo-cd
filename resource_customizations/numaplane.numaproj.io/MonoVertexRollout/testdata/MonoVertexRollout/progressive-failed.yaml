@@ -49,10 +49,10 @@ items:
       status: "False"
       type: MonoVertexPausingOrPaused
     - lastTransitionTime: "2025-01-26T06:34:50Z"
-      message: New Child Object example-namespace/my-monovertex-1 Running
+      message: New Child Object example-namespace/my-monovertex-1 Failed
       observedGeneration: 3
-      reason: Succeeded
-      status: "True"
+      reason: Failed
+      status: "False"
       type: ProgressiveUpgradeSucceeded
     message: Deployed
     nameCount: 2
@@ -60,6 +60,6 @@ items:
     phase: Deployed
     progressiveStatus:
       upgradingChildStatus:
-        assessmentResult: Success
+        assessmentResult: Failure
         name: my-monovertex-1
         nextAssessmentTime: "2025-01-26T06:34:21Z"

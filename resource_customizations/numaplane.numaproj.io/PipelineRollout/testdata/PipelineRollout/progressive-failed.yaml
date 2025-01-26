@@ -101,8 +101,8 @@ items:
     - lastTransitionTime: "2025-01-26T05:48:41Z"
       message: New Child Object example-namespace/my-pipeline-slow-2 Running
       observedGeneration: 2
-      reason: Succeeded
-      status: "True"
+      reason: "Progressive failed"
+      status: "False"
       type: ProgressiveUpgradeSucceeded
     message: Deployed
     nameCount: 3
@@ -111,6 +111,6 @@ items:
     phase: Deployed
     progressiveStatus:
       upgradingChildStatus:
-        assessmentResult: Success
+        assessmentResult: Failure
         name: my-pipeline-slow-2
         nextAssessmentTime: "2025-01-26T05:48:05Z"

@@ -45,10 +45,10 @@ items:
       status: "False"
       type: PausingPipelines
     - lastTransitionTime: "2025-01-26T05:48:44Z"
-      message: New Child Object example-namespace/my-isbsvc-2 Running
+      message: New Child Object example-namespace/my-isbsvc-2 Failed
       observedGeneration: 4
-      reason: Succeeded
-      status: "True"
+      reason: Failed
+      status: "False"
       type: ProgressiveUpgradeSucceeded
     message: Deployed
     nameCount: 3
