@@ -39,7 +39,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
+func TestCanIGetLogsAllow(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
@@ -53,61 +53,17 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsDenySwitchOn(t *testing.T) {
+func TestCanIGetLogsDeny(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
 		When().
 		Create().
 		Login().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
 			assert.Contains(t, output, "no")
-		})
-}
-
-func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		Project(ProjectName).
-		When().
-		Create().
-		Login().
-		SetPermissions([]ACL{
-			{
-				Resource: "logs",
-				Action:   "get",
-				Scope:    ProjectName + "/*",
-			},
-			{
-				Resource: "apps",
-				Action:   "get",
-				Scope:    ProjectName + "/*",
-			},
-		}, "log-viewer").
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
-		})
-}
-
-func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
 		})
 }
 

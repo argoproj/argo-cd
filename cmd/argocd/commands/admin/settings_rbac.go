@@ -18,7 +18,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
@@ -119,7 +118,7 @@ var extensionActions = actionTraitMap{
 }
 
 // NewRBACCommand is the command for 'rbac'
-func NewRBACCommand(cmdCtx commandContext) *cobra.Command {
+func NewRBACCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rbac",
 		Short: "Validate and test RBAC configuration",
@@ -127,13 +126,13 @@ func NewRBACCommand(cmdCtx commandContext) *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewRBACCanCommand(cmdCtx))
+	command.AddCommand(NewRBACCanCommand())
 	command.AddCommand(NewRBACValidateCommand())
 	return command
 }
 
 // NewRBACCanCommand is the command for 'rbac can'
-func NewRBACCanCommand(cmdCtx commandContext) *cobra.Command {
+func NewRBACCanCommand() *cobra.Command {
 	var (
 		policyFile   string
 		defaultRole  string
@@ -219,29 +218,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				defaultRole = newDefaultRole
 			}
 
-			// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable
-			// (representing server.rbac.log.enforce.enable env var in argocd-cm)
-			// is defined and has a "true" value
-			// Otherwise, no RBAC enforcement for logs will take place (meaning, 'can' request on a logs resource will result in "yes",
-			// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-			var isLogRbacEnforced func() bool
-			if nsOverride && policyFile == "" {
-				if resolveRBACResourceName(resource) == rbacpolicy.ResourceLogs {
-					isLogRbacEnforced = func() bool {
-						if opts, ok := cmdCtx.(*settingsOpts); ok {
-							opts.loadClusterSettings = true
-							opts.clientConfig = clientConfig
-							settingsMgr, err := opts.createSettingsManager(ctx)
-							errors.CheckError(err)
-							logEnforceEnable, err := settingsMgr.GetServerRBACLogEnforceEnable()
-							errors.CheckError(err)
-							return logEnforceEnable
-						}
-						return false
-					}
-				}
-			}
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict, isLogRbacEnforced)
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
 
 			if res {
 				if !quiet {
@@ -408,7 +385,7 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool, isLogRbacEnforced func() bool) bool {
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
 	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
@@ -448,11 +425,6 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 	if projectScoped[realResource] {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
-		}
-	}
-	if realResource == rbacpolicy.ResourceLogs {
-		if isLogRbacEnforced != nil && !isLogRbacEnforced() {
-			return true
 		}
 	}
 	return enf.Enforce(subject, realResource, action, subResource)

@@ -57,7 +57,7 @@ const (
 func TestGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
-func TestGetLogsDenySwitchOn(t *testing.T) {
+func TestGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -93,7 +93,6 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
@@ -102,7 +101,7 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		})
 }
 
-func TestGetLogsAllowSwitchOn(t *testing.T) {
+func TestGetLogsAllow(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -143,63 +142,6 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		Then().
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			require.NoError(t, err)
-			assert.NotContains(t, out, "Hi")
-		})
-}
-
-func TestGetLogsAllowSwitchOff(t *testing.T) {
-	fixture.SkipOnEnv(t, "OPENSHIFT")
-
-	accountFixture.Given(t).
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetPermissions([]fixture.ACL{
-			{
-				Resource: "applications",
-				Action:   "create",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "get",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "sync",
-				Scope:    "*",
-			},
-			{
-				Resource: "projects",
-				Action:   "get",
-				Scope:    "*",
-			},
-		}, "app-creator")
-
-	GivenWithSameState(t).
-		Path("guestbook-logs").
-		When().
-		CreateApp().
-		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
