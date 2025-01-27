@@ -245,7 +245,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
-			return app, nil
+			return app.DeepCopy(), nil
 		}
 		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
