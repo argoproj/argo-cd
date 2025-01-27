@@ -45,6 +45,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -370,6 +371,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
+	// Objects returned from listers have to be treated as read-only
+	// Take a deep copy so we can edit it below
+	existing = existing.DeepCopy()
 
 	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
@@ -1213,6 +1217,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if err != nil {
 			return fmt.Errorf("error listing apps with selector: %w", err)
 		}
+		apps = util.SliceCopy(apps)
 		sort.Slice(apps, func(i, j int) bool {
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
