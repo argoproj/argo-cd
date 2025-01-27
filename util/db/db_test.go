@@ -10,16 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	appv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -27,7 +27,7 @@ const (
 )
 
 func getClientset(config map[string]string, objects ...runtime.Object) *fake.Clientset {
-	secret := corev1.Secret{
+	secret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-secret",
 			Namespace: testNamespace,
@@ -37,7 +37,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 			"server.secretkey": []byte("test"),
 		},
 	}
-	cm := corev1.ConfigMap{
+	cm := v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -47,7 +47,7 @@ func getClientset(config map[string]string, objects ...runtime.Object) *fake.Cli
 		},
 		Data: config,
 	}
-	return fake.NewClientset(append(objects, &cm, &secret)...)
+	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
 }
 
 func TestCreateRepository(t *testing.T) {
@@ -292,8 +292,8 @@ func TestGetRepository(t *testing.T) {
 	}
 }
 
-func newManagedSecret() *corev1.Secret {
-	return &corev1.Secret{
+func newManagedSecret() *v1.Secret {
+	return &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -347,7 +347,7 @@ func TestDeleteRepositoryUnmanagedSecrets(t *testing.T) {
     key: password
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "unmanaged-secret",
 			Namespace: testNamespace,
@@ -387,7 +387,7 @@ func TestUpdateRepositoryWithManagedSecrets(t *testing.T) {
     key: sshPrivateKey
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -447,7 +447,7 @@ func TestRepositorySecretsTrim(t *testing.T) {
     key: githubAppPrivateKey
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "managed-secret",
 			Namespace: testNamespace,
@@ -502,6 +502,42 @@ func TestRepositorySecretsTrim(t *testing.T) {
 	}
 }
 
+func TestGetClusterSuccessful(t *testing.T) {
+	server := "my-cluster"
+	name := "my-name"
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte(server),
+			"name":   []byte(name),
+			"config": []byte("{}"),
+		},
+	})
+
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	cluster, err := db.GetCluster(context.Background(), server)
+	require.NoError(t, err)
+	assert.Equal(t, server, cluster.Server)
+	assert.Equal(t, name, cluster.Name)
+}
+
+func TestGetNonExistingCluster(t *testing.T) {
+	server := "https://mycluster"
+	clientset := getClientset(nil)
+
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	_, err := db.GetCluster(context.Background(), server)
+	require.Error(t, err)
+	status, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, status.Code())
+}
+
 func TestCreateClusterSuccessful(t *testing.T) {
 	server := "https://mycluster"
 	clientset := getClientset(nil)
@@ -523,7 +559,7 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "cluster-mycluster-3274446258"
 
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -554,7 +590,7 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	clusterURL := "https://mycluster"
 	clusterName := "mycluster-443"
 
-	clientset := getClientset(nil, &corev1.Secret{
+	clientset := getClientset(nil, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clusterName,
 			Namespace: testNamespace,
@@ -592,13 +628,13 @@ func TestFuzzyEquivalence(t *testing.T) {
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-apps.git",
 	})
-	require.ErrorContains(t, err, "already exists")
+	assert.Contains(t, err.Error(), "already exists")
 	assert.Nil(t, repo)
 
 	repo, err = db.CreateRepository(ctx, &v1alpha1.Repository{
 		Repo: "https://github.com/argoproj/argocd-example-APPS",
 	})
-	require.ErrorContains(t, err, "already exists")
+	assert.Contains(t, err.Error(), "already exists")
 	assert.Nil(t, repo)
 
 	repo, err = db.GetRepository(ctx, "https://github.com/argoproj/argocd-example-APPS", "")
@@ -626,7 +662,7 @@ func TestListHelmRepositories(t *testing.T) {
     key: key
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: testNamespace,
@@ -674,7 +710,7 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
     key: key
 `,
 	}
-	clientset := getClientset(config, &corev1.Secret{
+	clientset := getClientset(config, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-secret",
 			Namespace: testNamespace,
@@ -716,6 +752,62 @@ func TestHelmRepositorySecretsTrim(t *testing.T) {
 	}
 }
 
+func TestGetClusterServersByName(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("my-cluster-name"),
+			"server": []byte("https://my-cluster-server"),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "my-cluster-name")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"https://my-cluster-server"}, servers)
+}
+
+func TestGetClusterServersByName_InClusterNotConfigured(t *testing.T) {
+	clientset := getClientset(nil)
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+}
+
+func TestGetClusterServersByName_InClusterConfigured(t *testing.T) {
+	clientset := getClientset(nil, &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("in-cluster-renamed"),
+			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
+			"config": []byte("{}"),
+		},
+	})
+	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+}
+
 func TestGetApplicationControllerReplicas(t *testing.T) {
 	clientset := getClientset(nil)
 	expectedReplicas := int32(2)
@@ -725,12 +817,12 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	assert.Equal(t, int(expectedReplicas), replicas)
 
 	expectedReplicas = int32(3)
-	clientset = getClientset(nil, &appsv1.Deployment{
+	clientset = getClientset(nil, &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ApplicationController,
 			Namespace: testNamespace,
 		},
-		Spec: appsv1.DeploymentSpec{
+		Spec: appv1.DeploymentSpec{
 			Replicas: &expectedReplicas,
 		},
 	})

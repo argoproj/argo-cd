@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	util_session "github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +26,7 @@ const (
 var upgrader = func() websocket.Upgrader {
 	upgrader := websocket.Upgrader{}
 	upgrader.HandshakeTimeout = time.Second * 2
-	upgrader.CheckOrigin = func(_ *http.Request) bool {
+	upgrader.CheckOrigin = func(r *http.Request) bool {
 		return true
 	}
 	return upgrader
@@ -144,7 +144,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
+		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 
 	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
@@ -152,7 +152,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
 		}
-		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
+		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 	return 0, nil
 }
@@ -178,7 +178,7 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 	return 0, nil
 }
 
-// Read called in a loop from remote command as long as the process is running
+// Read called in a loop from remotecommand as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
 	code, err := t.performValidationsAndReconnect(p)
 	if err != nil {
@@ -189,11 +189,7 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	t.readLock.Unlock()
 	if err != nil {
-		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-			log.Errorf("unexpected closer error: %v", err)
-			return copy(p, EndOfTransmission), err
-		}
-		log.Errorf("read message error: %v", err)
+		log.Errorf("read message err: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage
@@ -223,7 +219,7 @@ func (t *terminalSession) Ping() error {
 	return err
 }
 
-// Write called from remote command whenever there is any output
+// Write called from remotecommand whenever there is any output
 func (t *terminalSession) Write(p []byte) (int, error) {
 	msg, err := json.Marshal(TerminalMessage{
 		Operation: "stdout",

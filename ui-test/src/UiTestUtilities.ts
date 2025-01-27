@@ -49,20 +49,21 @@ export default class UiTestUtilities {
      */
     public static async init(): Promise<Navigation> {
         const options = new chrome.Options();
-        UiTestUtilities.log('Env var IS_HEADLESS = ' + process.env.IS_HEADLESS);
-        if (process.env.IS_HEADLESS !== 'false') {
-            UiTestUtilities.log('Adding headless option');
+        if (process.env.IS_HEADLESS) {
             options.addArguments('headless');
         }
         options.addArguments('window-size=1400x1200');
-        const driver = await new Builder().forBrowser('chrome').setChromeOptions(options).build();
+        const driver = await new Builder()
+            .forBrowser('chrome')
+            .setChromeOptions(options)
+            .build();
 
         UiTestUtilities.log('Environment variables are:');
         UiTestUtilities.log(require('dotenv').config({path: __dirname + '/../.env'}));
 
         // Navigate to the ArgoCD URL
         await driver.get(Configuration.ARGOCD_URL);
-        UiTestUtilities.log('Navigate to Argo CD URL successful: driver.get');
+
         return new Navigation(driver);
     }
 
@@ -79,7 +80,7 @@ export default class UiTestUtilities {
                 timeout = parseInt(Configuration.TEST_TIMEOUT, 10);
             }
             const element = await driver.wait(until.elementLocated(locator), timeout);
-            const isDisplayed = await element.isDisplayed();
+            var isDisplayed = await element.isDisplayed();
             if (isDisplayed) {
                 await driver.wait(until.elementIsVisible(element), timeout);
             }

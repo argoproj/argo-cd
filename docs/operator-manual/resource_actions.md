@@ -80,7 +80,7 @@ The `discovery.lua` script must return a table where the key name represents the
 
 Each action name must be represented in the list of `definitions` with an accompanying `action.lua` script to control the resource modifications. The `obj` is a global variable which contains the resource. Each action script returns an optionally modified version of the resource. In this example, we are simply setting `.spec.suspend` to either `true` or `false`.
 
-By default, defining a resource action customization will override any built-in action for this resource kind. As of Argo CD version 2.13.0, if you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
+By default, defining a resource action customization will override any built-in action for this resource kind. If you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
 ```yaml        
 resource.customizations.actions.argoproj.io_Rollout: |
   mergeBuiltinActions: true

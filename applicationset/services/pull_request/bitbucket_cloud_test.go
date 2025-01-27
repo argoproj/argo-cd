@@ -11,11 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -241,8 +240,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 }
 
 func TestListResponseErrorCloud(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
 	}))
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")

@@ -8,15 +8,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apiv1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 var _ repositoryBackend = &legacyRepositoryBackend{}
@@ -27,13 +27,13 @@ type legacyRepositoryBackend struct {
 	db *db
 }
 
-func (l *legacyRepositoryBackend) CreateRepository(_ context.Context, _ *appsv1.Repository) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
 	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repositories is not supported for the legacy repository backend")
 }
 
-func (l *legacyRepositoryBackend) GetRepository(_ context.Context, repoURL, _ string) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
 	repository, err := l.tryGetRepository(repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get repository: %w", err)
@@ -41,7 +41,7 @@ func (l *legacyRepositoryBackend) GetRepository(_ context.Context, repoURL, _ st
 	return repository, nil
 }
 
-func (l *legacyRepositoryBackend) ListRepositories(_ context.Context, repoType *string) ([]*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
 	inRepos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -52,17 +52,18 @@ func (l *legacyRepositoryBackend) ListRepositories(_ context.Context, repoType *
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := l.tryGetRepository(inRepo.URL)
 			if err != nil {
-				if r == nil || !errors.IsCredentialsConfigurationError(err) {
+				if r != nil && errors.IsCredentialsConfigurationError(err) {
+					modifiedTime := metav1.Now()
+					r.ConnectionState = appsv1.ConnectionState{
+						Status:     appsv1.ConnectionStatusFailed,
+						Message:    "Configuration error - please check the server logs",
+						ModifiedAt: &modifiedTime,
+					}
+
+					log.Warnf("could not retrieve repo: %s", err.Error())
+				} else {
 					return nil, err
 				}
-				modifiedTime := metav1.Now()
-				r.ConnectionState = appsv1.ConnectionState{
-					Status:     appsv1.ConnectionStatusFailed,
-					Message:    "Configuration error - please check the server logs",
-					ModifiedAt: &modifiedTime,
-				}
-
-				log.Warnf("could not retrieve repo: %s", err.Error())
 			}
 			repos = append(repos, r)
 		}
@@ -70,7 +71,7 @@ func (l *legacyRepositoryBackend) ListRepositories(_ context.Context, repoType *
 	return repos, nil
 }
 
-func (l *legacyRepositoryBackend) UpdateRepository(_ context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -101,7 +102,7 @@ func (l *legacyRepositoryBackend) UpdateRepository(_ context.Context, r *appsv1.
 	return r, nil
 }
 
-func (l *legacyRepositoryBackend) DeleteRepository(_ context.Context, repoURL, _ string) error {
+func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL, project string) error {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func (l *legacyRepositoryBackend) DeleteRepository(_ context.Context, repoURL, _
 	return l.db.settingsMgr.SaveRepositories(repos)
 }
 
-func (l *legacyRepositoryBackend) RepositoryExists(_ context.Context, repoURL, _ string, _ bool) (bool, error) {
+func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL, project string, allowFallback bool) (bool, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return false, fmt.Errorf("unable to get repositories: %w", err)
@@ -136,13 +137,13 @@ func (l *legacyRepositoryBackend) RepositoryExists(_ context.Context, repoURL, _
 	return index >= 0, nil
 }
 
-func (l *legacyRepositoryBackend) CreateRepoCreds(_ context.Context, _ *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
 	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repository credentials is not supported for the legacy repository backend")
 }
 
-func (l *legacyRepositoryBackend) GetRepoCreds(_ context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
 	var credential *appsv1.RepoCreds
 
 	repoCredentials, err := l.db.settingsMgr.GetRepositoryCredentials()
@@ -160,7 +161,7 @@ func (l *legacyRepositoryBackend) GetRepoCreds(_ context.Context, repoURL string
 	return credential, err
 }
 
-func (l *legacyRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {
+func (l *legacyRepositoryBackend) ListRepoCreds(ctx context.Context) ([]string, error) {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -174,7 +175,7 @@ func (l *legacyRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, er
 	return urls, nil
 }
 
-func (l *legacyRepositoryBackend) UpdateRepoCreds(_ context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -199,7 +200,7 @@ func (l *legacyRepositoryBackend) UpdateRepoCreds(_ context.Context, r *appsv1.R
 	return r, nil
 }
 
-func (l *legacyRepositoryBackend) DeleteRepoCreds(_ context.Context, name string) error {
+func (l *legacyRepositoryBackend) DeleteRepoCreds(ctx context.Context, name string) error {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return err
@@ -224,7 +225,7 @@ func (l *legacyRepositoryBackend) DeleteRepoCreds(_ context.Context, name string
 	return l.db.settingsMgr.SaveRepositoryCredentials(repos)
 }
 
-func (l *legacyRepositoryBackend) RepoCredsExists(_ context.Context, repoURL string) (bool, error) {
+func (l *legacyRepositoryBackend) RepoCredsExists(ctx context.Context, repoURL string) (bool, error) {
 	creds, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return false, err
@@ -234,7 +235,7 @@ func (l *legacyRepositoryBackend) RepoCredsExists(_ context.Context, repoURL str
 	return index >= 0, nil
 }
 
-func (l *legacyRepositoryBackend) GetAllHelmRepoCreds(_ context.Context) ([]*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error) {
 	var allCredentials []*appsv1.RepoCreds
 	repoCredentials, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
@@ -306,11 +307,11 @@ func (l *legacyRepositoryBackend) updateCredentialsSecret(credsInfo *settings.Re
 func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]byte) error {
 	secret, err := l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if apierr.IsNotFound(err) {
 			if len(data) == 0 {
 				return nil
 			}
-			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Create(context.Background(), &corev1.Secret{
+			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Create(context.Background(), &apiv1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 					Annotations: map[string]string{
@@ -340,10 +341,11 @@ func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]by
 				return l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
 			return nil
-		}
-		_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
-		if err != nil {
-			return err
+		} else {
+			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -385,7 +387,7 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		Proxy:                      repoInfo.Proxy,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*corev1.SecretKeySelector{
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
 		{Dest: &repo.Username, Transform: StripCRLFCharacter}:             repoInfo.UsernameSecret,
 		{Dest: &repo.Password, Transform: StripCRLFCharacter}:             repoInfo.PasswordSecret,
 		{Dest: &repo.SSHPrivateKey, Transform: StripCRLFCharacter}:        repoInfo.SSHPrivateKeySecret,
@@ -393,7 +395,7 @@ func (l *legacyRepositoryBackend) credentialsToRepository(repoInfo settings.Repo
 		{Dest: &repo.TLSClientCertKey, Transform: StripCRLFCharacter}:     repoInfo.TLSClientCertKeySecret,
 		{Dest: &repo.GithubAppPrivateKey, Transform: StripCRLFCharacter}:  repoInfo.GithubAppPrivateKeySecret,
 		{Dest: &repo.GCPServiceAccountKey, Transform: StripCRLFCharacter}: repoInfo.GCPServiceAccountKey,
-	}, make(map[string]*corev1.Secret))
+	}, make(map[string]*apiv1.Secret))
 	return repo, err
 }
 
@@ -405,7 +407,7 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		GitHubAppEnterpriseBaseURL: repoInfo.GithubAppEnterpriseBaseURL,
 		EnableOCI:                  repoInfo.EnableOCI,
 	}
-	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*corev1.SecretKeySelector{
+	err := l.db.unmarshalFromSecretsStr(map[*SecretMaperValidation]*apiv1.SecretKeySelector{
 		{Dest: &creds.Username}:             repoInfo.UsernameSecret,
 		{Dest: &creds.Password}:             repoInfo.PasswordSecret,
 		{Dest: &creds.SSHPrivateKey}:        repoInfo.SSHPrivateKeySecret,
@@ -413,17 +415,17 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 		{Dest: &creds.TLSClientCertKey}:     repoInfo.TLSClientCertKeySecret,
 		{Dest: &creds.GithubAppPrivateKey}:  repoInfo.GithubAppPrivateKeySecret,
 		{Dest: &creds.GCPServiceAccountKey}: repoInfo.GCPServiceAccountKey,
-	}, make(map[string]*corev1.Secret))
+	}, make(map[string]*apiv1.Secret))
 	return creds, err
 }
 
 // Set data to be stored in a given secret used for repository credentials and templates.
 // The name of the secret is a combination of the prefix given, and a calculated value
 // from the repository or template URL.
-func (l *legacyRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *corev1.SecretKeySelector, value string, defaultKeyName string) *corev1.SecretKeySelector {
+func (l *legacyRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
 	if secretKey == nil && value != "" {
-		secretKey = &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url, "")},
+		secretKey = &apiv1.SecretKeySelector{
+			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url, "")},
 			Key:                  defaultKeyName,
 		}
 	}

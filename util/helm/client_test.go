@@ -17,8 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type fakeIndexCache struct {
@@ -37,18 +36,18 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", HelmCreds{}, false, "", "")
+		client := NewClient("", Creds{}, false, "", "")
 		_, err := client.GetIndex(false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
 		index, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "", "")
@@ -63,7 +62,7 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false, 10000)
 
 		require.NoError(t, err)
@@ -71,7 +70,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
 		_, err := client.GetIndex(false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
@@ -79,7 +78,7 @@ func TestIndex(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
@@ -89,13 +88,13 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
 	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "", "")
 	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer io.Close(closer)
@@ -186,10 +185,13 @@ func TestGetTagsFromUrl(t *testing.T) {
 				}
 			}
 			w.WriteHeader(http.StatusOK)
-			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+			err := json.NewEncoder(w).Encode(responseTags)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}))
 
-		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
+		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "", "")
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
@@ -205,7 +207,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	})
 
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
-		client := NewClient("example.com", HelmCreds{}, false, "", "")
+		client := NewClient("example.com", Creds{}, false, "", "")
 
 		_, err := client.GetTags("my-chart", true)
 		assert.ErrorIs(t, OCINotEnabledErr, err)
@@ -241,7 +243,10 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -258,7 +263,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -266,114 +271,16 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: serverURL.Host + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			client := NewClient(testCase.repoURL, HelmCreds{
+			client := NewClient(testCase.repoURL, Creds{
 				InsecureSkipVerify: true,
 				Username:           username,
 				Password:           password,
-			}, true, "", "")
-
-			tags, err := client.GetTags("mychart", true)
-
-			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
-				"2.8.0",
-				"2.8.0-prerelease",
-				"2.8.0+build",
-				"2.8.0-prerelease+build",
-				"2.8.0-prerelease.1+build.1234",
-			})
-		})
-	}
-}
-
-func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *testing.T) {
-	expectedAuthorization := "Basic MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOmFjY2Vzc1Rva2Vu" // base64(00000000-0000-0000-0000-000000000000:accessToken)
-	mockUrl := ""
-	serverUrl := func() string {
-		return mockUrl
-	}
-
-	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
-
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("called %s", r.URL.Path)
-
-		switch r.URL.Path {
-		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, serverUrl(), serverUrl()[8:]))
-			w.WriteHeader(http.StatusUnauthorized)
-
-		case "/oauth2/exchange":
-			response := `{"refresh_token":"accessToken"}`
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte(response))
-			require.NoError(t, err)
-		default:
-			authorization := r.Header.Get("Authorization")
-
-			if authorization == "" {
-				w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			assert.Equal(t, expectedAuthorization, authorization)
-
-			responseTags := TagsList{
-				Tags: []string{
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
-				},
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
-		}
-	}))
-	mockUrl = server.URL
-	t.Cleanup(server.Close)
-
-	serverURL, err := url.Parse(server.URL)
-	require.NoError(t, err)
-
-	testCases := []struct {
-		name    string
-		repoURL string
-	}{
-		{
-			name:    "should login correctly when the repo path is in the server root with http scheme",
-			repoURL: server.URL,
-		},
-		{
-			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
-		},
-		{
-			name:    "should login correctly when the repo path is in the server root without http scheme",
-			repoURL: serverURL.Host,
-		},
-		{
-			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: serverURL.Host + "/my-repo",
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			client := NewClient(testCase.repoURL, AzureWorkloadIdentityCreds{
-				repoUrl:            server.URL[8:],
-				InsecureSkipVerify: true,
-				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
 
 			tags, err := client.GetTags("mychart", true)
@@ -417,7 +324,10 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -441,7 +351,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -449,13 +359,13 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: serverURL.Host + "/my-repo",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			client := NewClient(testCase.repoURL, HelmCreds{
+			client := NewClient(testCase.repoURL, Creds{
 				InsecureSkipVerify: true,
 			}, true, "", "")
 

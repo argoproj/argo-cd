@@ -4,8 +4,6 @@ const observerOptions = {
   subtree: true
 };
 
-const VERSION_REGEX = /\/en\/(release-(?:v\d+|[\d\.]+|\w+)|latest|stable)\//;
-
 const observerCallback = function(mutationsList, observer) {
   for (let mutation of mutationsList) {
     if (mutation.type === 'childList') {
@@ -22,7 +20,7 @@ const observer = new MutationObserver(observerCallback);
 observer.observe(targetNode, observerOptions);
 
 function getCurrentVersion() {
-  const currentVersion = window.location.href.match(VERSION_REGEX);
+  const currentVersion = window.location.href.match(/\/en\/(release-(?:v\d+|[\d\.]+|\w+)|latest|stable)\//);
   if (currentVersion && currentVersion.length > 1) {
     return currentVersion[1];
   }
@@ -82,16 +80,11 @@ function sortVersionLinks(container) {
   const dlElements = container.querySelectorAll('dl');
 
   dlElements.forEach(dl => {
-    const ddElements = Array.from(dl.querySelectorAll('dd'));
+    const dt = dl.querySelector('dt');
+    if (dt && dt.textContent.trim().toLowerCase() === 'versions') {
+      // Found the Versions <dl>
+      const ddElements = Array.from(dl.querySelectorAll('dd'));
 
-    // Check if ddElements contain version links
-    const isVersionDl = ddElements.some(dd => {
-      const link = dd.querySelector('a');
-      return VERSION_REGEX.test(link?.getAttribute?.('href'));
-    });
-
-    // This dl contains version links, proceed to sort
-    if (isVersionDl) {
       // Define sorting criteria
       ddElements.sort((a, b) => {
         const aText = a.textContent.trim().toLowerCase();
@@ -110,7 +103,7 @@ function sortVersionLinks(container) {
         if (aVersionMatch && bVersionMatch) {
           const aVersion = aVersionMatch[1].split('.').map(Number);
           const bVersion = bVersionMatch[1].split('.').map(Number);
-
+          
           for (let i = 0; i < Math.max(aVersion.length, bVersion.length); i++) {
             const aNum = aVersion[i] || 0;
             const bNum = bVersion[i] || 0;

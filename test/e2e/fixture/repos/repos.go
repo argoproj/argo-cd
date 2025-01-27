@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var (
@@ -160,7 +160,7 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 	errors.CheckError(err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
+	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
 	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -172,6 +172,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmOCIRegistryURL,
+		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
 	))
 }

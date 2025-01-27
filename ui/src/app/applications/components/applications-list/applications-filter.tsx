@@ -278,7 +278,7 @@ const AutoSyncFilter = (props: AppFilterProps) => (
 
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
-        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
             <SyncFilter {...props} />
             <HealthFilter {...props} />

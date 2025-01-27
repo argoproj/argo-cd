@@ -8,24 +8,26 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/security"
-	util_session "github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
+
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	sessionmgr "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type terminalHandler struct {
@@ -46,7 +48,7 @@ type TerminalOptions struct {
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, cache *servercache.Cache, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, cache *servercache.Cache, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *sessionmgr.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -61,15 +63,14 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 }
 
 func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+	if err := argo.ValidateDestination(ctx, &a.Spec.Destination, s.db); err != nil {
+		return nil, err
+	}
+	clst, err := s.db.GetCluster(ctx, a.Spec.Destination.Server)
 	if err != nil {
 		return nil, err
 	}
-	rawConfig, err := destCluster.RawRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	return rawConfig, nil
+	return clst.RawRestConfig(), nil
 }
 
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
@@ -159,13 +160,13 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fieldLog := log.WithFields(log.Fields{
-		"application": app, "userName": util_session.Username(ctx), "container": container,
+		"application": app, "userName": sessionmgr.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace,
 	})
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if apierr.IsNotFound(err) {
 			http.Error(w, "App not found", http.StatusNotFound)
 			return
 		}
@@ -211,7 +212,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pod.Status.Phase != corev1.PodRunning {
+	if pod.Status.Phase != v1.PodRunning {
 		http.Error(w, "Pod not running", http.StatusBadRequest)
 		return
 	}
@@ -304,7 +305,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		Namespace(namespace).
 		SubResource("exec")
 
-	req.VersionedParams(&corev1.PodExecOptions{
+	req.VersionedParams(&v1.PodExecOptions{
 		Container: containerName,
 		Command:   cmd,
 		Stdin:     true,

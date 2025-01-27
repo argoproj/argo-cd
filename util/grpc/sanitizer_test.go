@@ -40,7 +40,7 @@ func TestSanitizer_RegexReplacement(t *testing.T) {
 func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {
 	interceptor := ErrorSanitizerUnaryServerInterceptor()
 
-	_, err := interceptor(context.Background(), nil, nil, func(ctx context.Context, _ any) (any, error) {
+	_, err := interceptor(context.Background(), nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
 		sanitizer, ok := SanitizerFromContext(ctx)
 		require.True(t, ok)
 		sanitizer.AddReplacement("/my-random/path", ".")

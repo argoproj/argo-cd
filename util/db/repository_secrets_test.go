@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,9 +18,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
@@ -83,17 +83,16 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		// given
 		t.Parallel()
 		secret := &corev1.Secret{}
-		s := secretsRepositoryBackend{}
-		s.repositoryToSecret(repo, secret)
+		repositoryToSecret(repo, secret)
 		delete(secret.Labels, common.LabelKeySecretType)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
 		})
 
 		// when
@@ -120,21 +119,20 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 				Namespace: "default",
 			},
 		}
-		s := secretsRepositoryBackend{}
-		s.repositoryToSecret(repo, secret)
+		repositoryToSecret(repo, secret)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil
-		f.clientSet.AddReactor("create", "secrets", func(_ k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		f.clientSet.AddReactor("create", "secrets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 			gr := schema.GroupResource{
 				Group:    "v1",
 				Resource: "secrets",
 			}
-			return true, nil, apierrors.NewAlreadyExists(gr, "already exists")
+			return true, nil, k8serrors.NewAlreadyExists(gr, "already exists")
 		})
 		watcher := watch.NewFakeWithChanSize(1, true)
 		watcher.Add(secret)
-		f.clientSet.AddWatchReactor("secrets", func(_ k8stesting.Action) (handled bool, ret watch.Interface, err error) {
+		f.clientSet.AddWatchReactor("secrets", func(action k8stesting.Action) (handled bool, ret watch.Interface, err error) {
 			return true, watcher, nil
 		})
 
@@ -295,16 +293,15 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		switch {
-		case repository.Name == "ArgoCD":
+		if repository.Name == "ArgoCD" {
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		case repository.Name == "UserManagedRepo":
+		} else if repository.Name == "UserManagedRepo" {
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
-		default:
+		} else {
 			assert.Fail(t, "unexpected repository found in list")
 		}
 	}
@@ -685,7 +682,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 
 	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
 	require.NoError(t, err)
-	require.NotNil(t, repoCred)
+	assert.NotNil(t, repoCred)
 	assert.Equal(t, "git@github.com:argoproj", repoCred.URL)
 	assert.Equal(t, "someUsername", repoCred.Username)
 	assert.Equal(t, "somePassword", repoCred.Password)
