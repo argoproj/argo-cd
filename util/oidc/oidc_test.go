@@ -139,9 +139,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
+		assert.Contains(t, w.Body.String(), "certificate signed by unknown authority")
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
