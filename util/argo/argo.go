@@ -811,6 +811,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
+		a = a.DeepCopy()
 		if a.Operation != nil {
 			return nil, ErrAnotherOperationInProgress
 		}
