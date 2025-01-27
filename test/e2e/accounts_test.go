@@ -43,9 +43,22 @@ func TestCanIGetLogsAllow(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
+		Project(ProjectName).
 		When().
 		Create().
 		Login().
+		SetPermissions([]ACL{
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "apps",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "log-viewer").
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
