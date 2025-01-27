@@ -3608,6 +3608,55 @@ func TestGetGitFiles(t *testing.T) {
 	})
 }
 
+func TestGetGitFilesCachePerGlobbing(t *testing.T) {
+	// test not using the cache
+	files := []string{
+		"./testdata/git-files-dirs/somedir/config.yaml",
+		"./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/app/foo/bar/config.yaml",
+	}
+	root := ""
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
+		gitClient.On("Init").Return(nil)
+		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
+		gitClient.On("Fetch", mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Twice().Return("", nil)
+		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.On("Root").Return(root)
+		gitClient.On("LsFiles", mock.Anything, mock.Anything).Twice().Return(files, nil)
+		paths.On("GetPath", mock.Anything).Return(root, nil)
+		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	}, root)
+	filesRequest := &apiclient.GitFilesRequest{
+		Repo:                      &v1alpha1.Repository{Repo: "a-url.com"},
+		SubmoduleEnabled:          false,
+		Revision:                  "HEAD",
+		NewGitFileGlobbingEnabled: false,
+	}
+
+	// expected map
+	expected := make(map[string][]byte)
+	for _, filePath := range files {
+		fileContents, err := os.ReadFile(filePath)
+		require.NoError(t, err)
+		expected[filePath] = fileContents
+	}
+
+	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
+	require.NoError(t, err)
+	assert.Equal(t, expected, fileResponse.GetMap())
+
+	filesRequest.NewGitFileGlobbingEnabled = true
+
+	// do the same request again with a different globbing algo, so we should not use the cache this time
+	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
+	require.NoError(t, err)
+	assert.Equal(t, expected, fileResponse.GetMap())
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 2,
+		ExternalGets: 2,
+	})
+}
+
 func TestErrorUpdateRevisionForPaths(t *testing.T) {
 	// test not using the cache
 	root := ""

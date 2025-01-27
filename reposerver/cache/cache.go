@@ -450,20 +450,20 @@ func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *a
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func gitFilesKey(repoURL, revision, pattern string) string {
-	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+func gitFilesKey(repoURL, revision, pattern string, enableNewGitFileGlobbing bool) string {
+	return fmt.Sprintf("gitfiles|%s|%s|%s|%t", repoURL, revision, pattern, enableNewGitFileGlobbing)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func (c *Cache) SetGitFiles(repoURL, revision, pattern string, enableNewGitFileGlobbing bool, files map[string][]byte) error {
 	return c.cache.SetItem(
-		gitFilesKey(repoURL, revision, pattern),
+		gitFilesKey(repoURL, revision, pattern, enableNewGitFileGlobbing),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(repoURL, revision, pattern string, enableNewGitFileGlobbing bool) (map[string][]byte, error) {
 	var item map[string][]byte
-	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	return item, c.cache.GetItem(gitFilesKey(repoURL, revision, pattern, enableNewGitFileGlobbing), &item)
 }
 
 func gitDirectoriesKey(repoURL, revision string) string {
