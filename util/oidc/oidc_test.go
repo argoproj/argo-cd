@@ -480,7 +480,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		// Event with multiple concurrent calls the expiry time should not change untile it passes.
 		assert.Equal(t, currentExpiryTime, app.azure.expires)
-
 	})
 
 	t.Run("Concurrent access to the function when the current token expires", func(t *testing.T) {
@@ -501,7 +500,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		wg.Wait()
 
 		assert.NotEqual(t, currentExpiryTime, app.azure.expires)
-
 	})
 }
 
