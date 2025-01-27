@@ -36,6 +36,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusDegraded)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-2", SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusMissing)).
+		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "cm-2", DeploymentNamespace(), SyncStatusCodeOutOfSync)).
 		When().
 		PatchFile("cm-1.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
 		PatchFile("cm-2.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
