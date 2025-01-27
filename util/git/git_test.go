@@ -455,27 +455,30 @@ func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
-	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
+	err := runCmd(tmpDir1, "git", "init")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir1, "git", "init")
+	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	// Prepare files
 	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
 	require.NoError(t, err)
 	a.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755)
+	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir", "otherdir"), 0o755)
 	require.NoError(t, err)
 	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
 	require.NoError(t, err)
 	b.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
-	require.NoError(t, err)
-	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
+	c, err := os.Create(filepath.Join(tmpDir1, "subdir", "otherdir", "c.yaml"))
 	require.NoError(t, err)
 	c.Close()
-	err = os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml"))
+	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
+	require.NoError(t, err)
+	z, err := os.Create(filepath.Join(tmpDir2, "z.yaml"))
+	require.NoError(t, err)
+	z.Close()
+	err = os.Symlink(filepath.Join(tmpDir2, "z.yaml"), filepath.Join(tmpDir1, "link.yaml"))
 	require.NoError(t, err)
 
 	err = runCmd(tmpDir1, "git", "add", ".")
@@ -483,21 +486,59 @@ func TestLsFiles(t *testing.T) {
 	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
 	require.NoError(t, err)
 
-	// Old and default globbing
-	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
-	lsResult, err := client.LsFiles("*.yaml", false)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
+	t.Run("Old globbing returns all subfolder files", func(t *testing.T) {
+		expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml", "subdir/otherdir/c.yaml"}
+		lsResult, err := client.LsFiles("*.yaml", false)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
 
-	// New and safer globbing, do not return symlinks resolving outside of the repo
-	expectedResult = []string{"a.yaml"}
-	lsResult, err = client.LsFiles("*.yaml", true)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
+	t.Run("New globbing returns current folder files without symlinks", func(t *testing.T) {
+		expectedResult := []string{"a.yaml"}
+		lsResult, err := client.LsFiles("*.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
 
-	// New globbing, do not return files outside of the repo
-	var nilResult []string
-	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
-	require.NoError(t, err)
-	assert.Equal(t, nilResult, lsResult)
+	t.Run("New globbing returns current folder files with **", func(t *testing.T) {
+		expectedResult := []string{"a.yaml"}
+		lsResult, err := client.LsFiles("**.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
+
+	t.Run("New globbing returns current matching subfolder files only", func(t *testing.T) {
+		expectedResult := []string{"subdir/b.yaml"}
+		lsResult, err := client.LsFiles("*/*.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
+
+	t.Run("New globbing returns all current and possible subfolders files", func(t *testing.T) {
+		expectedResult := []string{"a.yaml", "subdir/b.yaml", "subdir/otherdir/c.yaml"}
+		lsResult, err := client.LsFiles("**/*.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
+
+	t.Run("New globbing returns any subfolder files", func(t *testing.T) {
+		expectedResult := []string{"subdir/b.yaml", "subdir/otherdir/c.yaml"}
+		lsResult, err := client.LsFiles("*/**/*.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
+
+	t.Run("New globbing returns specifc subfolder files", func(t *testing.T) {
+		expectedResult := []string{"subdir/otherdir/c.yaml"}
+		lsResult, err := client.LsFiles("*/*/*.yaml", true)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResult, lsResult)
+	})
+
+	t.Run("New globbing, do not return files outside of the repo", func(t *testing.T) {
+		var nilResult []string
+		lsResult, err := client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
+		require.NoError(t, err)
+		assert.Equal(t, nilResult, lsResult)
+	})
 }
