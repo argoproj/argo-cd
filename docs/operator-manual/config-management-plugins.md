@@ -113,10 +113,6 @@ spec:
   # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
   # might have executable files. Set to true only if you trust the CMP plugin authors.
   preserveFileMode: false
-
-  # If set to `true` then the plugin can retrieve git credentials from the reposerver during generate. Plugin authors 
-  # should ensure these credentials are appropriately protected during execution
-  provideGitCreds: false
 ```
 
 !!! note
@@ -363,16 +359,6 @@ You can set it one of three ways:
 For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
 them with semicolons.
 
-## Application manifests generation using argocd.argoproj.io/manifest-generate-paths
-
-To enhance the application manifests generation process, you can enable the use of the `argocd.argoproj.io/manifest-generate-paths` annotation. When this flag is enabled, the resources specified by this annotation will be passed to the CMP server for generating application manifests, rather than sending the entire repository. This can be particularly useful for monorepos.
-
-You can set it one of three ways:
-
-1. The `--plugin-use-manifest-generate-paths` argument on the repo server.
-2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
-3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
-
 ## Migrating from argocd-cm plugins
 
 Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4 and has been completely removed starting in v2.8.
@@ -507,36 +493,3 @@ spec:
     args: ["sample args"]
   preserveFileMode: true
 ```
-
-##### Provide Git Credentials
-
-By default, the config management plugin is responsible for providing its own credentials to additional Git repositories
-that may need to be accessed during manifest generation. The reposerver has these credentials available in its git creds
-store. When credential sharing is allowed, the git credentials used by the reposerver to clone the repository contents
-are shared for the lifetime of the execution of the config management plugin, utilizing git's `ASKPASS` method to make a
-call from the config management sidecar container to the reposerver to retrieve the initialized git credentials.
-
-Utilizing `ASKPASS` means that credentials are not proactively shared, but rather only provided when an operation requires
-them.
-
-To allow the plugin to access the reposerver git credentials, you can set `provideGitCreds` to `true` in the plugin spec:
-
-!!! warning
-    Make sure you trust the plugin you are using. If you set `provideGitCreds` to `true` then the plugin will receive
-    credentials used to clone the source Git repository.
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: pluginName
-spec:
-  init:
-    command: ["sample command"]
-    args: ["sample args"]
-  generate:
-    command: ["sample command"]
-    args: ["sample args"]
-  provideGitCreds: true
-```
-

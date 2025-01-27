@@ -2,55 +2,48 @@ package controller
 
 import (
 	"context"
-	stderrors "errors"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
-	cdcommon "github.com/argoproj/argo-cd/v3/common"
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/v3/controller/metrics"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/glob"
-	logutils "github.com/argoproj/argo-cd/v3/util/log"
-	"github.com/argoproj/argo-cd/v3/util/lua"
-	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	logutils "github.com/argoproj/argo-cd/v2/util/log"
+	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v2/util/rand"
 )
 
-var syncIdPrefix uint64
+var syncIdPrefix uint64 = 0
 
 const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
-
-	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
-	// in a DefaultServiceAccount configured for a DestinationServiceAccount
-	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
+func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -58,7 +51,7 @@ func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Re
 	return cluster.GetOpenAPISchema(), nil
 }
 
-func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
+func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
@@ -70,17 +63,17 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // interface that provides functionality to manage kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getResourceOperations(cluster *v1alpha1.Cluster) (kube.ResourceOperations, func(), error) {
-	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
+func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
 	}
 
-	rawConfig, err := cluster.RawRestConfig()
+	cluster, err := m.db.GetCluster(context.Background(), server)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
+		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -112,7 +105,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = "Shared resource found: " + sharedResourceMessage
+		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
 		return
 	}
 
@@ -169,7 +162,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	proj, err := argo.GetAppProject(context.TODO(), app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db)
+	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
@@ -195,7 +188,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
 	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
-	if err != nil && !stderrors.Is(err, CompareStateRepoError) {
+	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
@@ -216,27 +209,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = fmt.Sprintf("Failed to get destination cluster: %v", err)
-		return
-	}
-
-	rawConfig, err := destCluster.RawRestConfig()
+	clst, err := m.db.GetCluster(context.Background(), app.Spec.Destination.Server)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
 		return
 	}
 
-	clusterRESTConfig, err := destCluster.RESTConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
+	rawConfig := clst.RawRestConfig()
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -270,17 +251,17 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		})
 	}
 
-	prunePropagationPolicy := metav1.DeletePropagationForeground
+	prunePropagationPolicy := v1.DeletePropagationForeground
 	switch {
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=background"):
-		prunePropagationPolicy = metav1.DeletePropagationBackground
+		prunePropagationPolicy = v1.DeletePropagationBackground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=foreground"):
-		prunePropagationPolicy = metav1.DeletePropagationForeground
+		prunePropagationPolicy = v1.DeletePropagationForeground
 	case syncOp.SyncOptions.HasOption("PrunePropagationPolicy=orphan"):
-		prunePropagationPolicy = metav1.DeletePropagationOrphan
+		prunePropagationPolicy = v1.DeletePropagationOrphan
 	}
 
-	openAPISchema, err := m.getOpenAPISchema(destCluster)
+	openAPISchema, err := m.getOpenAPISchema(clst.Server)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
@@ -302,6 +283,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		reconciliationResult.Target = patchedTargets
 	}
 
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Errorf("Could not get appInstanceLabelKey: %v", err)
+		return
+	}
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
@@ -309,37 +295,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
-	if err != nil {
-		log.Errorf("could not get impersonation feature flag: %v", err)
-		return
-	}
-	if impersonationEnabled {
-		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
-		if err != nil {
-			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
-			return
-		}
-		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
-		// set the impersonation headers.
-		rawConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
-		}
-		restConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
-		}
-	}
-
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
-		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
+		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
 			if !proj.IsGroupKindPermitted(un.GroupVersionKind().GroupKind(), res.Namespaced) {
 				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, proj.Name)
 			}
 			if res.Namespaced {
-				permitted, err := proj.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
+				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
@@ -358,7 +322,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), trackingMethod, installationID)
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -368,11 +332,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
-		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
-		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(app.Spec.SyncPolicy)))
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
 	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(
@@ -412,9 +375,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	for _, res := range resState {
 		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
 			if apiVersion == nil {
-				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(destCluster)
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get version info from the target cluster %q", destCluster.Server)
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
 				}
 			}
 			return apiVersion, nil
@@ -519,7 +482,7 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 
 // applyMergePatch will apply the given patch in the obj and return the patched
 // unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject interface{}) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -562,7 +525,7 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 // Note, this is not foolproof, since a proper fix would require the CRD record
 // status.observedGeneration coupled with a health.lua that verifies
 // status.observedGeneration == metadata.generation
-func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
+func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) error {
 	if !finalWave {
 		delaySec := 2
 		if delaySecStr := os.Getenv(EnvVarSyncWaveDelay); delaySecStr != "" {
@@ -588,39 +551,4 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 		return true, err
 	}
 	return !canSync, nil
-}
-
-// deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
-// The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
-	// spec.Destination.Namespace is optional. If not specified, use the Application's
-	// namespace
-	serviceAccountNamespace := application.Spec.Destination.Namespace
-	if serviceAccountNamespace == "" {
-		serviceAccountNamespace = application.Namespace
-	}
-	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
-	// if so, return the service account specified for that destination.
-	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
-		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
-		}
-		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
-		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination namespace: %w", err)
-		}
-		if dstServerMatched && dstNamespaceMatched {
-			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
-				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
-			} else if strings.Contains(item.DefaultServiceAccount, ":") {
-				// service account is specified along with its namespace.
-				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
-			}
-			// service account needs to be prefixed with a namespace
-			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
-		}
-	}
-	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
-	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
 }

@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 var resourceNamePattern = regexp.MustCompile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
@@ -21,7 +21,7 @@ func IsValidResourceName(name string) bool {
 // SetAppInstanceLabel the recommended app.kubernetes.io/instance label against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) error {
-	labels, err := nestedNullableStringMap(target.Object, "metadata", "labels")
+	labels, _, err := nestedNullableStringMap(target.Object, "metadata", "labels")
 	if err != nil {
 		return fmt.Errorf("failed to get labels from target object %s %s/%s: %w", target.GroupVersionKind().String(), target.GetNamespace(), target.GetName(), err)
 	}
@@ -47,7 +47,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 				return err
 			}
 			if !ok || templateLabels == nil {
-				templateLabels = make(map[string]any)
+				templateLabels = make(map[string]interface{})
 			}
 			templateLabels[key] = val
 			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
@@ -78,13 +78,14 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 			}
 		}
 	case "batch":
-		if gvk.Kind == kube.JobKind {
+		switch gvk.Kind {
+		case kube.JobKind:
 			templateLabels, ok, err := unstructured.NestedMap(target.UnstructuredContent(), "spec", "template", "metadata", "labels")
 			if err != nil {
 				return err
 			}
 			if !ok || templateLabels == nil {
-				templateLabels = make(map[string]any)
+				templateLabels = make(map[string]interface{})
 			}
 			templateLabels[key] = val
 			err = unstructured.SetNestedMap(target.UnstructuredContent(), templateLabels, "spec", "template", "metadata", "labels")
@@ -99,7 +100,7 @@ func SetAppInstanceLabel(target *unstructured.Unstructured, key, val string) err
 // SetAppInstanceAnnotation the recommended app.kubernetes.io/instance annotation against an unstructured object
 // Uses the legacy labeling if environment variable is set
 func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string) error {
-	annotations, err := nestedNullableStringMap(target.Object, "metadata", "annotations")
+	annotations, _, err := nestedNullableStringMap(target.Object, "metadata", "annotations")
 	if err != nil {
 		return fmt.Errorf("failed to get annotations from target object %s %s/%s: %w", target.GroupVersionKind().String(), target.GetNamespace(), target.GetName(), err)
 	}
@@ -114,7 +115,7 @@ func SetAppInstanceAnnotation(target *unstructured.Unstructured, key, val string
 
 // GetAppInstanceAnnotation returns the application instance name from annotation
 func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) (string, error) {
-	annotations, err := nestedNullableStringMap(un.Object, "metadata", "annotations")
+	annotations, _, err := nestedNullableStringMap(un.Object, "metadata", "annotations")
 	if err != nil {
 		return "", fmt.Errorf("failed to get annotations from target object %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
 	}
@@ -126,7 +127,7 @@ func GetAppInstanceAnnotation(un *unstructured.Unstructured, key string) (string
 
 // GetAppInstanceLabel returns the application instance name from labels
 func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, error) {
-	labels, err := nestedNullableStringMap(un.Object, "metadata", "labels")
+	labels, _, err := nestedNullableStringMap(un.Object, "metadata", "labels")
 	if err != nil {
 		return "", fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
 	}
@@ -138,7 +139,7 @@ func GetAppInstanceLabel(un *unstructured.Unstructured, key string) (string, err
 
 // RemoveLabel removes label with the specified name
 func RemoveLabel(un *unstructured.Unstructured, key string) error {
-	labels, err := nestedNullableStringMap(un.Object, "metadata", "labels")
+	labels, _, err := nestedNullableStringMap(un.Object, "metadata", "labels")
 	if err != nil {
 		return fmt.Errorf("failed to get labels for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
 	}
@@ -162,7 +163,7 @@ func RemoveLabel(un *unstructured.Unstructured, key string) error {
 
 // RemoveAnnotation removes annotation with the specified name
 func RemoveAnnotation(un *unstructured.Unstructured, key string) error {
-	annotations, err := nestedNullableStringMap(un.Object, "metadata", "annotations")
+	annotations, _, err := nestedNullableStringMap(un.Object, "metadata", "annotations")
 	if err != nil {
 		return fmt.Errorf("failed to get annotations for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
 	}
@@ -185,15 +186,15 @@ func RemoveAnnotation(un *unstructured.Unstructured, key string) error {
 }
 
 // nestedNullableStringMap returns a copy of map[string]string value of a nested field.
-// Returns false if value is not found and an error if not one of map[string]any or nil, or contains non-string values in the map.
-func nestedNullableStringMap(obj map[string]any, fields ...string) (map[string]string, error) {
+// Returns false if value is not found and an error if not one of map[string]interface{} or nil, or contains non-string values in the map.
+func nestedNullableStringMap(obj map[string]interface{}, fields ...string) (map[string]string, bool, error) {
 	var m map[string]string
 	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
 	if err != nil {
-		return nil, err
+		return nil, found, err
 	}
 	if found && val != nil {
-		m, _, err = unstructured.NestedStringMap(obj, fields...)
+		return unstructured.NestedStringMap(obj, fields...)
 	}
-	return m, err
+	return m, found, err
 }

@@ -5,11 +5,11 @@ import (
 	"os"
 	"strings"
 
-	adapter "github.com/bombsimon/logrusr/v4"
+	adapter "github.com/bombsimon/logrusr/v2"
 	"github.com/go-logr/logr"
 	"github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 )
 
 func NewLogrusLogger(fieldLogger logrus.FieldLogger) logr.Logger {
-	return adapter.New(fieldLogger, adapter.WithFormatter(func(val any) any {
+	return adapter.New(fieldLogger, adapter.WithFormatter(func(val interface{}) string {
 		return fmt.Sprintf("%v", val)
 	}))
 }
@@ -36,19 +36,15 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 	var formatType logrus.Formatter
 	switch strings.ToLower(logFormat) {
 	case JsonFormat:
-		formatType = &logrus.JSONFormatter{
-			TimestampFormat: checkTimestampFormat(),
-		}
+		formatType = &logrus.JSONFormatter{}
 	case TextFormat:
 		formatType = &logrus.TextFormatter{
-			ForceColors:     checkForceLogColors(),
-			FullTimestamp:   checkEnableFullTimestamp(),
-			TimestampFormat: checkTimestampFormat(),
+			ForceColors:   checkForceLogColors(),
+			FullTimestamp: checkEnableFullTimestamp(),
 		}
 	default:
 		formatType = &logrus.TextFormatter{
-			FullTimestamp:   checkEnableFullTimestamp(),
-			TimestampFormat: checkTimestampFormat(),
+			FullTimestamp: checkEnableFullTimestamp(),
 		}
 	}
 
@@ -69,8 +65,4 @@ func checkForceLogColors() bool {
 
 func checkEnableFullTimestamp() bool {
 	return strings.ToLower(os.Getenv(common.EnvLogFormatEnableFullTimestamp)) == "1"
-}
-
-func checkTimestampFormat() string {
-	return os.Getenv(common.EnvLogFormatTimestamp)
 }

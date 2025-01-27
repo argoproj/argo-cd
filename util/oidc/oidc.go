@@ -17,23 +17,23 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/crypto"
-	"github.com/argoproj/argo-cd/v3/util/dex"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
+	"github.com/argoproj/argo-cd/v2/util/dex"
 
-	httputil "github.com/argoproj/argo-cd/v3/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/rand"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-var InvalidRedirectURLError = errors.New("invalid return URL")
+var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -148,22 +148,17 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
-	}
-	redirectURL, err := a.settings.RedirectURLForRequest(request)
-	if err != nil {
-		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
-		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
 		Endpoint:     *endpoint,
 		Scopes:       scopes,
-		RedirectURL:  redirectURL,
+		RedirectURL:  a.redirectURI,
 	}, nil
 }
 
@@ -213,8 +208,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1],
-			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
+		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
 			sanitizedUrl := parts[1]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
@@ -272,9 +266,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			// if b.Path == r.Path {
-			//	 return true
-			// }
+			//if b.Path == r.Path {
+			//	return true
+			//}
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
@@ -299,14 +293,14 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = config.RequestedScopes
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
-	oauth2Config, err := a.oauth2Config(r, GetScopesOrDefault(scopes))
+	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	returnURL := r.FormValue("return_url")
 	// Check if return_url is valid, otherwise abort processing (see https://github.com/argoproj/argo-cd/pull/4780)
-	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.AdditionalURLs...)) {
+	if !isValidRedirectURL(returnURL, []string{a.settings.URL}) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
@@ -338,7 +332,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(r, nil)
+	oauth2Config, err := a.oauth2Config(nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -383,7 +377,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
 	}
-	cookiePath := "path=/" + path
+	cookiePath := fmt.Sprintf("path=/%s", path)
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
@@ -404,7 +398,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(sub),
+		Key:    formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
 			Expiration: getTokenExpiration(claims),
@@ -557,24 +551,25 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(sub)
+	clientCacheKey := formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
 		} else {
 			err = json.Unmarshal(claimsRaw, &claims)
-			if err == nil {
+			if err != nil {
+				log.Errorf("cannot unmarshal cached claims structure: %s", err)
+			} else {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
 				return claims, false, err
 			}
-			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
+	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
@@ -589,7 +584,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err
@@ -642,12 +637,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// only use configured expiry if the token lives longer and the expiry is configured
 	// if the token has no expiry, use the expiry of the actual token
 	// otherwise use the expiry of the token
-	switch {
-	case settingExpiry < tokenExpiry && settingExpiry != 0:
+	if settingExpiry < tokenExpiry && settingExpiry != 0 {
 		cacheExpiry = settingExpiry
-	case tokenExpiry < 0:
+	} else if tokenExpiry < 0 {
 		cacheExpiry = getTokenExpiration(actualClaims)
-	default:
+	} else {
 		cacheExpiry = tokenExpiry
 	}
 
@@ -684,11 +678,11 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(sub string) string {
+func formatUserInfoResponseCacheKey(prefix, sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(sub string) string {
-	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
+func formatAccessTokenCacheKey(prefix, sub string) string {
+	return fmt.Sprintf("%s_%s", prefix, sub)
 }

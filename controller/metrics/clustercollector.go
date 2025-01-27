@@ -60,11 +60,13 @@ type clusterCollector struct {
 }
 
 func (c *clusterCollector) Run(ctx context.Context) {
-	//nolint:staticcheck // FIXME: complains about SA1015
+	// FIXME: complains about SA1015
+	// nolint:staticcheck
 	tick := time.Tick(metricsCollectionInterval)
 	for {
 		select {
 		case <-ctx.Done():
+			break
 		case <-tick:
 			info := c.infoSource.GetClustersInfo()
 

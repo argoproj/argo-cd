@@ -4,14 +4,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/kube"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {
@@ -156,13 +156,13 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
@@ -172,7 +172,6 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 }
 
 func sampleResource(t *testing.T) *unstructured.Unstructured {
-	t.Helper()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj *unstructured.Unstructured

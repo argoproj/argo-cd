@@ -5,7 +5,6 @@ import (
 )
 
 func testPasswordHasher(t *testing.T, h PasswordHasher) {
-	t.Helper()
 	// Use the default work factor
 	const (
 		defaultPassword = "Hello, world!"
@@ -63,7 +62,7 @@ func TestPasswordHashing(t *testing.T) {
 	}
 
 	valid, _ = verifyPasswordWithHashers(blankPassword, "", hashers)
-	if valid {
+	if valid != false {
 		t.Errorf("Blank password should have failed verification")
 	}
 }

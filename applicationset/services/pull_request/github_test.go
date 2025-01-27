@@ -3,8 +3,8 @@ package pull_request
 import (
 	"testing"
 
-	"github.com/google/go-github/v66/github"
-	"github.com/stretchr/testify/require"
+	"github.com/google/go-github/v35/github"
+	"github.com/stretchr/testify/assert"
 )
 
 func toPtr(s string) *string {
@@ -52,8 +52,9 @@ func TestContainLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			got := containLabels(c.Labels, c.PullLabels)
-			require.Equal(t, got, c.Expect)
+			if got := containLabels(c.Labels, c.PullLabels); got != c.Expect {
+				t.Errorf("expect: %v, got: %v", c.Expect, got)
+			}
 		})
 	}
 }
@@ -82,7 +83,7 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 	for _, test := range Tests {
 		t.Run(test.Name, func(t *testing.T) {
 			labels := getGithubPRLabelNames(test.PullLabels)
-			require.Equal(t, test.ExpectedResult, labels)
+			assert.Equal(t, test.ExpectedResult, labels)
 		})
 	}
 }

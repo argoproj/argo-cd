@@ -14,13 +14,13 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/kubectl/pkg/util/slice"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/password"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Server provides a Session service
@@ -48,7 +48,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
 	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
-			return nil, fmt.Errorf("permission denied: %w", err)
+			return nil, err
 		}
 	}
 
@@ -70,7 +70,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 		iat, err := session.Iat(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get issue time: %w", err)
+			return nil, err
 		}
 		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
 			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
@@ -80,12 +80,12 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	// Need to validate password complexity with regular expression
 	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get password pattern: %w", err)
+		return nil, err
 	}
 
 	validPasswordRegexp, err := regexp.Compile(passwordPattern)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile password regex: %w", err)
+		return nil, err
 	}
 
 	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
@@ -95,7 +95,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 	hashedPassword, err := password.HashPassword(q.NewPassword)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
+		return nil, err
 	}
 
 	err = s.settingsMgr.UpdateAccount(updatedUsername, func(acc *settings.Account) error {
@@ -105,7 +105,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to update account password: %w", err)
+		return nil, err
 	}
 
 	if updatedUsername == username {
@@ -132,7 +132,7 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	if r.Resource == "logs" {
 		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get server RBAC log enforcement setting: %w", err)
+			return nil, err
 		}
 
 		if !serverRBACLogEnforceEnable {
@@ -143,8 +143,9 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
+	} else {
+		return &account.CanIResponse{Value: "no"}, nil
 	}
-	return &account.CanIResponse{Value: "no"}, nil
 }
 
 func toApiAccount(name string, a settings.Account) *account.Account {
@@ -173,17 +174,17 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, action, account); err != nil {
-		return fmt.Errorf("permission denied for account %s with action %s: %w", account, action, err)
+		return err
 	}
 	return nil
 }
 
 // ListAccounts returns the list of accounts
-func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
+func (s *Server) ListAccounts(ctx context.Context, r *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
 	accounts, err := s.settingsMgr.GetAccounts()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accounts: %w", err)
+		return nil, err
 	}
 	for name, a := range accounts {
 		if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, name); err == nil {
@@ -199,11 +200,11 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 // GetAccount returns an account
 func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (*account.Account, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, r.Name); err != nil {
-		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
+		return nil, err
 	}
 	a, err := s.settingsMgr.GetAccount(r.Name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
+		return nil, err
 	}
 	return toApiAccount(r.Name, *a), nil
 }
@@ -211,14 +212,14 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 // CreateToken creates a token
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
-		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
+		return nil, err
 	}
 
 	id := r.Id
 	if id == "" {
 		uniqueId, err := uuid.NewRandom()
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate unique ID: %w", err)
+			return nil, err
 		}
 		id = uniqueId.String()
 	}
@@ -251,7 +252,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to update account with new token: %w", err)
+		return nil, err
 	}
 	return &account.CreateTokenResponse{Token: tokenString}, nil
 }
@@ -259,7 +260,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 // DeleteToken deletes a token
 func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest) (*account.EmptyResponse, error) {
 	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
-		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
+		return nil, err
 	}
 
 	err := s.settingsMgr.UpdateAccount(r.Name, func(account *settings.Account) error {
@@ -270,7 +271,7 @@ func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest)
 		return status.Errorf(codes.NotFound, "token with id '%s' does not exist", r.Id)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete account %s: %w", r.Name, err)
+		return nil, err
 	}
 	return &account.EmptyResponse{}, nil
 }

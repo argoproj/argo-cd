@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/aws_codecommit/mocks"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type awsCodeCommitTestRepository struct {
@@ -178,8 +178,8 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 				if repo.getRepositoryNilMetadata {
 					repoMetadata = nil
 				}
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
+				codeCommitClient.EXPECT().
+					GetRepositoryWithContext(ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(repo.name)}).
 					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: repoMetadata}, repo.getRepositoryError)
 				codecommitRepoNameIdPairs = append(codecommitRepoNameIdPairs, &codecommit.RepositoryNameIdPair{
 					RepositoryId:   aws.String(repo.id),
@@ -194,14 +194,14 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 			}
 
 			if testCase.expectListAtCodeCommit {
-				codeCommitClient.
-					On("ListRepositoriesWithContext", ctx, &codecommit.ListRepositoriesInput{}).
+				codeCommitClient.EXPECT().
+					ListRepositoriesWithContext(ctx, &codecommit.ListRepositoriesInput{}).
 					Return(&codecommit.ListRepositoriesOutput{
 						Repositories: codecommitRepoNameIdPairs,
 					}, testCase.listRepositoryError)
 			} else {
-				taggingClient.
-					On("GetResourcesWithContext", ctx, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
+				taggingClient.EXPECT().
+					GetResourcesWithContext(ctx, mock.MatchedBy(equalIgnoringTagFilterOrder(&resourcegroupstaggingapi.GetResourcesInput{
 						TagFilters:          testCase.expectTagFilters,
 						ResourceTypeFilters: aws.StringSlice([]string{resourceTypeCodeCommitRepository}),
 					}))).
@@ -351,8 +351,8 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := context.Background()
 			if testCase.expectedGetFolderPath != "" {
-				codeCommitClient.
-					On("GetFolderWithContext", ctx, &codecommit.GetFolderInput{
+				codeCommitClient.EXPECT().
+					GetFolderWithContext(ctx, &codecommit.GetFolderInput{
 						CommitSpecifier: aws.String(branch),
 						FolderPath:      aws.String(testCase.expectedGetFolderPath),
 						RepositoryName:  aws.String(repoName),
@@ -424,14 +424,14 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := context.Background()
 			if testCase.allBranches {
-				codeCommitClient.
-					On("ListBranchesWithContext", ctx, &codecommit.ListBranchesInput{
+				codeCommitClient.EXPECT().
+					ListBranchesWithContext(ctx, &codecommit.ListBranchesInput{
 						RepositoryName: aws.String(name),
 					}).
 					Return(&codecommit.ListBranchesOutput{Branches: aws.StringSlice(testCase.branches)}, testCase.apiError)
 			} else {
-				codeCommitClient.
-					On("GetRepositoryWithContext", ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
+				codeCommitClient.EXPECT().
+					GetRepositoryWithContext(ctx, &codecommit.GetRepositoryInput{RepositoryName: aws.String(name)}).
 					Return(&codecommit.GetRepositoryOutput{RepositoryMetadata: &codecommit.RepositoryMetadata{
 						AccountId:     aws.String(organization),
 						DefaultBranch: aws.String(defaultBranch),

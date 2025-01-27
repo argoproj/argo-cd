@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"testing"
@@ -14,20 +13,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/clusterauth"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
 // when we have a config map generator, AND the ignore annotation, it is ignored in the app's sync status
@@ -55,7 +52,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
 	ctx.
 		Path("deployment").
 		When().
@@ -67,7 +64,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
@@ -78,7 +75,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	SetTrackingMethod(string(argo.TrackingMethodLabel))
 	ctx.
 		Path("deployment").
 		When().
@@ -90,7 +87,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -113,7 +110,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().
 		Then().
-		And(func(_ *Application) {
+		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
@@ -262,7 +259,6 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
-	t.Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -312,19 +308,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	var token string
-
-	// Attempting to patch the ServiceAccount can intermittently fail with 'failed to patch serviceaccount "(...)" with bearer token secret: Operation cannot be fulfilled on serviceaccounts "(...)": the object has been modified; please apply your changes to the latest version and try again'
-	// We thus keep trying for up to 20 seconds.
-	waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 20*time.Second, true, func(context.Context) (done bool, err error) {
-		// Retrieve the bearer token from the ServiceAccount
-		token, err = clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
-
-		// Success is no error and a real token, otherwise keep trying
-		return (err == nil && token != ""), nil
-	})
-	require.NoError(t, waitErr)
-	require.NotEmpty(t, token)
+	// Retrieve the bearer token from the ServiceAccount
+	token, err := clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
+	require.NoError(t, err)
+	assert.NotEmpty(t, token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
 	if clusterScopedSecrets {
@@ -385,12 +372,12 @@ func extractKubeConfigValues() (string, string, error) {
 
 	context, ok := config.Contexts[config.CurrentContext]
 	if !ok || context == nil {
-		return "", "", stderrors.New("no context")
+		return "", "", fmt.Errorf("no context")
 	}
 
 	cluster, ok := config.Clusters[context.Cluster]
 	if !ok || cluster == nil {
-		return "", "", stderrors.New("no cluster")
+		return "", "", fmt.Errorf("no cluster")
 	}
 
 	var kubeConfigDefault string
@@ -408,7 +395,7 @@ func extractKubeConfigValues() (string, string, error) {
 		}
 
 		if kubeConfigDefault == "" {
-			return "", "", stderrors.New("unable to retrieve kube config path")
+			return "", "", fmt.Errorf("unable to retrieve kube config path")
 		}
 	}
 
