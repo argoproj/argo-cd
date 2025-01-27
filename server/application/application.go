@@ -245,13 +245,15 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 		if !s.isNamespaceEnabled(namespaceOrDefault) {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
-		if app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
+		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
-		}); err != nil {
+		})
+		if err != nil {
 			return nil, err
-		} else {
-			return app.DeepCopy(), nil
 		}
+		// Objects returned by the lister must be treated as read-only.
+		// To allow us to modify the app later, make a copy
+		return app.DeepCopy(), nil
 	})
 }
 
