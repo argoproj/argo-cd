@@ -86,9 +86,16 @@ type ClientApp struct {
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
 	// properties for azure workload identity.
+	azure AzureApp
+}
+
+type AzureApp struct {
+	// federated azure token for the service account
 	assertion string
-	expires   time.Time
-	mtx       *sync.RWMutex
+	// expiry of the token
+	expires time.Time
+	// mutex for parallelism for reading the token
+	mtx *sync.RWMutex
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -119,7 +126,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
-		mtx:                      &sync.RWMutex{},
+		azure:                    AzureApp{mtx: &sync.RWMutex{}},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -358,28 +365,28 @@ func (a *ClientApp) getAzureKubernetesFederatedServiceAccountToken(context.Conte
 		}
 	}
 
-	a.mtx.RLock()
-	if a.expires.Before(time.Now()) {
+	a.azure.mtx.RLock()
+	if a.azure.expires.Before(time.Now()) {
 		// ensure only one goroutine at a time updates the assertion
-		a.mtx.RUnlock()
-		a.mtx.Lock()
-		defer a.mtx.Unlock()
+		a.azure.mtx.RUnlock()
+		a.azure.mtx.Lock()
+		defer a.azure.mtx.Unlock()
 		// double check because another goroutine may have acquired the write lock first and done the update
-		if now := time.Now(); a.expires.Before(now) {
+		if now := time.Now(); a.azure.expires.Before(now) {
 			content, err := os.ReadFile(file)
 			if err != nil {
 				return "", err
 			}
-			a.assertion = string(content)
+			a.azure.assertion = string(content)
 			// Kubernetes rotates service account tokens when they reach 80% of their total TTL. The shortest TTL
 			// is 1 hour. That implies the token we just read is valid for at least 12 minutes (20% of 1 hour),
 			// but we add some margin for safety.
-			a.expires = now.Add(10 * time.Minute)
+			a.azure.expires = now.Add(10 * time.Minute)
 		}
 	} else {
-		defer a.mtx.RUnlock()
+		defer a.azure.mtx.RUnlock()
 	}
-	return a.assertion, nil
+	return a.azure.assertion, nil
 }
 
 // HandleCallback is the callback handler for an OAuth2 login flow

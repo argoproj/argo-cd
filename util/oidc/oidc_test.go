@@ -445,58 +445,66 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	_, _ = file.Write([]byte("serviceAccountToken"))
 	defer os.Remove(tokenFilePath)
 
-	// Test case:  before the method call assertion should be empty.
-	assert.Equal(t, "", app.assertion)
+	t.Run("before the method call assertion should be empty.", func(t *testing.T) {
+		assert.Equal(t, "", app.azure.assertion)
+	})
 
-	// Test case: Fethc the token value from the file
-	_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, "serviceAccountToken", app.assertion)
+	t.Run("Fetch the token value from the file", func(t *testing.T) {
+		_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+	})
 
-	// Test case: Token file is not specified
-	os.Unsetenv("AZURE_FEDERATED_TOKEN_FILE")
-	_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+	t.Run("Token file is not specified", func(t *testing.T) {
+		os.Unsetenv("AZURE_FEDERATED_TOKEN_FILE")
+		_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
 
-	if err == nil || err.Error() != "no token file specified. Check pod configuration or set TokenFilePath in the options" {
-		t.Errorf("Expected error 'no token file specified', got %v", err)
-	}
+		if err == nil || err.Error() != "no token file specified. Check pod configuration or set TokenFilePath in the options" {
+			t.Errorf("Expected error 'no token file specified', got %v", err)
+		}
+	})
 
-	// Test case: Concurrent access to the function
-	currentExpiryTime := app.expires
-	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-	var wg sync.WaitGroup
-	numGoroutines := 10
-	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
-			require.NoError(t, err)
-			assert.Equal(t, "serviceAccountToken", app.assertion)
-		}()
-	}
-	wg.Wait()
+	t.Run("Concurrent access to the function", func(t *testing.T) {
+		currentExpiryTime := app.azure.expires
+		os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+		var wg sync.WaitGroup
+		numGoroutines := 10
+		wg.Add(numGoroutines)
+		for i := 0; i < numGoroutines; i++ {
+			go func() {
+				defer wg.Done()
+				_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+				require.NoError(t, err)
+				assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+			}()
+		}
+		wg.Wait()
 
-	// Event with multiple concurrent calls the expiry time should not change untile it passes.
-	assert.Equal(t, currentExpiryTime, app.expires)
+		// Event with multiple concurrent calls the expiry time should not change untile it passes.
+		assert.Equal(t, currentExpiryTime, app.azure.expires)
 
-	// Test case: Concurrent access to the function when the current token expires
-	currentExpiryTime = app.expires
-	app.expires = time.Now()
-	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-	numGoroutines = 10
-	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
-			require.NoError(t, err)
-			assert.Equal(t, "serviceAccountToken", app.assertion)
-		}()
-	}
-	wg.Wait()
+	})
 
-	assert.NotEqual(t, currentExpiryTime, app.expires)
+	t.Run("Concurrent access to the function when the current token expires", func(t *testing.T) {
+		var wg sync.WaitGroup
+		currentExpiryTime := app.azure.expires
+		app.azure.expires = time.Now()
+		os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+		numGoroutines := 10
+		wg.Add(numGoroutines)
+		for i := 0; i < numGoroutines; i++ {
+			go func() {
+				defer wg.Done()
+				_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+				require.NoError(t, err)
+				assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+			}()
+		}
+		wg.Wait()
+
+		assert.NotEqual(t, currentExpiryTime, app.azure.expires)
+
+	})
 }
 
 func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
