@@ -39,25 +39,25 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -782,20 +782,16 @@ func TestNoAppEnumeration(t *testing.T) {
 	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
-		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
-		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist"), Project: []string{"test"}})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1301,7 +1297,7 @@ func TestCoupleAppsListApps(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
 	for projectId := 0; projectId < 100; projectId++ {
 		projectName := fmt.Sprintf("proj-%d", projectId)
@@ -1488,7 +1484,6 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	require.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, "https://cluster-api.example.com", app.Spec.Destination.Server)
 }
 
 // TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
@@ -1630,11 +1625,15 @@ func TestDeleteApp(t *testing.T) {
 
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
@@ -1652,6 +1651,14 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 p, test-user, applications, delete, default/test-app, allow
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1661,6 +1668,15 @@ p, test-user, applications, delete, default/test-app, allow
 p, test-user, applications, delete/*, default/test-app, deny
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1681,6 +1697,15 @@ p, test-user, applications, delete/*, default/test-app, allow
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
+	t.Run("delete with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
+	})
+
 	t.Run("delete with specific subresource denied", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, delete/*, default/test-app, allow
@@ -1693,11 +1718,15 @@ p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
 
 func TestPatchResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
@@ -1715,6 +1744,14 @@ func TestPatchResourcesRBAC(t *testing.T) {
 p, test-user, applications, update, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1724,6 +1761,15 @@ p, test-user, applications, update, default/test-app, allow
 p, test-user, applications, update/*, default/test-app, deny
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1741,6 +1787,15 @@ p, test-user, applications, update, default/test-app, deny
 p, test-user, applications, update/*, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
+	})
+
+	t.Run("patch with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1871,7 +1926,7 @@ func TestRollbackApp(t *testing.T) {
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1935,7 +1990,7 @@ p, admin, applications, update, my-proj/test-app, allow
 func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1960,7 +2015,7 @@ func TestAppJsonPatch(t *testing.T) {
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -2251,7 +2306,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 	runtimeObjects[podNumber] = testApp
 
 	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	if len(maxPodLogsToRender) > 0 {

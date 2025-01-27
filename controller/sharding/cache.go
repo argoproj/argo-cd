@@ -5,8 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
 )
 
 type ClusterShardingCache interface {
@@ -153,11 +153,12 @@ func (sharding *ClusterSharding) updateDistribution() {
 		}
 
 		existingShard, ok := sharding.Shards[k]
-		if ok && existingShard != shard {
+		switch {
+		case ok && existingShard != shard:
 			log.Infof("Cluster %s has changed shard from %d to %d", k, existingShard, shard)
-		} else if !ok {
+		case !ok:
 			log.Infof("Cluster %s has been assigned to shard %d", k, shard)
-		} else {
+		default:
 			log.Debugf("Cluster %s has not changed shard", k)
 		}
 		sharding.Shards[k] = shard

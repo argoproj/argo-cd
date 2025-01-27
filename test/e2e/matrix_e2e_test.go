@@ -7,11 +7,11 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 func TestListMatrixGenerator(t *testing.T) {
@@ -44,11 +44,9 @@ func TestListMatrixGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -169,11 +167,9 @@ func TestClusterMatrixGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application
@@ -297,12 +293,10 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 	expectedApps1 := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook"),
 		generateExpectedApp("cluster1", "helm-guestbook"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook"),
 	}
 	expectedApps2 := []v1alpha1.Application{
 		generateExpectedApp("cluster2", "kustomize-guestbook"),
 		generateExpectedApp("cluster2", "helm-guestbook"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook"),
 	}
 
 	Given(t).

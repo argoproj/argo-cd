@@ -23,16 +23,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/testdata"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 )
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
+	t.Parallel()
+
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
@@ -809,7 +811,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -838,7 +840,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
@@ -892,7 +894,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -1565,10 +1567,6 @@ func TestUseDiffCache(t *testing.T) {
 			err := mergo.Merge(app, a, mergo.WithOverride, mergo.WithOverwriteWithEmptyValue)
 			require.NoErrorf(t, err, "error merging app")
 		}
-		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
-			// Simulate the controller's process for populating both of these fields.
-			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
-		}
 		return app
 	}
 
@@ -1733,44 +1731,6 @@ func TestUseDiffCache(t *testing.T) {
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
-		},
-		{
-			// There are code paths that modify the ApplicationSpec and augment the destination field with both the
-			// destination server and name. Since both fields are populated in the app spec but not in the comparedTo,
-			// we need to make sure we correctly compare the fields and don't miss the cache.
-			testName:      "will return true if the app spec destination contains both server and name, but otherwise matches comparedTo",
-			noCache:       false,
-			manifestInfos: manifestInfos("rev1"),
-			sources:       sources(),
-			app: app("httpbin", "rev1", false, &v1alpha1.Application{
-				Spec: v1alpha1.ApplicationSpec{
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Name:      "httpbin",
-						Namespace: "httpbin",
-					},
-				},
-				Status: v1alpha1.ApplicationStatus{
-					Resources: []v1alpha1.ResourceStatus{},
-					Sync: v1alpha1.SyncStatus{
-						Status: v1alpha1.SyncStatusCodeSynced,
-						ComparedTo: v1alpha1.ComparedTo{
-							Destination: v1alpha1.ApplicationDestination{
-								Server:    "https://kubernetes.default.svc",
-								Namespace: "httpbin",
-							},
-						},
-						Revision: "rev1",
-					},
-					ReconciledAt: &metav1.Time{
-						Time: time.Now().Add(-time.Hour),
-					},
-				},
-			}),
-			manifestRevisions:    []string{"rev1"},
-			statusRefreshTimeout: time.Hour * 24,
-			expectedUseCache:     true,
-			serverSideDiff:       true,
 		},
 	}
 

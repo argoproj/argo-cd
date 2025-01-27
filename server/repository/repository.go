@@ -16,20 +16,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Repository service
@@ -458,12 +458,13 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 		existing.Type = text.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			repo, err = existing, nil
-		} else if q.Upsert {
+		case q.Upsert:
 			r.Project = q.Repo.Project
 			return s.db.UpdateRepository(ctx, r)
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
@@ -503,11 +504,12 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
-		if reflect.DeepEqual(existing, q.Repo) {
+		switch {
+		case reflect.DeepEqual(existing, q.Repo):
 			repo, err = existing, nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.db.UpdateWriteRepository(ctx, q.Repo)
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("write repository", existing, q.Repo))
 		}
 	}

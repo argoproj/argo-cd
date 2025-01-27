@@ -14,15 +14,15 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 // Server provides a Cluster service
@@ -168,11 +168,12 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			return nil, status.Errorf(codes.Internal, "unable to check existing cluster details: %v", getErr)
 		}
 
-		if existing.Equals(c) {
+		switch {
+		case existing.Equals(c):
 			clust = existing
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
 		}
 	}
@@ -227,15 +228,16 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 	if q.Id != nil {
 		q.Server = ""
 		q.Name = ""
-		if q.Id.Type == "name" {
+		switch q.Id.Type {
+		case "name":
 			q.Name = q.Id.Value
-		} else if q.Id.Type == "name_escaped" {
+		case "name_escaped":
 			nameUnescaped, err := url.QueryUnescape(q.Id.Value)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unescape cluster name: %w", err)
 			}
 			q.Name = nameUnescaped
-		} else {
+		default:
 			q.Server = q.Id.Value
 		}
 	}
@@ -378,10 +380,7 @@ func enforceAndDelete(ctx context.Context, s *Server, server, project string) er
 		log.WithField("cluster", server).Warnf("encountered permissions issue while processing request: %v", err)
 		return common.PermissionDeniedAPIError
 	}
-	if err := s.db.DeleteCluster(ctx, server); err != nil {
-		return err
-	}
-	return nil
+	return s.db.DeleteCluster(ctx, server)
 }
 
 // RotateAuth rotates the bearer token used for a cluster
@@ -487,9 +486,9 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Args = nil
 	}
 	// populate deprecated fields for backward compatibility
-	// nolint:staticcheck
+	//nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
-	// nolint:staticcheck
+	//nolint:staticcheck
 	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
 }

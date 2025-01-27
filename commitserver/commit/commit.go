@@ -9,10 +9,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 // Service is the service that handles commit requests.
@@ -176,15 +176,15 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	// FIXME: make it work for GHE
-	//logCtx.Debugf("Getting user info for repo credentials")
-	//gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	//startTime := time.Now()
-	//authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
-	//s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
-	//if err != nil {
-	//	cleanupOrLog()
-	//	return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
-	//}
+	// logCtx.Debugf("Getting user info for repo credentials")
+	// gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
+	// startTime := time.Now()
+	// authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
+	// s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))
+	// if err != nil {
+	//	 cleanupOrLog()
+	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
+	// }
 	var authorName, authorEmail string
 
 	if authorName == "" {

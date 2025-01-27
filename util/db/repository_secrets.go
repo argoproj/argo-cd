@@ -12,9 +12,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 var _ repositoryBackend = &secretsRepositoryBackend{}
@@ -360,6 +360,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.ForceHttpBasicAuth = forceBasicAuth
 
+	useAzureWorkloadIdentity, err := boolOrFalse(secret, "useAzureWorkloadIdentity")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
+
 	return repository, nil
 }
 
@@ -389,6 +395,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "noProxy", repository.NoProxy)
 	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
+	updateSecretBool(secret, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	addSecretMetadata(secret, s.getSecretType())
 }
 
@@ -432,6 +439,12 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.ForceHttpBasicAuth = forceBasicAuth
 
+	useAzureWorkloadIdentity, err := boolOrFalse(secret, "useAzureWorkloadIdentity")
+	if err != nil {
+		return repository, err
+	}
+	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
+
 	return repository, nil
 }
 
@@ -456,6 +469,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "proxy", repoCreds.Proxy)
 	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
+	updateSecretBool(secret, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
 

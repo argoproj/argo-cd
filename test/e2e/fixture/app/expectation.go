@@ -14,8 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 type state = string
@@ -370,7 +370,7 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
 		if !match(c.actions.lastError.Error(), err) {
-			return failed, fmt.Sprintf("error does not contain '%s'", message)
+			return failed, fmt.Sprintf("error does not contain '%s'", err)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
 	}

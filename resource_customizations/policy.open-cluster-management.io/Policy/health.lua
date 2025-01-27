@@ -1,9 +1,24 @@
 hs = {}
-if obj.status == nil or obj.status.compliant == nil then
+if obj.status == nil then
   hs.status = "Progressing"
   hs.message = "Waiting for the status to be reported"
   return hs
 end
+
+-- A policy will not have a compliant field but will have a placement key set if
+-- it is not being applied to any clusters
+if obj.status.compliant == nil and #obj.status.placement > 0 and obj.status.status == nil then
+  hs.status = "Healthy"
+  hs.message = "No clusters match this policy"
+  return hs
+end
+
+if obj.status.compliant == nil then
+  hs.status = "Progressing"
+  hs.message = "Waiting for the status to be reported"
+  return hs
+end
+
 if obj.status.compliant == "Compliant" then
   hs.status = "Healthy"
 else
