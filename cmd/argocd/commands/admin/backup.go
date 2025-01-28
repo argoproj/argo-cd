@@ -526,4 +526,3 @@ func skipResource(bak *unstructured.Unstructured, skipResourcesWithLabels []stri
 	}
 	return false
 }
-
