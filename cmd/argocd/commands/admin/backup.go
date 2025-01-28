@@ -351,7 +351,8 @@ func NewImportCommand() *cobra.Command {
 			promptUtil := utils.NewPrompt(promptsEnabled)
 
 			// Delete objects not in backup
-				for key, liveObj := range pruneObjects {
+			for key, liveObj := range pruneObjects {
+				if prune {
 					var dynClient dynamic.ResourceInterface
 					switch key.Kind {
 					case "Secret":
@@ -393,10 +394,11 @@ func NewImportCommand() *cobra.Command {
 					}
 					if !isForbidden {
 						fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
-					} else {
-						fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 					}
+				} else {
+					fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 				}
+			}
 			duration := time.Since(tt)
 			fmt.Printf("import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
