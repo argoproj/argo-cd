@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -325,7 +326,7 @@ func NewImportCommand() *cobra.Command {
 									liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
 									newLive.SetResourceVersion(liveObj.GetResourceVersion())
 									annotations := newLive.GetAnnotations()
-									delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+									delete(annotations, corev1.LastAppliedConfigAnnotation)
 									newLive.SetAnnotations(annotations)
 									if getErr != nil {
 										errors.CheckError(getErr)
