@@ -1,4 +1,5 @@
 import {Tooltip} from 'argo-ui';
+import {Boundary, Placement} from 'popper.js';
 import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
@@ -34,11 +35,11 @@ export const Sidebar = (props: SidebarProps) => {
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
-        placement: 'right',
+        placement: 'right' as Placement,
         popperOptions: {
             modifiers: {
                 preventOverflow: {
-                    boundariesElement: 'window'
+                    boundariesElement: 'window' as Boundary
                 }
             }
         }
@@ -53,17 +54,23 @@ export const Sidebar = (props: SidebarProps) => {
                     </div>
                     {!props.pref.hideSidebar && (
                         <div className='sidebar__logo-container'>
-                            <img src='assets/images/argologo.svg' alt='Argo' className='sidebar__logo__text-logo' />
+                            <img
+                                onClick={() => context.history.push('/')}
+                                title={'Go to start page'}
+                                src='assets/images/argologo.svg'
+                                alt='Argo'
+                                className='sidebar__logo__text-logo'
+                            />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
                                 {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
                             </div>
                         </div>
                     )}
-                    <img src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
+                    <img onClick={() => context.history.push('/')} title={'Go to start page'} src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
                 </div>
 
                 {(props.navItems || []).map(item => (
-                    <Tooltip key={item.path} content={item?.tooltip || item.title} {...tooltipProps}>
+                    <Tooltip key={item.path} content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
                         <div
                             key={item.title}
                             className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}

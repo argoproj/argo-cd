@@ -1,4 +1,4 @@
-import {FormField} from 'argo-ui';
+import {FormField, NotificationType} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Form, Text} from 'react-form';
@@ -7,6 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {AppContext} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
+import {getPKCERedirectURI, pkceLogin} from './utils';
 
 require('./login.scss');
 
@@ -61,7 +62,18 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                     </div>
                     {ssoConfigured && (
                         <div className='login__box_saml width-control'>
-                            <a href={`auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`}>
+                            <a
+                                {...(authSettings?.oidcConfig?.enablePKCEAuthentication
+                                    ? {
+                                          onClick: () =>
+                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                                                  this.appContext.apis.notifications.show({
+                                                      type: NotificationType.Error,
+                                                      content: err?.message || JSON.stringify(err)
+                                                  });
+                                              })
+                                      }
+                                    : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                         (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
@@ -123,7 +135,12 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
             this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
-                this.appContext.apis.navigation.goto(url.pathname + url.search);
+                let redirectURL = url.pathname + url.search;
+                // return url already contains baseHref, so we need to remove it
+                if (this.appContext.apis.baseHref != '/' && redirectURL.startsWith(this.appContext.apis.baseHref)) {
+                    redirectURL = redirectURL.substring(this.appContext.apis.baseHref.length);
+                }
+                this.appContext.apis.navigation.goto(redirectURL);
             } else {
                 this.appContext.apis.navigation.goto('/applications');
             }

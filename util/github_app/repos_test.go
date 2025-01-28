@@ -6,9 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 type ArgocdRepositoryMock struct {
@@ -19,11 +20,9 @@ func (a ArgocdRepositoryMock) GetRepoCredsBySecretName(ctx context.Context, secr
 	args := a.mock.Called(ctx, secretName)
 
 	return args.Get(0).(*v1alpha1.RepoCreds), args.Error(1)
-
 }
 
 func Test_repoAsCredentials_GetAuth(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		repo    v1alpha1.RepoCreds
@@ -53,7 +52,7 @@ func Test_repoAsCredentials_GetAuth(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.want, auth)
 		})
 	}

@@ -7,30 +7,86 @@ and the [toolchain guide](toolchain-guide.md).
 
 ## Getting Started
 
-### Install Go
+### Prerequisites
 
-Install version 1.18 or newer (Verify version by running `go version`)
+Before starting, ensure you have the following tools installed with the specified minimum versions:
 
-### Clone the Argo CD repo
+* Git (v2.0.0+)
+* Go (version specified in `go.mod` - check with `go version`)
+* Docker (v20.10.0+) Or Podman (v3.0.0+)
+* Kind (v0.11.0+) Or Minikube (v1.23.0+)
+* Yarn (v1.22.0+)
+* Goreman (latest version)
 
+### Fork and Clone the Repository
+
+1. Fork the Argo CD repository to your personal Github Account
+
+2. Clone the forked repository:
 ```shell
-mkdir -p $GOPATH/src/github.com/argoproj/ &&
-cd $GOPATH/src/github.com/argoproj &&
-git clone https://github.com/argoproj/argo-cd.git
+git clone https://github.com/YOUR-USERNAME/argo-cd.git
 ```
 
-### Install Docker
+Please note that the local build process uses GOPATH and that path should not be used, unless the Argo CD repository was directly cloned in it.
+
+3. Add the upstream remote for rebasing:
+```shell
+cd argo-cd
+git remote add upstream https://github.com/argoproj/argo-cd.git
+```
+
+### Install Required Tools
+
+1. Install development tools:
+```shell
+make install-go-tools-local
+make install-code-gen-tools-local
+```
+
+### Install Go
+
+<https://go.dev/doc/install/>
+
+Install Go with a version equal to or greater than the version listed in `go.mod` (verify go version with `go version`). 
+
+
+### Install Docker or Podman
+
+#### Installation guide for docker:
 
 <https://docs.docker.com/engine/install/>
 
-### Install or Upgrade `kind` (Optional - Should work with any local cluster)
+#### Installation guide for podman:
+
+<https://podman.io/docs/installation>
+
+### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
+
+#### Installation guide for kind:
 
 <https://kind.sigs.k8s.io/docs/user/quick-start/>
 
+#### Installation guide for minikube:
+
+<https://minikube.sigs.k8s.io/docs/start/>
+
 ### Start Your Local Cluster
 
+For example, if you are using kind:
 ```shell
 kind create cluster
+```
+
+Or, if you are using minikube:
+
+```shell
+minikube start
+```
+
+Or, if you are using minikube with podman driver:
+
+```shell
+minikube start --driver=podman
 ```
 
 ### Install Argo CD
@@ -62,6 +118,13 @@ cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
+By default, Argo CD uses Docker. To use Podman instead, set the `DOCKER` environment variable to `podman` before running the `make` command:
+
+```shell
+cd argo-cd
+DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
+```
+
 - Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
 - It may take a few minutes for the UI to be responsive
 
@@ -69,7 +132,55 @@ make start-local ARGOCD_GPG_ENABLED=false
     If the UI is not working, check the logs from `make start-local`. The logs are `DEBUG` level by default. If the logs are
     too noisy to find the problem, try editing log levels for the commands in the `Procfile` in the root of the Argo CD repo.
 
+## Common Make Targets
+
+Here are some frequently used make targets (all will run on your machine):
+
+### Local Toolchain Make Targets
+
+* `make build-local` - Build Argo CD binaries
+* `make test-local` - Run unit tests
+* `make codegen-local` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint-local` - Run linting
+* `make pre-commit-local` - Run pre-commit checks
+* `make start-e2e-local` - Start server for end-to-end tests
+* `make test-e2e-local` - Run end-to-end tests
+* `make serve-docs-local` - Serve documentation
+* `make start-local` - Start Argo CD
+
+### Virtualized Toolchain Make Targets
+
+* `make build` - Build Argo CD binaries
+* `make test` - Run unit tests
+* `make codegen` - Re-generate auto generated Swagger and Protobuf (after changing API code)
+* `make lint` - Run linting
+* `make pre-commit` - Run pre-commit checks
+* `make start-e2e` - Start server for end-to-end tests
+* `make test-e2e` - Run end-to-end tests
+* `make serve-docs` - Serve documentation
+* `make start` - Start Argo CD
+
 ## Making Changes
+
+### Before Submitting a PR
+
+1. Rebase your branch against upstream main:
+```shell
+git fetch upstream
+git rebase upstream/main
+```
+
+2. Run pre-commit checks:
+```shell
+make pre-commit-local
+```
+
+### Docs Changes
+
+Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs` command. 
+Once running, you can view your locally built documentation on port 8000.
+
+Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
 
 ### UI Changes
 

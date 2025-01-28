@@ -4,637 +4,697 @@ package normalizers
 import corev1 "k8s.io/api/core/v1"
 
 func init() {
-	knownTypes["core/v1/AWSElasticBlockStoreVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/AWSElasticBlockStoreVolumeSource"] = func() any {
 		return &corev1.AWSElasticBlockStoreVolumeSource{}
 	}
-	knownTypes["core/v1/Affinity"] = func() interface{} {
+	knownTypes["core/v1/Affinity"] = func() any {
 		return &corev1.Affinity{}
 	}
-	knownTypes["core/v1/AttachedVolume"] = func() interface{} {
+	knownTypes["core/v1/AppArmorProfile"] = func() any {
+		return &corev1.AppArmorProfile{}
+	}
+	knownTypes["core/v1/AttachedVolume"] = func() any {
 		return &corev1.AttachedVolume{}
 	}
-	knownTypes["core/v1/AvoidPods"] = func() interface{} {
+	knownTypes["core/v1/AvoidPods"] = func() any {
 		return &corev1.AvoidPods{}
 	}
-	knownTypes["core/v1/AzureDiskVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/AzureDiskVolumeSource"] = func() any {
 		return &corev1.AzureDiskVolumeSource{}
 	}
-	knownTypes["core/v1/AzureFilePersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/AzureFilePersistentVolumeSource"] = func() any {
 		return &corev1.AzureFilePersistentVolumeSource{}
 	}
-	knownTypes["core/v1/AzureFileVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/AzureFileVolumeSource"] = func() any {
 		return &corev1.AzureFileVolumeSource{}
 	}
-	knownTypes["core/v1/Binding"] = func() interface{} {
+	knownTypes["core/v1/Binding"] = func() any {
 		return &corev1.Binding{}
 	}
-	knownTypes["core/v1/CSIPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CSIPersistentVolumeSource"] = func() any {
 		return &corev1.CSIPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/CSIVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CSIVolumeSource"] = func() any {
 		return &corev1.CSIVolumeSource{}
 	}
-	knownTypes["core/v1/Capabilities"] = func() interface{} {
+	knownTypes["core/v1/Capabilities"] = func() any {
 		return &corev1.Capabilities{}
 	}
-	knownTypes["core/v1/CephFSPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CephFSPersistentVolumeSource"] = func() any {
 		return &corev1.CephFSPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/CephFSVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CephFSVolumeSource"] = func() any {
 		return &corev1.CephFSVolumeSource{}
 	}
-	knownTypes["core/v1/CinderPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CinderPersistentVolumeSource"] = func() any {
 		return &corev1.CinderPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/CinderVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/CinderVolumeSource"] = func() any {
 		return &corev1.CinderVolumeSource{}
 	}
-	knownTypes["core/v1/ClientIPConfig"] = func() interface{} {
+	knownTypes["core/v1/ClientIPConfig"] = func() any {
 		return &corev1.ClientIPConfig{}
 	}
-	knownTypes["core/v1/ComponentCondition"] = func() interface{} {
+	knownTypes["core/v1/ClusterTrustBundleProjection"] = func() any {
+		return &corev1.ClusterTrustBundleProjection{}
+	}
+	knownTypes["core/v1/ComponentCondition"] = func() any {
 		return &corev1.ComponentCondition{}
 	}
-	knownTypes["core/v1/ComponentStatus"] = func() interface{} {
+	knownTypes["core/v1/ComponentStatus"] = func() any {
 		return &corev1.ComponentStatus{}
 	}
-	knownTypes["core/v1/ComponentStatusList"] = func() interface{} {
+	knownTypes["core/v1/ComponentStatusList"] = func() any {
 		return &corev1.ComponentStatusList{}
 	}
-	knownTypes["core/v1/ConfigMap"] = func() interface{} {
+	knownTypes["core/v1/ConfigMap"] = func() any {
 		return &corev1.ConfigMap{}
 	}
-	knownTypes["core/v1/ConfigMapEnvSource"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapEnvSource"] = func() any {
 		return &corev1.ConfigMapEnvSource{}
 	}
-	knownTypes["core/v1/ConfigMapKeySelector"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapKeySelector"] = func() any {
 		return &corev1.ConfigMapKeySelector{}
 	}
-	knownTypes["core/v1/ConfigMapList"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapList"] = func() any {
 		return &corev1.ConfigMapList{}
 	}
-	knownTypes["core/v1/ConfigMapNodeConfigSource"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapNodeConfigSource"] = func() any {
 		return &corev1.ConfigMapNodeConfigSource{}
 	}
-	knownTypes["core/v1/ConfigMapProjection"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapProjection"] = func() any {
 		return &corev1.ConfigMapProjection{}
 	}
-	knownTypes["core/v1/ConfigMapVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ConfigMapVolumeSource"] = func() any {
 		return &corev1.ConfigMapVolumeSource{}
 	}
-	knownTypes["core/v1/Container"] = func() interface{} {
+	knownTypes["core/v1/Container"] = func() any {
 		return &corev1.Container{}
 	}
-	knownTypes["core/v1/ContainerImage"] = func() interface{} {
+	knownTypes["core/v1/ContainerImage"] = func() any {
 		return &corev1.ContainerImage{}
 	}
-	knownTypes["core/v1/ContainerPort"] = func() interface{} {
+	knownTypes["core/v1/ContainerPort"] = func() any {
 		return &corev1.ContainerPort{}
 	}
-	knownTypes["core/v1/ContainerState"] = func() interface{} {
+	knownTypes["core/v1/ContainerResizePolicy"] = func() any {
+		return &corev1.ContainerResizePolicy{}
+	}
+	knownTypes["core/v1/ContainerState"] = func() any {
 		return &corev1.ContainerState{}
 	}
-	knownTypes["core/v1/ContainerStateRunning"] = func() interface{} {
+	knownTypes["core/v1/ContainerStateRunning"] = func() any {
 		return &corev1.ContainerStateRunning{}
 	}
-	knownTypes["core/v1/ContainerStateTerminated"] = func() interface{} {
+	knownTypes["core/v1/ContainerStateTerminated"] = func() any {
 		return &corev1.ContainerStateTerminated{}
 	}
-	knownTypes["core/v1/ContainerStateWaiting"] = func() interface{} {
+	knownTypes["core/v1/ContainerStateWaiting"] = func() any {
 		return &corev1.ContainerStateWaiting{}
 	}
-	knownTypes["core/v1/ContainerStatus"] = func() interface{} {
+	knownTypes["core/v1/ContainerStatus"] = func() any {
 		return &corev1.ContainerStatus{}
 	}
-	knownTypes["core/v1/DaemonEndpoint"] = func() interface{} {
+	knownTypes["core/v1/ContainerUser"] = func() any {
+		return &corev1.ContainerUser{}
+	}
+	knownTypes["core/v1/DaemonEndpoint"] = func() any {
 		return &corev1.DaemonEndpoint{}
 	}
-	knownTypes["core/v1/DownwardAPIProjection"] = func() interface{} {
+	knownTypes["core/v1/DownwardAPIProjection"] = func() any {
 		return &corev1.DownwardAPIProjection{}
 	}
-	knownTypes["core/v1/DownwardAPIVolumeFile"] = func() interface{} {
+	knownTypes["core/v1/DownwardAPIVolumeFile"] = func() any {
 		return &corev1.DownwardAPIVolumeFile{}
 	}
-	knownTypes["core/v1/DownwardAPIVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/DownwardAPIVolumeSource"] = func() any {
 		return &corev1.DownwardAPIVolumeSource{}
 	}
-	knownTypes["core/v1/EmptyDirVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/EmptyDirVolumeSource"] = func() any {
 		return &corev1.EmptyDirVolumeSource{}
 	}
-	knownTypes["core/v1/EndpointAddress"] = func() interface{} {
+	knownTypes["core/v1/EndpointAddress"] = func() any {
 		return &corev1.EndpointAddress{}
 	}
-	knownTypes["core/v1/EndpointPort"] = func() interface{} {
+	knownTypes["core/v1/EndpointPort"] = func() any {
 		return &corev1.EndpointPort{}
 	}
-	knownTypes["core/v1/EndpointSubset"] = func() interface{} {
+	knownTypes["core/v1/EndpointSubset"] = func() any {
 		return &corev1.EndpointSubset{}
 	}
-	knownTypes["core/v1/Endpoints"] = func() interface{} {
+	knownTypes["core/v1/Endpoints"] = func() any {
 		return &corev1.Endpoints{}
 	}
-	knownTypes["core/v1/EndpointsList"] = func() interface{} {
+	knownTypes["core/v1/EndpointsList"] = func() any {
 		return &corev1.EndpointsList{}
 	}
-	knownTypes["core/v1/EnvFromSource"] = func() interface{} {
+	knownTypes["core/v1/EnvFromSource"] = func() any {
 		return &corev1.EnvFromSource{}
 	}
-	knownTypes["core/v1/EnvVar"] = func() interface{} {
+	knownTypes["core/v1/EnvVar"] = func() any {
 		return &corev1.EnvVar{}
 	}
-	knownTypes["core/v1/EnvVarSource"] = func() interface{} {
+	knownTypes["core/v1/EnvVarSource"] = func() any {
 		return &corev1.EnvVarSource{}
 	}
-	knownTypes["core/v1/EphemeralContainer"] = func() interface{} {
+	knownTypes["core/v1/EphemeralContainer"] = func() any {
 		return &corev1.EphemeralContainer{}
 	}
-	knownTypes["core/v1/EphemeralContainerCommon"] = func() interface{} {
+	knownTypes["core/v1/EphemeralContainerCommon"] = func() any {
 		return &corev1.EphemeralContainerCommon{}
 	}
-	knownTypes["core/v1/EphemeralVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/EphemeralVolumeSource"] = func() any {
 		return &corev1.EphemeralVolumeSource{}
 	}
-	knownTypes["core/v1/Event"] = func() interface{} {
+	knownTypes["core/v1/Event"] = func() any {
 		return &corev1.Event{}
 	}
-	knownTypes["core/v1/EventList"] = func() interface{} {
+	knownTypes["core/v1/EventList"] = func() any {
 		return &corev1.EventList{}
 	}
-	knownTypes["core/v1/EventSeries"] = func() interface{} {
+	knownTypes["core/v1/EventSeries"] = func() any {
 		return &corev1.EventSeries{}
 	}
-	knownTypes["core/v1/EventSource"] = func() interface{} {
+	knownTypes["core/v1/EventSource"] = func() any {
 		return &corev1.EventSource{}
 	}
-	knownTypes["core/v1/ExecAction"] = func() interface{} {
+	knownTypes["core/v1/ExecAction"] = func() any {
 		return &corev1.ExecAction{}
 	}
-	knownTypes["core/v1/FCVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/FCVolumeSource"] = func() any {
 		return &corev1.FCVolumeSource{}
 	}
-	knownTypes["core/v1/FlexPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/FlexPersistentVolumeSource"] = func() any {
 		return &corev1.FlexPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/FlexVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/FlexVolumeSource"] = func() any {
 		return &corev1.FlexVolumeSource{}
 	}
-	knownTypes["core/v1/FlockerVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/FlockerVolumeSource"] = func() any {
 		return &corev1.FlockerVolumeSource{}
 	}
-	knownTypes["core/v1/GCEPersistentDiskVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/GCEPersistentDiskVolumeSource"] = func() any {
 		return &corev1.GCEPersistentDiskVolumeSource{}
 	}
-	knownTypes["core/v1/GRPCAction"] = func() interface{} {
+	knownTypes["core/v1/GRPCAction"] = func() any {
 		return &corev1.GRPCAction{}
 	}
-	knownTypes["core/v1/GitRepoVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/GitRepoVolumeSource"] = func() any {
 		return &corev1.GitRepoVolumeSource{}
 	}
-	knownTypes["core/v1/GlusterfsPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/GlusterfsPersistentVolumeSource"] = func() any {
 		return &corev1.GlusterfsPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/GlusterfsVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/GlusterfsVolumeSource"] = func() any {
 		return &corev1.GlusterfsVolumeSource{}
 	}
-	knownTypes["core/v1/HTTPGetAction"] = func() interface{} {
+	knownTypes["core/v1/HTTPGetAction"] = func() any {
 		return &corev1.HTTPGetAction{}
 	}
-	knownTypes["core/v1/HTTPHeader"] = func() interface{} {
+	knownTypes["core/v1/HTTPHeader"] = func() any {
 		return &corev1.HTTPHeader{}
 	}
-	knownTypes["core/v1/HostAlias"] = func() interface{} {
+	knownTypes["core/v1/HostAlias"] = func() any {
 		return &corev1.HostAlias{}
 	}
-	knownTypes["core/v1/HostPathVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/HostIP"] = func() any {
+		return &corev1.HostIP{}
+	}
+	knownTypes["core/v1/HostPathVolumeSource"] = func() any {
 		return &corev1.HostPathVolumeSource{}
 	}
-	knownTypes["core/v1/ISCSIPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ISCSIPersistentVolumeSource"] = func() any {
 		return &corev1.ISCSIPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/ISCSIVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ISCSIVolumeSource"] = func() any {
 		return &corev1.ISCSIVolumeSource{}
 	}
-	knownTypes["core/v1/KeyToPath"] = func() interface{} {
+	knownTypes["core/v1/ImageVolumeSource"] = func() any {
+		return &corev1.ImageVolumeSource{}
+	}
+	knownTypes["core/v1/KeyToPath"] = func() any {
 		return &corev1.KeyToPath{}
 	}
-	knownTypes["core/v1/Lifecycle"] = func() interface{} {
+	knownTypes["core/v1/Lifecycle"] = func() any {
 		return &corev1.Lifecycle{}
 	}
-	knownTypes["core/v1/LifecycleHandler"] = func() interface{} {
+	knownTypes["core/v1/LifecycleHandler"] = func() any {
 		return &corev1.LifecycleHandler{}
 	}
-	knownTypes["core/v1/LimitRange"] = func() interface{} {
+	knownTypes["core/v1/LimitRange"] = func() any {
 		return &corev1.LimitRange{}
 	}
-	knownTypes["core/v1/LimitRangeItem"] = func() interface{} {
+	knownTypes["core/v1/LimitRangeItem"] = func() any {
 		return &corev1.LimitRangeItem{}
 	}
-	knownTypes["core/v1/LimitRangeList"] = func() interface{} {
+	knownTypes["core/v1/LimitRangeList"] = func() any {
 		return &corev1.LimitRangeList{}
 	}
-	knownTypes["core/v1/LimitRangeSpec"] = func() interface{} {
+	knownTypes["core/v1/LimitRangeSpec"] = func() any {
 		return &corev1.LimitRangeSpec{}
 	}
-	knownTypes["core/v1/List"] = func() interface{} {
+	knownTypes["core/v1/LinuxContainerUser"] = func() any {
+		return &corev1.LinuxContainerUser{}
+	}
+	knownTypes["core/v1/List"] = func() any {
 		return &corev1.List{}
 	}
-	knownTypes["core/v1/LoadBalancerIngress"] = func() interface{} {
+	knownTypes["core/v1/LoadBalancerIngress"] = func() any {
 		return &corev1.LoadBalancerIngress{}
 	}
-	knownTypes["core/v1/LoadBalancerStatus"] = func() interface{} {
+	knownTypes["core/v1/LoadBalancerStatus"] = func() any {
 		return &corev1.LoadBalancerStatus{}
 	}
-	knownTypes["core/v1/LocalObjectReference"] = func() interface{} {
+	knownTypes["core/v1/LocalObjectReference"] = func() any {
 		return &corev1.LocalObjectReference{}
 	}
-	knownTypes["core/v1/LocalVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/LocalVolumeSource"] = func() any {
 		return &corev1.LocalVolumeSource{}
 	}
-	knownTypes["core/v1/NFSVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ModifyVolumeStatus"] = func() any {
+		return &corev1.ModifyVolumeStatus{}
+	}
+	knownTypes["core/v1/NFSVolumeSource"] = func() any {
 		return &corev1.NFSVolumeSource{}
 	}
-	knownTypes["core/v1/Namespace"] = func() interface{} {
+	knownTypes["core/v1/Namespace"] = func() any {
 		return &corev1.Namespace{}
 	}
-	knownTypes["core/v1/NamespaceCondition"] = func() interface{} {
+	knownTypes["core/v1/NamespaceCondition"] = func() any {
 		return &corev1.NamespaceCondition{}
 	}
-	knownTypes["core/v1/NamespaceList"] = func() interface{} {
+	knownTypes["core/v1/NamespaceList"] = func() any {
 		return &corev1.NamespaceList{}
 	}
-	knownTypes["core/v1/NamespaceSpec"] = func() interface{} {
+	knownTypes["core/v1/NamespaceSpec"] = func() any {
 		return &corev1.NamespaceSpec{}
 	}
-	knownTypes["core/v1/NamespaceStatus"] = func() interface{} {
+	knownTypes["core/v1/NamespaceStatus"] = func() any {
 		return &corev1.NamespaceStatus{}
 	}
-	knownTypes["core/v1/Node"] = func() interface{} {
+	knownTypes["core/v1/Node"] = func() any {
 		return &corev1.Node{}
 	}
-	knownTypes["core/v1/NodeAddress"] = func() interface{} {
+	knownTypes["core/v1/NodeAddress"] = func() any {
 		return &corev1.NodeAddress{}
 	}
-	knownTypes["core/v1/NodeAffinity"] = func() interface{} {
+	knownTypes["core/v1/NodeAffinity"] = func() any {
 		return &corev1.NodeAffinity{}
 	}
-	knownTypes["core/v1/NodeCondition"] = func() interface{} {
+	knownTypes["core/v1/NodeCondition"] = func() any {
 		return &corev1.NodeCondition{}
 	}
-	knownTypes["core/v1/NodeConfigSource"] = func() interface{} {
+	knownTypes["core/v1/NodeConfigSource"] = func() any {
 		return &corev1.NodeConfigSource{}
 	}
-	knownTypes["core/v1/NodeConfigStatus"] = func() interface{} {
+	knownTypes["core/v1/NodeConfigStatus"] = func() any {
 		return &corev1.NodeConfigStatus{}
 	}
-	knownTypes["core/v1/NodeDaemonEndpoints"] = func() interface{} {
+	knownTypes["core/v1/NodeDaemonEndpoints"] = func() any {
 		return &corev1.NodeDaemonEndpoints{}
 	}
-	knownTypes["core/v1/NodeList"] = func() interface{} {
+	knownTypes["core/v1/NodeFeatures"] = func() any {
+		return &corev1.NodeFeatures{}
+	}
+	knownTypes["core/v1/NodeList"] = func() any {
 		return &corev1.NodeList{}
 	}
-	knownTypes["core/v1/NodeProxyOptions"] = func() interface{} {
+	knownTypes["core/v1/NodeProxyOptions"] = func() any {
 		return &corev1.NodeProxyOptions{}
 	}
-	knownTypes["core/v1/NodeResources"] = func() interface{} {
-		return &corev1.NodeResources{}
+	knownTypes["core/v1/NodeRuntimeHandler"] = func() any {
+		return &corev1.NodeRuntimeHandler{}
 	}
-	knownTypes["core/v1/NodeSelector"] = func() interface{} {
+	knownTypes["core/v1/NodeRuntimeHandlerFeatures"] = func() any {
+		return &corev1.NodeRuntimeHandlerFeatures{}
+	}
+	knownTypes["core/v1/NodeSelector"] = func() any {
 		return &corev1.NodeSelector{}
 	}
-	knownTypes["core/v1/NodeSelectorRequirement"] = func() interface{} {
+	knownTypes["core/v1/NodeSelectorRequirement"] = func() any {
 		return &corev1.NodeSelectorRequirement{}
 	}
-	knownTypes["core/v1/NodeSelectorTerm"] = func() interface{} {
+	knownTypes["core/v1/NodeSelectorTerm"] = func() any {
 		return &corev1.NodeSelectorTerm{}
 	}
-	knownTypes["core/v1/NodeSpec"] = func() interface{} {
+	knownTypes["core/v1/NodeSpec"] = func() any {
 		return &corev1.NodeSpec{}
 	}
-	knownTypes["core/v1/NodeStatus"] = func() interface{} {
+	knownTypes["core/v1/NodeStatus"] = func() any {
 		return &corev1.NodeStatus{}
 	}
-	knownTypes["core/v1/NodeSystemInfo"] = func() interface{} {
+	knownTypes["core/v1/NodeSystemInfo"] = func() any {
 		return &corev1.NodeSystemInfo{}
 	}
-	knownTypes["core/v1/ObjectFieldSelector"] = func() interface{} {
+	knownTypes["core/v1/ObjectFieldSelector"] = func() any {
 		return &corev1.ObjectFieldSelector{}
 	}
-	knownTypes["core/v1/ObjectReference"] = func() interface{} {
+	knownTypes["core/v1/ObjectReference"] = func() any {
 		return &corev1.ObjectReference{}
 	}
-	knownTypes["core/v1/PersistentVolume"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolume"] = func() any {
 		return &corev1.PersistentVolume{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaim"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaim"] = func() any {
 		return &corev1.PersistentVolumeClaim{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimCondition"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimCondition"] = func() any {
 		return &corev1.PersistentVolumeClaimCondition{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimList"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimList"] = func() any {
 		return &corev1.PersistentVolumeClaimList{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimSpec"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimSpec"] = func() any {
 		return &corev1.PersistentVolumeClaimSpec{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimStatus"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimStatus"] = func() any {
 		return &corev1.PersistentVolumeClaimStatus{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimTemplate"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimTemplate"] = func() any {
 		return &corev1.PersistentVolumeClaimTemplate{}
 	}
-	knownTypes["core/v1/PersistentVolumeClaimVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeClaimVolumeSource"] = func() any {
 		return &corev1.PersistentVolumeClaimVolumeSource{}
 	}
-	knownTypes["core/v1/PersistentVolumeList"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeList"] = func() any {
 		return &corev1.PersistentVolumeList{}
 	}
-	knownTypes["core/v1/PersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeSource"] = func() any {
 		return &corev1.PersistentVolumeSource{}
 	}
-	knownTypes["core/v1/PersistentVolumeSpec"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeSpec"] = func() any {
 		return &corev1.PersistentVolumeSpec{}
 	}
-	knownTypes["core/v1/PersistentVolumeStatus"] = func() interface{} {
+	knownTypes["core/v1/PersistentVolumeStatus"] = func() any {
 		return &corev1.PersistentVolumeStatus{}
 	}
-	knownTypes["core/v1/PhotonPersistentDiskVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/PhotonPersistentDiskVolumeSource"] = func() any {
 		return &corev1.PhotonPersistentDiskVolumeSource{}
 	}
-	knownTypes["core/v1/Pod"] = func() interface{} {
+	knownTypes["core/v1/Pod"] = func() any {
 		return &corev1.Pod{}
 	}
-	knownTypes["core/v1/PodAffinity"] = func() interface{} {
+	knownTypes["core/v1/PodAffinity"] = func() any {
 		return &corev1.PodAffinity{}
 	}
-	knownTypes["core/v1/PodAffinityTerm"] = func() interface{} {
+	knownTypes["core/v1/PodAffinityTerm"] = func() any {
 		return &corev1.PodAffinityTerm{}
 	}
-	knownTypes["core/v1/PodAntiAffinity"] = func() interface{} {
+	knownTypes["core/v1/PodAntiAffinity"] = func() any {
 		return &corev1.PodAntiAffinity{}
 	}
-	knownTypes["core/v1/PodAttachOptions"] = func() interface{} {
+	knownTypes["core/v1/PodAttachOptions"] = func() any {
 		return &corev1.PodAttachOptions{}
 	}
-	knownTypes["core/v1/PodCondition"] = func() interface{} {
+	knownTypes["core/v1/PodCondition"] = func() any {
 		return &corev1.PodCondition{}
 	}
-	knownTypes["core/v1/PodDNSConfig"] = func() interface{} {
+	knownTypes["core/v1/PodDNSConfig"] = func() any {
 		return &corev1.PodDNSConfig{}
 	}
-	knownTypes["core/v1/PodDNSConfigOption"] = func() interface{} {
+	knownTypes["core/v1/PodDNSConfigOption"] = func() any {
 		return &corev1.PodDNSConfigOption{}
 	}
-	knownTypes["core/v1/PodExecOptions"] = func() interface{} {
+	knownTypes["core/v1/PodExecOptions"] = func() any {
 		return &corev1.PodExecOptions{}
 	}
-	knownTypes["core/v1/PodIP"] = func() interface{} {
+	knownTypes["core/v1/PodIP"] = func() any {
 		return &corev1.PodIP{}
 	}
-	knownTypes["core/v1/PodList"] = func() interface{} {
+	knownTypes["core/v1/PodList"] = func() any {
 		return &corev1.PodList{}
 	}
-	knownTypes["core/v1/PodLogOptions"] = func() interface{} {
+	knownTypes["core/v1/PodLogOptions"] = func() any {
 		return &corev1.PodLogOptions{}
 	}
-	knownTypes["core/v1/PodOS"] = func() interface{} {
+	knownTypes["core/v1/PodOS"] = func() any {
 		return &corev1.PodOS{}
 	}
-	knownTypes["core/v1/PodPortForwardOptions"] = func() interface{} {
+	knownTypes["core/v1/PodPortForwardOptions"] = func() any {
 		return &corev1.PodPortForwardOptions{}
 	}
-	knownTypes["core/v1/PodProxyOptions"] = func() interface{} {
+	knownTypes["core/v1/PodProxyOptions"] = func() any {
 		return &corev1.PodProxyOptions{}
 	}
-	knownTypes["core/v1/PodReadinessGate"] = func() interface{} {
+	knownTypes["core/v1/PodReadinessGate"] = func() any {
 		return &corev1.PodReadinessGate{}
 	}
-	knownTypes["core/v1/PodSecurityContext"] = func() interface{} {
+	knownTypes["core/v1/PodResourceClaim"] = func() any {
+		return &corev1.PodResourceClaim{}
+	}
+	knownTypes["core/v1/PodResourceClaimStatus"] = func() any {
+		return &corev1.PodResourceClaimStatus{}
+	}
+	knownTypes["core/v1/PodSchedulingGate"] = func() any {
+		return &corev1.PodSchedulingGate{}
+	}
+	knownTypes["core/v1/PodSecurityContext"] = func() any {
 		return &corev1.PodSecurityContext{}
 	}
-	knownTypes["core/v1/PodSignature"] = func() interface{} {
+	knownTypes["core/v1/PodSignature"] = func() any {
 		return &corev1.PodSignature{}
 	}
-	knownTypes["core/v1/PodSpec"] = func() interface{} {
+	knownTypes["core/v1/PodSpec"] = func() any {
 		return &corev1.PodSpec{}
 	}
-	knownTypes["core/v1/PodStatus"] = func() interface{} {
+	knownTypes["core/v1/PodStatus"] = func() any {
 		return &corev1.PodStatus{}
 	}
-	knownTypes["core/v1/PodStatusResult"] = func() interface{} {
+	knownTypes["core/v1/PodStatusResult"] = func() any {
 		return &corev1.PodStatusResult{}
 	}
-	knownTypes["core/v1/PodTemplate"] = func() interface{} {
+	knownTypes["core/v1/PodTemplate"] = func() any {
 		return &corev1.PodTemplate{}
 	}
-	knownTypes["core/v1/PodTemplateList"] = func() interface{} {
+	knownTypes["core/v1/PodTemplateList"] = func() any {
 		return &corev1.PodTemplateList{}
 	}
-	knownTypes["core/v1/PodTemplateSpec"] = func() interface{} {
+	knownTypes["core/v1/PodTemplateSpec"] = func() any {
 		return &corev1.PodTemplateSpec{}
 	}
-	knownTypes["core/v1/PortStatus"] = func() interface{} {
+	knownTypes["core/v1/PortStatus"] = func() any {
 		return &corev1.PortStatus{}
 	}
-	knownTypes["core/v1/PortworxVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/PortworxVolumeSource"] = func() any {
 		return &corev1.PortworxVolumeSource{}
 	}
-	knownTypes["core/v1/Preconditions"] = func() interface{} {
+	knownTypes["core/v1/Preconditions"] = func() any {
 		return &corev1.Preconditions{}
 	}
-	knownTypes["core/v1/PreferAvoidPodsEntry"] = func() interface{} {
+	knownTypes["core/v1/PreferAvoidPodsEntry"] = func() any {
 		return &corev1.PreferAvoidPodsEntry{}
 	}
-	knownTypes["core/v1/PreferredSchedulingTerm"] = func() interface{} {
+	knownTypes["core/v1/PreferredSchedulingTerm"] = func() any {
 		return &corev1.PreferredSchedulingTerm{}
 	}
-	knownTypes["core/v1/Probe"] = func() interface{} {
+	knownTypes["core/v1/Probe"] = func() any {
 		return &corev1.Probe{}
 	}
-	knownTypes["core/v1/ProbeHandler"] = func() interface{} {
+	knownTypes["core/v1/ProbeHandler"] = func() any {
 		return &corev1.ProbeHandler{}
 	}
-	knownTypes["core/v1/ProjectedVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ProjectedVolumeSource"] = func() any {
 		return &corev1.ProjectedVolumeSource{}
 	}
-	knownTypes["core/v1/QuobyteVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/QuobyteVolumeSource"] = func() any {
 		return &corev1.QuobyteVolumeSource{}
 	}
-	knownTypes["core/v1/RBDPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/RBDPersistentVolumeSource"] = func() any {
 		return &corev1.RBDPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/RBDVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/RBDVolumeSource"] = func() any {
 		return &corev1.RBDVolumeSource{}
 	}
-	knownTypes["core/v1/RangeAllocation"] = func() interface{} {
+	knownTypes["core/v1/RangeAllocation"] = func() any {
 		return &corev1.RangeAllocation{}
 	}
-	knownTypes["core/v1/ReplicationController"] = func() interface{} {
+	knownTypes["core/v1/ReplicationController"] = func() any {
 		return &corev1.ReplicationController{}
 	}
-	knownTypes["core/v1/ReplicationControllerCondition"] = func() interface{} {
+	knownTypes["core/v1/ReplicationControllerCondition"] = func() any {
 		return &corev1.ReplicationControllerCondition{}
 	}
-	knownTypes["core/v1/ReplicationControllerList"] = func() interface{} {
+	knownTypes["core/v1/ReplicationControllerList"] = func() any {
 		return &corev1.ReplicationControllerList{}
 	}
-	knownTypes["core/v1/ReplicationControllerSpec"] = func() interface{} {
+	knownTypes["core/v1/ReplicationControllerSpec"] = func() any {
 		return &corev1.ReplicationControllerSpec{}
 	}
-	knownTypes["core/v1/ReplicationControllerStatus"] = func() interface{} {
+	knownTypes["core/v1/ReplicationControllerStatus"] = func() any {
 		return &corev1.ReplicationControllerStatus{}
 	}
-	knownTypes["core/v1/ResourceFieldSelector"] = func() interface{} {
+	knownTypes["core/v1/ResourceClaim"] = func() any {
+		return &corev1.ResourceClaim{}
+	}
+	knownTypes["core/v1/ResourceFieldSelector"] = func() any {
 		return &corev1.ResourceFieldSelector{}
 	}
-	knownTypes["core/v1/ResourceList"] = func() interface{} {
+	knownTypes["core/v1/ResourceHealth"] = func() any {
+		return &corev1.ResourceHealth{}
+	}
+	knownTypes["core/v1/ResourceList"] = func() any {
 		return &corev1.ResourceList{}
 	}
-	knownTypes["core/v1/ResourceQuota"] = func() interface{} {
+	knownTypes["core/v1/ResourceQuota"] = func() any {
 		return &corev1.ResourceQuota{}
 	}
-	knownTypes["core/v1/ResourceQuotaList"] = func() interface{} {
+	knownTypes["core/v1/ResourceQuotaList"] = func() any {
 		return &corev1.ResourceQuotaList{}
 	}
-	knownTypes["core/v1/ResourceQuotaSpec"] = func() interface{} {
+	knownTypes["core/v1/ResourceQuotaSpec"] = func() any {
 		return &corev1.ResourceQuotaSpec{}
 	}
-	knownTypes["core/v1/ResourceQuotaStatus"] = func() interface{} {
+	knownTypes["core/v1/ResourceQuotaStatus"] = func() any {
 		return &corev1.ResourceQuotaStatus{}
 	}
-	knownTypes["core/v1/ResourceRequirements"] = func() interface{} {
+	knownTypes["core/v1/ResourceRequirements"] = func() any {
 		return &corev1.ResourceRequirements{}
 	}
-	knownTypes["core/v1/SELinuxOptions"] = func() interface{} {
+	knownTypes["core/v1/ResourceStatus"] = func() any {
+		return &corev1.ResourceStatus{}
+	}
+	knownTypes["core/v1/SELinuxOptions"] = func() any {
 		return &corev1.SELinuxOptions{}
 	}
-	knownTypes["core/v1/ScaleIOPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ScaleIOPersistentVolumeSource"] = func() any {
 		return &corev1.ScaleIOPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/ScaleIOVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/ScaleIOVolumeSource"] = func() any {
 		return &corev1.ScaleIOVolumeSource{}
 	}
-	knownTypes["core/v1/ScopeSelector"] = func() interface{} {
+	knownTypes["core/v1/ScopeSelector"] = func() any {
 		return &corev1.ScopeSelector{}
 	}
-	knownTypes["core/v1/ScopedResourceSelectorRequirement"] = func() interface{} {
+	knownTypes["core/v1/ScopedResourceSelectorRequirement"] = func() any {
 		return &corev1.ScopedResourceSelectorRequirement{}
 	}
-	knownTypes["core/v1/SeccompProfile"] = func() interface{} {
+	knownTypes["core/v1/SeccompProfile"] = func() any {
 		return &corev1.SeccompProfile{}
 	}
-	knownTypes["core/v1/Secret"] = func() interface{} {
+	knownTypes["core/v1/Secret"] = func() any {
 		return &corev1.Secret{}
 	}
-	knownTypes["core/v1/SecretEnvSource"] = func() interface{} {
+	knownTypes["core/v1/SecretEnvSource"] = func() any {
 		return &corev1.SecretEnvSource{}
 	}
-	knownTypes["core/v1/SecretKeySelector"] = func() interface{} {
+	knownTypes["core/v1/SecretKeySelector"] = func() any {
 		return &corev1.SecretKeySelector{}
 	}
-	knownTypes["core/v1/SecretList"] = func() interface{} {
+	knownTypes["core/v1/SecretList"] = func() any {
 		return &corev1.SecretList{}
 	}
-	knownTypes["core/v1/SecretProjection"] = func() interface{} {
+	knownTypes["core/v1/SecretProjection"] = func() any {
 		return &corev1.SecretProjection{}
 	}
-	knownTypes["core/v1/SecretReference"] = func() interface{} {
+	knownTypes["core/v1/SecretReference"] = func() any {
 		return &corev1.SecretReference{}
 	}
-	knownTypes["core/v1/SecretVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/SecretVolumeSource"] = func() any {
 		return &corev1.SecretVolumeSource{}
 	}
-	knownTypes["core/v1/SecurityContext"] = func() interface{} {
+	knownTypes["core/v1/SecurityContext"] = func() any {
 		return &corev1.SecurityContext{}
 	}
-	knownTypes["core/v1/SerializedReference"] = func() interface{} {
+	knownTypes["core/v1/SerializedReference"] = func() any {
 		return &corev1.SerializedReference{}
 	}
-	knownTypes["core/v1/Service"] = func() interface{} {
+	knownTypes["core/v1/Service"] = func() any {
 		return &corev1.Service{}
 	}
-	knownTypes["core/v1/ServiceAccount"] = func() interface{} {
+	knownTypes["core/v1/ServiceAccount"] = func() any {
 		return &corev1.ServiceAccount{}
 	}
-	knownTypes["core/v1/ServiceAccountList"] = func() interface{} {
+	knownTypes["core/v1/ServiceAccountList"] = func() any {
 		return &corev1.ServiceAccountList{}
 	}
-	knownTypes["core/v1/ServiceAccountTokenProjection"] = func() interface{} {
+	knownTypes["core/v1/ServiceAccountTokenProjection"] = func() any {
 		return &corev1.ServiceAccountTokenProjection{}
 	}
-	knownTypes["core/v1/ServiceList"] = func() interface{} {
+	knownTypes["core/v1/ServiceList"] = func() any {
 		return &corev1.ServiceList{}
 	}
-	knownTypes["core/v1/ServicePort"] = func() interface{} {
+	knownTypes["core/v1/ServicePort"] = func() any {
 		return &corev1.ServicePort{}
 	}
-	knownTypes["core/v1/ServiceProxyOptions"] = func() interface{} {
+	knownTypes["core/v1/ServiceProxyOptions"] = func() any {
 		return &corev1.ServiceProxyOptions{}
 	}
-	knownTypes["core/v1/ServiceSpec"] = func() interface{} {
+	knownTypes["core/v1/ServiceSpec"] = func() any {
 		return &corev1.ServiceSpec{}
 	}
-	knownTypes["core/v1/ServiceStatus"] = func() interface{} {
+	knownTypes["core/v1/ServiceStatus"] = func() any {
 		return &corev1.ServiceStatus{}
 	}
-	knownTypes["core/v1/SessionAffinityConfig"] = func() interface{} {
+	knownTypes["core/v1/SessionAffinityConfig"] = func() any {
 		return &corev1.SessionAffinityConfig{}
 	}
-	knownTypes["core/v1/StorageOSPersistentVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/SleepAction"] = func() any {
+		return &corev1.SleepAction{}
+	}
+	knownTypes["core/v1/StorageOSPersistentVolumeSource"] = func() any {
 		return &corev1.StorageOSPersistentVolumeSource{}
 	}
-	knownTypes["core/v1/StorageOSVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/StorageOSVolumeSource"] = func() any {
 		return &corev1.StorageOSVolumeSource{}
 	}
-	knownTypes["core/v1/Sysctl"] = func() interface{} {
+	knownTypes["core/v1/Sysctl"] = func() any {
 		return &corev1.Sysctl{}
 	}
-	knownTypes["core/v1/TCPSocketAction"] = func() interface{} {
+	knownTypes["core/v1/TCPSocketAction"] = func() any {
 		return &corev1.TCPSocketAction{}
 	}
-	knownTypes["core/v1/Taint"] = func() interface{} {
+	knownTypes["core/v1/Taint"] = func() any {
 		return &corev1.Taint{}
 	}
-	knownTypes["core/v1/Toleration"] = func() interface{} {
+	knownTypes["core/v1/Toleration"] = func() any {
 		return &corev1.Toleration{}
 	}
-	knownTypes["core/v1/TopologySelectorLabelRequirement"] = func() interface{} {
+	knownTypes["core/v1/TopologySelectorLabelRequirement"] = func() any {
 		return &corev1.TopologySelectorLabelRequirement{}
 	}
-	knownTypes["core/v1/TopologySelectorTerm"] = func() interface{} {
+	knownTypes["core/v1/TopologySelectorTerm"] = func() any {
 		return &corev1.TopologySelectorTerm{}
 	}
-	knownTypes["core/v1/TopologySpreadConstraint"] = func() interface{} {
+	knownTypes["core/v1/TopologySpreadConstraint"] = func() any {
 		return &corev1.TopologySpreadConstraint{}
 	}
-	knownTypes["core/v1/TypedLocalObjectReference"] = func() interface{} {
+	knownTypes["core/v1/TypedLocalObjectReference"] = func() any {
 		return &corev1.TypedLocalObjectReference{}
 	}
-	knownTypes["core/v1/Volume"] = func() interface{} {
+	knownTypes["core/v1/TypedObjectReference"] = func() any {
+		return &corev1.TypedObjectReference{}
+	}
+	knownTypes["core/v1/Volume"] = func() any {
 		return &corev1.Volume{}
 	}
-	knownTypes["core/v1/VolumeDevice"] = func() interface{} {
+	knownTypes["core/v1/VolumeDevice"] = func() any {
 		return &corev1.VolumeDevice{}
 	}
-	knownTypes["core/v1/VolumeMount"] = func() interface{} {
+	knownTypes["core/v1/VolumeMount"] = func() any {
 		return &corev1.VolumeMount{}
 	}
-	knownTypes["core/v1/VolumeNodeAffinity"] = func() interface{} {
+	knownTypes["core/v1/VolumeMountStatus"] = func() any {
+		return &corev1.VolumeMountStatus{}
+	}
+	knownTypes["core/v1/VolumeNodeAffinity"] = func() any {
 		return &corev1.VolumeNodeAffinity{}
 	}
-	knownTypes["core/v1/VolumeProjection"] = func() interface{} {
+	knownTypes["core/v1/VolumeProjection"] = func() any {
 		return &corev1.VolumeProjection{}
 	}
-	knownTypes["core/v1/VolumeSource"] = func() interface{} {
+	knownTypes["core/v1/VolumeResourceRequirements"] = func() any {
+		return &corev1.VolumeResourceRequirements{}
+	}
+	knownTypes["core/v1/VolumeSource"] = func() any {
 		return &corev1.VolumeSource{}
 	}
-	knownTypes["core/v1/VsphereVirtualDiskVolumeSource"] = func() interface{} {
+	knownTypes["core/v1/VsphereVirtualDiskVolumeSource"] = func() any {
 		return &corev1.VsphereVirtualDiskVolumeSource{}
 	}
-	knownTypes["core/v1/WeightedPodAffinityTerm"] = func() interface{} {
+	knownTypes["core/v1/WeightedPodAffinityTerm"] = func() any {
 		return &corev1.WeightedPodAffinityTerm{}
 	}
-	knownTypes["core/v1/WindowsSecurityContextOptions"] = func() interface{} {
+	knownTypes["core/v1/WindowsSecurityContextOptions"] = func() any {
 		return &corev1.WindowsSecurityContextOptions{}
 	}
 }

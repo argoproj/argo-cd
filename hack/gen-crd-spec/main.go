@@ -2,32 +2,30 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
 	extensionsobj "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
 )
 
-var (
-	kindToCRDPath = map[string]string{
-		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
-		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
-	}
-)
+var kindToCRDPath = map[string]string{
+	application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+	application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+}
 
 func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
-		"crd:trivialVersions=true",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
@@ -96,13 +94,13 @@ func toCRD(un *unstructured.Unstructured, removeDesc bool) *extensionsobj.Custom
 	return &crd
 }
 
-func removeDescription(v interface{}) {
+func removeDescription(v any) {
 	switch v := v.(type) {
-	case []interface{}:
+	case []any:
 		for _, v := range v {
 			removeDescription(v)
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		if _, ok := v["description"]; ok {
 			_, ok := v["description"].(string)
 			if ok {
@@ -117,6 +115,10 @@ func removeDescription(v interface{}) {
 
 func checkErr(err error) {
 	if err != nil {
+		var execError *exec.ExitError
+		if errors.As(err, &execError) {
+			fmt.Println(string(execError.Stderr))
+		}
 		panic(err)
 	}
 }
@@ -149,6 +151,6 @@ func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) 
 	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 	checkErr(err)
 
-	err = os.WriteFile(path, yamlBytes, 0644)
+	err = os.WriteFile(path, yamlBytes, 0o644)
 	checkErr(err)
 }

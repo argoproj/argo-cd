@@ -12,13 +12,13 @@ import (
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 
 	// load the gcp plugin (required to authenticate against GKE clusters).
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -33,8 +33,8 @@ func newCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		configMaps   []string
 	)
-	var command = cobra.Command{
-		Run: func(cmd *cobra.Command, args []string) {
+	command := cobra.Command{
+		Run: func(_ *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			ns, _, err := clientConfig.Namespace()
@@ -49,8 +49,8 @@ func newCommand() *cobra.Command {
 				cmNameToPath[parts[0]] = parts[1]
 			}
 
-			handledConfigMap := func(obj interface{}) {
-				cm, ok := obj.(*v1.ConfigMap)
+			handledConfigMap := func(obj any) {
+				cm, ok := obj.(*corev1.ConfigMap)
 				if !ok {
 					return
 				}
@@ -87,7 +87,7 @@ func newCommand() *cobra.Command {
 				// Create or update files that are specified in ConfigMap
 				for name, data := range cm.Data {
 					p := path.Join(destPath, name)
-					err := os.WriteFile(p, []byte(data), 0644)
+					err := os.WriteFile(p, []byte(data), 0o644)
 					if err != nil {
 						log.Warnf("Failed to create file %s: %v", p, err)
 					}
@@ -97,12 +97,15 @@ func newCommand() *cobra.Command {
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			factory := informers.NewSharedInformerFactoryWithOptions(kubeClient, 1*time.Minute, informers.WithNamespace(ns))
 			informer := factory.Core().V1().ConfigMaps().Informer()
-			informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+			_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 				AddFunc: handledConfigMap,
-				UpdateFunc: func(oldObj, newObj interface{}) {
+				UpdateFunc: func(_, newObj any) {
 					handledConfigMap(newObj)
 				},
 			})
+			if err != nil {
+				log.Error(err)
+			}
 			informer.Run(context.Background().Done())
 		},
 	}

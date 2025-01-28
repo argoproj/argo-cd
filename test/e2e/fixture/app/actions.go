@@ -1,16 +1,20 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
+	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -64,6 +68,24 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) AddSignedTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedTag(name)
+	return a
+}
+
+func (a *Actions) AddTag(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTag(name)
+	return a
+}
+
+func (a *Actions) RemoveSubmodule() *Actions {
+	a.context.t.Helper()
+	fixture.RemoveSubmodule()
+	return a
+}
+
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
@@ -86,10 +108,11 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.runCli(args...)
 	return a
 }
+
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -146,7 +169,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -201,16 +224,41 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.AppQualifiedName(),
-		"--repo", fixture.RepoURL(a.context.repoURLType),
 	}, args...)
 
-	if a.context.destName != "" {
+	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.hydrateToBranch != "" {
+		args = append(args, "--dry-source-repo", fixture.RepoURL(a.context.repoURLType))
+	} else {
+		args = append(args, "--repo", fixture.RepoURL(a.context.repoURLType))
+	}
+
+	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {
 		args = append(args, "--dest-name", a.context.destName)
 	} else {
 		args = append(args, "--dest-server", a.context.destServer)
 	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
+	}
+
+	if a.context.drySourceRevision != "" {
+		args = append(args, "--dry-source-revision", a.context.drySourceRevision)
+	}
+
+	if a.context.drySourcePath != "" {
+		args = append(args, "--dry-source-path", a.context.drySourcePath)
+	}
+
+	if a.context.syncSourceBranch != "" {
+		args = append(args, "--sync-source-branch", a.context.syncSourceBranch)
+	}
+
+	if a.context.syncSourcePath != "" {
+		args = append(args, "--sync-source-path", a.context.syncSourcePath)
+	}
+
+	if a.context.hydrateToBranch != "" {
+		args = append(args, "--hydrate-to-branch", a.context.hydrateToBranch)
 	}
 
 	if a.context.chart != "" {
@@ -248,6 +296,12 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipSchemaValidation {
+		args = append(args, "--helm-skip-schema-validation")
+	}
+	if a.context.helmSkipTests {
+		args = append(args, "--helm-skip-tests")
+	}
 	return args
 }
 
@@ -258,8 +312,8 @@ func (a *Actions) Declarative(filename string) *Actions {
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
-	values := map[string]interface{}{
-		"ArgoCDNamespace":     fixture.ArgoCDNamespace,
+	values := map[string]any{
+		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
 		"Path":                a.context.path,
@@ -274,6 +328,28 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 func (a *Actions) PatchApp(patch string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "patch", a.context.AppQualifiedName(), "--patch", patch)
+	return a
+}
+
+func (a *Actions) PatchAppHttp(patch string) *Actions {
+	a.context.t.Helper()
+	var application Application
+	patchType := "merge"
+	appName := a.context.AppQualifiedName()
+	appNamespace := a.context.AppNamespace()
+	patchRequest := &client.ApplicationPatchRequest{
+		Name:         &appName,
+		PatchType:    &patchType,
+		Patch:        &patch,
+		AppNamespace: &appNamespace,
+	}
+	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
+	errors.CheckError(err)
+	err = fixture.DoHttpJsonRequest("PATCH",
+		fmt.Sprintf("/api/v1/applications/%v", appName),
+		&application,
+		jsonBytes...)
+	errors.CheckError(err)
 	return a
 }
 
@@ -299,7 +375,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -324,6 +400,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.applyOutOfSyncOnly {
+		args = append(args, "--apply-out-of-sync-only")
+	}
+
 	if a.context.replace {
 		args = append(args, "--replace")
 	}
@@ -331,6 +411,14 @@ func (a *Actions) Sync(args ...string) *Actions {
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
+
+	return a
+}
+
+func (a *Actions) ConfirmDeletion() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
 	return a
 }
@@ -353,6 +441,12 @@ func (a *Actions) Refresh(refreshType RefreshType) *Actions {
 	return a
 }
 
+func (a *Actions) Get() *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "get", a.context.AppQualifiedName())
+	return a
+}
+
 func (a *Actions) Delete(cascade bool) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", a.context.AppQualifiedName(), fmt.Sprintf("--cascade=%v", cascade), "--yes")
@@ -361,7 +455,13 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
+	a.runCli("app", "delete", "--selector="+selector, "--yes")
+	return a
+}
+
+func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", "--selector="+selector, "--yes", "--wait")
 	return a
 }
 
@@ -371,13 +471,13 @@ func (a *Actions) Wait(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -406,11 +506,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	return a
+}
+
+func (a *Actions) SetInstallationID(installationID string) *Actions {
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	fixture.SetTrackingLabel(trackingLabel)
+	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
 	return a
 }

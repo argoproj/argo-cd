@@ -1,20 +1,23 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
@@ -33,6 +36,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
+	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -48,7 +52,24 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
-// make sure that that hooks do not appear in "argocd app diff"
+func TestPostDeleteHook(t *testing.T) {
+	Given(t).
+		Path("post-delete-hook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		AndAction(func() {
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+			CheckError(err)
+			assert.Len(t, hooks.Items, 1)
+			assert.Equal(t, "hook", hooks.Items[0].Name)
+		})
+}
+
+// make sure that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -57,7 +78,7 @@ func TestHookDiff(t *testing.T) {
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name())
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
 		})
@@ -151,7 +172,7 @@ func TestPostSyncHookPodFailure(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusDegraded)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 func TestSyncFailHookPodFailure(t *testing.T) {
@@ -243,7 +264,7 @@ func TestHookDeletePolicyHookSucceededHookExit0(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we delete the hook on failure, if policy is set
@@ -259,7 +280,7 @@ func TestHookDeletePolicyHookSucceededHookExit1(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we do NOT delete the hook on success if failure policy is set
@@ -273,7 +294,7 @@ func TestHookDeletePolicyHookFailedHookExit0(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we do delete the hook on failure if failure policy is set
@@ -289,7 +310,7 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "hook" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
 // make sure that we can run the hook twice
@@ -307,14 +328,14 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		// the app will be in health+n-sync before this hook has run
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}).
 		When().
 		Sync().
@@ -323,7 +344,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(Pod(func(p v1.Pod) bool { return p.Name == "hook" })).
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
 			CheckError(err)
@@ -368,7 +389,7 @@ func TestHookSkip(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(ResourceResultNumbering(1)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod" }))
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod" }))
 }
 
 // make sure that we do NOT name non-hook resources in they are unnamed
@@ -400,7 +421,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			resources := app.Status.OperationState.SyncResult.Resources
-			assert.Equal(t, 3, len(resources))
+			assert.Len(t, resources, 3)
 			// make sure we don't use the same name
 			assert.Contains(t, resources[0].Name, "presync")
 			assert.Contains(t, resources[2].Name, "postsync")

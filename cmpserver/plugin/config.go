@@ -1,14 +1,15 @@
 package plugin
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	configUtil "github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	configUtil "github.com/argoproj/argo-cd/v3/util/config"
 )
 
 const (
@@ -22,11 +23,13 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
-	Version    string     `json:"version"`
-	Init       Command    `json:"init,omitempty"`
-	Generate   Command    `json:"generate"`
-	Discover   Discover   `json:"discover"`
-	Parameters Parameters `yaml:"parameters"`
+	Version          string     `json:"version"`
+	Init             Command    `json:"init,omitempty"`
+	Generate         Command    `json:"generate"`
+	Discover         Discover   `json:"discover"`
+	Parameters       Parameters `yaml:"parameters"`
+	PreserveFileMode bool       `json:"preserveFileMode,omitempty"`
+	ProvideGitCreds  bool       `json:"provideGitCreds,omitempty"`
 }
 
 // Discover holds find and fileName
@@ -36,7 +39,7 @@ type Discover struct {
 }
 
 func (d Discover) IsDefined() bool {
-	return d.FileName != "" || d.Find.Glob == "" || len(d.Find.Command.Command) > 0
+	return d.FileName != "" || d.Find.Glob != "" || len(d.Find.Command.Command) > 0
 }
 
 // Command holds binary path and arguments list
@@ -80,13 +83,13 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 
 func ValidatePluginConfig(config PluginConfig) error {
 	if config.Metadata.Name == "" {
-		return fmt.Errorf("invalid plugin configuration file. metadata.name should be non-empty.")
+		return errors.New("invalid plugin configuration file. metadata.name should be non-empty.")
 	}
 	if config.TypeMeta.Kind != ConfigManagementPluginKind {
 		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.TypeMeta.Kind)
 	}
 	if len(config.Spec.Generate.Command) == 0 {
-		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
+		return errors.New("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
 	// discovery field is optional as apps can now specify plugin names directly
 	return nil

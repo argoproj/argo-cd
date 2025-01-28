@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "No status available"
+    inputPath: testdata/progressing_nostatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Snapshot Running"
+    inputPath: testdata/progressing_status.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Snapshot Completed"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failed"
+    inputPath: testdata/degraded.yaml

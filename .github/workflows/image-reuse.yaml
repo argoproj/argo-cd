@@ -1,0 +1,169 @@
+name: Publish and Sign Container Image
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        required: true
+        type: string
+      quay_image_name:
+        required: false
+        type: string
+      ghcr_image_name:
+        required: false
+        type: string
+      docker_image_name:
+        required: false
+        type: string
+      platforms:
+        required: true
+        type: string
+      push:
+        required: true
+        type: boolean
+      target:
+        required: false
+        type: string
+
+    secrets:
+      quay_username:
+        required: false
+      quay_password:
+        required: false
+      ghcr_username:
+        required: false
+      ghcr_password:
+        required: false
+      docker_username:
+        required: false
+      docker_password:
+        required: false
+
+    outputs:
+      image-digest:
+        description: "sha256 digest of container image"
+        value: ${{ jobs.publish.outputs.image-digest }}
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write # Used to push images to `ghcr.io` if used.
+      id-token: write # Needed to create an OIDC token for keyless signing
+    runs-on: ubuntu-22.04
+    outputs:
+      image-digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ github.ref_type == 'tag'}}
+
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+        if: ${{ github.ref_type != 'tag'}}
+
+      - name: Setup Golang
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version: ${{ inputs.go-version }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
+      - uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+
+      - name: Setup tags for container image as a CSV type
+        run: |
+          IMAGE_TAGS=$(for str in \
+            ${{ inputs.quay_image_name }} \
+            ${{ inputs.ghcr_image_name }} \
+            ${{ inputs.docker_image_name}}; do
+            echo -n "${str}",;done | sed 's/,$//')
+
+          echo $IMAGE_TAGS
+          echo "TAGS=$IMAGE_TAGS" >> $GITHUB_ENV
+
+      - name: Setup image namespace for signing, strip off the tag
+        run: |
+          TAGS=$(for tag in \
+            ${{ inputs.quay_image_name }} \
+            ${{ inputs.ghcr_image_name }} \
+            ${{ inputs.docker_image_name}}; do
+            echo -n "${tag}" | awk -F ":" '{print $1}' -;done)
+          
+            echo $TAGS
+            echo 'SIGNING_TAGS<<EOF' >> $GITHUB_ENV
+            echo $TAGS >> $GITHUB_ENV
+            echo 'EOF' >> $GITHUB_ENV
+
+      - name: Login to Quay.io
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: quay.io
+          username: ${{ secrets.quay_username }}
+          password: ${{ secrets.quay_password }}
+        if: ${{ inputs.quay_image_name && inputs.push }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.ghcr_username }}
+          password: ${{ secrets.ghcr_password }}
+        if: ${{ inputs.ghcr_image_name && inputs.push }}
+
+      - name: Login to dockerhub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_password }}
+        if: ${{ inputs.docker_image_name && inputs.push }}
+
+      - name: Set up build args for container image
+        run: |
+            echo "GIT_TAG=$(if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)" >> $GITHUB_ENV
+            echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+            echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+            echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+          tool-cache: false
+
+      - name: Build and push container image
+        id: image
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 #v6.10.0
+        with:
+          context: .
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ env.TAGS }}
+          target: ${{ inputs.target }}
+          provenance: false
+          sbom: false
+          build-args: |
+            GIT_TAG=${{env.GIT_TAG}}
+            GIT_COMMIT=${{env.GIT_COMMIT}}
+            BUILD_DATE=${{env.BUILD_DATE}}
+            GIT_TREE_STATE=${{env.GIT_TREE_STATE}}
+
+      - name: Sign container images
+        run: |
+          for signing_tag in $SIGNING_TAGS; do
+            cosign sign \
+            -a "repo=${{ github.repository }}" \
+            -a "workflow=${{ github.workflow }}" \
+            -a "sha=${{ github.sha }}" \
+            -y \
+            "$signing_tag"@${{ steps.image.outputs.digest }}
+          done
+        if: ${{ inputs.push }}

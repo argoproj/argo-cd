@@ -2,22 +2,21 @@ package e2e
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func TestCreateAndUseAccount(t *testing.T) {
@@ -27,15 +26,15 @@ func TestCreateAndUseAccount(t *testing.T) {
 		When().
 		Create().
 		Then().
-		And(func(account *account.Account, err error) {
+		And(func(account *account.Account, _ error) {
 			assert.Equal(t, account.Name, ctx.GetName())
-			assert.Equal(t, account.Capabilities, []string{"login"})
+			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
 		Then().
-		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
-			assert.Equal(t, user.LoggedIn, true)
+		CurrentUser(func(user *session.GetUserInfoResponse, _ error) {
+			assert.True(t, user.LoggedIn)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
 }
@@ -49,8 +48,8 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		Login().
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "yes"))
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, "yes")
 		})
 }
 
@@ -64,8 +63,8 @@ func TestCanIGetLogsDenySwitchOn(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "no"))
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, "no")
 		})
 }
 
@@ -77,7 +76,7 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		When().
 		Create().
 		Login().
-		SetPermissions([]fixture.ACL{
+		SetPermissions([]ACL{
 			{
 				Resource: "logs",
 				Action:   "get",
@@ -92,8 +91,8 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "yes"))
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, "yes")
 		})
 }
 
@@ -107,8 +106,8 @@ func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
 		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "yes"))
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, "yes")
 		})
 }
 
@@ -121,9 +120,9 @@ func TestCreateAndUseAccountCLI(t *testing.T) {
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
 
-	SetAccounts(map[string][]string{
+	errors.CheckError(SetAccounts(map[string][]string{
 		"test": {"login", "apiKey"},
-	})
+	}))
 
 	output, err = RunCli("account", "list")
 	errors.CheckError(err)
@@ -143,9 +142,9 @@ test   true     login, apiKey`, output)
 	defer io.Close(closer)
 
 	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, info.Username, "test")
+	assert.Equal(t, "test", info.Username)
 }
 
 func TestLoginBadCredentials(t *testing.T) {
@@ -162,9 +161,7 @@ func TestLoginBadCredentials(t *testing.T) {
 
 	for _, r := range requests {
 		_, err := sessionClient.Create(context.Background(), &r)
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		errStatus, ok := status.FromError(err)
 		if !assert.True(t, ok) {
 			return

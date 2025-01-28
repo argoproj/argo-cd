@@ -4,19 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strings"
-	"testing"
-
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 type fakeIndexCache struct {
@@ -35,23 +37,23 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", Creds{}, false, "")
-		_, err := client.GetIndex(false)
-		assert.Error(t, err)
+		client := NewClient("", HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-		index, err := client.GetIndex(false)
-		assert.NoError(t, err)
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		index, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false, "")
-		index, err := client.GetIndex(false)
-		assert.NoError(t, err)
+		}, false, "", "")
+		index, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 
@@ -61,63 +63,75 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false)
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		index, err := client.GetIndex(false, 10000)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
+	t.Run("Limited", func(t *testing.T) {
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 100)
+
+		assert.ErrorContains(t, err, "unexpected end of stream")
+	})
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
-	assert.NoError(t, err)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
+func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
+	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+}
+
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false)
-	assert.NoError(t, err)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	require.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
 func Test_normalizeChartName(t *testing.T) {
 	t.Run("Test non-slashed name", func(t *testing.T) {
 		n := normalizeChartName("mychart")
-		assert.Equal(t, n, "mychart")
+		assert.Equal(t, "mychart", n)
 	})
 	t.Run("Test single-slashed name", func(t *testing.T) {
 		n := normalizeChartName("myorg/mychart")
-		assert.Equal(t, n, "mychart")
+		assert.Equal(t, "mychart", n)
 	})
 	t.Run("Test chart name with suborg", func(t *testing.T) {
 		n := normalizeChartName("myorg/mysuborg/mychart")
-		assert.Equal(t, n, "mychart")
+		assert.Equal(t, "mychart", n)
 	})
 	t.Run("Test double-slashed name", func(t *testing.T) {
 		n := normalizeChartName("myorg//mychart")
-		assert.Equal(t, n, "mychart")
+		assert.Equal(t, "mychart", n)
 	})
 	t.Run("Test invalid chart name - ends with slash", func(t *testing.T) {
 		n := normalizeChartName("myorg/")
-		assert.Equal(t, n, "myorg/")
+		assert.Equal(t, "myorg/", n)
 	})
 	t.Run("Test invalid chart name - is dot", func(t *testing.T) {
 		n := normalizeChartName("myorg/.")
-		assert.Equal(t, n, "myorg/.")
+		assert.Equal(t, "myorg/.", n)
 	})
 	t.Run("Test invalid chart name - is two dots", func(t *testing.T) {
 		n := normalizeChartName("myorg/..")
-		assert.Equal(t, n, "myorg/..")
+		assert.Equal(t, "myorg/..", n)
 	})
 }
 
@@ -135,100 +149,326 @@ func TestGetIndexURL(t *testing.T) {
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("URL with escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, "", got)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
 func TestGetTagsFromUrl(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		responseTags := TagsList{}
-		w.Header().Set("Content-Type", "application/json")
-		if !strings.Contains(r.URL.String(), "token") {
-			w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-			responseTags.Tags = []string{"first"}
-		} else {
-			responseTags.Tags = []string{"second"}
-		}
-		w.WriteHeader(http.StatusOK)
-		err := json.NewEncoder(w).Encode(responseTags)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}))
+	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Logf("called %s", r.URL.Path)
+			responseTags := TagsList{}
+			w.Header().Set("Content-Type", "application/json")
+			if !strings.Contains(r.URL.String(), "token") {
+				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
+				responseTags.Tags = []string{"first"}
+			} else {
+				responseTags.Tags = []string{
+					"second",
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
+				}
+			}
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}))
 
-	client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
-	tags, err := client.GetTags("mychart", true)
-	assert.NoError(t, err)
-	assert.Equal(t, tags.Tags[0], "first")
-	assert.Equal(t, tags.Tags[1], "second")
+		tags, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags.Tags, []string{
+			"first",
+			"second",
+			"2.8.0",
+			"2.8.0-prerelease",
+			"2.8.0+build",
+			"2.8.0-prerelease+build",
+			"2.8.0-prerelease.1+build.1234",
+		})
+	})
+
+	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
+		client := NewClient("example.com", HelmCreds{}, false, "", "")
+
+		_, err := client.GetTags("my-chart", true)
+		assert.ErrorIs(t, OCINotEnabledErr, err)
+	})
 }
 
-func Test_getNextUrl(t *testing.T) {
-	baseUrl, err := url.Parse("https://my.repo.com/v2/chart/tags/list")
-	if err != nil {
-		t.Errorf("failed to parse url in test case: %v", err)
-	}
-	resp := &http.Response{
-		Request: &http.Request{
-			URL: baseUrl,
+func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
+	username := "my-username"
+	password := "my-password"
+	expectedAuthorization := "Basic bXktdXNlcm5hbWU6bXktcGFzc3dvcmQ=" // base64(user:password)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		authorization := r.Header.Get("Authorization")
+
+		if authorization == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		assert.Equal(t, expectedAuthorization, authorization)
+
+		responseTags := TagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: server.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
 		},
 	}
-	nextUrl, err := getNextUrl(resp)
-	assert.Equal(t, nextUrl, "")
-	assert.NoError(t, err)
 
-	var nextUrlAbsolute = "https://my.repo.com/v2/chart/tags/list?n=123&orderby="
-	resp.Header = http.Header{
-		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlAbsolute)},
-	}
-	nextUrl, err = getNextUrl(resp)
-	assert.NoError(t, err)
-	assert.Equal(t, nextUrl, nextUrlAbsolute)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, HelmCreds{
+				InsecureSkipVerify: true,
+				Username:           username,
+				Password:           password,
+			}, true, "", "")
 
-	var nextUrlRelative = "/v2/chart/tags/list?n=123&orderby="
-	resp.Header = http.Header{
-		"Link": []string{fmt.Sprintf(`<%s>; rel="next"`, nextUrlRelative)},
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags.Tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
 	}
-	nextUrl, err = getNextUrl(resp)
-	assert.NoError(t, err)
-	assert.Equal(t, nextUrl, "https://my.repo.com/v2/chart/tags/list?n=123&orderby=")
 }
 
-func Test_getTagsListURL(t *testing.T) {
-	tagsListURL, err := getTagsListURL("account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *testing.T) {
+	expectedAuthorization := "Basic MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOmFjY2Vzc1Rva2Vu" // base64(00000000-0000-0000-0000-000000000000:accessToken)
+	mockUrl := ""
+	serverUrl := func() string {
+		return mockUrl
+	}
 
-	tagsListURL, err = getTagsListURL("http://account.dkr.ecr.eu-central-1.amazonaws.com", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
 
-	// with trailing /
-	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/dss/tags/list")
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
 
-	// with unescaped characters allowed by https://www.rfc-editor.org/rfc/rfc3986#page-50
-	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts.-_~$&+=:@dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts.-_~$&+=:@dss/tags/list")
+		switch r.URL.Path {
+		case "/v2/":
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, serverUrl(), serverUrl()[8:]))
+			w.WriteHeader(http.StatusUnauthorized)
 
-	// with escaped characters not allowed in path by https://www.rfc-editor.org/rfc/rfc3986#page-50
-	tagsListURL, err = getTagsListURL("https://account.dkr.ecr.eu-central-1.amazonaws.com/", "charts%/dss")
-	assert.Nil(t, err)
-	assert.Equal(t, tagsListURL, "https://account.dkr.ecr.eu-central-1.amazonaws.com/v2/charts%25%2Fdss/tags/list")
+		case "/oauth2/exchange":
+			response := `{"refresh_token":"accessToken"}`
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(response))
+			require.NoError(t, err)
+		default:
+			authorization := r.Header.Get("Authorization")
+
+			if authorization == "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			assert.Equal(t, expectedAuthorization, authorization)
+
+			responseTags := TagsList{
+				Tags: []string{
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}
+	}))
+	mockUrl = server.URL
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: server.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, AzureWorkloadIdentityCreds{
+				repoUrl:            server.URL[8:],
+				InsecureSkipVerify: true,
+				tokenProvider:      workloadIdentityMock,
+			}, true, "", "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags.Tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
+}
+
+func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
+	bearerToken := "Zm9vOmJhcg=="
+	expectedAuthorization := "Basic " + bearerToken
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		authorization := r.Header.Get("Authorization")
+		if authorization == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		assert.Equal(t, expectedAuthorization, authorization)
+
+		responseTags := TagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("DOCKER_CONFIG", tempDir)
+
+	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"%s"}}}`, server.URL, bearerToken)
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: server.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, HelmCreds{
+				InsecureSkipVerify: true,
+			}, true, "", "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags.Tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
 }

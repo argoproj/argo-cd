@@ -2,13 +2,20 @@ package db
 
 import (
 	"context"
+	"math"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
@@ -40,36 +47,62 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+	// ListWriteRepositories lists repositories from write credentials
+	ListWriteRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
-	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
-	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	GetProjectRepositories(project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
-	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
+	RepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config
-	DeleteRepository(ctx context.Context, name string) error
+	DeleteRepository(ctx context.Context, name, project string) error
 
-	// ListRepoCredentials list all repo credential sets URL patterns
+	// CreateWriteRepository creates a repository with write credentials
+	CreateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// GetWriteRepository returns a repository by URL with write credentials
+	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
+	GetProjectWriteRepositories(project string) ([]*appv1.Repository, error)
+	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
+	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
+	// UpdateWriteRepository updates a repository with write credentials
+	UpdateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// DeleteWriteRepository deletes a repository from config with write credentials
+	DeleteWriteRepository(ctx context.Context, name, project string) error
+
+	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
-	// GetRepoCredentials gets repo credentials for given URL
+	// GetRepositoryCredentials gets repo credentials for given URL
 	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
-	// CreateRepoCredentials creates a repository credential set
+	// CreateRepositoryCredentials creates a repository credential set
 	CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// UpdateRepoCredentials updates a repository credential set
+	// UpdateRepositoryCredentials updates a repository credential set
 	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// DeleteRepoCredentials deletes a repository credential set from config
+	// DeleteRepositoryCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
+
+	// ListWriteRepositoryCredentials list all repo write credential sets URL patterns
+	ListWriteRepositoryCredentials(ctx context.Context) ([]string, error)
+	// GetWriteRepositoryCredentials gets repo write credentials for given URL
+	GetWriteRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
+	// CreateWriteRepositoryCredentials creates a repository write credential set
+	CreateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// UpdateWriteRepositoryCredentials updates a repository write credential set
+	UpdateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// DeleteWriteRepositoryCredentials deletes a repository write credential set from config
+	DeleteWriteRepositoryCredentials(ctx context.Context, name string) error
 
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
-	// CreateRepoCertificate creates a new certificate entry
+	// RemoveRepoCertificates removes certificates based upon a selector
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
@@ -79,10 +112,13 @@ type ArgoDB interface {
 
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
-	// AddGPGPublicKey adds one ore more GPG public keys to the configuration
+	// AddGPGPublicKey adds one or more GPG public keys to the configuration
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error
+
+	// GetApplicationControllerReplicas gets the replicas of application controller
+	GetApplicationControllerReplicas() int
 }
 
 type db struct {
@@ -100,26 +136,18 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 	}
 }
 
-func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
-	secret, ok := cache[name]
-	if !ok {
-		secretsLister, err := db.settingsMgr.GetSecretsLister()
+func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
+	if _, ok := cache[name]; !ok {
+		secret, err := db.settingsMgr.GetSecretByName(name)
 		if err != nil {
 			return nil, err
-		}
-		secret, err = secretsLister.Secrets(db.ns).Get(name)
-		if err != nil {
-			return nil, err
-		}
-		if secret.Data == nil {
-			secret.Data = make(map[string][]byte)
 		}
 		cache[name] = secret
 	}
-	return secret, nil
+	return cache[name], nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
+func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*corev1.SecretKeySelector, cache map[string]*corev1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)
@@ -139,4 +167,21 @@ func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.Sec
 // StripCRLFCharacter strips the trailing CRLF characters
 func StripCRLFCharacter(input string) string {
 	return strings.TrimSpace(input)
+}
+
+// GetApplicationControllerReplicas gets the replicas of application controller
+func (db *db) GetApplicationControllerReplicas() int {
+	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+	if err != nil {
+		appControllerDeployment = nil
+		if !apierrors.IsNotFound(err) {
+			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
+		}
+	}
+	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+		return int(*appControllerDeployment.Spec.Replicas)
+	}
+	return env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
 }

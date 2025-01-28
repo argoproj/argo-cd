@@ -1,4 +1,4 @@
-- when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+- when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy' and !time.Parse(app.status.health.lastTransitionTime).Before(time.Parse(app.status.operationState.finishedAt))
   description: Application is synced and healthy. Triggered once per commit.
   send: [app-deployed]
-  oncePer: app.status.operationState.syncResult.revision
+  oncePer: app.status.operationState?.syncResult?.revision

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
@@ -8,17 +9,19 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
 // NewGPGCommand returns a new instance of an `argocd repo` command
 func NewGPGCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "gpg",
 		Short: "Manage GPG keys used for signature verification",
 		Run: func(c *cobra.Command, args []string) {
@@ -36,13 +39,22 @@ func NewGPGCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewGPGListCommand lists all configured public keys from the server
 func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured GPG public keys",
-		Run: func(c *cobra.Command, args []string) {
+		Example: templates.Examples(`
+  # List all configured GPG public keys in wide format (default).
+  argocd gpg list
+		
+  # List all configured GPG public keys in JSON format.
+  argocd gpg list -o json
+		
+  # List all configured GPG public keys in YAML format.
+  argocd gpg list -o yaml
+  		`),
+
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
@@ -66,17 +78,26 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewGPGGetCommand retrieves a single public key from the server
 func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "get KEYID",
 		Short: "Get the GPG public key with ID <KEYID> from the server",
+		Example: templates.Examples(`  
+  # Get a GPG public key with the specified KEYID in wide format (default).
+  argocd gpg get KEYID
+		
+  # Get a GPG public key with the specified KEYID in JSON format.
+  argocd gpg get KEYID -o json
+		
+  # Get a GPG public key with the specified KEYID in YAML format.
+  argocd gpg get KEYID -o yaml
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
+				errors.CheckError(stderrors.New("Missing KEYID argument"))
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
@@ -103,17 +124,20 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 // NewGPGAddCommand adds a public key to the server's configuration
 func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		fromFile string
-	)
-	var command = &cobra.Command{
+	var fromFile string
+	command := &cobra.Command{
 		Use:   "add",
 		Short: "Adds a GPG public key to the server's keyring",
-		Run: func(c *cobra.Command, args []string) {
+		Example: templates.Examples(`
+  # Add a GPG public key to the server's keyring from a file.
+  argocd gpg add --from /path/to/keyfile
+  		`),
+
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			if fromFile == "" {
-				errors.CheckError(fmt.Errorf("--from is mandatory"))
+				errors.CheckError(stderrors.New("--from is mandatory"))
 			}
 			keyData, err := os.ReadFile(fromFile)
 			if err != nil {
@@ -132,29 +156,37 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	}
 	command.Flags().StringVarP(&fromFile, "from", "f", "", "Path to the file that contains the GPG public key to import")
 	return command
-
 }
 
 // NewGPGDeleteCommand removes a key from the server's keyring
 func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
+				errors.CheckError(stderrors.New("Missing KEYID argument"))
 			}
+
+			keyId := args[0]
+
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
-			errors.CheckError(err)
-			fmt.Printf("Deleted key with key ID %s\n", args[0])
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", keyId))
+			if canDelete {
+				_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: keyId})
+				errors.CheckError(err)
+				fmt.Printf("Deleted key with key ID %s\n", keyId)
+			} else {
+				fmt.Printf("The command to delete key with key ID '%s' was cancelled.\n", keyId)
+			}
 		},
 	}
 	return command
-
 }
 
 // Print table of certificate info

@@ -10,11 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/testdata"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -258,6 +259,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		}
 	}
 }
+
 func TestGiteaListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto, url                        string
@@ -302,12 +304,12 @@ func TestGiteaListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false)
+			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.NotNil(t, err)
+				require.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
 				branches := []string{}
@@ -332,7 +334,7 @@ func TestGiteaHasPath(t *testing.T) {
 		giteaMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGiteaProvider(context.Background(), "gitea", "", ts.URL, false, false)
+	host, _ := NewGiteaProvider("gitea", "", ts.URL, false, false)
 	repo := &Repository{
 		Organization: "gitea",
 		Repository:   "go-sdk",
@@ -341,19 +343,19 @@ func TestGiteaHasPath(t *testing.T) {
 
 	t.Run("file exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "README.md")
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("directory exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "gitea")
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("does not exists", func(t *testing.T) {
 		ok, err := host.RepoHasPath(context.Background(), repo, "notathing")
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 	})
 }

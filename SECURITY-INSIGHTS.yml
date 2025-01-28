@@ -1,0 +1,128 @@
+header:
+  schema-version: 1.0.0
+  expiration-date: '2024-10-31T00:00:00.000Z' # One year from initial release.
+  last-updated: '2023-10-27'
+  last-reviewed: '2023-10-27'
+  commit-hash: 74a367d10e7110209610ba3ec225539ebe5f7522
+  project-url: https://github.com/argoproj/argo-cd
+  project-release: v2.14.0
+  changelog: https://github.com/argoproj/argo-cd/releases
+  license: https://github.com/argoproj/argo-cd/blob/master/LICENSE
+project-lifecycle:
+  status: active
+  roadmap: https://github.com/orgs/argoproj/projects/25
+  bug-fixes-only: false
+  core-maintainers:
+    - https://github.com/argoproj/argoproj/blob/master/MAINTAINERS.md
+  release-cycle: https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/
+  release-process: https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/#release-process
+contribution-policy:
+  accepts-pull-requests: true
+  accepts-automated-pull-requests: true
+  automated-tools-list:
+    - automated-tool: dependabot
+      action: allowed
+      path:
+        - /
+    - automated-tool: snyk-report
+      action: allowed
+      path:
+        - docs/snyk
+      comment: |
+        This tool runs Snyk and generates a report of vulnerabilities in the project's dependencies. The report is 
+        placed in the project's documentation. The workflow is defined here:
+        https://github.com/argoproj/argo-cd/blob/master/.github/workflows/update-snyk.yaml
+  contributing-policy: https://argo-cd.readthedocs.io/en/stable/developer-guide/code-contributions/
+  code-of-conduct: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
+documentation:
+  - https://argo-cd.readthedocs.io/
+distribution-points:
+  - https://github.com/argoproj/argo-cd/releases
+  - https://quay.io/repository/argoproj/argocd
+security-artifacts:
+  threat-model:
+    threat-model-created: true
+    evidence-url:
+      - https://github.com/argoproj/argoproj/blob/master/docs/argo_threat_model.pdf
+      - https://github.com/argoproj/argoproj/blob/master/docs/end_user_threat_model.pdf
+  self-assessment:
+    self-assessment-created: false
+    comment: |
+      An extensive self-assessment was performed for CNCF graduation. Because the self-assessment process was evolving
+      at the time, no standardized document has been published.
+security-testing:
+  - tool-type: sca
+    tool-name: Dependabot
+    tool-version: "2"
+    tool-url: https://github.com/dependabot
+    integration:
+      ad-hoc: false
+      ci: false
+      before-release: false
+    tool-rulesets:
+      - https://github.com/argoproj/argo-cd/blob/master/.github/dependabot.yml
+  - tool-type: sca
+    tool-name: Snyk
+    tool-version: latest
+    tool-url: https://snyk.io/
+    integration:
+      ad-hoc: true
+      ci: true
+      before-release: false
+  - tool-type: sast
+    tool-name: CodeQL
+    tool-version: latest
+    tool-url: https://codeql.github.com/
+    integration:
+      ad-hoc: false
+      ci: true
+      before-release: false
+    comment: |
+      We use the default configuration with the latest version.
+security-assessments:
+  - auditor-name: Trail of Bits
+    auditor-url: https://trailofbits.com
+    auditor-report: https://github.com/argoproj/argoproj/blob/master/docs/argo_security_final_report.pdf
+    report-year: 2021
+  - auditor-name: Ada Logics
+    auditor-url: https://adalogics.com
+    auditor-report: https://github.com/argoproj/argoproj/blob/master/docs/argo_security_audit_2022.pdf
+    report-year: 2022
+  - auditor-name: Ada Logics
+    auditor-url: https://adalogics.com
+    auditor-report: https://github.com/argoproj/argoproj/blob/master/docs/audit_fuzzer_adalogics_2022.pdf
+    report-year: 2022
+    comment: |
+      Part of the audit was performed by Ada Logics, focussed on fuzzing.
+  - auditor-name: Chainguard
+    auditor-url: https://chainguard.dev
+    auditor-report: https://github.com/argoproj/argoproj/blob/master/docs/software_supply_chain_slsa_assessment_chainguard_2023.pdf
+    report-year: 2023
+    comment: |
+      Confirmed the project's release process as achieving SLSA (v0.1) level 3.
+security-contacts:
+  - type: email
+    value: cncf-argo-security@lists.cncf.io
+    primary: true
+vulnerability-reporting:
+  accepts-vulnerability-reports: true
+  email-contact: cncf-argo-security@lists.cncf.io
+  security-policy: https://github.com/argoproj/argo-cd/security/policy
+  bug-bounty-available: true
+  bug-bounty-url: https://hackerone.com/ibb/policy_scopes
+  out-scope:
+    - vulnerable and outdated components # See https://github.com/argoproj/argo-cd/blob/master/SECURITY.md#a-word-about-security-scanners
+    - security logging and monitoring failures
+dependencies:
+  third-party-packages: true
+  dependencies-lists:
+    - https://github.com/argoproj/argo-cd/blob/master/go.mod
+    - https://github.com/argoproj/argo-cd/blob/master/Dockerfile
+    - https://github.com/argoproj/argo-cd/blob/master/ui/package.json
+  sbom:
+    - sbom-file: https://github.com/argoproj/argo-cd/releases # Every release's assets include SBOMs.
+      sbom-format: SPDX
+  dependencies-lifecycle:
+    policy-url: https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/#dependencies-lifecycle-policy
+  env-dependencies-policy:
+    policy-url: https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/#dependencies-lifecycle-policy

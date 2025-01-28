@@ -3,9 +3,13 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
-	gitlab "github.com/xanzy/go-gitlab"
+	"github.com/hashicorp/go-retryablehttp"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GitLabService struct {
@@ -17,7 +21,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -29,9 +33,17 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 		token = os.Getenv("GITLAB_TOKEN")
 	}
 
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = tr
+
+	clientOptionFns = append(clientOptionFns, gitlab.WithHTTPClient(retryClient.HTTPClient))
+
 	client, err := gitlab.NewClient(token, clientOptionFns...)
 	if err != nil {
-		return nil, fmt.Errorf("error creating Gitlab client: %v", err)
+		return nil, fmt.Errorf("error creating Gitlab client: %w", err)
 	}
 
 	return &GitLabService{
@@ -43,13 +55,12 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 }
 
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
-
 	// Filter the merge requests on labels, if they are specified.
-	var labels *gitlab.Labels
+	var labels *gitlab.LabelOptions
 	if len(g.labels) > 0 {
-		labels = (*gitlab.Labels)(&g.labels)
+		var labelsList gitlab.LabelOptions = g.labels
+		labels = &labelsList
 	}
-
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
@@ -63,16 +74,19 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 
 	pullRequests := []*PullRequest{}
 	for {
-		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts)
+		mrs, resp, err := g.client.MergeRequests.ListProjectMergeRequests(g.project, opts, gitlab.WithContext(ctx))
 		if err != nil {
-			return nil, fmt.Errorf("error listing merge requests for project '%s': %v", g.project, err)
+			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:  mr.IID,
-				Branch:  mr.SourceBranch,
-				HeadSHA: mr.SHA,
-				Labels:  mr.Labels,
+				Number:       mr.IID,
+				Title:        mr.Title,
+				Branch:       mr.SourceBranch,
+				TargetBranch: mr.TargetBranch,
+				HeadSHA:      mr.SHA,
+				Labels:       mr.Labels,
+				Author:       mr.Author.Username,
 			})
 		}
 		if resp.NextPage == 0 {

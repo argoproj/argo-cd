@@ -3,37 +3,38 @@ package fixture
 import (
 	"bufio"
 	"context"
-	goerrors "errors"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
+	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -44,6 +45,9 @@ const (
 	TestingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
+
+	// notifications controller, metrics server port
+	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -57,28 +61,40 @@ const (
 
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
+
+	E2ETestPrefix = "e2e-test-"
 )
 
 const (
-	EnvAdminUsername = "ARGOCD_E2E_ADMIN_USERNAME"
-	EnvAdminPassword = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvAdminUsername           = "ARGOCD_E2E_ADMIN_USERNAME"
+	EnvAdminPassword           = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvArgoCDServerName        = "ARGOCD_E2E_SERVER_NAME"
+	EnvArgoCDRedisHAProxyName  = "ARGOCD_E2E_REDIS_HAPROXY_NAME"
+	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
+	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
+	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
 )
 
 var (
-	id                  string
-	deploymentNamespace string
-	name                string
-	KubeClientset       kubernetes.Interface
-	KubeConfig          *rest.Config
-	DynamicClientset    dynamic.Interface
-	AppClientset        appclientset.Interface
-	ArgoCDClientset     apiclient.Client
-	adminUsername       string
-	AdminPassword       string
-	apiServerAddress    string
-	token               string
-	plainText           bool
-	testsRun            map[string]bool
+	id                      string
+	deploymentNamespace     string
+	name                    string
+	KubeClientset           kubernetes.Interface
+	KubeConfig              *rest.Config
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	ArgoCDClientset         apiclient.Client
+	adminUsername           string
+	AdminPassword           string
+	apiServerAddress        string
+	token                   string
+	plainText               bool
+	testsRun                map[string]bool
+	argoCDServerName        string
+	argoCDRedisHAProxyName  string
+	argoCDRedisName         string
+	argoCDRepoServerName    string
+	argoCDAppControllerName string
 )
 
 type RepoURLType string
@@ -92,6 +108,7 @@ type ACL struct {
 const (
 	RepoURLTypeFile                 = "file"
 	RepoURLTypeHTTPS                = "https"
+	RepoURLTypeHTTPSOrg             = "https-org"
 	RepoURLTypeHTTPSClientCert      = "https-cc"
 	RepoURLTypeHTTPSSubmodule       = "https-sub"
 	RepoURLTypeHTTPSSubmoduleParent = "https-par"
@@ -103,6 +120,8 @@ const (
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
+	GithubAppID                     = "2978632978"
+	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
@@ -139,8 +158,7 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
-	r := os.Getenv("ARGOCD_E2E_REMOTE")
-	return r == "true"
+	return env.ParseBoolFromEnv("ARGOCD_E2E_REMOTE", false)
 }
 
 // IsLocal returns when the tests are being run against a local workload
@@ -164,16 +182,31 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
+	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
+	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
+	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
+	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
+	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		PlainText:         !tlsTestResult.TLS,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
+	})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
 
-	LoginAs(adminUsername)
+	CheckError(LoginAs(adminUsername))
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -185,11 +218,10 @@ func init() {
 	}
 	f, err := os.Open(rf)
 	if err != nil {
-		if goerrors.Is(err, os.ErrNotExist) {
+		if stderrors.Is(err, os.ErrNotExist) {
 			return
-		} else {
-			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
+		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -201,33 +233,49 @@ func init() {
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
 	}
-
 }
 
-func loginAs(username, password string) {
+func loginAs(username, password string) error {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
-	CheckError(err)
+	if err != nil {
+		return err
+	}
 	defer io.Close(closer)
 
+	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	if err != nil {
+		return err
+	}
+	if userInfoResponse.Username == username && userInfoResponse.LoggedIn {
+		return nil
+	}
+
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
-	CheckError(err)
+	if err != nil {
+		return err
+	}
 	token = sessionResponse.Token
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  token,
-		PlainText:  plainText,
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		AuthToken:         token,
+		PlainText:         plainText,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
 	})
-	CheckError(err)
+	return err
 }
 
-func LoginAs(username string) {
+func LoginAs(username string) error {
 	password := DefaultTestUserPassword
 	if username == "admin" {
 		password = AdminPassword
 	}
-	loginAs(username, password)
+	return loginAs(username, password)
 }
 
 func Name() string {
@@ -251,6 +299,7 @@ const (
 	EnvRepoURLTypeSSHSubmodule         = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
 	EnvRepoURLTypeSSHSubmoduleParent   = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
 	EnvRepoURLTypeHTTPS                = "ARGOCD_E2E_REPO_HTTPS"
+	EnvRepoURLTypeHTTPSOrg             = "ARGOCD_E2E_REPO_HTTPS_ORG"
 	EnvRepoURLTypeHTTPSClientCert      = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
 	EnvRepoURLTypeHTTPSSubmodule       = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
 	EnvRepoURLTypeHTTPSSubmoduleParent = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
@@ -272,6 +321,9 @@ func RepoURL(urlType RepoURLType) string {
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
+	// Git "organisation" via HTTPS
+	case RepoURLTypeHTTPSOrg:
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, "https://localhost:9443/argo-e2e")
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
@@ -289,7 +341,7 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
-		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
+		return GetEnvWithDefault(EnvRepoURLDefault, "file://"+repoDirectory())
 	}
 }
 
@@ -303,7 +355,7 @@ func DeploymentNamespace() string {
 
 // creates a secret for the current test, this currently can only create a single secret
 func CreateSecret(username, password string) string {
-	secretName := fmt.Sprintf("argocd-e2e-%s", name)
+	secretName := "argocd-e2e-" + name
 	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
@@ -313,43 +365,63 @@ func CreateSecret(username, password string) string {
 }
 
 // Convenience wrapper for updating argocd-cm
-func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
+func updateSettingConfigMap(updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(common.ArgoCDConfigMapName, updater)
 }
 
 // Convenience wrapper for updating argocd-notifications-cm
-func updateNotificationsConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	updateGenericConfigMap(common.ArgoCDNotificationsConfigMapName, updater)
+func updateNotificationsConfigMap(updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(common.ArgoCDNotificationsConfigMapName, updater)
 }
 
 // Convenience wrapper for updating argocd-cm-rbac
-func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
-	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
+func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) error {
+	return updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
+}
+
+func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
+	return reflect.DeepEqual(a.Immutable, b.Immutable) &&
+		reflect.DeepEqual(a.TypeMeta, b.TypeMeta) &&
+		reflect.DeepEqual(a.ObjectMeta, b.ObjectMeta) &&
+		// Covers cases when one map is nil and another is empty map
+		(len(a.Data) == 0 && len(b.Data) == 0 || reflect.DeepEqual(a.Data, b.Data)) &&
+		(len(a.BinaryData) == 0 && len(b.BinaryData) == 0 || reflect.DeepEqual(a.BinaryData, b.BinaryData))
 }
 
 // Updates a given config map in argocd-e2e namespace
-func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
-	errors.CheckError(err)
+func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) error {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	oldCm := cm.DeepCopy()
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
-	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
-	errors.CheckError(err)
+	err = updater(cm)
+	if err != nil {
+		return err
+	}
+	if !configMapsEquivalent(cm, oldCm) {
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
-			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
+			cm.Data[strings.ToLower(string(k))+".enable"] = strconv.FormatBool(v)
 		}
 		return nil
 	})
 }
 
-func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) error {
+	err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		if len(overrides) > 0 {
 			yamlBytes, err := yaml.Marshal(overrides)
 			if err != nil {
@@ -361,26 +433,36 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
 
-	SetResourceOverridesSplitKeys(overrides)
+	return SetResourceOverridesSplitKeys(overrides)
 }
 
-func SetTrackingMethod(trackingMethod string) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetInstallationID(installationID string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["installationID"] = installationID
+		return nil
+	})
+}
+
+func SetTrackingMethod(trackingMethod string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
 		return nil
 	})
 }
 
-func SetTrackingLabel(trackingLabel string) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetTrackingLabel(trackingLabel string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.instanceLabelKey"] = trackingLabel
 		return nil
 	})
 }
 
-func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
 			if v.HealthLua != "" {
 				cm.Data[getResourceOverrideSplitKey(k, "health")] = v.HealthLua
@@ -419,17 +501,17 @@ func getResourceOverrideSplitKey(key string, customizeType string) string {
 	return fmt.Sprintf("resource.customizations.%s.%s", customizeType, groupKind)
 }
 
-func SetAccounts(accounts map[string][]string) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetAccounts(accounts map[string][]string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range accounts {
-			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
+			cm.Data["accounts."+k] = strings.Join(v, ",")
 		}
 		return nil
 	})
 }
 
-func SetPermissions(permissions []ACL, username string, roleName string) {
-	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+func SetPermissions(permissions []ACL, username string, roleName string) error {
+	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr string
 
 		for _, permission := range permissions {
@@ -443,19 +525,8 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 	})
 }
 
-func SetConfigManagementPlugins(plugin ...v1alpha1.ConfigManagementPlugin) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(plugin)
-		if err != nil {
-			return err
-		}
-		cm.Data["configManagementPlugins"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetResourceFilter(filters settings.ResourcesFilter) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetResourceFilter(filters settings.ResourcesFilter) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		exclusions, err := yaml.Marshal(filters.ResourceExclusions)
 		if err != nil {
 			return err
@@ -470,8 +541,8 @@ func SetResourceFilter(filters settings.ResourcesFilter) {
 	})
 }
 
-func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
 			return err
@@ -481,8 +552,8 @@ func SetHelmRepos(repos ...settings.HelmRepoCredentials) {
 	})
 }
 
-func SetRepos(repos ...settings.RepositoryCredentials) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetRepos(repos ...settings.RepositoryCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		yamlBytes, err := yaml.Marshal(repos)
 		if err != nil {
 			return err
@@ -492,162 +563,422 @@ func SetRepos(repos ...settings.RepositoryCredentials) {
 	})
 }
 
-func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
-	errors.CheckError(err)
+func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
-	errors.CheckError(err)
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
+	return err
 }
 
-func SetParamInSettingConfigMap(key, value string) {
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+func SetParamInSettingConfigMap(key, value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data[key] = value
 		return nil
 	})
 }
 
-func SetParamInNotificationsConfigMap(key, value string) {
-	updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+func SetParamInNotificationsConfigMap(key, value string) error {
+	return updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data[key] = value
 		return nil
 	})
 }
 
-func EnsureCleanState(t *testing.T) {
+type TestOption func(option *testOption)
+
+type testOption struct {
+	testdata string
+}
+
+func newTestOption(opts ...TestOption) *testOption {
+	to := &testOption{
+		testdata: "testdata",
+	}
+	for _, opt := range opts {
+		opt(to)
+	}
+	return to
+}
+
+func WithTestData(testdata string) TestOption {
+	return func(option *testOption) {
+		option.testdata = testdata
+	}
+}
+
+func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	t.Helper()
+	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
-	// Register this test after it has been run & was successfull
+	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})
 
 	start := time.Now()
+	policy := metav1.DeletePropagationBackground
 
-	policy := v1.DeletePropagationBackground
-	// delete resources
-	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
-	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
-
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", TestingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "clusterroles", "-l", TestingLabel+"=true", "--wait=false"))
-
-	// reset settings
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
+	RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			// kubectl delete apps ...
+			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete apps ...
+			return AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{})
+		},
+		func() error {
+			// kubectl delete appprojects --field-selector metadata.name!=default
+			return AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{FieldSelector: "metadata.name!=default"})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+		},
+		func() error {
+			// kubectl delete secrets -l e2e.argoproj.io=true
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
 	})
 
-	updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
+	RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			// delete old namespaces which were created by tests
+			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
+				context.Background(),
+				metav1.ListOptions{
+					LabelSelector: TestingLabel + "=true",
+					FieldSelector: "status.phase=Active",
+				},
+			)
+			if err != nil {
+				return err
+			}
+			if len(namespaces.Items) > 0 {
+				args := []string{"delete", "ns", "--wait=false"}
+				for _, namespace := range namespaces.Items {
+					args = append(args, namespace.Name)
+				}
+				_, err := Run("", "kubectl", args...)
+				if err != nil {
+					return err
+				}
+			}
+
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+			testNamespaceNames := []string{}
+			for _, namespace := range namespaces.Items {
+				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+				}
+			}
+			if len(testNamespaceNames) > 0 {
+				args := []string{"delete", "ns"}
+				args = append(args, testNamespaceNames...)
+				_, err := Run("", "kubectl", args...)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		func() error {
+			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
+			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
+			return err
+		},
+		func() error {
+			// delete old ClusterRoles which were created by tests
+			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
+				context.Background(),
+				metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+				},
+			)
+			if err != nil {
+				return err
+			}
+			if len(clusterRoles.Items) > 0 {
+				args := []string{"delete", "clusterrole", "--wait=false"}
+				for _, clusterRole := range clusterRoles.Items {
+					args = append(args, clusterRole.Name)
+				}
+				_, err := Run("", "kubectl", args...)
+				if err != nil {
+					return err
+				}
+			}
+
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+			testClusterRoleNames := []string{}
+			for _, clusterRole := range clusterRoles.Items {
+				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
+				}
+			}
+			if len(testClusterRoleNames) > 0 {
+				args := []string{"delete", "clusterrole"}
+				args = append(args, testClusterRoleNames...)
+				_, err := Run("", "kubectl", args...)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		func() error {
+			// delete old ClusterRoleBindings which were created by tests
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				return err
+			}
+			testClusterRoleBindingNames := []string{}
+			for _, clusterRoleBinding := range clusterRoleBindings.Items {
+				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
+				}
+			}
+			if len(testClusterRoleBindingNames) > 0 {
+				args := []string{"delete", "clusterrolebinding"}
+				args = append(args, testClusterRoleBindingNames...)
+				_, err := Run("", "kubectl", args...)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		func() error {
+			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			err = updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			err = updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			return updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+		},
+		func() error {
+			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+			return LoginAs(adminUsername)
+		},
 	})
 
-	// reset rbac
-	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
+	RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
+			err := SetProjectSpec("default", v1alpha1.AppProjectSpec{
+				OrphanedResources:        nil,
+				SourceRepos:              []string{"*"},
+				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				SourceNamespaces:         []string{AppNamespace()},
+			})
+			if err != nil {
+				return err
+			}
+
+			// Create separate project for testing gpg signature verification
+			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
+				context.Background(),
+				&v1alpha1.AppProject{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "gpg",
+					},
+					Spec: v1alpha1.AppProjectSpec{
+						OrphanedResources:        nil,
+						SourceRepos:              []string{"*"},
+						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						SourceNamespaces:         []string{AppNamespace()},
+					},
+				},
+				metav1.CreateOptions{},
+			)
+			return err
+		},
+		func() error {
+			err := os.RemoveAll(TmpDir)
+			if err != nil {
+				return err
+			}
+			_, err = Run("", "mkdir", "-p", TmpDir)
+			if err != nil {
+				return err
+			}
+
+			// create TLS and SSH certificate directories
+			if IsLocal() {
+				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/tls")
+				if err != nil {
+					return err
+				}
+				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/ssh")
+				if err != nil {
+					return err
+				}
+			}
+
+			// For signing during the tests
+			_, err = Run("", "mkdir", "-p", TmpDir+"/gpg")
+			if err != nil {
+				return err
+			}
+			_, err = Run("", "chmod", "0700", TmpDir+"/gpg")
+			if err != nil {
+				return err
+			}
+			prevGnuPGHome := os.Getenv("GNUPGHOME")
+			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			//nolint:errcheck
+			Run("", "pkill", "-9", "gpg-agent")
+			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
+			if err != nil {
+				return err
+			}
+			os.Setenv("GNUPGHOME", prevGnuPGHome)
+
+			// recreate GPG directories
+			if IsLocal() {
+				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source")
+				if err != nil {
+					return err
+				}
+				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys")
+				if err != nil {
+					return err
+				}
+				_, err = Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys")
+				if err != nil {
+					return err
+				}
+				_, err = Run("", "mkdir", "-p", TmpDir+PluginSockFilePath)
+				if err != nil {
+					return err
+				}
+				_, err = Run("", "chmod", "0700", TmpDir+PluginSockFilePath)
+				if err != nil {
+					return err
+				}
+			}
+
+			// set-up tmp repo, must have unique name
+			_, err = Run("", "cp", "-Rf", opt.testdata, repoDirectory())
+			if err != nil {
+				return err
+			}
+			_, err = Run(repoDirectory(), "chmod", "777", ".")
+			if err != nil {
+				return err
+			}
+			_, err = Run(repoDirectory(), "git", "init", "-b", "master")
+			if err != nil {
+				return err
+			}
+			_, err = Run(repoDirectory(), "git", "add", ".")
+			if err != nil {
+				return err
+			}
+			_, err = Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit")
+			if err != nil {
+				return err
+			}
+
+			if IsRemote() {
+				_, err = Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE"))
+				if err != nil {
+					return err
+				}
+				_, err = Run(repoDirectory(), "git", "push", "origin", "master", "-f")
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		func() error {
+			// random id - unique across test runs
+			randString, err := rand.String(5)
+			if err != nil {
+				return err
+			}
+			postFix := "-" + strings.ToLower(randString)
+			id = t.Name() + postFix
+			name = DnsFriendly(t.Name(), "")
+			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			// create namespace
+			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
+			if err != nil {
+				return err
+			}
+			_, err = Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true")
+			return err
+		},
 	})
 
-	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	LoginAs(adminUsername)
-
-	// reset gpg-keys config map
-	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-
-	SetProjectSpec("default", v1alpha1.AppProjectSpec{
-		OrphanedResources:        nil,
-		SourceRepos:              []string{"*"},
-		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SourceNamespaces:         []string{AppNamespace()},
-	})
-
-	// Create separate project for testing gpg signature verification
-	FailOnErr(RunCli("proj", "create", "gpg"))
-	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
-		OrphanedResources:        nil,
-		SourceRepos:              []string{"*"},
-		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
-		SourceNamespaces:         []string{AppNamespace()},
-	})
-
-	// Recreate temp dir
-	CheckError(os.RemoveAll(TmpDir))
-	FailOnErr(Run("", "mkdir", "-p", TmpDir))
-
-	// random id - unique across test runs
-	randString, err := rand.String(5)
-	CheckError(err)
-	postFix := "-" + strings.ToLower(randString)
-	id = t.Name() + postFix
-	name = DnsFriendly(t.Name(), "")
-	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
-
-	// create TLS and SSH certificate directories
-	if IsLocal() {
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
-	}
-
-	// For signing during the tests
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
-	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
-	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	// nolint:errcheck
-	Run("", "pkill", "-9", "gpg-agent")
-	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
-	os.Setenv("GNUPGHOME", prevGnuPGHome)
-
-	// recreate GPG directories
-	if IsLocal() {
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
-	}
-
-	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", "testdata", repoDirectory()))
-	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(repoDirectory(), "git", "init"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
-
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
-		FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
-	}
-
-	// create namespace
-	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
-
-	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
+	log.WithFields(log.Fields{
+		"duration": time.Since(start),
+		"name":     t.Name(),
+		"id":       id,
+		"username": "admin",
+		"password": "password",
+	}).Info("clean state")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
@@ -664,21 +995,25 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 }
 
 func RunCli(args ...string) (string, error) {
-	return RunCliWithStdin("", args...)
+	return RunCliWithStdin("", false, args...)
 }
 
-func RunCliWithStdin(stdin string, args ...string) (string, error) {
+func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}
 
-	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
+	// For commands executed with Kubernetes context server argument causes a conflict (for those commands server argument is for KubeAPI server), also authentication is not required
+	if !isKubeConextOnlyCli {
+		args = append(args, "--server", apiServerAddress, "--auth-token", token)
+	}
+
+	args = append(args, "--insecure")
 
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
 func Patch(path string, jsonPatch string) {
-
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
@@ -706,7 +1041,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(os.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0o644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -715,7 +1050,6 @@ func Patch(path string, jsonPatch string) {
 }
 
 func Delete(path string) {
-
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
 	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
@@ -730,11 +1064,10 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(path, contents string) {
-
 	WriteFile(path, contents)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
@@ -753,16 +1086,35 @@ func AddSignedFile(path, contents string) {
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-// create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values interface{}) (string, error) {
+func AddSignedTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
 
+func AddTag(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+// create the resource by creating using "kubectl apply", with bonus templating
+func Declarative(filename string, values any) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
@@ -775,13 +1127,10 @@ func Declarative(filename string, values interface{}) (string, error) {
 }
 
 func CreateSubmoduleRepos(repoType string) {
-	oldEnv := os.Getenv("GIT_ALLOW_PROTOCOL")
-	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
-
 	// set-up submodule repo
 	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
 	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
@@ -793,9 +1142,20 @@ func CreateSubmoduleRepos(repoType string) {
 	// set-up submodule parent repo
 	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
+	} else {
+		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
+		CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		if isAllowProtocolSet {
+			CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldAllowProtocol))
+		} else {
+			CheckError(os.Unsetenv("GIT_ALLOW_PROTOCOL"))
+		}
+	}
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
@@ -808,8 +1168,18 @@ func CreateSubmoduleRepos(repoType string) {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
+}
 
-	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
+func RemoveSubmodule() {
+	log.Info("removing submodule")
+
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
@@ -822,8 +1192,10 @@ func RestartRepoServer() {
 		if prefix != "" {
 			workload = prefix + "-repo-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+		// wait longer to avoid error on s390x
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -837,8 +1209,8 @@ func RestartAPIServer() {
 		if prefix != "" {
 			workload = prefix + "-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 	}
 }
 
@@ -847,15 +1219,15 @@ func RestartAPIServer() {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
-	} else {
-		return base + "/local"
 	}
+	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.
 // Environment variable names follow the ARGOCD_E2E_SKIP_<suffix> pattern,
 // and must be set to the string value 'true' in order to skip a test.
 func SkipOnEnv(t *testing.T, suffixes ...string) {
+	t.Helper()
 	for _, suffix := range suffixes {
 		e := os.Getenv("ARGOCD_E2E_SKIP_" + suffix)
 		if e == "true" {
@@ -867,6 +1239,7 @@ func SkipOnEnv(t *testing.T, suffixes ...string) {
 // SkipIfAlreadyRun skips a test if it has been already run by a previous
 // test cycle and was recorded.
 func SkipIfAlreadyRun(t *testing.T) {
+	t.Helper()
 	if _, ok := testsRun[t.Name()]; ok {
 		t.Skip()
 	}
@@ -875,6 +1248,7 @@ func SkipIfAlreadyRun(t *testing.T) {
 // RecordTestRun records a test that has been run successfully to a text file,
 // so that it can be automatically skipped if requested.
 func RecordTestRun(t *testing.T) {
+	t.Helper()
 	if t.Skipped() || t.Failed() {
 		return
 	}
@@ -883,7 +1257,7 @@ func RecordTestRun(t *testing.T) {
 		return
 	}
 	log.Infof("Registering test execution at %s", rf)
-	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}
@@ -893,7 +1267,19 @@ func RecordTestRun(t *testing.T) {
 			t.Fatalf("could not close record file %s: %v", rf, err)
 		}
 	}()
-	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
+	if _, err := f.WriteString(t.Name() + "\n"); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
+}
+
+func GetApiServerAddress() string {
+	return apiServerAddress
+}
+
+func GetNotificationServerAddress() string {
+	return defaultNotificationServer
+}
+
+func GetToken() string {
+	return token
 }

@@ -3,17 +3,17 @@ package admin
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utils "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -35,7 +35,6 @@ func captureStdout(callback func()) (string, error) {
 	utils.Close(w)
 
 	data, err := io.ReadAll(r)
-
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +44,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewSimpleClientset(&v1.ConfigMap{
+	clientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -54,7 +53,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			},
 		},
 		Data: data,
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDSecretName,
@@ -69,7 +68,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
-	// nolint:unused,structcheck
+	//nolint:unused,structcheck
 	out bytes.Buffer
 }
 
@@ -97,22 +96,16 @@ metadata:
   name: argocd-cm
 data:
   url: https://myargocd.com`)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager(ctx)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	argoCDSettings, err := settingsManager.GetSettings()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, "https://myargocd.com", argoCDSettings.URL)
 }
@@ -150,13 +143,6 @@ clientSecret: aaaabbbbccccddddeee`,
     clientSecret: aabbccddeeff00112233`,
 			},
 			containsSummary: "Dex is configured ('url' field is missing)",
-		},
-		"Plugins_ValidConfig": {
-			validator: "plugins",
-			data: map[string]string{
-				"configManagementPlugins": `[{"name": "test1"}, {"name": "test2"}]`,
-			},
-			containsSummary: "2 plugins",
 		},
 		"Kustomize_ModifiedOptions": {
 			validator:       "kustomize",
@@ -210,12 +196,10 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 			}
 			summary, err := validator(newSettingsManager(tc.data))
 			if tc.containsSummary != "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
 			} else if tc.containsError != "" {
-				if assert.Error(t, err) {
-					assert.Contains(t, err.Error(), tc.containsError)
-				}
+				assert.ErrorContains(t, err, tc.containsError)
 			}
 		})
 	}
@@ -231,6 +215,29 @@ metadata:
     app: nginx
 spec:
   replicas: 0`
+)
+
+const (
+	testCustomResourceYAML = `apiVersion: v1
+apiVersion: example.com/v1alpha1
+kind: ExampleResource
+metadata:
+  name: example-resource
+  labels:
+    app: example
+spec:
+  replicas: 0`
+)
+
+const (
+	testCronJobYAML = `apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+  uid: "123"
+spec:
+  schedule: "* * * * *"`
 )
 
 func tempFile(content string) (string, io.Closer, error) {
@@ -257,20 +264,18 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 	cmd := NewValidateSettingsCommand(newCmdContext(map[string]string{}))
 	out, err := captureStdout(func() {
 		err := cmd.Execute()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
+		assert.Contains(t, out, "✅ "+k)
 	}
 }
 
 func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
@@ -278,10 +283,10 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
-		assert.Contains(t, out, "No overrides configured")
+		require.NoError(t, err)
+		assert.Contains(t, out, "Ignore differences are not configured for 'apps/Deployment'\n")
 	})
 
 	t.Run("DataIgnored", func(t *testing.T) {
@@ -289,72 +294,92 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 			"resource.customizations": `apps/Deployment:
   ignoreDifferences: |
     jsonPointers:
-    - /spec`}))
+    - /spec`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "< spec:")
 	})
 }
 
 func TestResourceOverrideHealth(t *testing.T) {
-	f, closer, err := tempFile(testDeploymentYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	f, closer, err := tempFile(testCustomResourceYAML)
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment: {}`}))
+			"resource.customizations": `example.com/ExampleResource: {}`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
-		assert.Contains(t, out, "Health script is not configured")
+		require.NoError(t, err)
+		assert.Contains(t, out, "Health script is not configured for 'example.com/ExampleResource'\n")
 	})
 
 	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment:
+			"resource.customizations": `example.com/ExampleResource:
   health.lua: |
     return { status = "Progressing" }
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
+		assert.Contains(t, out, "Progressing")
+	})
+
+	t.Run("HealthAssessmentConfiguredWildcard", func(t *testing.T) {
+		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+			"resource.customizations": `example.com/*:
+  health.lua: |
+    return { status = "Progressing" }
+`,
+		}))
+		out, err := captureStdout(func() {
+			cmd.SetArgs([]string{"health", f})
+			err := cmd.Execute()
+			require.NoError(t, err)
+		})
+		require.NoError(t, err)
 		assert.Contains(t, out, "Progressing")
 	})
 }
 
 func TestResourceOverrideAction(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
+	defer utils.Close(closer)
+
+	cronJobFile, closer, err := tempFile(testCronJobYAML)
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
-			"resource.customizations": `apps/Deployment: {}`}))
+			"resource.customizations": `apps/Deployment: {}`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Actions are not configured")
 	})
 
-	t.Run("ActionConfigured", func(t *testing.T) {
+	t.Run("OldStyleActionConfigured", func(t *testing.T) {
 		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
 			"resource.customizations": `apps/Deployment:
   actions: |
@@ -368,24 +393,72 @@ func TestResourceOverrideAction(t *testing.T) {
       action.lua: |
         obj.metadata.labels["test"] = 'updated'
         return obj
-`}))
+`,
+		}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "test: updated")
 
 		out, err = captureStdout(func() {
 			cmd.SetArgs([]string{"list-actions", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
-		assert.Contains(t, out, `NAME     ENABLED
+		require.NoError(t, err)
+		assert.Contains(t, out, `NAME     DISABLED
 restart  false
 resume   false
 `)
+	})
+
+	t.Run("NewStyleActionConfigured", func(t *testing.T) {
+		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+			"resource.customizations": `batch/CronJob:
+  actions: |
+    discovery.lua: |
+      actions = {}
+      actions["create-a-job"] = {["disabled"] = false}
+      return actions
+    definitions:
+    - name: test
+      action.lua: |
+        job1 = {}
+        job1.apiVersion = "batch/v1"
+        job1.kind = "Job"
+        job1.metadata = {}
+        job1.metadata.name = "hello-1"
+        job1.metadata.namespace = "obj.metadata.namespace"
+        impactedResource1 = {}
+        impactedResource1.operation = "create"
+        impactedResource1.resource = job1
+        result = {}
+        result[1] = impactedResource1
+        return result
+`,
+		}))
+		out, err := captureStdout(func() {
+			cmd.SetArgs([]string{"run-action", cronJobFile, "test"})
+			err := cmd.Execute()
+			require.NoError(t, err)
+		})
+		require.NoError(t, err)
+		assert.Contains(t, out, "resource was created:")
+		assert.Contains(t, out, "hello-1")
+
+		out, err = captureStdout(func() {
+			cmd.SetArgs([]string{"list-actions", cronJobFile})
+			err := cmd.Execute()
+			require.NoError(t, err)
+		})
+
+		require.NoError(t, err)
+		assert.Contains(t, out, "NAME")
+		assert.Contains(t, out, "DISABLED")
+		assert.Contains(t, out, "create-a-job")
+		assert.Contains(t, out, "false")
 	})
 }

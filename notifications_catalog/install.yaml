@@ -30,8 +30,8 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           },
           {
@@ -40,8 +40,7 @@ data:
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -60,23 +59,22 @@ data:
           "value": "{{.app.status.sync.status}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         },
         {
           "name": "Revision",
           "value": "{{.app.status.sync.revision}}"
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Application",
@@ -90,7 +88,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       themeColor: '#000080'
@@ -114,13 +112,12 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -139,12 +136,11 @@ data:
           "value": "{{.app.status.health.status}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
@@ -165,7 +161,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       themeColor: '#FF0000'
@@ -189,13 +185,12 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -218,19 +213,18 @@ data:
           "value": "{{.app.status.operationState.finishedAt}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -244,7 +238,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       themeColor: '#FF0000'
@@ -268,13 +262,12 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -297,19 +290,18 @@ data:
           "value": "{{.app.status.operationState.startedAt}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -323,7 +315,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       title: Start syncing application {{.app.metadata.name}}.
@@ -351,13 +343,12 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -376,19 +367,18 @@ data:
           "value": "{{.app.status.sync.status}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Application",
@@ -402,7 +392,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       title: Application {{.app.metadata.name}} sync status is 'Unknown'
@@ -425,13 +415,12 @@ data:
             "short": true
           },
           {
-            "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+            "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "title": "{{$c.type}}",
             "value": "{{$c.message}}",
@@ -454,19 +443,18 @@ data:
           "value": "{{.app.status.operationState.finishedAt}}"
         },
         {
-          "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+          "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         }
         {{range $index, $c := .app.status.conditions}}
-          {{if not $index}},{{end}}
-          {{if $index}},{{end}}
+          ,
           {
             "name": "{{$c.type}}",
             "value": "{{$c.message}}"
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Details",
@@ -480,7 +468,7 @@ data:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
           }]
         }]
       themeColor: '#000080'
@@ -499,11 +487,11 @@ data:
       when: app.metadata.deletionTimestamp != nil
   trigger.on-deployed: |
     - description: Application is synced and healthy. Triggered once per commit.
-      oncePer: app.status.operationState.syncResult.revision
+      oncePer: app.status.operationState?.syncResult?.revision
       send:
       - app-deployed
-      when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status
-        == 'Healthy'
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
+        and app.status.health.status == 'Healthy' and !time.Parse(app.status.health.lastTransitionTime).Before(time.Parse(app.status.operationState.finishedAt))
   trigger.on-health-degraded: |
     - description: Application has degraded
       send:
@@ -513,12 +501,13 @@ data:
     - description: Application syncing has failed
       send:
       - app-sync-failed
-      when: app.status.operationState.phase in ['Error', 'Failed']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Error',
+        'Failed']
   trigger.on-sync-running: |
     - description: Application is being synced
       send:
       - app-sync-running
-      when: app.status.operationState.phase in ['Running']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Running']
   trigger.on-sync-status-unknown: |
     - description: Application status is 'Unknown'
       send:
@@ -528,7 +517,7 @@ data:
     - description: Application syncing has succeeded
       send:
       - app-sync-succeeded
-      when: app.status.operationState.phase in ['Succeeded']
+      when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
 kind: ConfigMap
 metadata:
   creationTimestamp: null

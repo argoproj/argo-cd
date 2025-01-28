@@ -16,7 +16,7 @@ If you want to submit a PR, please read this document carefully, as it contains 
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-contributors` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-cd-contributors` channel!
 
 ## Before you start
 
@@ -53,7 +53,7 @@ The following read will help you to submit a PR that meets the standards of our 
 
 Please use a meaningful and concise title for your PR. This will help us to pick PRs for review quickly, and the PR title will also end up in the Changelog.
 
-We use the [Semantic PR title checker](https://github.com/zeke/semantic-pull-requests) to categorize your PR into one of the following categories:
+We use [PR title checker](https://github.com/marketplace/actions/pr-title-checker) to categorize your PR into one of the following categories:
 
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
@@ -138,11 +138,17 @@ The following steps are required no matter whether you chose to use a virtualize
     export SUDO=sudo
     ```
 
+    If you have podman installed, you can also leverage its rootless mode. In
+    order to use podman for running and testing Argo CD locally, set the
+    `DOCKER` environment variable to `podman` before you run `make`, e.g.
+
+    ```
+    DOCKER=podman make start
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `mkdir -p ~/go/src/github.com/argoproj`
-* `cd ~/go/src/github.com/argoproj`
-* `git clone https://github.com/yourghuser/argo-cd`
+* `git clone https://github.com/YOUR-USERNAME/argo-cd`
 * `cd argo-cd`
 
 ### Optional: Setup an additional Git remote
@@ -157,9 +163,9 @@ Make sure you fulfill the pre-requisites above and run some preliminary tests. N
 * Run `docker version`
 * Run `go version`
 
-### Build (or pull) the required Docker image
+### Build the required Docker image
 
-Build the required Docker image by running `make test-tools-image` or pull the latest version by issuing `docker pull argoproj/argocd-test-tools`.
+Build the required Docker image by running `make test-tools-image`. This image offers the environment of the virtualized toolchain.
 
 The `Dockerfile` used to build these images can be found at `test/container/Dockerfile`.
 
@@ -205,10 +211,11 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 4. Finally, so that you don't have to keep updating your kube-config whenever you spin up a new k3d cluster, add `--api-port $IP:6550` to your **k3d cluster create** command, where $IP is the value from step 1. An example command is provided here:
 
 ```
-k3d cluster create my-cluster --wait --k3s-server-arg '--disable=traefik' --api-port $IP:6550 -p 443:443@loadbalancer
+k3d cluster create my-cluster --wait --k3s-arg '--disable=traefik@server:*' --api-port $IP:6550 -p 443:443@loadbalancer
 ```
 
-Starting from k3d v5.0.0 the example command flags `--k3s-server-arg` and `'--disable=traefik'` would have to be changed to `--k3s-arg` and `'--disable=traefik@server:*'`, respectively. 
+!!!note
+For k3d versions less than v5.0.0, the example command flags `--k3s-arg` and `'--disable=traefik@server:*'` should change to `--k3s-server-arg` and `'--disable=traefik'`, respectively.
 
 ## The development cycle
 
@@ -303,7 +310,7 @@ For installing the tools required to build and test Argo CD on your local system
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
 ```shell
-make BIN=~/go/bin install-tools-local
+BIN=~/go/bin make install-tools-local
 ```
 
 Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):
@@ -339,5 +346,7 @@ The final step is running the End-to-End testsuite, which makes sure that your K
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
+
+To run a single test, you can use `TEST_FLAGS="-run TestName" make test-e2e-local`.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).

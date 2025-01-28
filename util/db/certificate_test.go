@@ -5,19 +5,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+const (
+	Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+)
 
-var Test_TLS_Subjects []string = []string{
+var Test_TLS_Subjects = []string{
 	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
 	"CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE",
 }
@@ -185,9 +188,9 @@ XWyb96wrUlv+E8I=
 // Taken from hack/ssh_known_hosts
 const Test_ValidSSHKnownHostsData = `
 # BitBucket
-bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
+bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
-github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
 # GitLab
 gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
 gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
@@ -198,9 +201,9 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 `
 
 const Test_InvalidSSHKnownHostsData = `
-bitbucket.org AAAAB3NzaC1yc2EAAAABIwAAAQEAubiN81eDcafrgMeLzaFPsw2kNvEcqTKl/VqLat/MaB33pZy0y3rJZtnqwR2qOOvbwKZYKiEO1O6VqNEBxKvJJelCq0dTXWT5pbO2gDXC6h6QDXCaHo6pOHGPUy+YBaGQRGuSusMEASYiWunYN0vCAI8QaXnWMXNMdFP3jHAJH0eDsoiGnLPBlBp4TNm6rYI74nMzgz3B9IikW4WVK+dc8KZJZWYjAuORU3jc1c/NPskD2ASinf8v3xnfXeukU0sJ5N6m5E8VLjObPEO+mN2t/FZTMZLiFqPWc/ALSqnMnnhwrNi2rbfg/rd/IpL8Le3pSBne8+seeFVBoGqzHM9yXw==
+bitbucket.org AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
-github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
 # GitLab
 gitlab.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBFSMqzJeV9rUzU4kWitGjeR4PWSa29SPqJ1fVkhtj3Hw9xjLVXVYrU9QlYWrOLXBpQ6KWjbjTDTdDkoohFzgbEY=
 gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
@@ -210,7 +213,7 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-var Test_SSH_Hostname_Entries []string = []string{
+var Test_SSH_Hostname_Entries = []string{
 	"bitbucket.org",
 	"github.com",
 	"gitlab.com",
@@ -220,7 +223,7 @@ var Test_SSH_Hostname_Entries []string = []string{
 	"vs-ssh.visualstudio.com",
 }
 
-var Test_SSH_Subtypes []string = []string{
+var Test_SSH_Subtypes = []string{
 	"ssh-rsa",
 	"ssh-rsa",
 	"ecdsa-sha2-nistp256",
@@ -230,17 +233,19 @@ var Test_SSH_Subtypes []string = []string{
 	"ssh-rsa",
 }
 
-var Test_TLS_Hostnames []string = []string{
+var Test_TLS_Hostnames = []string{
 	"test.example.com",
 	"test.example.com",
 	"github.com",
 }
 
-const Test_NumSSHKnownHostsExpected = 7
-const Test_NumTLSCertificatesExpected = 3
+const (
+	Test_NumSSHKnownHostsExpected   = 7
+	Test_NumTLSCertificatesExpected = 3
+)
 
 func getCertClientset() *fake.Clientset {
-	cm := v1.ConfigMap{
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -251,7 +256,7 @@ func getCertClientset() *fake.Clientset {
 		Data: nil,
 	}
 
-	sshCM := v1.ConfigMap{
+	sshCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-ssh-known-hosts-cm",
 			Namespace: testNamespace,
@@ -264,7 +269,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	tlsCM := v1.ConfigMap{
+	tlsCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-tls-certs-cm",
 			Namespace: testNamespace,
@@ -278,7 +283,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	return fake.NewSimpleClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
+	return fake.NewClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
 }
 
 func Test_ListCertificate(t *testing.T) {
@@ -292,7 +297,7 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, Test_NumSSHKnownHostsExpected)
 	for idx, entry := range certList.Items {
@@ -306,7 +311,7 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected)
 
@@ -316,14 +321,14 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "*",
 		CertType:        "*",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
 
 	// List all certificates using nil selector
 	// Expected: List of 10 entries
 	certList, err = db.ListRepoCertificates(context.Background(), nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, Test_NumTLSCertificatesExpected+Test_NumSSHKnownHostsExpected)
 
@@ -333,7 +338,7 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "*",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 4)
 	for _, entry := range certList.Items {
@@ -345,7 +350,7 @@ func Test_ListCertificate(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 	assert.Equal(t, "gitlab.com", certList.Items[0].ServerName)
@@ -367,7 +372,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -381,7 +386,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -396,7 +401,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
@@ -405,7 +410,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -420,9 +425,9 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Existing cert, different data, no upsert
 	// Result: Error
@@ -431,11 +436,11 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			{
 				ServerName: "foo.example.com",
 				CertType:   "ssh",
-				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="),
+				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk="),
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Existing cert, different data, upsert
@@ -444,11 +449,11 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			{
 				ServerName: "foo.example.com",
 				CertType:   "ssh",
-				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="),
+				CertData:   []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk="),
 			},
 		},
 	}, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -463,7 +468,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid known hosts entry, case 2: invalid base64 data
@@ -477,7 +482,7 @@ func Test_CreateSSHKnownHostEntries(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 }
 
@@ -497,7 +502,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -512,7 +517,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Check if it really was added
@@ -521,7 +526,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -536,7 +541,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
@@ -546,7 +551,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "bar.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
@@ -561,9 +566,9 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Valid TLS certificate, existing cert, different data, no upsert
 	// Expected: Error
@@ -576,7 +581,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid TLS certificate, existing cert, different data, upsert
@@ -590,7 +595,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
@@ -600,7 +605,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 	for _, entry := range certList.Items {
@@ -619,7 +624,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, new cert, but invalid certificate
@@ -633,7 +638,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, false)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Invalid PEM data, existing cert, upsert
@@ -647,7 +652,7 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
 
 	// Valid PEM data, existing cert, but invalid certificate, upsert
@@ -661,9 +666,8 @@ func Test_CreateTLSCertificates(t *testing.T) {
 			},
 		},
 	}, true)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, certList)
-
 }
 
 func Test_RemoveSSHKnownHosts(t *testing.T) {
@@ -677,7 +681,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -687,9 +691,9 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove single SSH known hosts entry by sub type
 	// Expected: List of 1 entry
@@ -697,7 +701,7 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -707,16 +711,16 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all remaining SSH known hosts entries
 	// Expected: List of 5 entry
 	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 5)
 
@@ -725,9 +729,9 @@ func Test_RemoveSSHKnownHosts(t *testing.T) {
 	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
 		CertType: "ssh",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 }
 
 func Test_RemoveTLSCertificates(t *testing.T) {
@@ -741,7 +745,7 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 1)
 
@@ -751,9 +755,9 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
+	assert.Empty(t, certList.Items)
 
 	// Remove all TLS certificate entry for hostname
 	// Expected: List of 2 entry
@@ -761,7 +765,7 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, 2)
 
@@ -771,8 +775,7 @@ func Test_RemoveTLSCertificates(t *testing.T) {
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, certList)
-	assert.Len(t, certList.Items, 0)
-
+	assert.Empty(t, certList.Items)
 }

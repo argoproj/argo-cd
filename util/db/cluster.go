@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,16 +13,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/collections"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var (
@@ -37,9 +37,12 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
+			//nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -48,12 +51,13 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
+	//nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }
 
 // ListClusters returns list of clusters
-func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
+func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
@@ -68,7 +72,7 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 	inClusterEnabled := settings.InClusterEnabled
 	hasInClusterCredentials := false
 	for _, clusterSecret := range clusterSecrets {
-		cluster, err := secretToCluster(clusterSecret)
+		cluster, err := SecretToCluster(clusterSecret)
 		if err != nil {
 			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 			continue
@@ -77,8 +81,6 @@ func (db *db) ListClusters(ctx context.Context) (*appv1.ClusterList, error) {
 			if inClusterEnabled {
 				hasInClusterCredentials = true
 				clusterList.Items = append(clusterList.Items, *cluster)
-			} else {
-				log.Errorf("failed to add cluster %q to cluster list: in-cluster server address is disabled in Argo CD settings", cluster.Name)
 			}
 		} else {
 			clusterList.Items = append(clusterList.Items, *cluster)
@@ -104,7 +106,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	clusterSecret := &apiv1.Secret{
+	clusterSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: secName,
 		},
@@ -116,13 +118,13 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 
 	clusterSecret, err = db.createSecret(ctx, clusterSecret)
 	if err != nil {
-		if apierr.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) {
 			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
 		}
 		return nil, err
 	}
 
-	cluster, err := secretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(clusterSecret)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret %s", clusterSecret.Name)
 	}
@@ -138,39 +140,50 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string)) error {
-	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+	handleDeleteEvent func(clusterServer string),
+) error {
+	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return err
 	}
-	handleAddEvent(localCls)
+
+	localCls := db.getLocalCluster()
+	if argoSettings.InClusterEnabled {
+		localCls, err = db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+		if err != nil {
+			return fmt.Errorf("could not get local cluster: %w", err)
+		}
+		handleAddEvent(localCls)
+	}
 
 	db.watchSecrets(
 		ctx,
 		common.LabelValueSecretTypeCluster,
 
-		func(secret *apiv1.Secret) {
-			cluster, err := secretToCluster(secret)
+		func(secret *corev1.Secret) {
+			cluster, err := SecretToCluster(secret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
 				return
 			}
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, cluster)
-				localCls = cluster
+				if argoSettings.InClusterEnabled {
+					// change local cluster event to modified, since it cannot be added at runtime
+					handleModEvent(localCls, cluster)
+					localCls = cluster
+				}
 				return
 			}
 			handleAddEvent(cluster)
 		},
 
-		func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret) {
-			oldCluster, err := secretToCluster(oldSecret)
+		func(oldSecret *corev1.Secret, newSecret *corev1.Secret) {
+			oldCluster, err := SecretToCluster(oldSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)
 				return
 			}
-			newCluster, err := secretToCluster(newSecret)
+			newCluster, err := SecretToCluster(newSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
 				return
@@ -181,11 +194,12 @@ func (db *db) WatchClusters(ctx context.Context,
 			handleModEvent(oldCluster, newCluster)
 		},
 
-		func(secret *apiv1.Secret) {
-			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, db.getLocalCluster())
-				localCls = db.getLocalCluster()
+		func(secret *corev1.Secret) {
+			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr && argoSettings.InClusterEnabled {
+				// change local cluster event to modified, since it cannot be deleted at runtime, unless disabled.
+				newLocalCls := db.getLocalCluster()
+				handleModEvent(localCls, newLocalCls)
+				localCls = newLocalCls
 			} else {
 				handleDeleteEvent(string(secret.Data["server"]))
 			}
@@ -195,7 +209,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	return err
 }
 
-func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
+func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
@@ -211,6 +225,14 @@ func (db *db) getClusterSecret(server string) (*apiv1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+	argoSettings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	if server == appv1.KubernetesInternalAPIServerAddr && !argoSettings.InClusterEnabled {
+		return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+	}
+
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
@@ -219,8 +241,9 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	if err != nil {
 		return nil, err
 	}
+
 	if len(res) > 0 {
-		return secretToCluster(res[0].(*apiv1.Secret))
+		return SecretToCluster(res[0].(*corev1.Secret))
 	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		return db.getLocalCluster(), nil
@@ -230,7 +253,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 }
 
 // GetProjectClusters return project scoped clusters by given project name
-func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.Cluster, error) {
+func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secrets informer: %w", err)
@@ -241,7 +264,7 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	}
 	var res []*appv1.Cluster
 	for i := range secrets {
-		cluster, err := secretToCluster(secrets[i].(*apiv1.Secret))
+		cluster, err := SecretToCluster(secrets[i].(*corev1.Secret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert secret to cluster: %w", err)
 		}
@@ -250,7 +273,11 @@ func (db *db) GetProjectClusters(ctx context.Context, project string) ([]*appv1.
 	return res, nil
 }
 
-func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]string, error) {
+func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
+	argoSettings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
@@ -262,7 +289,7 @@ func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]strin
 		return nil, err
 	}
 
-	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name {
+	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name && argoSettings.InClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
@@ -272,8 +299,12 @@ func (db *db) GetClusterServersByName(ctx context.Context, name string) ([]strin
 	}
 	var res []string
 	for i := range secrets {
-		s := secrets[i].(*apiv1.Secret)
-		res = append(res, strings.TrimRight(string(s.Data["server"]), "/"))
+		s := secrets[i].(*corev1.Secret)
+		server := strings.TrimRight(string(s.Data["server"]), "/")
+		if !argoSettings.InClusterEnabled && server == appv1.KubernetesInternalAPIServerAddr {
+			continue
+		}
+		res = append(res, server)
 	}
 	return res, nil
 }
@@ -295,7 +326,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := secretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(clusterSecret)
 	if err != nil {
 		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 		return nil, err
@@ -318,8 +349,8 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// clusterToData converts a cluster object to string data for serialization to a secret
-func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
+// clusterToSecret converts a cluster object to string data for serialization to a secret
+func clusterToSecret(c *appv1.Cluster, secret *corev1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
 	if c.Name == "" {
@@ -347,6 +378,9 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	secret.Data = data
 
 	secret.Labels = c.Labels
+	if c.Annotations != nil && c.Annotations[corev1.LastAppliedConfigAnnotation] != "" {
+		return status.Errorf(codes.InvalidArgument, "annotation %s cannot be set", corev1.LastAppliedConfigAnnotation)
+	}
 	secret.Annotations = c.Annotations
 
 	if secret.Annotations == nil {
@@ -362,8 +396,8 @@ func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	return nil
 }
 
-// secretToCluster converts a secret into a Cluster object
-func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
+// SecretToCluster converts a secret into a Cluster object
+func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	var config appv1.ClusterConfig
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
@@ -392,19 +426,21 @@ func secretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64Ptr(int64(val))
+			shard = ptr.To(int64(val))
 		}
 	}
 
 	// copy labels and annotations excluding system ones
 	labels := map[string]string{}
 	if s.Labels != nil {
-		labels = collections.CopyStringMap(s.Labels)
+		labels = maps.Clone(s.Labels)
 		delete(labels, common.LabelKeySecretType)
 	}
 	annotations := map[string]string{}
 	if s.Annotations != nil {
-		annotations = collections.CopyStringMap(s.Annotations)
+		annotations = maps.Clone(s.Annotations)
+		// delete system annotations
+		delete(annotations, corev1.LastAppliedConfigAnnotation)
 		delete(annotations, common.AnnotationKeyManagedBy)
 	}
 

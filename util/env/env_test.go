@@ -3,10 +3,12 @@ package env
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/utils/ptr"
 )
 
 func TestParseNumFromEnv(t *testing.T) {
@@ -22,10 +24,10 @@ func TestParseNumFromEnv(t *testing.T) {
 		{"Valid positive number", "200", 200},
 		{"Valid negative number", "-200", -200},
 		{"Invalid number", "abc", def},
-		{"Equals minimum", fmt.Sprintf("%d", math.MinInt+1), min},
-		{"Equals maximum", fmt.Sprintf("%d", math.MaxInt-1), max},
-		{"Less than minimum", fmt.Sprintf("%d", math.MinInt), def},
-		{"Greater than maximum", fmt.Sprintf("%d", math.MaxInt), def},
+		{"Equals minimum", strconv.Itoa(math.MinInt + 1), min},
+		{"Equals maximum", strconv.Itoa(math.MaxInt - 1), max},
+		{"Less than minimum", strconv.Itoa(math.MinInt), def},
+		{"Greater than maximum", strconv.Itoa(math.MaxInt), def},
 		{"Variable not set", "", def},
 	}
 
@@ -63,7 +65,7 @@ func TestParseFloatFromEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			f := ParseFloatFromEnv(envKey, def, min, max)
-			assert.Equal(t, tt.expected, f)
+			assert.InEpsilon(t, tt.expected, f, 0.0001)
 		})
 	}
 }
@@ -80,10 +82,10 @@ func TestParseInt64FromEnv(t *testing.T) {
 	}{
 		{"Valid int64", "200", 200},
 		{"Text as invalid int64", "abc", def},
-		{"Equals maximum", fmt.Sprintf("%d", max), max},
-		{"Equals minimum", fmt.Sprintf("%d", min), min},
-		{"Greater than maximum", fmt.Sprintf("%d", max+1), def},
-		{"Less than minimum", fmt.Sprintf("%d", min-1), def},
+		{"Equals maximum", strconv.FormatInt(max, 10), max},
+		{"Equals minimum", strconv.FormatInt(min, 10), min},
+		{"Greater than maximum", strconv.FormatInt(max+1, 10), def},
+		{"Less than minimum", strconv.FormatInt(min-1, 10), def},
 		{"Environment not set", "", def},
 	}
 
@@ -113,6 +115,10 @@ func TestParseDurationFromEnv(t *testing.T) {
 		name:     "ValidValueSet",
 		env:      "2s",
 		expected: time.Second * 2,
+	}, {
+		name:     "ValidValueSetMs",
+		env:      "2500ms",
+		expected: time.Millisecond * 2500,
 	}, {
 		name:     "MoreThanMaxSet",
 		env:      "6s",
@@ -167,19 +173,25 @@ func TestStringFromEnv(t *testing.T) {
 
 	testCases := []struct {
 		name     string
-		env      string
+		env      *string
 		expected string
 		def      string
+		opts     []StringFromEnvOpts
 	}{
-		{"Some string", "true", "true", def},
-		{"Empty string with default", "", def, def},
-		{"Empty string without default", "", "", ""},
+		{"Some string", ptr.To("true"), "true", def, nil},
+		{"Empty string with default", ptr.To(""), def, def, nil},
+		{"Empty string without default", ptr.To(""), "", "", nil},
+		{"No env variable with default allow empty", nil, "default", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Some variable with default allow empty", ptr.To("true"), "true", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Empty variable with default allow empty", ptr.To(""), "", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv(envKey, tt.env)
-			b := StringFromEnv(envKey, tt.def)
+			if tt.env != nil {
+				t.Setenv(envKey, *tt.env)
+			}
+			b := StringFromEnv(envKey, tt.def, tt.opts...)
 			assert.Equal(t, tt.expected, b)
 		})
 	}
@@ -207,6 +219,44 @@ func TestStringsFromEnv(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			ss := StringsFromEnv(envKey, tt.def, tt.sep)
 			assert.Equal(t, tt.expected, ss)
+		})
+	}
+}
+
+func TestParseStringToStringFromEnv(t *testing.T) {
+	envKey := "SOMEKEY"
+	def := map[string]string{}
+
+	testCases := []struct {
+		name     string
+		env      string
+		expected map[string]string
+		def      map[string]string
+		sep      string
+	}{
+		{"success, no key-value", "", map[string]string{}, def, ","},
+		{"success, one key, no value", "key1=", map[string]string{"key1": ""}, def, ","},
+		{"success, one key, no value, with spaces", "key1 = ", map[string]string{"key1": ""}, def, ","},
+		{"success, one pair", "key1=value1", map[string]string{"key1": "value1"}, def, ","},
+		{"success, one pair with spaces", "key1 = value1", map[string]string{"key1": "value1"}, def, ","},
+		{"success, one pair with spaces and no value", "key1 = ", map[string]string{"key1": ""}, def, ","},
+		{"success, two keys, no value", "key1=,key2=", map[string]string{"key1": "", "key2": ""}, def, ","},
+		{"success, two keys, no value, with spaces", "key1 = , key2 = ", map[string]string{"key1": "", "key2": ""}, def, ","},
+		{"success, two pairs", "key1=value1,key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
+		{"success, two pairs with semicolon as separator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
+		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
+		{"failure, one key", "key1", map[string]string{}, def, ","},
+		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},
+		{"failure, one key ending with two successive equals to", "key1==", map[string]string{}, def, ","},
+		{"failure, one valid pair and invalid one key", "key1=value1,key2", map[string]string{}, def, ","},
+		{"failure, two valid pairs and invalid two keys", "key1=value1,key2=value2,key3,key4", map[string]string{}, def, ","},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(envKey, tt.env)
+			got := ParseStringToStringFromEnv(envKey, tt.def, tt.sep)
+			assert.Equal(t, tt.expected, got)
 		})
 	}
 }

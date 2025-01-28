@@ -9,13 +9,12 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -25,15 +24,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	utiltest "github.com/argoproj/argo-cd/v2/util/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	"github.com/argoproj/argo-cd/v3/util/settings"
+	utiltest "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister {
@@ -53,7 +52,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -96,13 +95,13 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	}
 
 	claims, newToken, err := mgr.Parse(token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
-		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
 	}
 }
 
@@ -120,12 +119,12 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 
 	// verify new token is generated is login token is expiring soon
 	_, newToken, err := mgr.Parse(token)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, newToken)
 
 	// verify that new token is valid and for the same user
 	claims, _, err := mgr.Parse(newToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	assert.Equal(t, "admin", subject)
@@ -161,8 +160,7 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "account admin is disabled")
+	assert.ErrorContains(t, err, "account admin is disabled")
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
@@ -175,8 +173,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
+	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
@@ -201,7 +198,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -219,26 +216,16 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		require.Error(t, err)
-
-		assert.Contains(t, err.Error(), "does not exist in project 'default'")
+		assert.ErrorContains(t, err, "does not exist in project 'default'")
 	})
 }
 
-type claimsMock struct {
-	err error
-}
-
-func (cm *claimsMock) Valid() error {
-	return cm.err
-}
-
 type tokenVerifierMock struct {
-	claims *claimsMock
+	claims *jwt.RegisteredClaims
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -251,21 +238,19 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, r *http.Request) {
+		return func(w http.ResponseWriter, _ *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
 			_, err := w.Write([]byte("Ok"))
-			if err != nil {
-				t.Fatalf("error writing response: %s", err)
-			}
+			require.NoError(t, err, "error writing response: %s", err)
 		}
 	}
 	type testCase struct {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *claimsMock
+		verifiedClaims       *jwt.RegisteredClaims
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -276,9 +261,9 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -287,25 +272,25 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   400,
+			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
 		},
 		{
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       stderrors.New("token error"),
-			expectedStatusCode:   401,
+			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
 		},
 		{
@@ -314,7 +299,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 	}
@@ -331,9 +316,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
-			if err != nil {
-				t.Fatalf("error creating request: %s", err)
-			}
+			require.NoErrorf(t, err, "error creating request: %s", err)
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
 			}
@@ -342,7 +325,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			resp, err := http.DefaultClient.Do(req)
 
 			// then
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, resp)
 			assert.Equal(t, tc.expectedStatusCode, resp.StatusCode)
 			if tc.expectedResponseBody != nil {
@@ -357,13 +340,14 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 
 var loggedOutContext = context.Background()
 
-// nolint:staticcheck
+//nolint:staticcheck
 var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
 }
+
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
@@ -431,7 +415,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
 
 			if tc.expected == nil {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expected.Error())
 			}
@@ -449,61 +433,48 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Valid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "5")
-		os.Setenv(envLoginMaxCacheSize, "5")
+		t.Setenv(envLoginMaxFailCount, "5")
+		t.Setenv(envLoginMaxCacheSize, "5")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, 5, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, 5, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Invalid environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "invalid")
-		os.Setenv(envLoginMaxCacheSize, "invalid")
+		t.Setenv(envLoginMaxFailCount, "invalid")
+		t.Setenv(envLoginMaxCacheSize, "invalid")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Less than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, "-1")
-		os.Setenv(envLoginMaxCacheSize, "-1")
+		t.Setenv(envLoginMaxFailCount, "-1")
+		t.Setenv(envLoginMaxCacheSize, "-1")
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		os.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
-		os.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxFailCount, strconv.Itoa(math.MaxInt32+1))
+		t.Setenv(envLoginMaxCacheSize, strconv.Itoa(math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)
 
 		mcs := getMaximumCacheSize()
 		assert.Equal(t, defaultMaxCacheSize, mcs)
-
-		os.Setenv(envLoginMaxFailCount, "")
-		os.Setenv(envLoginMaxCacheSize, "")
 	})
-
 }
 
 func TestLoginRateLimiter(t *testing.T) {
@@ -515,31 +486,31 @@ func TestLoginRateLimiter(t *testing.T) {
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
 			err := mgr.VerifyUsernamePassword("admin", "wrong")
-			assert.Error(t, err)
+			require.Error(t, err)
 		}
 
 		// The 11th time should fail even if password is right
 		{
 			err := mgr.VerifyUsernamePassword("admin", "password")
-			assert.Error(t, err)
+			require.Error(t, err)
 		}
 
 		storage.attempts = map[string]LoginAttempts{}
 		// Failed counter should have been reset, should validate immediately
 		{
 			err := mgr.VerifyUsernamePassword("admin", "password")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
 			err := mgr.VerifyUsernamePassword("invalid", "wrong")
-			assert.Error(t, err)
+			require.Error(t, err)
 		}
 
 		err := mgr.VerifyUsernamePassword("invalid", "wrong")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -551,8 +522,7 @@ func TestMaxUsernameLength(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
@@ -561,11 +531,11 @@ func TestMaxCacheSize(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 	// Temporarily decrease max cache size
-	os.Setenv(envLoginMaxCacheSize, "5")
+	t.Setenv(envLoginMaxCacheSize, "5")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	assert.Len(t, mgr.GetLoginFailures(), 5)
@@ -577,20 +547,18 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
 
-	os.Setenv(envLoginFailureWindowSeconds, "1")
+	t.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
 		err := mgr.VerifyUsernamePassword(user, "password")
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	time.Sleep(2 * time.Second)
 
 	err := mgr.VerifyUsernamePassword("invalid8", "password")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
-
-	os.Setenv(envLoginFailureWindowSeconds, "")
 }
 
 func getKubeClientWithConfig(config map[string]string, secretConfig map[string][]byte) *fake.Clientset {
@@ -601,7 +569,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 		mergedSecretConfig[key] = value
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -668,7 +636,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]
 rootCA: |
   %s
-`, oidcTestServer.URL, strings.Replace(string(cert), "\n", "\n  ", -1)),
+`, oidcTestServer.URL, strings.ReplaceAll(string(cert), "\n", "\n  ")),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
@@ -713,7 +681,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -783,7 +751,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -893,7 +861,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("OIDC provider is external, audience is not specified, absent audience is allowed", func(t *testing.T) {
@@ -929,7 +897,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, audience is not specified but is required", func(t *testing.T) {
@@ -1038,7 +1006,7 @@ allowedAudiences:
 		require.NoError(t, err)
 
 		_, _, err = mgr.VerifyToken(tokenString)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("OIDC provider is external, audience is not in allowed list", func(t *testing.T) {
@@ -1152,6 +1120,43 @@ allowedAudiences: []`, oidcTestServer.URL),
 		assert.ErrorIs(t, err, common.TokenVerificationErr)
 	})
 
+	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
+	t.Run("OIDC provider is external, audience is specified, actual audience isn't the first allowed audience", func(t *testing.T) {
+		config := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]
+allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"aud-b"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(tokenString)
+		require.NoError(t, err)
+	})
+
 	t.Run("OIDC provider is external, audience is not specified, token is signed with the wrong key", func(t *testing.T) {
 		config := map[string]string{
 			"url": "",
@@ -1186,5 +1191,44 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.TokenVerificationErr)
+	})
+}
+
+func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
+	t.Run("Not pick admin user from the queue", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"admin": {
+				FailCount: 1,
+			},
+			"test2": {
+				FailCount: 1,
+			},
+		}
+
+		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
+		for i := 0; i < 1000; i++ {
+			user := pickRandomNonAdminLoginFailure(failures, "test")
+			assert.Equal(t, "test2", *user)
+		}
+	})
+
+	t.Run("Not pick admin user and current user from the queue", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"test": {
+				FailCount: 1,
+			},
+			"admin": {
+				FailCount: 1,
+			},
+			"test2": {
+				FailCount: 1,
+			},
+		}
+
+		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
+		for i := 0; i < 1000; i++ {
+			user := pickRandomNonAdminLoginFailure(failures, "test")
+			assert.Equal(t, "test2", *user)
+		}
 	})
 }

@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
 
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 type subscriber struct {
@@ -21,6 +21,14 @@ func (s *subscriber) matches(event *appv1.ApplicationWatchEvent) bool {
 		}
 	}
 	return true
+}
+
+// Broadcaster is an interface for broadcasting application informer watch events to multiple subscribers.
+type Broadcaster interface {
+	Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func()
+	OnAdd(any, bool)
+	OnUpdate(any, any)
+	OnDelete(any)
 }
 
 type broadcasterHandler struct {
@@ -68,19 +76,19 @@ func (b *broadcasterHandler) Subscribe(ch chan *appv1.ApplicationWatchEvent, fil
 	}
 }
 
-func (b *broadcasterHandler) OnAdd(obj interface{}) {
+func (b *broadcasterHandler) OnAdd(obj any, _ bool) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Added})
 	}
 }
 
-func (b *broadcasterHandler) OnUpdate(_, newObj interface{}) {
+func (b *broadcasterHandler) OnUpdate(_, newObj any) {
 	if app, ok := newObj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Modified})
 	}
 }
 
-func (b *broadcasterHandler) OnDelete(obj interface{}) {
+func (b *broadcasterHandler) OnDelete(obj any) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Deleted})
 	}

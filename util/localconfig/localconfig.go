@@ -1,14 +1,15 @@
 package localconfig
 
 import (
+	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"os"
-	"os/user"
 	"path"
 	"strings"
 
-	configUtil "github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/argoproj/argo-cd/v3/util/config"
 )
 
 // LocalConfig is a local Argo CD config file
@@ -17,6 +18,7 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
+	PromptsEnabled bool         `json:"prompts-enabled"`
 }
 
 // ContextRef is a reference to a Server and User for an API client
@@ -77,7 +79,7 @@ func (u *User) Claims() (*jwt.RegisteredClaims, error) {
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
 func ReadLocalConfig(path string) (*LocalConfig, error) {
 	var err error
-	var config LocalConfig
+	var localconfig LocalConfig
 
 	// check file permission only when argocd config exists
 	if fi, err := os.Stat(path); err == nil {
@@ -87,15 +89,15 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 		}
 	}
 
-	err = configUtil.UnmarshalLocalFile(path, &config)
+	err = config.UnmarshalLocalFile(path, &localconfig)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
-	err = ValidateLocalConfig(config)
+	err = ValidateLocalConfig(localconfig)
 	if err != nil {
 		return nil, err
 	}
-	return &config, nil
+	return &localconfig, nil
 }
 
 func ValidateLocalConfig(config LocalConfig) error {
@@ -103,18 +105,18 @@ func ValidateLocalConfig(config LocalConfig) error {
 		return nil
 	}
 	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %s", err)
+		return fmt.Errorf("Local config invalid: %w", err)
 	}
 	return nil
 }
 
 // WriteLocalConfig writes a new local configuration file.
-func WriteLocalConfig(config LocalConfig, configPath string) error {
+func WriteLocalConfig(localconfig LocalConfig, configPath string) error {
 	err := os.MkdirAll(path.Dir(configPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
-	return configUtil.MarshalLocalYAMLFile(configPath, config)
+	return config.MarshalLocalYAMLFile(configPath, localconfig)
 }
 
 func DeleteLocalConfig(configPath string) error {
@@ -129,7 +131,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, fmt.Errorf("Local config: current-context unset")
+			return nil, errors.New("Local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}
@@ -281,14 +283,9 @@ func DefaultConfigDir() (string, error) {
 }
 
 func getHomeDir() (string, error) {
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		usr, err := user.Current()
-		if err != nil {
-			return "", err
-		}
-
-		homeDir = usr.HomeDir
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
 
 	return homeDir, nil
@@ -310,4 +307,28 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
+}
+
+func GetPromptsEnabled(useCLIOpts bool) bool {
+	if useCLIOpts {
+		forcePromptsEnabled := config.GetFlag("prompts-enabled", "")
+
+		if forcePromptsEnabled != "" {
+			return forcePromptsEnabled == "true"
+		}
+	}
+
+	defaultLocalConfigPath, err := DefaultLocalConfigPath()
+	if err != nil {
+		return false
+	}
+
+	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
+
+	localConfig, err := ReadLocalConfig(localConfigPath)
+	if localConfig == nil || err != nil {
+		return false
+	}
+
+	return localConfig.PromptsEnabled
 }
