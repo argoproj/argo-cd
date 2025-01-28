@@ -5,45 +5,20 @@ import (
 	"testing"
 
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
+	"github.com/stretchr/testify/mock"
 
-	argocommon "github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/test"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func createSecret(name, namespace, env, team, server, config string) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels: map[string]string{
-				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-				"env":                         env,
-				"team":                        team,
-			},
-		},
-		Data: map[string][]byte{
-			"name":   []byte(name),
-			"server": []byte(server),
-			"config": []byte(config),
-		},
-	}
-}
-
 func TestMetricClusterConnectivity(t *testing.T) {
-	argoCDNamespace := test.FakeArgoCDNamespace
-
-	cm := test.NewFakeConfigMap()
-	secret := test.NewFakeSecret()
-
-	secret1 := createSecret("cluster1", argoCDNamespace, "dev", "team1", "server1", "{\"username\":\"foo\",\"password\":\"foo\"}")
-	secret2 := createSecret("cluster2", argoCDNamespace, "staging", "team2", "server2", "{\"username\":\"bar\",\"password\":\"bar\"}")
-	secret3 := createSecret("cluster3", argoCDNamespace, "production", "team3", "server3", "{\"username\":\"baz\",\"password\":\"baz\"}")
-	objects := append([]runtime.Object{}, cm, secret, secret1, secret2, secret3)
-	kubeClientset := kubefake.NewClientset(objects...)
+	db := dbmocks.ArgoDB{}
+	cluster1 := v1alpha1.Cluster{Name: "cluster1", Server: "server1", Labels: map[string]string{"env": "dev", "team": "team1"}}
+	cluster2 := v1alpha1.Cluster{Name: "cluster2", Server: "server2", Labels: map[string]string{"env": "staging", "team": "team2"}}
+	cluster3 := v1alpha1.Cluster{Name: "cluster3", Server: "server3", Labels: map[string]string{"env": "production", "team": "team3"}}
+	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3}}
+	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
 
 	type testCases struct {
 		testCombination
@@ -149,8 +124,7 @@ argocd_cluster_labels{label_env="production",label_team="team3",name="cluster3",
 					AppLabels:        c.metricLabels,
 					ClusterLabels:    c.clusterLabels,
 					ClustersInfo:     c.clustersInfo,
-					KubeClientset:    kubeClientset,
-					ArgoCDNamespace:  argoCDNamespace,
+					ClusterLister:    db.ListClusters,
 				}
 				runTest(t, cfg)
 			}
