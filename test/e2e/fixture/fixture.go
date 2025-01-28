@@ -92,7 +92,7 @@ var (
 	testsRun                map[string]bool
 	argoCDServerName        string
 	argoCDRedisHAProxyName  string
-	ArgoCDRedisName         string
+	argoCDRedisName         string
 	argoCDRepoServerName    string
 	argoCDAppControllerName string
 )
@@ -184,7 +184,7 @@ func init() {
 
 	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
 	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
-	ArgoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
+	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
 	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
 	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
 
@@ -198,7 +198,7 @@ func init() {
 		PlainText:         !tlsTestResult.TLS,
 		ServerName:        argoCDServerName,
 		RedisHaProxyName:  argoCDRedisHAProxyName,
-		RedisName:         ArgoCDRedisName,
+		RedisName:         argoCDRedisName,
 		RepoServerName:    argoCDRepoServerName,
 		AppControllerName: argoCDAppControllerName,
 	})
@@ -263,7 +263,7 @@ func loginAs(username, password string) error {
 		PlainText:         plainText,
 		ServerName:        argoCDServerName,
 		RedisHaProxyName:  argoCDRedisHAProxyName,
-		RedisName:         ArgoCDRedisName,
+		RedisName:         argoCDRedisName,
 		RepoServerName:    argoCDRepoServerName,
 		AppControllerName: argoCDAppControllerName,
 	})
