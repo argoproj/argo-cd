@@ -85,6 +85,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.log.level
               optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: log.format.timestamp
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -228,6 +234,18 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: hydrator.enabled
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.batch.events.processing
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.cluster.cache.events.processing.interval
               optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always

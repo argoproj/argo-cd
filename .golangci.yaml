@@ -20,6 +20,7 @@ linters:
     - importas
     - ineffassign
     - misspell
+    - nolintlint
     - perfsprint
     - revive
     - staticcheck
@@ -34,15 +35,11 @@ linters-settings:
     disabled-checks:
       - appendAssign
       - assignOp  # Keep it disabled for readability
-      - badCond
-      - commentFormatting
       - exitAfterDefer
-      - ifElseChain
       - mapKey
-      - singleCaseSwitch
       - typeSwitchVar
   goimports:
-    local-prefixes: github.com/argoproj/argo-cd/v2
+    local-prefixes: github.com/argoproj/argo-cd/v3
   gomodguard:
     blocked:
       modules:
@@ -60,14 +57,22 @@ linters-settings:
     alias:
       - alias: jwtgo 
         pkg: github.com/golang-jwt/jwt/v5
+      - alias: appsv1
+        pkg: k8s.io/api/apps/v1
       - alias: corev1
         pkg: k8s.io/api/core/v1
+      - alias: rbacv1
+        pkg: k8s.io/api/rbac/v1
       - alias: apierrors 
         pkg: k8s.io/apimachinery/pkg/api/errors
       - alias: metav1 
         pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+      - alias: informersv1
+        pkg: k8s.io/client-go/informers/core/v1
       - alias: stderrors
         pkg: errors
+  nolintlint:
+    require-specific: true
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
@@ -80,64 +85,57 @@ linters-settings:
     # Optimizes into strings concatenation.
     strconcat: true
   revive:
+    # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
     rules:
-      # Blank import should be only in a main or test package, or have a comment justifying it.
+      - name: bool-literal-in-expr
       - name: blank-imports
         disabled: true
-      # context.Context() should be the first parameter of a function when provided as argument.
       - name: context-as-argument
-        disabled: true
-      # Basic types should not be used as a key in `context.WithValue`
+        arguments:
+          - allowTypesBefore: "*testing.T,testing.TB"
       - name: context-keys-type
         disabled: true
-      # Importing with `.` makes the programs much harder to understand
       - name: dot-imports
         disabled: true
-      # Empty blocks make code less readable and could be a symptom of a bug or unfinished refactoring.
+      - name: duplicated-imports
+      - name: early-return
+        arguments:
+          - "preserveScope"
       - name: empty-block
         disabled: true
-      # for better readability, variables of type `error` must be named with the prefix `err`.
       - name: error-naming
         disabled: true
-      # for better readability, the errors should be last in the list of returned values by a function.
       - name: error-return
-      # for better readability, error messages should not be capitalized or end with punctuation or a newline.
       - name: error-strings
         disabled: true
-      # report when replacing `errors.New(fmt.Sprintf())` with `fmt.Errorf()` is possible
       - name: errorf
-      # incrementing an integer variable by 1 is recommended to be done using the `++` operator
+      - name: identical-branches
+      - name: if-return
       - name: increment-decrement
-      # highlights redundant else-blocks that can be eliminated from the code
       - name: indent-error-flow
-        disabled: true
-      # This rule suggests a shorter way of writing ranges that do not use the second value.
+        arguments:
+          - "preserveScope"
+      - name: modifies-parameter
+      - name: optimize-operands-order
       - name: range
-      # receiver names in a method should reflect the struct name (p for Person, for example)
       - name: receiver-naming
-        disabled: true
-      # redefining built in names (true, false, append, make) can lead to bugs very difficult to detect.
       - name: redefines-builtin-id
         disabled: true
-      # redundant else-blocks that can be eliminated from the code.
+      - name: redundant-import-alias
       - name: superfluous-else
-        disabled: true
-      # prevent confusing name for variables when using `time` package
+        arguments:
+          - "preserveScope"
+      - name: time-equal
       - name: time-naming
         disabled: true
-      # warns when an exported function or method returns a value of an un-exported type.
       - name: unexported-return
         disabled: true
-      # spots and proposes to remove unreachable code. also helps to spot errors
+      - name: unnecessary-stmt
       - name: unreachable-code
-      # Functions or methods with unused parameters can be a symptom of an unfinished refactoring or a bug.
       - name: unused-parameter
-        disabled: true
-      # Since Go 1.18, interface{} has an alias: any. This rule proposes to replace instances of interface{} with any.
       - name: use-any
-      # report when a variable declaration can be simplified
+      - name: useless-break
       - name: var-declaration
-      # warns when initialism, variable or package naming conventions are not followed.
       - name: var-naming
         disabled: true
   testifylint:

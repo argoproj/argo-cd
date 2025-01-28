@@ -12,11 +12,11 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var _ repositoryBackend = &legacyRepositoryBackend{}
@@ -27,13 +27,13 @@ type legacyRepositoryBackend struct {
 	db *db
 }
 
-func (l *legacyRepositoryBackend) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) CreateRepository(_ context.Context, _ *appsv1.Repository) (*appsv1.Repository, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
 	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repositories is not supported for the legacy repository backend")
 }
 
-func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) GetRepository(_ context.Context, repoURL, _ string) (*appsv1.Repository, error) {
 	repository, err := l.tryGetRepository(repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get repository: %w", err)
@@ -41,7 +41,7 @@ func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL, pr
 	return repository, nil
 }
 
-func (l *legacyRepositoryBackend) ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) ListRepositories(_ context.Context, repoType *string) ([]*appsv1.Repository, error) {
 	inRepos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -52,18 +52,17 @@ func (l *legacyRepositoryBackend) ListRepositories(ctx context.Context, repoType
 		if repoType == nil || *repoType == inRepo.Type {
 			r, err := l.tryGetRepository(inRepo.URL)
 			if err != nil {
-				if r != nil && errors.IsCredentialsConfigurationError(err) {
-					modifiedTime := metav1.Now()
-					r.ConnectionState = appsv1.ConnectionState{
-						Status:     appsv1.ConnectionStatusFailed,
-						Message:    "Configuration error - please check the server logs",
-						ModifiedAt: &modifiedTime,
-					}
-
-					log.Warnf("could not retrieve repo: %s", err.Error())
-				} else {
+				if r == nil || !errors.IsCredentialsConfigurationError(err) {
 					return nil, err
 				}
+				modifiedTime := metav1.Now()
+				r.ConnectionState = appsv1.ConnectionState{
+					Status:     appsv1.ConnectionStatusFailed,
+					Message:    "Configuration error - please check the server logs",
+					ModifiedAt: &modifiedTime,
+				}
+
+				log.Warnf("could not retrieve repo: %s", err.Error())
 			}
 			repos = append(repos, r)
 		}
@@ -71,7 +70,7 @@ func (l *legacyRepositoryBackend) ListRepositories(ctx context.Context, repoType
 	return repos, nil
 }
 
-func (l *legacyRepositoryBackend) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) UpdateRepository(_ context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return nil, err
@@ -102,7 +101,7 @@ func (l *legacyRepositoryBackend) UpdateRepository(ctx context.Context, r *appsv
 	return r, nil
 }
 
-func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL, project string) error {
+func (l *legacyRepositoryBackend) DeleteRepository(_ context.Context, repoURL, _ string) error {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return err
@@ -127,7 +126,7 @@ func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL,
 	return l.db.settingsMgr.SaveRepositories(repos)
 }
 
-func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL, project string, allowFallback bool) (bool, error) {
+func (l *legacyRepositoryBackend) RepositoryExists(_ context.Context, repoURL, _ string, _ bool) (bool, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return false, fmt.Errorf("unable to get repositories: %w", err)
@@ -137,13 +136,13 @@ func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL,
 	return index >= 0, nil
 }
 
-func (l *legacyRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) CreateRepoCreds(_ context.Context, _ *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
 	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repository credentials is not supported for the legacy repository backend")
 }
 
-func (l *legacyRepositoryBackend) GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) GetRepoCreds(_ context.Context, repoURL string) (*appsv1.RepoCreds, error) {
 	var credential *appsv1.RepoCreds
 
 	repoCredentials, err := l.db.settingsMgr.GetRepositoryCredentials()
@@ -161,7 +160,7 @@ func (l *legacyRepositoryBackend) GetRepoCreds(ctx context.Context, repoURL stri
 	return credential, err
 }
 
-func (l *legacyRepositoryBackend) ListRepoCreds(ctx context.Context) ([]string, error) {
+func (l *legacyRepositoryBackend) ListRepoCreds(_ context.Context) ([]string, error) {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -175,7 +174,7 @@ func (l *legacyRepositoryBackend) ListRepoCreds(ctx context.Context) ([]string, 
 	return urls, nil
 }
 
-func (l *legacyRepositoryBackend) UpdateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) UpdateRepoCreds(_ context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return nil, err
@@ -200,7 +199,7 @@ func (l *legacyRepositoryBackend) UpdateRepoCreds(ctx context.Context, r *appsv1
 	return r, nil
 }
 
-func (l *legacyRepositoryBackend) DeleteRepoCreds(ctx context.Context, name string) error {
+func (l *legacyRepositoryBackend) DeleteRepoCreds(_ context.Context, name string) error {
 	repos, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return err
@@ -225,7 +224,7 @@ func (l *legacyRepositoryBackend) DeleteRepoCreds(ctx context.Context, name stri
 	return l.db.settingsMgr.SaveRepositoryCredentials(repos)
 }
 
-func (l *legacyRepositoryBackend) RepoCredsExists(ctx context.Context, repoURL string) (bool, error) {
+func (l *legacyRepositoryBackend) RepoCredsExists(_ context.Context, repoURL string) (bool, error) {
 	creds, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
 		return false, err
@@ -235,7 +234,7 @@ func (l *legacyRepositoryBackend) RepoCredsExists(ctx context.Context, repoURL s
 	return index >= 0, nil
 }
 
-func (l *legacyRepositoryBackend) GetAllHelmRepoCreds(ctx context.Context) ([]*appsv1.RepoCreds, error) {
+func (l *legacyRepositoryBackend) GetAllHelmRepoCreds(_ context.Context) ([]*appsv1.RepoCreds, error) {
 	var allCredentials []*appsv1.RepoCreds
 	repoCredentials, err := l.db.settingsMgr.GetRepositoryCredentials()
 	if err != nil {
@@ -341,11 +340,10 @@ func (l *legacyRepositoryBackend) upsertSecret(name string, data map[string][]by
 				return l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Delete(context.Background(), name, metav1.DeleteOptions{})
 			}
 			return nil
-		} else {
-			_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
-			if err != nil {
-				return err
-			}
+		}
+		_, err = l.db.kubeclientset.CoreV1().Secrets(l.db.ns).Update(context.Background(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			return err
 		}
 	}
 	return nil

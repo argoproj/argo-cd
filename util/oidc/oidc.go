@@ -21,16 +21,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/dex"
 
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var InvalidRedirectURLError = errors.New("invalid return URL")
@@ -272,9 +272,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			//if b.Path == r.Path {
-			//	return true
-			//}
+			// if b.Path == r.Path {
+			//	 return true
+			// }
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
@@ -564,12 +564,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
 		} else {
 			err = json.Unmarshal(claimsRaw, &claims)
-			if err != nil {
-				log.Errorf("cannot unmarshal cached claims structure: %s", err)
-			} else {
+			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
 				return claims, false, err
 			}
+			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 
@@ -643,11 +642,12 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// only use configured expiry if the token lives longer and the expiry is configured
 	// if the token has no expiry, use the expiry of the actual token
 	// otherwise use the expiry of the token
-	if settingExpiry < tokenExpiry && settingExpiry != 0 {
+	switch {
+	case settingExpiry < tokenExpiry && settingExpiry != 0:
 		cacheExpiry = settingExpiry
-	} else if tokenExpiry < 0 {
+	case tokenExpiry < 0:
 		cacheExpiry = getTokenExpiration(actualClaims)
-	} else {
+	default:
 		cacheExpiry = tokenExpiry
 	}
 

@@ -13,10 +13,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/plugin"
 )
 
 const (
@@ -32,7 +32,7 @@ type PluginGenerator struct {
 	namespace string
 }
 
-func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
 		ctx:       ctx,
@@ -106,7 +106,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 		}
 	}
 
-	pluginClient, err := plugin.NewPluginService(ctx, appSetName, cm["baseUrl"], token, requestTimeout)
+	pluginClient, err := plugin.NewPluginService(appSetName, cm["baseUrl"], token, requestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plugin client: %w", err)
 	}

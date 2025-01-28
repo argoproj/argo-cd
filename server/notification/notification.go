@@ -7,7 +7,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 )
 
 // Server provides an Application service
@@ -22,7 +22,7 @@ func NewServer(apiFactory api.Factory) notification.NotificationServiceServer {
 }
 
 // List returns list of notification triggers
-func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListRequest) (*notification.TriggerList, error) {
+func (s *Server) ListTriggers(_ context.Context, _ *notification.TriggersListRequest) (*notification.TriggerList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -37,7 +37,7 @@ func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListR
 }
 
 // List returns list of notification services
-func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListRequest) (*notification.ServiceList, error) {
+func (s *Server) ListServices(_ context.Context, _ *notification.ServicesListRequest) (*notification.ServiceList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -53,7 +53,7 @@ func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListR
 }
 
 // List returns list of notification templates
-func (s *Server) ListTemplates(ctx context.Context, q *notification.TemplatesListRequest) (*notification.TemplateList, error) {
+func (s *Server) ListTemplates(_ context.Context, _ *notification.TemplatesListRequest) (*notification.TemplateList, error) {
 	api, err := s.apiFactory.GetAPI()
 	if err != nil {
 		if apierrors.IsNotFound(err) {

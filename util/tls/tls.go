@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -89,11 +89,10 @@ func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 	allowedSuites := make([]uint16, 0)
 	for _, s := range strings.Split(cipherSuites, ":") {
 		id, ok := suiteMap[strings.TrimSpace(s)]
-		if ok {
-			allowedSuites = append(allowedSuites, id)
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)
 		}
+		allowedSuites = append(allowedSuites, id)
 	}
 	return allowedSuites, nil
 }
@@ -345,14 +344,13 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 			}
 			// ...but everything else is considered an error
 			return nil, fmt.Errorf("could not load TLS certificate: %w", err)
-		} else {
-			f, err := os.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
-			}
-			if ok := pool.AppendCertsFromPEM(f); !ok {
-				return nil, fmt.Errorf("invalid cert data in %s", path)
-			}
+		}
+		f, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
+		}
+		if ok := pool.AppendCertsFromPEM(f); !ok {
+			return nil, fmt.Errorf("invalid cert data in %s", path)
 		}
 	}
 	return pool, nil

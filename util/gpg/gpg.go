@@ -14,9 +14,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
 
 // Regular expression to match public key beginning
@@ -66,11 +66,7 @@ type PGPKeyID string
 
 func isHexString(s string) bool {
 	_, err := hex.DecodeString(s)
-	if err != nil {
-		return false
-	} else {
-		return true
-	}
+	return err == nil
 }
 
 // KeyID get the actual correct (short) key ID from either a fingerprint or the key ID. Returns the empty string if k seems not to be a PGP key ID.
@@ -88,18 +84,16 @@ func KeyID(k string) string {
 func IsLongKeyID(k string) bool {
 	if len(k) == 40 && isHexString(k) {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // IsShortKeyID returns true if the string represents a short key ID
 func IsShortKeyID(k string) bool {
 	if len(k) == 16 && isHexString(k) {
 		return true
-	} else {
-		return false
 	}
+	return false
 }
 
 // Result of a git commit verification
@@ -186,9 +180,8 @@ func removeKeyRing(path string) error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("refusing to remove directory %s: it's not initialized by Argo CD", path)
-		} else {
-			return err
 		}
+		return err
 	}
 	rd, err := os.Open(path)
 	if err != nil {
@@ -679,10 +672,9 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	} else if linesParsed >= MaxVerificationLinesToParse {
 		// Too many output lines, return error
 		return unknownResult("Too many lines of gpg verify-commit output, abort.")
-	} else {
-		// No data found, return error
-		return unknownResult("Could not parse output of verify-commit, no verification data found.")
 	}
+	// No data found, return error
+	return unknownResult("Could not parse output of verify-commit, no verification data found.")
 }
 
 // SyncKeyRingFromDirectory will sync the GPG keyring with files in a directory. This is a one-way sync,
@@ -704,7 +696,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	}
 
 	// Collect configuration, i.e. files in basePath
-	err = filepath.Walk(basePath, func(path string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(basePath, func(_ string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
