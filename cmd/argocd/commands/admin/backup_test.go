@@ -85,3 +85,42 @@ func Test_updateTracking(t *testing.T) {
 		})
 	}
 }
+
+func TestSkipResource(t *testing.T) {
+	tests := []struct {
+		name       string
+		labels     map[string]string
+		skipLabels []string
+		expectSkip bool
+	}{
+		{
+			name: "No matching labels",
+			labels: map[string]string{
+				"env":  "prod",
+				"team": "platform",
+			},
+			skipLabels: []string{"type=backend", "tier=web"},
+			expectSkip: false,
+		},
+		{
+			name: "Label key exists but value doesn't match",
+			labels: map[string]string{
+				"type": "frontend",
+				"env":  "prod",
+			},
+			skipLabels: []string{"type=backend", "env=dev"},
+			expectSkip: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := &unstructured.Unstructured{}
+			obj.SetLabels(tt.labels)
+
+			result := skipResource(obj, tt.skipLabels)
+
+			assert.Equal(t, tt.expectSkip, result)
+		})
+	}
+}

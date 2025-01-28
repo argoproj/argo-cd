@@ -5,16 +5,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
+	"k8s.io/client-go/util/retry"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -23,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	secutil "github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -43,6 +48,9 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
+			tt := time.Now()
+
+			fmt.Printf("backup process started %s\n", namespace)
 
 			var writer io.Writer
 			if out == "-" {
@@ -120,6 +128,8 @@ func NewExportCommand() *cobra.Command {
 					}
 				}
 			}
+			duration := time.Since(tt)
+			fmt.Printf("backup process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
 	}
 
@@ -139,7 +149,9 @@ func NewImportCommand() *cobra.Command {
 		verbose                  bool
 		stopOperation            bool
 		ignoreTracking           bool
+		retryOnConflict          bool
 		promptsEnabled           bool
+		skipResourcesWithLabels  []string
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
@@ -162,7 +174,8 @@ func NewImportCommand() *cobra.Command {
 			acdClients := newArgoCDClientsets(config, namespace)
 			client, err := dynamic.NewForConfig(config)
 			errors.CheckError(err)
-
+			fmt.Printf("import process started %s\n", namespace)
+			tt := time.Now()
 			var input []byte
 			if in := args[0]; in == "-" {
 				input, err = io.ReadAll(os.Stdin)
@@ -176,7 +189,6 @@ func NewImportCommand() *cobra.Command {
 			}
 
 			additionalNamespaces := getAdditionalNamespaces(ctx, acdClients)
-
 			if len(applicationNamespaces) == 0 {
 				applicationNamespaces = additionalNamespaces.applicationNamespaces
 			}
@@ -187,8 +199,10 @@ func NewImportCommand() *cobra.Command {
 			// pruneObjects tracks live objects and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
+
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 			configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
+
 			errors.CheckError(err)
 			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
 			// secrets need to be imported too
@@ -234,11 +248,15 @@ func NewImportCommand() *cobra.Command {
 					}
 				}
 			}
-
 			// Create or replace existing object
 			backupObjects, err := kube.SplitYAML(input)
+
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
+				if skipResource(bakObj, skipResourcesWithLabels) {
+					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
+					continue
+				}
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
 				if bakObj.GetNamespace() == "" {
@@ -299,6 +317,24 @@ func NewImportCommand() *cobra.Command {
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)
 						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+						if apierrors.IsConflict(err) {
+							fmt.Printf("failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
+							if retryOnConflict {
+								err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+									fmt.Printf("resource conflict: retry update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
+									liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
+									newLive.SetResourceVersion(liveObj.GetResourceVersion())
+									annotations := newLive.GetAnnotations()
+									delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+									newLive.SetAnnotations(annotations)
+									if getErr != nil {
+										errors.CheckError(getErr)
+									}
+									_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+									return err
+								})
+							}
+						}
 						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
@@ -315,8 +351,7 @@ func NewImportCommand() *cobra.Command {
 			promptUtil := utils.NewPrompt(promptsEnabled)
 
 			// Delete objects not in backup
-			for key, liveObj := range pruneObjects {
-				if prune {
+				for key, liveObj := range pruneObjects {
 					var dynClient dynamic.ResourceInterface
 					switch key.Kind {
 					case "Secret":
@@ -358,11 +393,12 @@ func NewImportCommand() *cobra.Command {
 					}
 					if !isForbidden {
 						fmt.Printf("%s/%s %s pruned%s\n", key.Group, key.Kind, key.Name, dryRunMsg)
+					} else {
+						fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 					}
-				} else {
-					fmt.Printf("%s/%s %s needs pruning\n", key.Group, key.Kind, key.Name)
 				}
-			}
+			duration := time.Since(tt)
+			fmt.Printf("import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
 	}
 
@@ -370,12 +406,13 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Print what will be performed")
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
 	command.Flags().BoolVar(&ignoreTracking, "ignore-tracking", false, "Do not update the tracking annotation if the resource is already tracked")
+	command.Flags().BoolVar(&retryOnConflict, "retry-on-conflict", false, "Retry on conflict when updating resources")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
+	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '-- skip-resources-with-labels key=value'")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
-
 	return &command
 }
 
@@ -472,3 +509,19 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 		}
 	}
 }
+
+// skipResource checks if a resource should be skipped based on its labels.
+func skipResource(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
+	for _, kv := range skipResourcesWithLabels {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, value := parts[0], parts[1]
+		if val, ok := bak.GetLabels()[key]; ok && val == value {
+			return true
+		}
+	}
+	return false
+}
+
