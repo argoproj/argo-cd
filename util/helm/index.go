@@ -47,7 +47,7 @@ func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, e
 		}
 	}
 	if len(versions) == 0 {
-		return nil, fmt.Errorf("constraint not found in index")
+		return nil, errors.New("constraint not found in index")
 	}
 	maxVersion := versions[0]
 	for _, v := range versions {

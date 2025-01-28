@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
 
 // this implements the "then" part of given/when/then
@@ -43,6 +43,9 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 	}
 	sleepIntervalsIdx := -1
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
 		state, message = e(c)
 		switch state {
 		case succeeded:
@@ -53,9 +56,6 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 			return c
 		}
 		log.Infof("expectation pending: %s", message)
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
 	}
 	c.context.t.Fatal("timeout waiting for: " + message)
 	return c

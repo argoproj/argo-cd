@@ -123,7 +123,7 @@ argocd app set guestbook-default --project myproject
 
 ## Project Roles
 
-Projects include a feature called roles that can be used to determine who and what can be done applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
+Projects include a feature called roles that can be used to determine who and what can be done to the applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
 
 Projects can have multiple roles, and those roles can have different access granted to them. These permissions are called policies which follows the same [RBAC pattern used in Argo CD configuration](../operator-manual/rbac.md). They are stored within the role as a list of policy strings. A role's policy can only grant access to that role. Users are associated with roles based on the groups list. Consider the hypothetical AppProject definition below:
 
@@ -135,10 +135,10 @@ metadata:
 spec:
   ...
   roles:
-  - description: some-role
+  - name: admin 
+    description: some-role 
     groups:
     - some-user
-    name: admin
     policies:
     - p, proj:sample-test-project:some-role, applications, *, *, allow
   ...

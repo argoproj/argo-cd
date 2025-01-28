@@ -4,25 +4,32 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/v2/cmd/util"
-
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
-	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
-	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
-	cmpserver "github.com/argoproj/argo-cd/v2/cmd/argocd-cmp-server/commands"
-	dex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
-	gitaskpass "github.com/argoproj/argo-cd/v2/cmd/argocd-git-ask-pass/commands"
-	k8sauth "github.com/argoproj/argo-cd/v2/cmd/argocd-k8s-auth/commands"
-	notification "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
-	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
-	apiserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
-	cli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
+	appcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
+	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
+	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
+	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
+	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
+	gitaskpass "github.com/argoproj/argo-cd/v3/cmd/argocd-git-ask-pass/commands"
+	k8sauth "github.com/argoproj/argo-cd/v3/cmd/argocd-k8s-auth/commands"
+	notification "github.com/argoproj/argo-cd/v3/cmd/argocd-notification/commands"
+	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
+	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
+	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
 const (
 	binaryNameEnv = "ARGOCD_BINARY_NAME"
 )
+
+func init() {
+	// Make sure klog uses the configured log level and format.
+	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
+}
 
 func main() {
 	var command *cobra.Command
@@ -46,6 +53,8 @@ func main() {
 	case "argocd-cmp-server":
 		command = cmpserver.NewCommand()
 		isCLI = true
+	case "argocd-commit-server":
+		command = commitserver.NewCommand()
 	case "argocd-dex":
 		command = dex.NewCommand()
 	case "argocd-notifications":

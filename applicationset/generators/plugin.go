@@ -2,6 +2,7 @@ package generators
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -12,10 +13,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/plugin"
 )
 
 const (
@@ -31,7 +32,7 @@ type PluginGenerator struct {
 	namespace string
 }
 
-func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(ctx context.Context, client client.Client, clientset kubernetes.Interface, namespace string) Generator {
 	g := &PluginGenerator{
 		client:    client,
 		ctx:       ctx,
@@ -55,7 +56,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -105,18 +106,18 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 		}
 	}
 
-	pluginClient, err := plugin.NewPluginService(ctx, appSetName, cm["baseUrl"], token, requestTimeout)
+	pluginClient, err := plugin.NewPluginService(appSetName, cm["baseUrl"], token, requestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plugin client: %w", err)
 	}
 	return pluginClient, nil
 }
 
-func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]interface{}, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]interface{}, error) {
-	res := []map[string]interface{}{}
+func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, objectsFound []map[string]any, pluginParams argoprojiov1alpha1.PluginParameters, useGoTemplate bool) ([]map[string]any, error) {
+	res := []map[string]any{}
 
 	for _, objectFound := range objectsFound {
-		params := map[string]interface{}{}
+		params := map[string]any{}
 
 		if useGoTemplate {
 			for k, v := range objectFound {
@@ -132,7 +133,7 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 			}
 		}
 
-		params["generator"] = map[string]interface{}{
+		params["generator"] = map[string]any{
 			"input": map[string]argoprojiov1alpha1.PluginParameters{
 				"parameters": pluginParams,
 			},
@@ -194,12 +195,12 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 
 	baseUrl, ok := cm.Data["baseUrl"]
 	if !ok || baseUrl == "" {
-		return nil, fmt.Errorf("baseUrl not found in ConfigMap")
+		return nil, errors.New("baseUrl not found in ConfigMap")
 	}
 
 	token, ok := cm.Data["token"]
 	if !ok || token == "" {
-		return nil, fmt.Errorf("token not found in ConfigMap")
+		return nil, errors.New("token not found in ConfigMap")
 	}
 
 	return cm.Data, nil

@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/NumaflowControllerRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
+    message: "Healthy"
   inputPath: testdata/NumaflowControllerRollout/healthy.yaml
 - healthStatus:
     status: Degraded
@@ -13,9 +13,9 @@ tests:
   inputPath: testdata/NumaflowControllerRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Progressing"
+    message: "Child Progressing"
   inputPath: testdata/NumaflowControllerRollout/progressing-reason.yaml
 - healthStatus:
     status: Progressing
-    message: "Phase=Pending"
+    message: "Update in progress"
   inputPath: testdata/NumaflowControllerRollout/pending.yaml

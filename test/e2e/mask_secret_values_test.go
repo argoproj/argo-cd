@@ -8,9 +8,9 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 // Values of `.data` & `.stringData“ fields in Secret resources are masked in UI/CLI

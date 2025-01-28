@@ -1,7 +1,8 @@
 package project
 
 import (
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // this implements the "when" part of given/when/then
@@ -46,25 +47,25 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 }
 
 func (a *Actions) Create() *Actions {
-	fixture.SetAccounts(map[string][]string{
+	errors.CheckError(fixture.SetAccounts(map[string][]string{
 		a.context.name: {"login"},
-	})
+	}))
 	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
 	return a
 }
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
-	fixture.SetPermissions(permissions, a.context.name, roleName)
+	errors.CheckError(fixture.SetPermissions(permissions, a.context.name, roleName))
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Login() *Actions {
-	fixture.LoginAs(a.context.name)
+	errors.CheckError(fixture.LoginAs(a.context.name))
 	return a
 }
 

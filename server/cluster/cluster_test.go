@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
@@ -19,24 +19,21 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	clusterapi "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/test"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/test"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -120,16 +117,16 @@ func newServerInMemoryCache() *servercache.Cache {
 }
 
 func newNoopEnforcer() *rbac.Enforcer {
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
 }
 
 func newEnforcer() *rbac.Enforcer {
-	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	return enforcer
@@ -138,23 +135,23 @@ func newEnforcer() *rbac.Enforcer {
 func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	testCases := []struct {
 		name    string
-		request clusterapi.ClusterUpdateRequest
+		request cluster.ClusterUpdateRequest
 	}{
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query",
-			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query",
-			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
-			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
-			request: clusterapi.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &clusterapi.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &v1alpha1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 	}
 
@@ -182,18 +179,18 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}
 
 	db.On("ListClusters", mock.Anything).Return(
-		func(ctx context.Context) *v1alpha1.ClusterList {
+		func(_ context.Context) *v1alpha1.ClusterList {
 			return &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    clusters,
 			}
 		},
-		func(ctx context.Context) error {
+		func(_ context.Context) error {
 			return nil
 		},
 	)
 	db.On("UpdateCluster", mock.Anything, mock.Anything).Return(
-		func(ctx context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
+		func(_ context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
 			for _, cluster := range clusters {
 				if c.Server == cluster.Server {
 					return c
@@ -201,7 +198,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 			}
 			return nil
 		},
-		func(ctx context.Context, c *v1alpha1.Cluster) error {
+		func(_ context.Context, c *v1alpha1.Cluster) error {
 			for _, cluster := range clusters {
 				if c.Server == cluster.Server {
 					return nil
@@ -211,7 +208,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 	db.On("GetCluster", mock.Anything, mock.Anything).Return(
-		func(ctx context.Context, server string) *v1alpha1.Cluster {
+		func(_ context.Context, server string) *v1alpha1.Cluster {
 			for _, cluster := range clusters {
 				if server == cluster.Server {
 					return &cluster
@@ -219,7 +216,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 			}
 			return nil
 		},
-		func(ctx context.Context, server string) error {
+		func(_ context.Context, server string) error {
 			for _, cluster := range clusters {
 				if server == cluster.Server {
 					return nil
@@ -229,7 +226,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
@@ -255,7 +252,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -265,15 +262,15 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
-	cluster, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
-		Id: &clusterapi.ClusterID{
+	localCluster, err := server.Get(context.Background(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
 			Type:  "name_escaped",
 			Value: "test%2fing",
 		},
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "test/ing", cluster.Name)
+	assert.Equal(t, "test/ing", localCluster.Name)
 }
 
 func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
@@ -285,7 +282,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -295,20 +292,20 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
-	cluster, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
-		Id: &clusterapi.ClusterID{
+	localCluster, err := server.Get(context.Background(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
 			Type:  "name",
 			Value: "test%2fing",
 		},
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "test%2fing", cluster.Name)
+	assert.Equal(t, "test%2fing", localCluster.Name)
 }
 
 func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 	testNamespace := "default"
-	cluster := &v1alpha1.Cluster{
+	localCluster := &v1alpha1.Cluster{
 		Name:       "my-cluster-name",
 		Server:     "https://my-cluster-server",
 		Namespaces: []string{testNamespace},
@@ -326,17 +323,17 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("Create Fails When CAData is Set and Insecure is True", func(t *testing.T) {
-		_, err := server.Create(context.Background(), &clusterapi.ClusterCreateRequest{
-			Cluster: cluster,
+		_, err := server.Create(context.Background(), &cluster.ClusterCreateRequest{
+			Cluster: localCluster,
 		})
 
 		assert.EqualError(t, err, `error getting REST config: Unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
 	})
 
-	cluster.Config.TLSClientConfig.CAData = nil
+	localCluster.Config.TLSClientConfig.CAData = nil
 	t.Run("Create Succeeds When CAData is nil and Insecure is True", func(t *testing.T) {
-		_, err := server.Create(context.Background(), &clusterapi.ClusterCreateRequest{
-			Cluster: cluster,
+		_, err := server.Create(context.Background(), &cluster.ClusterCreateRequest{
+			Cluster: localCluster,
 		})
 		require.NoError(t, err)
 	})
@@ -355,7 +352,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	}
 
 	clusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    clusters,
 	}
 
@@ -367,7 +364,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
-	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+	_, err := server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Name:       "minikube",
 			Namespaces: []string{"default", "kube-system"},
@@ -395,7 +392,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
-	_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+	_, err := server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
 			Shard:  ptr.To(int64(1)),
@@ -412,7 +409,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	labelEnv := map[string]string{
 		"env": "qa",
 	}
-	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+	_, err = server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server: "https://127.0.0.1",
 			Labels: labelEnv,
@@ -429,7 +426,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	annotationEnv := map[string]string{
 		"env": "qa",
 	}
-	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+	_, err = server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:      "https://127.0.0.1",
 			Annotations: annotationEnv,
@@ -443,7 +440,7 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 	assert.Equal(t, []string{"default", "kube-system"}, updated.Namespaces)
 	assert.Equal(t, updated.Annotations, annotationEnv)
 
-	_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+	_, err = server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 		Cluster: &v1alpha1.Cluster{
 			Server:  "https://127.0.0.1",
 			Project: "new-project",
@@ -481,7 +478,7 @@ func TestDeleteClusterByName(t *testing.T) {
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("Delete Fails When Deleting by Unknown Name", func(t *testing.T) {
-		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.Delete(context.Background(), &cluster.ClusterQuery{
 			Name: "foo",
 		})
 
@@ -489,7 +486,7 @@ func TestDeleteClusterByName(t *testing.T) {
 	})
 
 	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
-		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.Delete(context.Background(), &cluster.ClusterQuery{
 			Name: "my-cluster-name",
 		})
 		require.NoError(t, err)
@@ -558,7 +555,7 @@ func TestRotateAuth(t *testing.T) {
 	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("RotateAuth by Unknown Name", func(t *testing.T) {
-		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.RotateAuth(context.Background(), &cluster.ClusterQuery{
 			Name: "foo",
 		})
 
@@ -569,7 +566,7 @@ func TestRotateAuth(t *testing.T) {
 	// demonstrate the proper mapping of cluster names/server to server info (i.e. my-cluster-name
 	// results in https://my-cluster-name info being used and https://my-cluster-name results in https://my-cluster-name).
 	t.Run("RotateAuth by Name - Error from no such host", func(t *testing.T) {
-		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.RotateAuth(context.Background(), &cluster.ClusterQuery{
 			Name: "my-cluster-name",
 		})
 
@@ -577,7 +574,7 @@ func TestRotateAuth(t *testing.T) {
 	})
 
 	t.Run("RotateAuth by Server - Error from no such host", func(t *testing.T) {
-		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.RotateAuth(context.Background(), &cluster.ClusterQuery{
 			Server: "https://my-cluster-name",
 		})
 
@@ -606,7 +603,7 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		},
 		Data: config,
 	}
-	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+	return fake.NewClientset(append(objects, &cm, &secret)...)
 }
 
 func TestListCluster(t *testing.T) {
@@ -629,7 +626,7 @@ func TestListCluster(t *testing.T) {
 	}
 
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
 	}
 
@@ -640,65 +637,65 @@ func TestListCluster(t *testing.T) {
 	tests := []struct {
 		name    string
 		q       *cluster.ClusterQuery
-		want    *appv1.ClusterList
+		want    *v1alpha1.ClusterList
 		wantErr bool
 	}{
 		{
 			name: "filter by name",
-			q: &clusterapi.ClusterQuery{
+			q: &cluster.ClusterQuery{
 				Name: fooCluster.Name,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
 		{
 			name: "filter by server",
-			q: &clusterapi.ClusterQuery{
+			q: &cluster.ClusterQuery{
 				Server: barCluster.Server,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
 		{
 			name: "filter by id - name",
-			q: &clusterapi.ClusterQuery{
-				Id: &clusterapi.ClusterID{
+			q: &cluster.ClusterQuery{
+				Id: &cluster.ClusterID{
 					Type:  "name",
 					Value: fooCluster.Name,
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
 		{
 			name: "filter by id - name_escaped",
-			q: &clusterapi.ClusterQuery{
-				Id: &clusterapi.ClusterID{
+			q: &cluster.ClusterQuery{
+				Id: &cluster.ClusterID{
 					Type:  "name_escaped",
 					Value: "test%2fing",
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{bazCluster},
 			},
 		},
 		{
 			name: "filter by id - server",
-			q: &clusterapi.ClusterQuery{
-				Id: &clusterapi.ClusterID{
+			q: &cluster.ClusterQuery{
+				Id: &cluster.ClusterID{
 					Type:  "server",
 					Value: barCluster.Server,
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -729,7 +726,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: v1.ListMeta{},
+			ListMeta: metav1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -738,11 +735,11 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
 		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
-		cluster, err := server.getClusterAndVerifyAccess(context.Background(), &clusterapi.ClusterQuery{
+		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/not-exists",
 		}, rbacpolicy.ActionGet)
 
-		assert.Nil(t, cluster)
+		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
 	})
 
@@ -755,7 +752,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: v1.ListMeta{},
+			ListMeta: metav1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -764,11 +761,11 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
 
 		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
-		cluster, err := server.getClusterAndVerifyAccess(context.Background(), &clusterapi.ClusterQuery{
+		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/ing",
 		}, rbacpolicy.ActionGet)
 
-		assert.Nil(t, cluster)
+		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
 	})
 }
@@ -782,7 +779,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -794,26 +791,26 @@ func TestNoClusterEnumeration(t *testing.T) {
 	server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 
 	t.Run("Get", func(t *testing.T) {
-		_, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.Get(context.Background(), &cluster.ClusterQuery{
 			Name: "cluster-not-exists",
 		})
 		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
-		_, err = server.Get(context.Background(), &clusterapi.ClusterQuery{
+		_, err = server.Get(context.Background(), &cluster.ClusterQuery{
 			Name: "test/ing",
 		})
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("Update", func(t *testing.T) {
-		_, err := server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		_, err := server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 			Cluster: &v1alpha1.Cluster{
 				Name: "cluster-not-exists",
 			},
 		})
 		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
-		_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
+		_, err = server.Update(context.Background(), &cluster.ClusterUpdateRequest{
 			Cluster: &v1alpha1.Cluster{
 				Name: "test/ing",
 			},
@@ -822,36 +819,36 @@ func TestNoClusterEnumeration(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.Delete(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
 		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
-		_, err = server.Delete(context.Background(), &clusterapi.ClusterQuery{
+		_, err = server.Delete(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("RotateAuth", func(t *testing.T) {
-		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.RotateAuth(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
 		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
-		_, err = server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
+		_, err = server.RotateAuth(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("InvalidateCache", func(t *testing.T) {
-		_, err := server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
+		_, err := server.InvalidateCache(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
 		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
-		_, err = server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
+		_, err = server.InvalidateCache(context.Background(), &cluster.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
