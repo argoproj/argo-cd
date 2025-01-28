@@ -453,12 +453,12 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.Equal(t, "serviceAccountToken", app.azure.assertion)
 	})
 
-	t.Run("Token file is not specified", func(t *testing.T) {
+	t.Run("Workload Identity Not enabled.", func(t *testing.T) {
 		os.Unsetenv("AZURE_FEDERATED_TOKEN_FILE")
 		_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
 
-		if err == nil || err.Error() != "no token file specified. Check pod configuration or set TokenFilePath in the options" {
-			t.Errorf("Expected error 'no token file specified', got %v", err)
+		if err == nil || err.Error() != "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster" {
+			t.Errorf("Expected error 'AZURE_FEDERATED_TOKEN_FILE env variable not found', got %v", err)
 		}
 	})
 

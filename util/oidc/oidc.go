@@ -356,12 +356,14 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // getAzureKubernetesFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
 // Kubernetes is responsible for updating the file as service account tokens expire.
+// Azure Workload Identity mutation webhook will set the environment variable AZURE_FEDERATED_TOKEN_FILE
+// Content of this file will contain a federated token which can be used in assertion with Microsoft Entra Application.
 func (a *ClientApp) getAzureKubernetesFederatedServiceAccountToken(context.Context) (string, error) {
 	file := ""
 	ok := false
 	if file == "" {
 		if file, ok = os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE"); !ok {
-			return "", errors.New("no token file specified. Check pod configuration or set TokenFilePath in the options")
+			return "", errors.New("AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
 		}
 	}
 
