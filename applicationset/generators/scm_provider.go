@@ -116,7 +116,7 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, g
 	return NewErrDisallowedSCMProvider(url, allowedScmProviders)
 }
 
-func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -226,7 +226,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
 	} else {
-		return nil, fmt.Errorf("no SCM provider implementation configured")
+		return nil, errors.New("no SCM provider implementation configured")
 	}
 
 	// Find all the available repos.
@@ -234,7 +234,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
-	paramsArray := make([]map[string]interface{}, 0, len(repos))
+	paramsArray := make([]map[string]any, 0, len(repos))
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, repo := range repos {
@@ -248,7 +248,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength7 = len(repo.SHA)
 		}
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,

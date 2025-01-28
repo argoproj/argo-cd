@@ -159,7 +159,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 	// TODO: Implement error heuristics
 
 	for scanner.Scan() {
-		curLine += 1
+		curLine++
 		if !inCertData {
 			if strings.HasPrefix(scanner.Text(), CertificateBeginMarker) {
 				certLine = 1
@@ -167,7 +167,7 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 				pemData += scanner.Text() + "\n"
 			}
 		} else {
-			certLine += 1
+			certLine++
 			pemData += scanner.Text() + "\n"
 			if strings.HasPrefix(scanner.Text(), CertificateEndMarker) {
 				inCertData = false
@@ -215,10 +215,10 @@ func ParseSSHKnownHostsFromStream(stream io.Reader) ([]string, error) {
 	numEntries := 0
 
 	for scanner.Scan() {
-		curLine += 1
+		curLine++
 		lineData := scanner.Text()
 		if IsValidSSHKnownHostsEntry(lineData) {
-			numEntries += 1
+			numEntries++
 			knownHostsLists = append(knownHostsLists, lineData)
 		}
 	}
@@ -246,7 +246,7 @@ func IsValidSSHKnownHostsEntry(line string) bool {
 func TokenizeSSHKnownHostsEntry(knownHostsEntry string) (string, string, []byte, error) {
 	knownHostsToken := strings.SplitN(knownHostsEntry, " ", 3)
 	if len(knownHostsToken) != 3 {
-		return "", "", nil, fmt.Errorf("error while tokenizing input data")
+		return "", "", nil, errors.New("error while tokenizing input data")
 	}
 	return knownHostsToken[0], knownHostsToken[1], []byte(knownHostsToken[2]), nil
 }
@@ -332,7 +332,7 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	}
 
 	if len(certificates) == 0 {
-		return nil, fmt.Errorf("no certificates found in existing file")
+		return nil, errors.New("no certificates found in existing file")
 	}
 
 	return certificates, nil

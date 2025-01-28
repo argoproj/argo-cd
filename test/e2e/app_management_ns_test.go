@@ -17,7 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -346,7 +346,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
@@ -852,14 +852,14 @@ func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
-			})
+			}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -967,7 +967,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", fmt.Sprintf("app.kubernetes.io/instance=%s", app.Name))
+			_, _ = RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "app.kubernetes.io/instance="+app.Name)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1116,7 +1116,7 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	_, err = logs.Recv()
 	assertError(err, "EOF")
 
-	expectedError := fmt.Sprintf("Deployment apps guestbook-ui not found as part of application %s", appName)
+	expectedError := "Deployment apps guestbook-ui not found as part of application " + appName
 
 	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
 		Name:              &appName,
@@ -1488,7 +1488,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -1601,15 +1601,15 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 		CheckError(KubeClientset.NetworkingV1().Ingresses(TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "guestbook-ui",
 			Annotations: map[string]string{
 				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", TestNamespace(), ctx.AppQualifiedName(), DeploymentNamespace()),
 			},
 		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{{
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{{
 				Port:       80,
 				TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: 80},
 			}},
@@ -1696,7 +1696,6 @@ func TestNamespacedCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		CreateWithNoNameSpace().
 		Then().
 		And(func(app *Application) {
-			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Empty(t, app.Status.Conditions)
@@ -1774,7 +1773,7 @@ func TestNamespacedListResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &v1.ConfigMap{
+			FailOnErr(KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -1899,7 +1898,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -1923,7 +1922,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
@@ -1942,7 +1941,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadata(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Annotations, "argocd.argoproj.io/tracking-id")
@@ -1993,7 +1992,7 @@ func TestNamespacedNamespaceAutoCreationWithMetadataAndNsManifest(t *testing.T) 
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(namespace, func(app *Application, ns *corev1.Namespace) {
 			delete(ns.Labels, "kubernetes.io/metadata.name")
 			delete(ns.Labels, "argocd.argoproj.io/tracking-id")
 			delete(ns.Labels, "kubectl.kubernetes.io/last-applied-configuration")
@@ -2061,7 +2060,7 @@ metadata:
 			}
 		}).
 		Then().
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2075,7 +2074,7 @@ metadata:
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2094,7 +2093,7 @@ metadata:
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2114,7 +2113,7 @@ metadata:
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(updatedNamespace, func(app *Application, ns *v1.Namespace) {
+		Expect(Namespace(updatedNamespace, func(app *Application, ns *corev1.Namespace) {
 			assert.Empty(t, app.Status.Conditions)
 
 			delete(ns.Labels, "kubernetes.io/metadata.name")
@@ -2233,14 +2232,14 @@ definitions:
 		SetTrackingMethod("annotation").
 		Path("crd-subresource").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
 				"argoproj.io/NonStatusSubResource": {
 					Actions: actions,
 				},
-			})
+			}))
 		}).
 		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -2321,14 +2320,14 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		SetAppNamespace(AppNamespace()).
 		SetTrackingMethod("annotation").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
 				"apps/Deployment": {
 					HealthLua: `return { status = 'Suspended' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-and-deployment").
@@ -2439,14 +2438,14 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			time.Sleep(3 * time.Second)
-			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			CheckError(SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
-			})
+			}))
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
 		And(func(app *Application) {
+			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).
 		And(func(app *Application) {

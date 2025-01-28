@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -52,7 +52,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 		capabilitiesStr = append(capabilitiesStr, string(capabilities[i]))
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -101,7 +101,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
-		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
 	}
 }
 
@@ -220,16 +220,8 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 	})
 }
 
-type claimsMock struct {
-	err error
-}
-
-func (cm *claimsMock) Valid() error {
-	return cm.err
-}
-
 type tokenVerifierMock struct {
-	claims *claimsMock
+	claims *jwt.RegisteredClaims
 	err    error
 }
 
@@ -258,7 +250,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *claimsMock
+		verifiedClaims       *jwt.RegisteredClaims
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -269,7 +261,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
@@ -287,7 +279,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
@@ -296,7 +288,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &claimsMock{},
+			verifiedClaims:       &jwt.RegisteredClaims{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
@@ -577,7 +569,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 		mergedSecretConfig[key] = value
 	}
 
-	return fake.NewSimpleClientset(&corev1.ConfigMap{
+	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: "argocd",
@@ -689,7 +681,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -759,7 +751,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
+		claims.Issuer = dexTestServer.URL + "/api/dex"
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)

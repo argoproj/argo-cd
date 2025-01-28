@@ -12,8 +12,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -82,15 +81,15 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Pick source \"%s\"", source)
+		log.Printf("Pick source %q", source)
 		destination, err := pg.buildDestination(opts, clusters.Items)
 		if err != nil {
 			return err
 		}
-		log.Printf("Pick destination \"%s\"", destination)
+		log.Printf("Pick destination %q", destination)
 		log.Printf("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "application-",
 				Namespace:    opts.Namespace,
 				Labels:       labels,
@@ -100,7 +99,7 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 				Destination: *destination,
 				Source:      source,
 			},
-		}, v1.CreateOptions{})
+		}, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -111,7 +110,7 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 func (ag *ApplicationGenerator) Clean(opts *util.GenerateOpts) error {
 	log.Printf("Clean applications")
 	applications := ag.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
-	return applications.DeleteCollection(context.TODO(), v1.DeleteOptions{}, v1.ListOptions{
+	return applications.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

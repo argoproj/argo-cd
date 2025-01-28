@@ -12,13 +12,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
-
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-
-	v1 "k8s.io/api/core/v1"
-
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -37,20 +46,7 @@ import (
 	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -367,20 +363,20 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 func Test_groupObjsByKey(t *testing.T) {
 	localObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},
@@ -388,20 +384,20 @@ func Test_groupObjsByKey(t *testing.T) {
 	}
 	liveObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Pod",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "pod-name",
 					"namespace": "default",
 				},
 			},
 		},
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apiextensions.k8s.io/v1",
 				"kind":       "CustomResourceDefinition",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "certificates.cert-manager.io",
 				},
 			},
@@ -1705,7 +1701,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
@@ -1713,57 +1709,57 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended and health status failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Suspended passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Suspended failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Health passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Health failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 	t.Run("Synced passed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Synced failed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{})
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded passed", func(t *testing.T) {
@@ -1771,7 +1767,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.True(t, res)
 	})
 	t.Run("Degraded failed", func(t *testing.T) {
@@ -1779,7 +1775,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{})
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
 		assert.False(t, res)
 	})
 }
@@ -2071,7 +2067,7 @@ func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.Appl
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*corev1.EventList, error) {
 	return nil, nil
 }
 

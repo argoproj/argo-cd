@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -150,8 +151,8 @@ func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverN
 // actually created.
 func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
-		saveSSHData bool = false
-		saveTLSData bool = false
+		saveSSHData = false
+		saveTLSData = false
 	)
 
 	sshKnownHostsList, err := db.getSSHKnownHostsData()
@@ -242,7 +243,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				saveSSHData = true
 			}
 		} else if certificate.CertType == "https" {
-			var tlsCertificate *TLSCertificate = nil
+			var tlsCertificate *TLSCertificate
 			newEntry := true
 			upserted := false
 			pemCreated := make([]string, 0)
@@ -270,7 +271,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 
 			// We should have at least one valid PEM entry
 			if len(pemData) == 0 {
-				return nil, fmt.Errorf("No valid PEM data received.")
+				return nil, errors.New("No valid PEM data received.")
 			}
 
 			// Make sure we have valid X509 certificates in the data

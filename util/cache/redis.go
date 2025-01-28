@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -62,7 +63,7 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
-func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
+func (r *redisCache) marshal(obj any) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
 	if r.redisCompressionType == RedisCompressionGZip {
@@ -86,7 +87,7 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
+func (r *redisCache) unmarshal(data []byte, obj any) error {
 	buf := bytes.NewReader(data)
 	var reader io.Reader = buf
 	if r.redisCompressionType == RedisCompressionGZip {
@@ -130,7 +131,7 @@ func (r *redisCache) Set(item *Item) error {
 	})
 }
 
-func (r *redisCache) Get(key string, obj interface{}) error {
+func (r *redisCache) Get(key string, obj any) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
 	if errors.Is(err, rediscache.ErrCacheMiss) {
@@ -200,6 +201,11 @@ func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Proce
 }
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
-func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
+// Lock should be shared between functions that can add/process a Redis hook.
+func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
+	if lock != nil {
+		lock.Lock()
+		defer lock.Unlock()
+	}
 	client.AddHook(&redisHook{registry: registry})
 }

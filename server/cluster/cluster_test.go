@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/assets"
@@ -19,7 +19,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
@@ -120,16 +119,16 @@ func newServerInMemoryCache() *servercache.Cache {
 }
 
 func newNoopEnforcer() *rbac.Enforcer {
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableEnforce(false)
 	return enf
 }
 
 func newEnforcer() *rbac.Enforcer {
-	enforcer := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
 		return true
 	})
 	return enforcer
@@ -184,7 +183,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	db.On("ListClusters", mock.Anything).Return(
 		func(ctx context.Context) *v1alpha1.ClusterList {
 			return &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    clusters,
 			}
 		},
@@ -229,7 +228,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 
-	enf := rbac.NewEnforcer(fake.NewSimpleClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
 p, role:test, clusters, *, allowed-project/*, allow`)
 	enf.SetDefaultRole("role:test")
@@ -255,7 +254,7 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -285,7 +284,7 @@ func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},
@@ -355,7 +354,7 @@ func TestUpdateCluster_NoFieldsPaths(t *testing.T) {
 	}
 
 	clusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    clusters,
 	}
 
@@ -606,7 +605,7 @@ func getClientset(config map[string]string, ns string, objects ...runtime.Object
 		},
 		Data: config,
 	}
-	return fake.NewSimpleClientset(append(objects, &cm, &secret)...)
+	return fake.NewClientset(append(objects, &cm, &secret)...)
 }
 
 func TestListCluster(t *testing.T) {
@@ -629,7 +628,7 @@ func TestListCluster(t *testing.T) {
 	}
 
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items:    []v1alpha1.Cluster{fooCluster, barCluster, bazCluster},
 	}
 
@@ -649,7 +648,7 @@ func TestListCluster(t *testing.T) {
 				Name: fooCluster.Name,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -659,7 +658,7 @@ func TestListCluster(t *testing.T) {
 				Server: barCluster.Server,
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -672,7 +671,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{fooCluster},
 			},
 		},
@@ -685,7 +684,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{bazCluster},
 			},
 		},
@@ -698,7 +697,7 @@ func TestListCluster(t *testing.T) {
 				},
 			},
 			want: &v1alpha1.ClusterList{
-				ListMeta: v1.ListMeta{},
+				ListMeta: metav1.ListMeta{},
 				Items:    []v1alpha1.Cluster{barCluster},
 			},
 		},
@@ -729,7 +728,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: v1.ListMeta{},
+			ListMeta: metav1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -755,7 +754,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 			Namespaces: []string{"default", "kube-system"},
 		}
 		mockClusterList := v1alpha1.ClusterList{
-			ListMeta: v1.ListMeta{},
+			ListMeta: metav1.ListMeta{},
 			Items: []v1alpha1.Cluster{
 				mockCluster,
 			},
@@ -782,7 +781,7 @@ func TestNoClusterEnumeration(t *testing.T) {
 		Namespaces: []string{"default", "kube-system"},
 	}
 	mockClusterList := v1alpha1.ClusterList{
-		ListMeta: v1.ListMeta{},
+		ListMeta: metav1.ListMeta{},
 		Items: []v1alpha1.Cluster{
 			mockCluster,
 		},

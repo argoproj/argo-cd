@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	v1 "k8s.io/api/core/v1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -47,6 +47,8 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+	// ListWriteRepositories lists repositories from write credentials
+	ListWriteRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
@@ -61,6 +63,19 @@ type ArgoDB interface {
 	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name, project string) error
 
+	// CreateWriteRepository creates a repository with write credentials
+	CreateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// GetWriteRepository returns a repository by URL with write credentials
+	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
+	GetProjectWriteRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
+	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
+	// UpdateWriteRepository updates a repository with write credentials
+	UpdateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// DeleteWriteRepository deletes a repository from config with write credentials
+	DeleteWriteRepository(ctx context.Context, name, project string) error
+
 	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
 	// GetRepositoryCredentials gets repo credentials for given URL
@@ -71,6 +86,17 @@ type ArgoDB interface {
 	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
 	// DeleteRepositoryCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
+
+	// ListWriteRepositoryCredentials list all repo write credential sets URL patterns
+	ListWriteRepositoryCredentials(ctx context.Context) ([]string, error)
+	// GetWriteRepositoryCredentials gets repo write credentials for given URL
+	GetWriteRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
+	// CreateWriteRepositoryCredentials creates a repository write credential set
+	CreateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// UpdateWriteRepositoryCredentials updates a repository write credential set
+	UpdateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// DeleteWriteRepositoryCredentials deletes a repository write credential set from config
+	DeleteWriteRepositoryCredentials(ctx context.Context, name string) error
 
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
@@ -110,26 +136,18 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 	}
 }
 
-func (db *db) getSecret(name string, cache map[string]*v1.Secret) (*v1.Secret, error) {
-	secret, ok := cache[name]
-	if !ok {
-		secretsLister, err := db.settingsMgr.GetSecretsLister()
+func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
+	if _, ok := cache[name]; !ok {
+		secret, err := db.settingsMgr.GetSecretByName(name)
 		if err != nil {
 			return nil, err
-		}
-		secret, err = secretsLister.Secrets(db.ns).Get(name)
-		if err != nil {
-			return nil, err
-		}
-		if secret.Data == nil {
-			secret.Data = make(map[string][]byte)
 		}
 		cache[name] = secret
 	}
-	return secret, nil
+	return cache[name], nil
 }
 
-func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*v1.SecretKeySelector, cache map[string]*v1.Secret) error {
+func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*corev1.SecretKeySelector, cache map[string]*corev1.Secret) error {
 	for dst, src := range secrets {
 		if src != nil {
 			secret, err := db.getSecret(src.Name, cache)
@@ -158,7 +176,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	appControllerDeployment, err := db.kubeclientset.AppsV1().Deployments(db.settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 	if err != nil {
 		appControllerDeployment = nil
-		if !kubeerrors.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
 		}
 	}

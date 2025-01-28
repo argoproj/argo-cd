@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -20,7 +20,7 @@ const (
 	Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
 )
 
-var Test_TLS_Subjects []string = []string{
+var Test_TLS_Subjects = []string{
 	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
 	"CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE",
 }
@@ -213,7 +213,7 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-var Test_SSH_Hostname_Entries []string = []string{
+var Test_SSH_Hostname_Entries = []string{
 	"bitbucket.org",
 	"github.com",
 	"gitlab.com",
@@ -223,7 +223,7 @@ var Test_SSH_Hostname_Entries []string = []string{
 	"vs-ssh.visualstudio.com",
 }
 
-var Test_SSH_Subtypes []string = []string{
+var Test_SSH_Subtypes = []string{
 	"ssh-rsa",
 	"ssh-rsa",
 	"ecdsa-sha2-nistp256",
@@ -233,7 +233,7 @@ var Test_SSH_Subtypes []string = []string{
 	"ssh-rsa",
 }
 
-var Test_TLS_Hostnames []string = []string{
+var Test_TLS_Hostnames = []string{
 	"test.example.com",
 	"test.example.com",
 	"github.com",
@@ -245,7 +245,7 @@ const (
 )
 
 func getCertClientset() *fake.Clientset {
-	cm := v1.ConfigMap{
+	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
 			Namespace: testNamespace,
@@ -256,7 +256,7 @@ func getCertClientset() *fake.Clientset {
 		Data: nil,
 	}
 
-	sshCM := v1.ConfigMap{
+	sshCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-ssh-known-hosts-cm",
 			Namespace: testNamespace,
@@ -269,7 +269,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	tlsCM := v1.ConfigMap{
+	tlsCM := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-tls-certs-cm",
 			Namespace: testNamespace,
@@ -283,7 +283,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	return fake.NewSimpleClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
+	return fake.NewClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
 }
 
 func Test_ListCertificate(t *testing.T) {
