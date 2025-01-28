@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -30,6 +31,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/test"
 )
+
+func setupAzureIdentity(t *testing.T) {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	tokenFilePath := filepath.Join(tempDir, "token.txt")
+	tempFile, err := os.Create(tokenFilePath)
+	require.NoError(t, err)
+	_, err = tempFile.Write([]byte("serviceAccountToken"))
+	require.NoError(t, err)
+	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+}
 
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
@@ -415,91 +428,70 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	})
 }
 
-func Test_getAzureKubernetesFederatedServiceAccountToken(t *testing.T) {
-	oidcTestServer := test.GetAzureOIDCTestServer(t, nil)
-	dexTestServer := test.GetDexTestServer(t)
-	signature, err := util.MakeSignature(32)
-	require.NoError(t, err)
+func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
+	app := azureApp{mtx: &sync.RWMutex{}}
 
-	cdSettings := &settings.ArgoCDSettings{
-		URL:             "https://argocd.example.com",
-		ServerSignature: signature,
-		OIDCConfigRAW: fmt.Sprintf(`
-name: Test
-issuer: %s
-clientID: xxx
-azure: 
-  useWorkloadIdentity: true
-skipAudienceCheckWhenTokenHasNoAudience: true
-requestedScopes: ["oidc"]`, oidcTestServer.URL),
-	}
-
-	app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-	require.NoError(t, err)
-
-	tokenFilePath := "token.txt"
-	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-	file, _ := os.Create(tokenFilePath)
-	_, _ = file.Write([]byte("serviceAccountToken"))
-	defer os.Remove(tokenFilePath)
+	setupAzureIdentity(t)
 
 	t.Run("before the method call assertion should be empty.", func(t *testing.T) {
-		assert.Equal(t, "", app.azure.assertion)
+		assert.Equal(t, "", app.assertion)
 	})
 
 	t.Run("Fetch the token value from the file", func(t *testing.T) {
-		_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+		_, err := app.getFederatedServiceAccountToken(context.Background())
 		require.NoError(t, err)
-		assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+		assert.Equal(t, "serviceAccountToken", app.assertion)
 	})
 
 	t.Run("Workload Identity Not enabled.", func(t *testing.T) {
-		os.Unsetenv("AZURE_FEDERATED_TOKEN_FILE")
-		_, err = app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
+		_, err := app.getFederatedServiceAccountToken(context.Background())
+		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
+	})
 
-		if err == nil || err.Error() != "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster" {
-			t.Errorf("Expected error 'AZURE_FEDERATED_TOKEN_FILE env variable not found', got %v", err)
-		}
+	t.Run("Workload Identity invalid file", func(t *testing.T) {
+		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", filepath.Join(t.TempDir(), "invalid.txt"))
+		_, err := app.getFederatedServiceAccountToken(context.Background())
+		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
 	})
 
 	t.Run("Concurrent access to the function", func(t *testing.T) {
-		currentExpiryTime := app.azure.expires
-		os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+		currentExpiryTime := app.expires
+
 		var wg sync.WaitGroup
 		numGoroutines := 10
 		wg.Add(numGoroutines)
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
 				defer wg.Done()
-				_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+				_, err := app.getFederatedServiceAccountToken(context.Background())
 				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+				assert.Equal(t, "serviceAccountToken", app.assertion)
 			}()
 		}
 		wg.Wait()
 
 		// Event with multiple concurrent calls the expiry time should not change untile it passes.
-		assert.Equal(t, currentExpiryTime, app.azure.expires)
+		assert.Equal(t, currentExpiryTime, app.expires)
 	})
 
 	t.Run("Concurrent access to the function when the current token expires", func(t *testing.T) {
 		var wg sync.WaitGroup
-		currentExpiryTime := app.azure.expires
-		app.azure.expires = time.Now()
-		os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
+		currentExpiryTime := app.expires
+		app.expires = time.Now()
 		numGoroutines := 10
 		wg.Add(numGoroutines)
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
 				defer wg.Done()
-				_, err := app.getAzureKubernetesFederatedServiceAccountToken(context.Background())
+				_, err := app.getFederatedServiceAccountToken(context.Background())
 				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.azure.assertion)
+				assert.Equal(t, "serviceAccountToken", app.assertion)
 			}()
 		}
 		wg.Wait()
 
-		assert.NotEqual(t, currentExpiryTime, app.azure.expires)
+		assert.NotEqual(t, currentExpiryTime, app.expires)
 	})
 }
 
@@ -523,10 +515,7 @@ func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 
-	tokenFilePath := "token.txt"
-	os.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-	file, _ := os.Create(tokenFilePath)
-	_, _ = file.Write([]byte("serviceAccountToken"))
+	setupAzureIdentity(t)
 
 	t.Run("oidc certificate checking during oidc callback should toggle on config", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
@@ -536,7 +525,7 @@ func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
 name: Test
 issuer: %s
 clientID: xxx
-azure: 
+azure:
   useWorkloadIdentity: true
 skipAudienceCheckWhenTokenHasNoAudience: true
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
@@ -871,7 +860,7 @@ func TestGetUserInfo(t *testing.T) {
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
-			  notevenJsongarbage	
+			  notevenJsongarbage
 				`
 				_, err := w.Write([]byte(userInfoBytes))
 				if err != nil {

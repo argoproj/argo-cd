@@ -86,10 +86,10 @@ type ClientApp struct {
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
 	// properties for azure workload identity.
-	azure AzureApp
+	azure azureApp
 }
 
-type AzureApp struct {
+type azureApp struct {
 	// federated azure token for the service account
 	assertion string
 	// expiry of the token
@@ -126,7 +126,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
-		azure:                    AzureApp{mtx: &sync.RWMutex{}},
+		azure:                    azureApp{mtx: &sync.RWMutex{}},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -354,41 +354,42 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-// getAzureKubernetesFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
+// getFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
 // Kubernetes is responsible for updating the file as service account tokens expire.
 // Azure Workload Identity mutation webhook will set the environment variable AZURE_FEDERATED_TOKEN_FILE
 // Content of this file will contain a federated token which can be used in assertion with Microsoft Entra Application.
-func (a *ClientApp) getAzureKubernetesFederatedServiceAccountToken(context.Context) (string, error) {
-	file := ""
-	ok := false
-	if file == "" {
-		if file, ok = os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE"); !ok {
-			return "", errors.New("AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
-		}
+func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, error) {
+	file, ok := os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE")
+	if file == "" || !ok {
+		return "", errors.New("AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
 	}
 
-	a.azure.mtx.RLock()
-	if a.azure.expires.Before(time.Now()) {
+	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+		return "", errors.New("AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
+	}
+
+	a.mtx.RLock()
+	if a.expires.Before(time.Now()) {
 		// ensure only one goroutine at a time updates the assertion
-		a.azure.mtx.RUnlock()
-		a.azure.mtx.Lock()
-		defer a.azure.mtx.Unlock()
+		a.mtx.RUnlock()
+		a.mtx.Lock()
+		defer a.mtx.Unlock()
 		// double check because another goroutine may have acquired the write lock first and done the update
-		if now := time.Now(); a.azure.expires.Before(now) {
+		if now := time.Now(); a.expires.Before(now) {
 			content, err := os.ReadFile(file)
 			if err != nil {
 				return "", err
 			}
-			a.azure.assertion = string(content)
+			a.assertion = string(content)
 			// Kubernetes rotates service account tokens when they reach 80% of their total TTL. The shortest TTL
 			// is 1 hour. That implies the token we just read is valid for at least 12 minutes (20% of 1 hour),
 			// but we add some margin for safety.
-			a.azure.expires = now.Add(10 * time.Minute)
+			a.expires = now.Add(10 * time.Minute)
 		}
 	} else {
-		defer a.azure.mtx.RUnlock()
+		defer a.mtx.RUnlock()
 	}
-	return a.azure.assertion, nil
+	return a.assertion, nil
 }
 
 // HandleCallback is the callback handler for an OAuth2 login flow
@@ -421,7 +422,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	options := []oauth2.AuthCodeOption{}
 
 	if a.useAzureWorkloadIdentity {
-		clientAssertion, err := a.getAzureKubernetesFederatedServiceAccountToken(ctx)
+		clientAssertion, err := a.azure.getFederatedServiceAccountToken(ctx)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
 			return
