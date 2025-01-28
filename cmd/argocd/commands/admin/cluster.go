@@ -229,7 +229,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
@@ -517,7 +517,7 @@ argocd admin cluster stats target-cluster`,
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
 	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
@@ -616,13 +616,14 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 
 			var awsAuthConf *v1alpha1.AWSAuthConfig
 			var execProviderConf *v1alpha1.ExecProviderConfig
-			if clusterOpts.AwsClusterName != "" {
+			switch {
+			case clusterOpts.AwsClusterName != "":
 				awsAuthConf = &v1alpha1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
 					Profile:     clusterOpts.AwsProfile,
 				}
-			} else if clusterOpts.ExecProviderCommand != "" {
+			case clusterOpts.ExecProviderCommand != "":
 				execProviderConf = &v1alpha1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
@@ -630,10 +631,10 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
-			} else if generateToken {
+			case generateToken:
 				bearerToken, err = GenerateToken(clusterOpts, conf)
 				errors.CheckError(err)
-			} else if bearerToken == "" {
+			case bearerToken == "":
 				bearerToken = "bearer-token"
 			}
 			if clusterOpts.Name != "" {

@@ -70,11 +70,9 @@ func Test_loadClusters(t *testing.T) {
 			ID:     "",
 			Server: "https://kubernetes.default.svc",
 			Name:   "in-cluster",
-			//nolint:staticcheck
 			ConnectionState: v1alpha1.ConnectionState{
 				Status: "Successful",
 			},
-			//nolint:staticcheck
 			ServerVersion: ".",
 			Shard:         ptr.To(int64(0)),
 		},
