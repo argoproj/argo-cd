@@ -3736,6 +3736,12 @@
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4561,6 +4567,12 @@
             "type": "boolean",
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
             "in": "query"
           }
         ],
@@ -8954,6 +8966,10 @@
           "type": "string",
           "title": "URL is the URL to which these credentials match"
         },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
+        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"
@@ -9067,6 +9083,10 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
+        },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
         "username": {
           "type": "string",

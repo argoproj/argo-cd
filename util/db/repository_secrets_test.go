@@ -18,9 +18,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
@@ -295,15 +295,16 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		if repository.Name == "ArgoCD" {
+		switch {
+		case repository.Name == "ArgoCD":
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		} else if repository.Name == "UserManagedRepo" {
+		case repository.Name == "UserManagedRepo":
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
-		} else {
+		default:
 			assert.Fail(t, "unexpected repository found in list")
 		}
 	}

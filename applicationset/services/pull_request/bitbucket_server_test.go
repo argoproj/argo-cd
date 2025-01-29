@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -277,7 +277,7 @@ func TestListPullRequestTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts == true {
+			if test.passCerts {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)

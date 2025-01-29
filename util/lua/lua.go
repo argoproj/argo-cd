@@ -17,10 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	luajson "layeh.com/gopher-json"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/resource_customizations"
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/resource_customizations"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 )
 
 const (
@@ -314,41 +314,40 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			return nil, err
 		}
 		returnValue := l.Get(-1)
-		if returnValue.Type() == lua.LTTable {
-			jsonBytes, err := luajson.Encode(returnValue)
-			if err != nil {
-				return nil, fmt.Errorf("error in converting to lua table: %w", err)
-			}
-			if noAvailableActions(jsonBytes) {
+		if returnValue.Type() != lua.LTTable {
+			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+		}
+		jsonBytes, err := luajson.Encode(returnValue)
+		if err != nil {
+			return nil, fmt.Errorf("error in converting to lua table: %w", err)
+		}
+		if noAvailableActions(jsonBytes) {
+			continue
+		}
+		actionsMap := make(map[string]any)
+		err = json.Unmarshal(jsonBytes, &actionsMap)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshaling action table: %w", err)
+		}
+		for key, value := range actionsMap {
+			resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
+			if _, exist := availableActionsMap[key]; exist {
 				continue
 			}
-			actionsMap := make(map[string]any)
-			err = json.Unmarshal(jsonBytes, &actionsMap)
-			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling action table: %w", err)
-			}
-			for key, value := range actionsMap {
-				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
-				if _, exist := availableActionsMap[key]; exist {
-					continue
-				}
-				if emptyResourceActionFromLua(value) {
-					availableActionsMap[key] = resourceAction
-					continue
-				}
-				resourceActionBytes, err := json.Marshal(value)
-				if err != nil {
-					return nil, fmt.Errorf("error marshaling resource action: %w", err)
-				}
-
-				err = json.Unmarshal(resourceActionBytes, &resourceAction)
-				if err != nil {
-					return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
-				}
+			if emptyResourceActionFromLua(value) {
 				availableActionsMap[key] = resourceAction
+				continue
 			}
-		} else {
-			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+			resourceActionBytes, err := json.Marshal(value)
+			if err != nil {
+				return nil, fmt.Errorf("error marshaling resource action: %w", err)
+			}
+
+			err = json.Unmarshal(resourceActionBytes, &resourceAction)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
+			}
+			availableActionsMap[key] = resourceAction
 		}
 	}
 
@@ -398,11 +397,10 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 			return nil, err
 		}
 		// Append the action discovery Lua script if built-in actions are to be included
-		if actions.MergeBuiltinActions {
-			discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
-		} else {
+		if !actions.MergeBuiltinActions {
 			return []string{actions.ActionDiscoveryLua}, nil
 		}
+		discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
 	}
 
 	// Fetch predefined Lua scripts

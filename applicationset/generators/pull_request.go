@@ -11,9 +11,9 @@ import (
 
 	"github.com/gosimple/slug"
 
-	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*PullRequestGenerator)(nil)
@@ -222,5 +222,5 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
-	return pullrequest.NewGithubService(ctx, token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 }

@@ -9,11 +9,11 @@ import (
 
 	"github.com/spf13/cobra/doc"
 
-	controller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
-	argocddex "github.com/argoproj/argo-cd/v2/cmd/argocd-dex/commands"
-	reposerver "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
-	argocdserver "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
-	argocdcli "github.com/argoproj/argo-cd/v2/cmd/argocd/commands"
+	controller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
+	argocddex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
+	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
+	argocdserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
+	argocdcli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 )
 
 func main() {

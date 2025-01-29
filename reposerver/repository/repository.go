@@ -40,28 +40,28 @@ import (
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
-	"github.com/argoproj/argo-cd/v2/util/app/discovery"
-	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
-	"github.com/argoproj/argo-cd/v2/util/kustomize"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/argoproj/argo-cd/v2/util/text"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v3/util/app/discovery"
+	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/kustomize"
+	"github.com/argoproj/argo-cd/v3/util/manifeststream"
+	"github.com/argoproj/argo-cd/v3/util/text"
 )
 
 const (
@@ -993,6 +993,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				repo.SSHPrivateKey = repositoryCredential.SSHPrivateKey
 				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
 				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+				repo.UseAzureWorkloadIdentity = repositoryCredential.UseAzureWorkloadIdentity
 			} else if repo.EnableOCI {
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
@@ -1002,6 +1003,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
+						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
 						break
 					}
 				}
@@ -1481,7 +1483,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		var targets []*unstructured.Unstructured
-		if obj.IsList() {
+		switch {
+		case obj.IsList():
 			err = obj.EachListItem(func(object runtime.Object) error {
 				unstructuredObj, ok := object.(*unstructured.Unstructured)
 				if ok {
@@ -1493,9 +1496,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			if err != nil {
 				return nil, err
 			}
-		} else if isNullList(obj) {
+		case isNullList(obj):
 			// noop
-		} else {
+		default:
 			targets = []*unstructured.Unstructured{obj}
 		}
 
@@ -1527,6 +1530,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: q.ProjectName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
@@ -1570,11 +1574,12 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 	for _, filename := range overrides {
 		info, err := os.Stat(filename)
-		if os.IsNotExist(err) {
+		switch {
+		case os.IsNotExist(err):
 			continue
-		} else if info != nil && info.IsDir() {
+		case info != nil && info.IsDir():
 			continue
-		} else if err != nil {
+		case err != nil:
 			// filename should be part of error message here
 			return err
 		}
@@ -2294,15 +2299,14 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		// and re-generate the meta data. Otherwise, if there is signature info
 		// in the metadata, but none was requested, we remove it from the data
 		// that we return.
-		if q.CheckSignature && metadata.SignatureInfo == "" {
-			log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
-		} else {
+		if !q.CheckSignature || metadata.SignatureInfo != "" {
 			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
 			if !q.CheckSignature {
 				metadata.SignatureInfo = ""
 			}
 			return metadata, nil
 		}
+		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
 	} else {
 		if !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -2494,7 +2498,6 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-// nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(gitClient, revision, submoduleEnabled)

@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/io/path"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
@@ -175,7 +175,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

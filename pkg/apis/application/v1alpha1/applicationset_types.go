@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -447,15 +447,16 @@ type SCMProviderGenerator struct {
 }
 
 func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
+	switch {
+	case g.Github != nil:
 		return g.Github.API
-	} else if g.Gitlab != nil {
+	case g.Gitlab != nil:
 		return g.Gitlab.API
-	} else if g.Gitea != nil {
+	case g.Gitea != nil:
 		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
+	case g.BitbucketServer != nil:
 		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
+	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
 	}
 	return ""

@@ -11,9 +11,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
+	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 )
 
 // A struct representing an entry in the list of SSH known hosts.
@@ -191,7 +191,8 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			}
 		}
 
-		if certificate.CertType == "ssh" {
+		switch {
+		case certificate.CertType == "ssh":
 			// Whether we have a new certificate entry
 			newEntry := true
 			// Whether we have upserted an existing certificate entry
@@ -241,7 +242,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				created = append(created, certificate)
 				saveSSHData = true
 			}
-		} else if certificate.CertType == "https" {
+		case certificate.CertType == "https":
 			var tlsCertificate *TLSCertificate
 			newEntry := true
 			upserted := false
@@ -308,7 +309,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				}
 				saveTLSData = true
 			}
-		} else {
+		default:
 			// Invalid/unknown certificate type
 			return nil, fmt.Errorf("Unknown certificate type: %s", certificate.CertType)
 		}

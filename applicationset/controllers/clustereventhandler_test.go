@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	argocommon "github.com/argoproj/argo-cd/v2/common"
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestClusterEventHandler(t *testing.T) {
