@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
@@ -222,9 +223,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
-	go collector.Run(ctx)
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
+	collector := NewClusterCollector(ctx, source, db.ListClusters, clusterLabels)
 	m.registry.MustRegister(collector)
 }
 
