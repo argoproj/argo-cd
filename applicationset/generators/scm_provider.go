@@ -138,15 +138,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 	ctx := context.Background()
 	var provider scm_provider.SCMProviderService
-	if g.overrideProvider != nil {
+	switch {
+	case g.overrideProvider != nil:
 		provider = g.overrideProvider
-	} else if providerConfig.Github != nil {
+	case providerConfig.Github != nil:
 		var err error
 		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
-	} else if providerConfig.Gitlab != nil {
+	case providerConfig.Gitlab != nil:
 		providerConfig := providerConfig.Gitlab
 		var caCerts []byte
 		var scmError error
@@ -164,7 +165,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
-	} else if providerConfig.Gitea != nil {
+	case providerConfig.Gitea != nil:
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
@@ -173,7 +174,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
-	} else if providerConfig.BitbucketServer != nil {
+	case providerConfig.BitbucketServer != nil:
 		providerConfig := providerConfig.BitbucketServer
 		var caCerts []byte
 		var scmError error
@@ -183,25 +184,26 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		if providerConfig.BearerToken != nil {
+		switch {
+		case providerConfig.BearerToken != nil:
 			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
 			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
-		} else if providerConfig.BasicAuth != nil {
+		case providerConfig.BasicAuth != nil:
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
 			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
-		} else {
+		default:
 			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		}
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
 		}
-	} else if providerConfig.AzureDevOps != nil {
+	case providerConfig.AzureDevOps != nil:
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
@@ -210,7 +212,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
-	} else if providerConfig.Bitbucket != nil {
+	case providerConfig.Bitbucket != nil:
 		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
@@ -219,13 +221,13 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
 		}
-	} else if providerConfig.AWSCodeCommit != nil {
+	case providerConfig.AWSCodeCommit != nil:
 		var awsErr error
 		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
 		if awsErr != nil {
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
-	} else {
+	default:
 		return nil, errors.New("no SCM provider implementation configured")
 	}
 
@@ -289,5 +291,5 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
-	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches)
+	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)
 }

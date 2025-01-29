@@ -41,6 +41,39 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+// getDefaultTestClientSet creates a Clientset with the default argo objects
+// and objects specified in parameters
+func getDefaultTestClientSet(obj ...runtime.Object) *kubefake.Clientset {
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocommon.ArgoCDSecretName,
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocommon.ArgoCDConfigMapName,
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+
+	objects := append(obj, emptyArgoCDConfigMap, argoCDSecret)
+	kubeclientset := kubefake.NewClientset(objects...)
+	return kubeclientset
+}
+
 func TestCreateOrUpdateInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -1317,8 +1350,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 				},
 			}
 
-			objects := append([]runtime.Object{}, secret)
-			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			kubeclientset := getDefaultTestClientSet(secret)
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
@@ -2054,8 +2086,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			}
 
-			objects := append([]runtime.Object{}, secret)
-			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			kubeclientset := getDefaultTestClientSet(secret)
 
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd"), kubeclientset)
 
@@ -2117,7 +2148,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
+	kubeclientset := getDefaultTestClientSet()
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2404,8 +2435,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	objects := append([]runtime.Object{}, secret)
-	kubeclientset := kubefake.NewSimpleClientset(objects...)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2580,8 +2610,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		},
 	}
 
-	objects := append([]runtime.Object{}, secret)
-	kubeclientset := kubefake.NewSimpleClientset(objects...)
+	kubeclientset := getDefaultTestClientSet(secret)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics()
@@ -2700,7 +2729,7 @@ func TestPolicies(t *testing.T) {
 		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
 	}
 
-	kubeclientset := kubefake.NewSimpleClientset()
+	kubeclientset := getDefaultTestClientSet()
 
 	for _, c := range []struct {
 		name          string
@@ -6390,13 +6419,13 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 	}
 }
 
-func TestOwnsHandler(t *testing.T) {
+func TestApplicationOwnsHandler(t *testing.T) {
 	// progressive syncs do not affect create, delete, or generic
-	ownsHandler := getOwnsHandlerPredicates(true)
+	ownsHandler := getApplicationOwnsHandler(true)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
-	ownsHandler = getOwnsHandlerPredicates(false)
+	ownsHandler = getApplicationOwnsHandler(false)
 	assert.False(t, ownsHandler.CreateFunc(event.CreateEvent{}))
 	assert.True(t, ownsHandler.DeleteFunc(event.DeleteEvent{}))
 	assert.True(t, ownsHandler.GenericFunc(event.GenericEvent{}))
@@ -6576,7 +6605,7 @@ func TestOwnsHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
+			ownsHandler = getApplicationOwnsHandler(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
 		})
 	}
@@ -6653,7 +6682,9 @@ func TestMigrateStatus(t *testing.T) {
 	}
 }
 
-func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
+func TestApplicationSetOwnsHandlerUpdate(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+
 	buildAppSet := func(annotations map[string]string) *v1alpha1.ApplicationSet {
 		return &v1alpha1.ApplicationSet{
 			ObjectMeta: metav1.ObjectMeta{
@@ -6663,67 +6694,327 @@ func TestIgnoreWhenAnnotationApplicationSetRefreshIsRemoved(t *testing.T) {
 	}
 
 	tests := []struct {
-		name              string
-		oldAppSet         crtclient.Object
-		newAppSet         crtclient.Object
-		reconcileExpected bool
+		name      string
+		appSetOld crtclient.Object
+		appSetNew crtclient.Object
+		want      bool
 	}{
 		{
+			name: "Different Spec",
+			appSetOld: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{Git: &v1alpha1.GitGenerator{}},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name:      "Different Annotations",
+			appSetOld: buildAppSet(map[string]string{"key1": "value1"}),
+			appSetNew: buildAppSet(map[string]string{"key1": "value2"}),
+			want:      true,
+		},
+		{
+			name: "Different Labels",
+			appSetOld: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"key1": "value1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"key1": "value2"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Different Finalizers",
+			appSetOld: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Finalizers: []string{"finalizer2"},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "No Changes",
+			appSetOld: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value1"},
+					Labels:      map[string]string{"key1": "value1"},
+					Finalizers:  []string{"finalizer1"},
+				},
+			},
+			appSetNew: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{}},
+					},
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"key1": "value1"},
+					Labels:      map[string]string{"key1": "value1"},
+					Finalizers:  []string{"finalizer1"},
+				},
+			},
+			want: false,
+		},
+		{
 			name: "annotation removed",
-			oldAppSet: buildAppSet(map[string]string{
+			appSetOld: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: false,
+			appSetNew: buildAppSet(map[string]string{}),
+			want:      false,
 		},
 		{
 			name: "annotation not removed",
-			oldAppSet: buildAppSet(map[string]string{
+			appSetOld: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			newAppSet: buildAppSet(map[string]string{
+			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			reconcileExpected: true,
-		},
-		{
-			name:              "annotation never existed",
-			oldAppSet:         buildAppSet(map[string]string{}),
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: true,
+			want: false,
 		},
 		{
 			name:      "annotation added",
-			oldAppSet: buildAppSet(map[string]string{}),
-			newAppSet: buildAppSet(map[string]string{
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: buildAppSet(map[string]string{
 				argocommon.AnnotationApplicationSetRefresh: "true",
 			}),
-			reconcileExpected: true,
+			want: true,
 		},
 		{
-			name:              "old object is not an appset",
-			oldAppSet:         &v1alpha1.Application{},
-			newAppSet:         buildAppSet(map[string]string{}),
-			reconcileExpected: false,
+			name:      "old object is not an appset",
+			appSetOld: &v1alpha1.Application{},
+			appSetNew: buildAppSet(map[string]string{}),
+			want:      false,
 		},
 		{
-			name:              "new object is not an appset",
-			oldAppSet:         buildAppSet(map[string]string{}),
-			newAppSet:         &v1alpha1.Application{},
-			reconcileExpected: false,
+			name:      "new object is not an appset",
+			appSetOld: buildAppSet(map[string]string{}),
+			appSetNew: &v1alpha1.Application{},
+			want:      false,
 		},
 	}
 
-	predicate := ignoreWhenAnnotationApplicationSetRefreshIsRemoved()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.UpdateFunc(event.UpdateEvent{
+				ObjectOld: tt.appSetOld,
+				ObjectNew: tt.appSetNew,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.UpdateFunc(%v, %v)", tt.appSetOld, tt.appSetNew)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerGeneric(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := event.UpdateEvent{
-				ObjectOld: tt.oldAppSet,
-				ObjectNew: tt.newAppSet,
+			requeue := ownsHandler.GenericFunc(event.GenericEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.GenericFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerCreate(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.CreateFunc(event.CreateEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.CreateFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestApplicationSetOwnsHandlerDelete(t *testing.T) {
+	ownsHandler := getApplicationSetOwnsHandler()
+	tests := []struct {
+		name string
+		obj  crtclient.Object
+		want bool
+	}{
+		{
+			name: "Object is ApplicationSet",
+			obj:  &v1alpha1.ApplicationSet{},
+			want: true,
+		},
+		{
+			name: "Object is not ApplicationSet",
+			obj:  &v1alpha1.Application{},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requeue := ownsHandler.DeleteFunc(event.DeleteEvent{
+				Object: tt.obj,
+			})
+			assert.Equalf(t, tt.want, requeue, "ownsHandler.DeleteFunc(%v)", tt.obj)
+		})
+	}
+}
+
+func TestShouldRequeueForApplicationSet(t *testing.T) {
+	type args struct {
+		appSetOld *v1alpha1.ApplicationSet
+		appSetNew *v1alpha1.ApplicationSet
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "NilAppSet", args: args{appSetNew: &v1alpha1.ApplicationSet{}, appSetOld: nil}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, shouldRequeueForApplicationSet(tt.args.appSetOld, tt.args.appSetNew), "shouldRequeueForApplicationSet(%v, %v)", tt.args.appSetOld, tt.args.appSetNew)
+		})
+	}
+}
+
+func TestIgnoreNotAllowedNamespaces(t *testing.T) {
+	tests := []struct {
+		name       string
+		namespaces []string
+		objectNS   string
+		expected   bool
+	}{
+		{
+			name:       "Namespace allowed",
+			namespaces: []string{"allowed-namespace"},
+			objectNS:   "allowed-namespace",
+			expected:   true,
+		},
+		{
+			name:       "Namespace not allowed",
+			namespaces: []string{"allowed-namespace"},
+			objectNS:   "not-allowed-namespace",
+			expected:   false,
+		},
+		{
+			name:       "Empty allowed namespaces",
+			namespaces: []string{},
+			objectNS:   "any-namespace",
+			expected:   false,
+		},
+		{
+			name:       "Multiple allowed namespaces",
+			namespaces: []string{"allowed-namespace-1", "allowed-namespace-2"},
+			objectNS:   "allowed-namespace-2",
+			expected:   true,
+		},
+		{
+			name:       "Namespace not in multiple allowed namespaces",
+			namespaces: []string{"allowed-namespace-1", "allowed-namespace-2"},
+			objectNS:   "not-allowed-namespace",
+			expected:   false,
+		},
+		{
+			name:       "Namespace matched by glob pattern",
+			namespaces: []string{"allowed-namespace-*"},
+			objectNS:   "allowed-namespace-1",
+			expected:   true,
+		},
+		{
+			name:       "Namespace matched by regex pattern",
+			namespaces: []string{"/^allowed-namespace-[^-]+$/"},
+			objectNS:   "allowed-namespace-1",
+			expected:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			predicate := ignoreNotAllowedNamespaces(tt.namespaces)
+			object := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: tt.objectNS,
+				},
 			}
-			result := predicate.Update(e)
-			assert.Equal(t, tt.reconcileExpected, result)
+
+			t.Run(tt.name+":Create", func(t *testing.T) {
+				result := predicate.Create(event.CreateEvent{Object: object})
+				assert.Equal(t, tt.expected, result)
+			})
+
+			t.Run(tt.name+":Update", func(t *testing.T) {
+				result := predicate.Update(event.UpdateEvent{ObjectNew: object})
+				assert.Equal(t, tt.expected, result)
+			})
+
+			t.Run(tt.name+":Delete", func(t *testing.T) {
+				result := predicate.Delete(event.DeleteEvent{Object: object})
+				assert.Equal(t, tt.expected, result)
+			})
+
+			t.Run(tt.name+":Generic", func(t *testing.T) {
+				result := predicate.Generic(event.GenericEvent{Object: object})
+				assert.Equal(t, tt.expected, result)
+			})
 		})
 	}
 }

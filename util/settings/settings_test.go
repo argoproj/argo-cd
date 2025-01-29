@@ -225,6 +225,31 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.False(t, serverRBACLogEnforceEnable)
 }
 
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.True(t, serverRBACLogEnforceEnable)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.True(t, flag)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
+	})
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.False(t, flag)
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -246,15 +271,6 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -1753,6 +1769,55 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
+func TestUseAzureWorkloadIdentity(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config isnot defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.UseAzureWorkloadIdentity()
 			require.Equal(t, tc.ExpectedResult, result)
 		})
 	}

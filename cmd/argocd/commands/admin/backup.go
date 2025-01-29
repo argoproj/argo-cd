@@ -253,7 +253,8 @@ func NewImportCommand() *cobra.Command {
 					updateTracking(bakObj, &liveObj)
 				}
 
-				if !exists {
+				switch {
+				case !exists:
 					isForbidden := false
 					if !dryRun {
 						_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
@@ -267,11 +268,11 @@ func NewImportCommand() *cobra.Command {
 					if !isForbidden {
 						fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
 					}
-				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation) {
+				case specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation):
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
-				} else {
+				default:
 					isForbidden := false
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)

@@ -859,30 +859,22 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					require.False(t, isCachedError)
 
 					require.NotNil(t, cachedManifestResponse)
-					// nolint:staticcheck
 					assert.Nil(t, cachedManifestResponse.ManifestResponse)
-					// nolint:staticcheck
 					assert.NotEqual(t, 0, cachedManifestResponse.FirstFailureTimestamp)
 
 					// Internal cache consec failures value should increase with invocations, cached response should stay the same,
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, adjustedInvocation+1)
-					// nolint:staticcheck
 					assert.Equal(t, 0, cachedManifestResponse.NumberOfCachedResponsesReturned)
 				} else {
 					// GenerateManifest SHOULD return cached errors for the next X responses, where X is the
 					// PauseGenerationOnFailureForRequests constant
 					assert.True(t, isCachedError)
 					require.NotNil(t, cachedManifestResponse)
-					// nolint:staticcheck
 					assert.Nil(t, cachedManifestResponse.ManifestResponse)
-					// nolint:staticcheck
 					assert.NotEqual(t, 0, cachedManifestResponse.FirstFailureTimestamp)
 
 					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-					// nolint:staticcheck
 					assert.Equal(t, cachedManifestResponse.NumberOfCachedResponsesReturned, (adjustedInvocation - service.initConstants.PauseGenerationAfterFailedGenerationAttempts + 1))
 				}
 			}
@@ -1811,6 +1803,7 @@ func Test_newEnv(t *testing.T) {
 	assert.Equal(t, &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: "my-project-name"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
@@ -1818,9 +1811,10 @@ func Test_newEnv(t *testing.T) {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
 	}, newEnv(&apiclient.ManifestRequest{
-		AppName:   "my-app-name",
-		Namespace: "my-namespace",
-		Repo:      &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
 		ApplicationSource: &v1alpha1.ApplicationSource{
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
@@ -3161,7 +3155,7 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
@@ -3174,7 +3168,7 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.True(t, helmRepos[0].EnableOci)
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
@@ -3191,7 +3185,7 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test", helmRepos[0].Username)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
@@ -3207,7 +3201,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, helmRepos, 1)
-	assert.Equal(t, "test-alias", helmRepos[0].Username)
+	assert.Equal(t, "test-alias", helmRepos[0].GetUsername())
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 

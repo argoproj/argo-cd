@@ -288,6 +288,10 @@ stringData:
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
+Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
+
+Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+
 ### Repository Credentials
 
 If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.

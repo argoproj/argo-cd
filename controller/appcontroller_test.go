@@ -177,6 +177,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		data.metricsCacheExpiration,
 		[]string{},
 		[]string{},
+		[]string{},
 		0,
 		true,
 		nil,
@@ -1403,6 +1404,25 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), nil)
 				ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
 
+				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
+				assert.Equal(t, CompareWithRecent, compareWith)
+			})
+
+			t.Run("requesting refresh with delay gives correct compression level", func(t *testing.T) {
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.False(t, needRefresh)
+
+				// use a one-off controller so other tests don't have a manual refresh request
+				ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
+
+				// refresh app with a non-nil delay
+				// use zero-second delay to test the add later logic without waiting in the test
+				delay := time.Duration(0)
+				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), &delay)
+
+				ctrl.processAppComparisonTypeQueueItem()
 				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)

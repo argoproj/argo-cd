@@ -458,12 +458,13 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 		existing.Type = text.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			repo, err = existing, nil
-		} else if q.Upsert {
+		case q.Upsert:
 			r.Project = q.Repo.Project
 			return s.db.UpdateRepository(ctx, r)
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
@@ -503,11 +504,12 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
-		if reflect.DeepEqual(existing, q.Repo) {
+		switch {
+		case reflect.DeepEqual(existing, q.Repo):
 			repo, err = existing, nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.db.UpdateWriteRepository(ctx, q.Repo)
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("write repository", existing, q.Repo))
 		}
 	}

@@ -64,9 +64,10 @@ func setSettingsMeta(obj metav1.Object) {
 
 func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
-	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
+	switch {
+	case opts.argocdCMPath == "" && !opts.loadClusterSettings:
 		return nil, stderrors.New("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
-	} else if opts.argocdCMPath == "" {
+	case opts.argocdCMPath == "":
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
@@ -76,7 +77,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		data, err := os.ReadFile(opts.argocdCMPath)
 		if err != nil {
 			return nil, err
@@ -89,7 +90,8 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 	setSettingsMeta(argocdCM)
 
 	var argocdSecret *corev1.Secret
-	if opts.argocdSecretPath != "" {
+	switch {
+	case opts.argocdSecretPath != "":
 		data, err := os.ReadFile(opts.argocdSecretPath)
 		if err != nil {
 			return nil, err
@@ -99,7 +101,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 		setSettingsMeta(argocdSecret)
-	} else if opts.loadClusterSettings {
+	case opts.loadClusterSettings:
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
@@ -108,7 +110,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		argocdSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
@@ -501,12 +503,12 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
-
-				if err != nil {
+				switch {
+				case err != nil:
 					errors.CheckError(err)
-				} else if resHealth == nil {
+				case resHealth == nil:
 					fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
-				} else {
+				default:
 					_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
 					_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
 				}
