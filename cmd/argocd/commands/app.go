@@ -337,6 +337,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		refresh        bool
 		hardRefresh    bool
 		output         string
+		timeout        int
 		showParams     bool
 		showOperation  bool
 		appNamespace   string
@@ -382,7 +383,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
-			ctx := c.Context()
+			ctx, cancel := context.WithCancel(c.Context())
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -392,6 +393,13 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			defer argoio.Close(conn)
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+
+			if timeout != 0 {
+				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
+					fmt.Println("Context cancelled due to timeout")
+					cancel()
+				})
+			}
 
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
@@ -462,6 +470,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree")
+	command.Flags().IntVar(&timeout, "timeout", 15, "Specifies the maximum duration for the operation to complete. The command will terminate if the timeout is exceeded.")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -2588,8 +2597,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				fmt.Println("This is the state of the app after `wait` timed out:")
 			}
 
-			printFinalStatus(app)
 			cancel()
+			printFinalStatus(app)
 
 			if printSummary {
 				fmt.Println()
