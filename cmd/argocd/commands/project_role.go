@@ -322,14 +322,14 @@ Create token succeeded for proj:test-project:test-role.
 			})
 			errors.CheckError(err)
 
-			token, err := jwtgo.Parse(tokenResponse.Token, nil)
-			if token == nil {
+			var claims jwtgo.MapClaims
+			_, err = jwtgo.ParseWithClaims(tokenResponse.Token, &claims, nil)
+			if err != nil {
 				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
 
-			claims := token.Claims.(jwtgo.MapClaims)
 			argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
 			if err != nil {
 				errors.CheckError(fmt.Errorf("invalid argo claims: %w", err))
@@ -338,7 +338,7 @@ Create token succeeded for proj:test-project:test-role.
 
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
-			id := jwt.StringField(claims, "jti")
+			id := argoClaims.ID
 			subject := argoClaims.GetUserIdentifier()
 
 			if !outputTokenOnly {
