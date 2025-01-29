@@ -49,8 +49,6 @@ type MetricsServer struct {
 const (
 	// MetricsPath is the endpoint to collect application metrics
 	MetricsPath = "/metrics"
-	// EnvVarLegacyControllerMetrics is a env var to re-enable deprecated prometheus metrics
-	EnvVarLegacyControllerMetrics = "ARGOCD_LEGACY_CONTROLLER_METRICS"
 )
 
 // Follow Prometheus naming practices
@@ -65,28 +63,6 @@ var (
 		"argocd_app_info",
 		"Information about application.",
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
-		nil,
-	)
-
-	// Deprecated
-	descAppCreated = prometheus.NewDesc(
-		"argocd_app_created_time",
-		"Creation time in unix timestamp for an application.",
-		descAppDefaultLabels,
-		nil,
-	)
-	// Deprecated: superseded by sync_status label in argocd_app_info
-	descAppSyncStatusCode = prometheus.NewDesc(
-		"argocd_app_sync_status",
-		"The application current sync status.",
-		append(descAppDefaultLabels, "sync_status"),
-		nil,
-	)
-	// Deprecated: superseded by health_status label in argocd_app_info
-	descAppHealthStatus = prometheus.NewDesc(
-		"argocd_app_health_status",
-		"The application current health status.",
-		append(descAppDefaultLabels, "health_status"),
 		nil,
 	)
 
@@ -381,8 +357,6 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
-	ch <- descAppSyncStatusCode
-	ch <- descAppHealthStatus
 }
 
 // Collect implements the prometheus.Collector interface
@@ -455,22 +429,5 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		for conditionType, count := range conditionCount {
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
-	}
-
-	// Deprecated controller metrics
-	if os.Getenv(EnvVarLegacyControllerMetrics) == "true" {
-		addGauge(descAppCreated, float64(app.CreationTimestamp.Unix()))
-
-		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeSynced), string(argoappv1.SyncStatusCodeSynced))
-		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeOutOfSync), string(argoappv1.SyncStatusCodeOutOfSync))
-		addGauge(descAppSyncStatusCode, boolFloat64(syncStatus == argoappv1.SyncStatusCodeUnknown || syncStatus == ""), string(argoappv1.SyncStatusCodeUnknown))
-
-		healthStatus := app.Status.Health.Status
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusUnknown || healthStatus == ""), string(health.HealthStatusUnknown))
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusProgressing), string(health.HealthStatusProgressing))
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusSuspended), string(health.HealthStatusSuspended))
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusHealthy), string(health.HealthStatusHealthy))
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusDegraded), string(health.HealthStatusDegraded))
-		addGauge(descAppHealthStatus, boolFloat64(healthStatus == health.HealthStatusMissing), string(health.HealthStatusMissing))
 	}
 }
