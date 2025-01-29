@@ -323,7 +323,7 @@ Create token succeeded for proj:test-project:test-role.
 			errors.CheckError(err)
 
 			var claims jwtgo.MapClaims
-			_, err = jwtgo.ParseWithClaims(tokenResponse.Token, &claims, nil)
+			_, _, err = jwtgo.NewParser().ParseUnverified(tokenResponse.Token, &claims)
 			if err != nil {
 				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
