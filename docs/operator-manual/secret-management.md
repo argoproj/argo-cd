@@ -1,7 +1,7 @@
 # Secret Management
 
 There are two general ways to populate secrets when doing GitOps: on the destination cluster, or in Argo CD during 
-manifest hydration. We strongly recommend the former, as it is more secure and provides a better user experience.
+manifest generation. We strongly recommend the former, as it is more secure and provides a better user experience.
 
 For further discussion, see [#1364](https://github.com/argoproj/argo-cd/issues/1364).
 
@@ -19,22 +19,26 @@ This approach has two main advantages:
 
 We strongly recommend this style of secret management.
 
-## Argo CD Hydration-Based Secret Management
+Other examples of this style of secret management include:
+* [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
+* [Vault Secrets Operator](https://developer.hashicorp.com/vault/docs/platform/k8s/vso)
 
-In this approach, Argo CD's "manifest hydration" step is used to inject secrets. This may be done using a 
+## Argo CD Manifest Generation-Based Secret Management
+
+In this approach, Argo CD's manifest generation step is used to inject secrets. This may be done using a 
 [Config Management Plugin](config-management-plugins.md) like [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin).
 
 **We strongly caution against this style of secret management**, as it has several disadvantages:
 
-1) Security: Argo CD needs access to the secrets, which increases the risk of leaking them. Argo CD stores hydrated 
+1) Security: Argo CD needs access to the secrets, which increases the risk of leaking them. Argo CD stores generated 
    manifests in plaintext in its Redis cache, so injecting secrets into the manifests increases risk.
 2) User Experience: Secret updates are coupled with app sync operations, which increases the risk of unintentionally
    applying Secret updates during an unrelated release.
 3) Rendered Manifests Pattern: This approach is incompatible with the "Rendered Manifests" pattern, which is 
-   increasingly becoming a best practice for GitOps and which Argo CD supports via the [source hydrator](../user-guide/source-hydrator.md).
+   increasingly becoming a best practice for GitOps.
 
-Many users have already adopted hydration-based solutions, and we understand that migrating to an operator-based 
-solution can be a significant effort. Argo CD will continue to support hydration-based secret management, but we will 
+Many users have already adopted generation-based solutions, and we understand that migrating to an operator-based 
+solution can be a significant effort. Argo CD will continue to support generation-based secret management, but we will 
 not prioritize new features or improvements that solely support this style of secret management.
 
 ### Mitigating Risks of Secret-Injection Plugins
