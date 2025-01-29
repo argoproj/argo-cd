@@ -399,30 +399,6 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 	}
 }
 
-func TestLegacyMetrics(t *testing.T) {
-	t.Setenv(EnvVarLegacyControllerMetrics, "true")
-
-	expectedResponse := `
-# HELP argocd_app_created_time Creation time in unix timestamp for an application.
-# TYPE argocd_app_created_time gauge
-argocd_app_created_time{name="my-app",namespace="argocd",project="important-project"} -6.21355968e+10
-# HELP argocd_app_health_status The application current health status.
-# TYPE argocd_app_health_status gauge
-argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="important-project"} 1
-argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
-# HELP argocd_app_sync_status The application current sync status.
-# TYPE argocd_app_sync_status gauge
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Synced"} 1
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Unknown"} 0
-`
-	testApp(t, []string{fakeApp}, expectedResponse)
-}
-
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
