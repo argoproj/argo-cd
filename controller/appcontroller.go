@@ -861,6 +861,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.metricsClusterLabels)
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
@@ -882,8 +883,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 			ctrl.clusterSharding.Init(clusters, appItems)
 		}
 	}
-
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.metricsClusterLabels, ctrl.kubeClientset, ctrl.namespace)
 
 	errors.CheckError(ctrl.stateCache.Init())
 
