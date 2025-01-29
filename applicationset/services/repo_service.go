@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -18,6 +17,11 @@ type argoCDService struct {
 	getGitFilesFromRepoServer       func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
 	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
+
+type (
+	GetFiles       = func(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
+	GetDirectories = func(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
+)
 
 type Repos interface {
 	// GetFiles returns content of files (not directories) within the target repo
@@ -52,7 +56,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 }
 
 func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
-	repo, err := a.getRepository(ctx, repoURL, resolveProjectName(project))
+	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
@@ -74,7 +78,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 }
 
 func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error) {
-	repo, err := a.getRepository(ctx, repoURL, resolveProjectName(project))
+	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
 	}
@@ -92,12 +96,4 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
 	return dirResponse.GetPaths(), nil
-}
-
-func resolveProjectName(project string) string {
-	if strings.Contains(project, "{{") {
-		return ""
-	}
-
-	return project
 }
