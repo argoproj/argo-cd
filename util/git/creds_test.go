@@ -167,6 +167,27 @@ func TestHTTPSCreds_Environ_forceBasicAuth(t *testing.T) {
 	})
 }
 
+func TestHTTPSCreds_Environ_bearerTokenAuth(t *testing.T) {
+	t.Run("Enabled and credentials set", func(t *testing.T) {
+		store := &memoryCredsStore{creds: make(map[string]cred)}
+		creds := NewHTTPSCreds("", "", "token", "", "", false, "", "", store, false)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		defer closer.Close()
+		var header string
+		for _, envVar := range env {
+			if strings.HasPrefix(envVar, bearerAuthHeaderEnv+"=") {
+				header = envVar[len(bearerAuthHeaderEnv)+1:]
+			}
+			if header != "" {
+				break
+			}
+		}
+		b64enc := base64.StdEncoding.EncodeToString([]byte("token"))
+		assert.Equal(t, "Authorization: Bearer "+b64enc, header)
+	})
+}
+
 func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	creds := NewHTTPSCreds("", "", "", "clientCertData", "clientCertKey", false, "", "", store, false)

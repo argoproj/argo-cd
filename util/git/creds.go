@@ -49,6 +49,7 @@ const (
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
+	bearerAuthHeaderEnv       = "ARGOCD_GIT_BEARER_AUTH_HEADER"
 	// This is the resource id of the OAuth application of Azure Devops.
 	azureDevopsEntraResourceId = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
@@ -179,6 +180,13 @@ func (creds HTTPSCreds) BasicAuthHeader() string {
 	return h
 }
 
+func (creds HTTPSCreds) BearerAuthHeader() string {
+	h := "Authorization: Bearer "
+	t := creds.bearerToken
+	h += base64.StdEncoding.EncodeToString([]byte(t))
+	return h
+}
+
 // Get additional required environment variables for executing git client to
 // access specific repository via HTTPS.
 func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
@@ -240,6 +248,11 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	// skipped. This is insecure, but some environments may need it.
 	if creds.password != "" && creds.forceBasicAuth {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, creds.BasicAuthHeader()))
+	} else {
+		// If bearer token is set, we will set ARGOCD_BEARER_AUTH_HEADER to	hold the HTTP authorization header
+		if creds.bearerToken != "" {
+			env = append(env, fmt.Sprintf("%s=%s", bearerAuthHeaderEnv, creds.BearerAuthHeader()))
+		}
 	}
 	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
 	env = append(env, creds.store.Environ(nonce)...)

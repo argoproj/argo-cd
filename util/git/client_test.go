@@ -1,6 +1,9 @@
 package git
 
 import (
+	"context"
+	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -903,4 +906,92 @@ func TestNewAuth(t *testing.T) {
 			assert.Equal(t, tt.expected, auth)
 		})
 	}
+}
+func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
+	tests := []struct {
+		name         string
+		creds        Creds
+		environ      []string
+		expectedArgs []string
+		expectedEnv  []string
+		expectedErr  bool
+	}{
+		{
+			name: "basic auth header set",
+			creds: &mockCreds{
+				environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv, "status"},
+			expectedEnv:  []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+			expectedErr:  false,
+		},
+		{
+			name: "bearer auth header set",
+			creds: &mockCreds{
+				environ: []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			},
+			expectedArgs: []string{"--config-env", "http.extraHeader=" + bearerAuthHeaderEnv, "status"},
+			expectedEnv:  []string{bearerAuthHeaderEnv + "=Bearer test-token"},
+			expectedErr:  false,
+		},
+		{
+			name: "no auth header set",
+			creds: &mockCreds{
+				environ: []string{},
+			},
+			expectedArgs: []string{"status"},
+			expectedEnv:  []string{},
+			expectedErr:  false,
+		},
+		{
+			name: "error getting environment",
+			creds: &mockCreds{
+				environErr: true,
+			},
+			expectedArgs: []string{},
+			expectedEnv:  []string{},
+			expectedErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &nativeGitClient{
+				creds: tt.creds,
+			}
+
+			err := client.runCredentialedCmd("status")
+			if (err != nil) != tt.expectedErr {
+				t.Errorf("runCredentialedCmd() error = %v, expectedErr %v", err, tt.expectedErr)
+				return
+			}
+
+			if tt.expectedErr {
+				return
+			}
+
+			cmd := exec.Command("git", tt.expectedArgs...)
+			cmd.Env = append(os.Environ(), tt.expectedEnv...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("runCredentialedCmd() command error = %v, output = %s", err, output)
+			}
+		})
+	}
+}
+
+type mockCreds struct {
+	environ    []string
+	environErr bool
+}
+
+func (m *mockCreds) Environ() (io.Closer, []string, error) {
+	if m.environErr {
+		return nil, nil, errors.New("error getting environment")
+	}
+	return io.NopCloser(nil), m.environ, nil
+}
+
+func (m *mockCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+	return "", "", nil
 }
