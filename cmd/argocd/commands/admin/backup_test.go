@@ -86,41 +86,82 @@ func Test_updateTracking(t *testing.T) {
 	}
 }
 
-func TestSkipResource(t *testing.T) {
+func TestIsLabelMatches(t *testing.T) {
 	tests := []struct {
 		name       string
-		labels     map[string]string
+		obj        *unstructured.Unstructured
 		skipLabels []string
-		expectSkip bool
+		expected   bool
 	}{
 		{
-			name: "No matching labels",
-			labels: map[string]string{
-				"env":  "prod",
-				"team": "platform",
-			},
-			skipLabels: []string{"type=backend", "tier=web"},
-			expectSkip: false,
+			name:       "Nil object",
+			obj:        nil,
+			skipLabels: []string{"test-label"},
+			expected:   false,
 		},
 		{
-			name: "Label key exists but value doesn't match",
-			labels: map[string]string{
-				"type": "frontend",
-				"env":  "prod",
+			name: "Label matches",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"test-label": "value",
+						},
+					},
+				},
 			},
-			skipLabels: []string{"type=backend", "env=dev"},
-			expectSkip: false,
+			skipLabels: []string{"test-label", "other-label"},
+			expected:   true,
+		},
+		{
+			name: "Label does not match",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"different-label": "value",
+						},
+					},
+				},
+			},
+			skipLabels: []string{"test-label", "other-label"},
+			expected:   false,
+		},
+		{
+			name: "Empty skip labels",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"test-label": "value",
+						},
+					},
+				},
+			},
+			skipLabels: []string{},
+			expected:   false,
+		},
+		{
+			name: "Multiple labels, one matches",
+			obj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"test-label":    "value",
+							"another-label": "value2",
+						},
+					},
+				},
+			},
+			skipLabels: []string{"another-label"},
+			expected:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			obj := &unstructured.Unstructured{}
-			obj.SetLabels(tt.labels)
-
-			result := skipResource(obj, tt.skipLabels)
-
-			assert.Equal(t, tt.expectSkip, result)
+			result := isLabelMatches(tt.obj, tt.skipLabels)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

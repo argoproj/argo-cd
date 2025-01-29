@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -150,7 +148,7 @@ func NewImportCommand() *cobra.Command {
 		verbose                  bool
 		stopOperation            bool
 		ignoreTracking           bool
-		retryOnConflict          bool
+		overrideOnConflict       bool
 		promptsEnabled           bool
 		skipResourcesWithLabels  []string
 		applicationNamespaces    []string
@@ -254,7 +252,7 @@ func NewImportCommand() *cobra.Command {
 
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
-				if skipResource(bakObj, skipResourcesWithLabels) {
+				if isLabelMatches(bakObj, skipResourcesWithLabels) {
 					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
 					continue
 				}
@@ -320,13 +318,12 @@ func NewImportCommand() *cobra.Command {
 						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
 						if apierrors.IsConflict(err) {
 							fmt.Printf("failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
-							if retryOnConflict {
+							if overrideOnConflict {
 								err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 									fmt.Printf("resource conflict: retry update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
 									liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
 									newLive.SetResourceVersion(liveObj.GetResourceVersion())
 									annotations := newLive.GetAnnotations()
-									delete(annotations, corev1.LastAppliedConfigAnnotation)
 									newLive.SetAnnotations(annotations)
 									if getErr != nil {
 										errors.CheckError(getErr)
@@ -409,10 +406,10 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Print what will be performed")
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
 	command.Flags().BoolVar(&ignoreTracking, "ignore-tracking", false, "Do not update the tracking annotation if the resource is already tracked")
-	command.Flags().BoolVar(&retryOnConflict, "retry-on-conflict", false, "Retry on conflict when updating resources")
+	command.Flags().BoolVar(&overrideOnConflict, "override-on-conflict", false, "Override the resource on conflict when updating resources")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
-	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '-- skip-resources-with-labels key=value'")
+	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io, my-other-label/example.io'")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
@@ -513,15 +510,14 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 	}
 }
 
-// skipResource checks if a resource should be skipped based on its labels.
-func skipResource(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
-	for _, kv := range skipResourcesWithLabels {
-		parts := strings.SplitN(kv, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key, value := parts[0], parts[1]
-		if val, ok := bak.GetLabels()[key]; ok && val == value {
+// skip resource   if any of the specified label exists.
+func isLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
+	if bak == nil {
+		return false
+	}
+	labels := bak.GetLabels()
+	for _, key := range skipResourcesWithLabels {
+		if _, exists := labels[key]; exists {
 			return true
 		}
 	}
