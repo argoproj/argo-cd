@@ -61,7 +61,6 @@ func Test_loadClusters(t *testing.T) {
 	require.NoError(t, err)
 	for i := range clusters {
 		// This changes, nil it to avoid testing it.
-		//nolint:staticcheck
 		clusters[i].ConnectionState.ModifiedAt = nil
 	}
 

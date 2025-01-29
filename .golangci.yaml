@@ -20,8 +20,7 @@ linters:
     - importas
     - ineffassign
     - misspell
-    # Disabled because of https://github.com/argoproj/argo-cd/issues/21705
-    # - nolintlint
+    - nolintlint
     - perfsprint
     - revive
     - staticcheck
