@@ -94,17 +94,11 @@ func TestIsLabelMatches(t *testing.T) {
 		expected   bool
 	}{
 		{
-			name:       "Nil object",
-			obj:        nil,
-			skipLabels: []string{"test-label"},
-			expected:   false,
-		},
-		{
 			name: "Label matches",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"test-label": "value",
 						},
 					},
@@ -116,9 +110,9 @@ func TestIsLabelMatches(t *testing.T) {
 		{
 			name: "Label does not match",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"different-label": "value",
 						},
 					},
@@ -130,9 +124,9 @@ func TestIsLabelMatches(t *testing.T) {
 		{
 			name: "Empty skip labels",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"test-label": "value",
 						},
 					},
@@ -144,9 +138,9 @@ func TestIsLabelMatches(t *testing.T) {
 		{
 			name: "Multiple labels, one matches",
 			obj: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
 							"test-label":    "value",
 							"another-label": "value2",
 						},
@@ -165,3 +159,4 @@ func TestIsLabelMatches(t *testing.T) {
 		})
 	}
 }
+

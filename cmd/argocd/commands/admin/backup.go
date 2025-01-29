@@ -17,7 +17,6 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -27,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	secutil "github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/spf13/cobra"
 )
 
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -512,7 +512,8 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 
 // skip resource   if any of the specified label exists.
 func isLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
-	if bak == nil {
+
+	if len(skipResourcesWithLabels) == 0 {
 		return false
 	}
 	labels := bak.GetLabels()
