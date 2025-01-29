@@ -16,6 +16,7 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	cachemocks "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -57,13 +58,26 @@ func TestGetReconcileResults(t *testing.T) {
 func TestGetReconcileResults_Refresh(t *testing.T) {
 	ctx := context.Background()
 
-	cm := corev1.ConfigMap{
+	argoCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
+			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
 			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
+		},
+	}
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
 		},
 	}
 	proj := &v1alpha1.AppProject{
@@ -91,7 +105,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 
 	appClientset := appfake.NewSimpleClientset(app, proj)
 	deployment := test.NewDeployment()
-	kubeClientset := kubefake.NewClientset(deployment, &cm)
+	kubeClientset := kubefake.NewClientset(deployment, argoCM, argoCDSecret)
 	clusterCache := clustermocks.ClusterCache{}
 	clusterCache.On("IsNamespaced", mock.Anything).Return(true, nil)
 	clusterCache.On("GetGVKParser", mock.Anything).Return(nil)

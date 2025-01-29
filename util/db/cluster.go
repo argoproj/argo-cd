@@ -37,12 +37,12 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
-			// nolint:staticcheck
+			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -51,7 +51,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }
@@ -142,11 +142,19 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string),
 ) error {
-	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return err
 	}
-	handleAddEvent(localCls)
+
+	localCls := db.getLocalCluster()
+	if argoSettings.InClusterEnabled {
+		localCls, err = db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
+		if err != nil {
+			return fmt.Errorf("could not get local cluster: %w", err)
+		}
+		handleAddEvent(localCls)
+	}
 
 	db.watchSecrets(
 		ctx,
@@ -159,9 +167,11 @@ func (db *db) WatchClusters(ctx context.Context,
 				return
 			}
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, cluster)
-				localCls = cluster
+				if argoSettings.InClusterEnabled {
+					// change local cluster event to modified, since it cannot be added at runtime
+					handleModEvent(localCls, cluster)
+					localCls = cluster
+				}
 				return
 			}
 			handleAddEvent(cluster)
@@ -185,10 +195,11 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 
 		func(secret *corev1.Secret) {
-			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr {
-				// change local cluster event to modified or deleted, since it cannot be re-added or deleted
-				handleModEvent(localCls, db.getLocalCluster())
-				localCls = db.getLocalCluster()
+			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr && argoSettings.InClusterEnabled {
+				// change local cluster event to modified, since it cannot be deleted at runtime, unless disabled.
+				newLocalCls := db.getLocalCluster()
+				handleModEvent(localCls, newLocalCls)
+				localCls = newLocalCls
 			} else {
 				handleDeleteEvent(string(secret.Data["server"]))
 			}
@@ -214,6 +225,14 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
+	argoSettings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	if server == appv1.KubernetesInternalAPIServerAddr && !argoSettings.InClusterEnabled {
+		return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+	}
+
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
@@ -222,6 +241,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	if err != nil {
 		return nil, err
 	}
+
 	if len(res) > 0 {
 		return SecretToCluster(res[0].(*corev1.Secret))
 	}
@@ -254,6 +274,10 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
+	argoSettings, err := db.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
 	informer, err := db.settingsMgr.GetSecretsInformer()
 	if err != nil {
 		return nil, err
@@ -265,7 +289,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 		return nil, err
 	}
 
-	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name {
+	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name && argoSettings.InClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
@@ -276,7 +300,11 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 	var res []string
 	for i := range secrets {
 		s := secrets[i].(*corev1.Secret)
-		res = append(res, strings.TrimRight(string(s.Data["server"]), "/"))
+		server := strings.TrimRight(string(s.Data["server"]), "/")
+		if !argoSettings.InClusterEnabled && server == appv1.KubernetesInternalAPIServerAddr {
+			continue
+		}
+		res = append(res, server)
 	}
 	return res, nil
 }

@@ -363,7 +363,7 @@ func TestEnforceErrorMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	require.Error(t, err)
@@ -371,19 +371,19 @@ func TestEnforceErrorMessage(t *testing.T) {
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	require.Error(t, err)
 	assert.Equal(t, exp, err.Error())
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	require.Error(t, err)
 	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	err = enf.EnforceErr(ctx.Value("claims"), "project")
 	require.Error(t, err)
