@@ -390,7 +390,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
-			defer argoio.Close(conn)
+			defer func() {
+				argoio.Close(conn)
+				cancel()
+			}()
 
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
