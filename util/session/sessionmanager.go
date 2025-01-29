@@ -20,11 +20,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
@@ -158,16 +158,13 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
 	now := time.Now().UTC()
-	claims := &utils.ArgoClaims{
+	claims := claimsutil.ArgoClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			Issuer:    SessionManagerClaimsIssuer,
 			NotBefore: jwt.NewNumericDate(now),
 			Subject:   subject,
 			ID:        id,
-		},
-		FederatedClaims: &utils.FederatedClaims{
-			UserID: "", // Empty for local auth
 		},
 	}
 	if secondsBeforeExpiry > 0 {
@@ -224,25 +221,17 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+	if err != nil {
+		return nil, "", err
+	}
 
 	issuedAt, err := jwtutil.IssuedAtTime(claims)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// Convert MapClaims to ArgoClaims
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(claims, "sub"),
-		},
-	}
-	if fedClaims, ok := claims["federated_claims"].(map[string]any); ok {
-		argoClaims.FederatedClaims = &utils.FederatedClaims{
-			UserID: jwtutil.StringField(fedClaims, "user_id"),
-		}
-	}
-
-	subject := utils.GetUserIdentifier(argoClaims)
+	subject := argoClaims.GetUserIdentifier()
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -518,24 +507,9 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				return
 			}
 			ctx := r.Context()
-
-			// Convert claims to MapClaims
-			mapClaims, err := jwtutil.MapClaims(claims)
-			if err != nil {
-				http.Error(w, "Invalid claims format", http.StatusUnauthorized)
-				return
-			}
-
-			argoClaims := &utils.ArgoClaims{
-				RegisteredClaims: jwt.RegisteredClaims{
-					Subject: jwtutil.StringField(mapClaims, "sub"),
-				},
-				FederatedClaims: utils.GetFederatedClaims(mapClaims),
-			}
-
 			// Add claims to the context to inspect for RBAC
-			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "user_id", utils.GetUserIdentifier(argoClaims))
+			//nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", claims)
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
@@ -622,16 +596,19 @@ func LoggedIn(ctx context.Context) bool {
 
 // Username is a helper to extract a human readable username from a context
 func Username(ctx context.Context) string {
-	mapClaims, ok := mapClaims(ctx)
+	argoClaims, ok := argoClaims(ctx)
 	if !ok {
 		return ""
 	}
-	subject := jwtutil.StringField(mapClaims, "sub")
-	if strings.Contains(subject, ":") {
-		parts := strings.Split(subject, ":")
-		return parts[0] // Return just the username part
+	switch argoClaims.Issuer {
+	case SessionManagerClaimsIssuer:
+		return argoClaims.GetUserIdentifier()
+	default:
+		if argoClaims.Email != "" {
+			return argoClaims.Email
+		}
+		return argoClaims.GetUserIdentifier()
 	}
-	return subject
 }
 
 func Iss(ctx context.Context) string {
@@ -656,13 +633,11 @@ func GetUserIdentifier(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(mapClaims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	if err != nil {
+		return ""
 	}
-	return utils.GetUserIdentifier(argoClaims)
+	return argoClaims.GetUserIdentifier()
 }
 
 func Groups(ctx context.Context, scopes []string) []string {
@@ -673,35 +648,26 @@ func Groups(ctx context.Context, scopes []string) []string {
 	return jwtutil.GetGroups(mapClaims, scopes)
 }
 
-type contextKey struct{}
-
-var claimsKey = contextKey{}
-
-// ClaimsKey returns the context key used for claims
-func ClaimsKey() any {
-	return claimsKey
-}
-
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
-	claims, ok := ctx.Value(claimsKey).(jwt.Claims)
+	claims, ok := ctx.Value("claims").(jwt.Claims)
 	if !ok {
-		claims, ok = ctx.Value("claims").(jwt.Claims)
-		if !ok {
-			// Try direct MapClaims from both keys
-			mapClaims, ok := ctx.Value(claimsKey).(jwt.MapClaims)
-			if !ok {
-				mapClaims, ok = ctx.Value("claims").(jwt.MapClaims)
-			}
-			if ok {
-				return mapClaims, true
-			}
-			return nil, false
-		}
+		return nil, false
 	}
-
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return nil, false
 	}
 	return mapClaims, true
+}
+
+func argoClaims(ctx context.Context) (*claimsutil.ArgoClaims, bool) {
+	mapClaims, ok := mapClaims(ctx)
+	if !ok {
+		return nil, false
+	}
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	if err != nil {
+		return nil, false
+	}
+	return argoClaims, true
 }

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 
@@ -247,22 +247,21 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 		errMsg := "permission denied"
 
 		if len(rvals) > 0 {
-			rvalsStrs := []string{}
-			for _, rval := range rvals[1:] {
-				rvalsStrs = append(rvalsStrs, fmt.Sprintf("%v", rval))
+			rvalsStrs := make([]string, len(rvals)-1)
+			for i, rval := range rvals[1:] {
+				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
 			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
 				if err == nil {
-					if argoClaims := (&utils.ArgoClaims{
-						RegisteredClaims: jwt.RegisteredClaims{
-							Subject: jwtutil.StringField(claims, "sub"),
-						},
-					}); utils.GetUserIdentifier(argoClaims) != "" {
-						rvalsStrs = append(rvalsStrs, "sub: "+utils.GetUserIdentifier(argoClaims))
-					}
-					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+					if err == nil {
+						if argoClaims.GetUserIdentifier() != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
 					}
 				}
 			}

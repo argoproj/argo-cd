@@ -16,6 +16,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/jwt"
@@ -191,7 +192,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command := &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Create a project role in the "my-project" project with the name "my-role".
   argocd proj role create my-project my-role --description "My project role description"
   		`),
@@ -279,22 +280,6 @@ func tokenTimeToString(t int64) string {
 	return tokenTimeToString
 }
 
-func mapClaimsToArgoClaims(claims jwtgo.MapClaims) *utils.ArgoClaims {
-	sub := jwt.StringField(claims, "sub")
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwtgo.RegisteredClaims{
-			Subject: sub,
-		},
-	}
-	if fedClaims, ok := claims["federated_claims"].(map[string]any); ok {
-		argoClaims.FederatedClaims = &utils.FederatedClaims{
-			ConnectorID: fmt.Sprint(fedClaims["connector_id"]),
-			UserID:      fmt.Sprint(fedClaims["user_id"]),
-		}
-	}
-	return argoClaims
-}
-
 // NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -345,10 +330,16 @@ Create token succeeded for proj:test-project:test-role.
 			}
 
 			claims := token.Claims.(jwtgo.MapClaims)
+			argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+			if err != nil {
+				errors.CheckError(fmt.Errorf("invalid argo claims: %w", err))
+				return
+			}
+
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
-			subject := utils.GetUserIdentifier(mapClaimsToArgoClaims(claims))
+			subject := argoClaims.GetUserIdentifier()
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
@@ -512,7 +503,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # This command will list all the roles in argocd-project in a default table format.
   argocd proj role list PROJECT
 

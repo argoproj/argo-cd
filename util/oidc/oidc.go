@@ -23,7 +23,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v3/util/cache"
@@ -476,8 +475,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
 		return
 	}
+	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(claims),
+		Key:    formatAccessTokenCacheKey(sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
 			Expiration: getTokenExpiration(claims),
@@ -625,18 +625,12 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
 func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(actualClaims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(actualClaims),
-	}
-	sub := utils.GetUserIdentifier(argoClaims)
+	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(actualClaims)
+	clientCacheKey := formatUserInfoResponseCacheKey(sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
@@ -653,7 +647,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(actualClaims), &encAccessToken)
+	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
@@ -684,9 +678,6 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusUnauthorized {
 		return claims, true, err
-	}
-	if response.StatusCode == http.StatusNotFound {
-		return jwt.MapClaims{}, true, fmt.Errorf("user info path not found: %s", userInfoPath)
 	}
 
 	// according to https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponseValidation
@@ -766,25 +757,11 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(claims jwt.MapClaims) string {
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(claims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(claims),
-	}
-	userID := utils.GetUserIdentifier(argoClaims)
-	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, userID)
+func formatUserInfoResponseCacheKey(sub string) string {
+	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(claims jwt.MapClaims) string {
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(claims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(claims),
-	}
-	userID := utils.GetUserIdentifier(argoClaims)
-	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, userID)
+func formatAccessTokenCacheKey(sub string) string {
+	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
 }

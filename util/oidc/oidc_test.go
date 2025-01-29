@@ -1,19 +1,15 @@
 package oidc
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -32,18 +28,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/test"
 )
-
-func setupAzureIdentity(t *testing.T) {
-	t.Helper()
-
-	tempDir := t.TempDir()
-	tokenFilePath := filepath.Join(tempDir, "token.txt")
-	tempFile, err := os.Create(tokenFilePath)
-	require.NoError(t, err)
-	_, err = tempFile.Write([]byte("serviceAccountToken"))
-	require.NoError(t, err)
-	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-}
 
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
@@ -153,7 +137,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate signed by unknown authority")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -181,6 +167,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -226,6 +213,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -320,6 +308,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
+
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
 	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
@@ -404,6 +393,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -421,144 +411,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
-
-		app.HandleCallback(w, req)
-
-		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
-		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
-	})
-}
-
-func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
-	app := azureApp{mtx: &sync.RWMutex{}}
-
-	setupAzureIdentity(t)
-
-	t.Run("before the method call assertion should be empty.", func(t *testing.T) {
-		assert.Equal(t, "", app.assertion)
-	})
-
-	t.Run("Fetch the token value from the file", func(t *testing.T) {
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		require.NoError(t, err)
-		assert.Equal(t, "serviceAccountToken", app.assertion)
-	})
-
-	t.Run("Workload Identity Not enabled.", func(t *testing.T) {
-		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
-	})
-
-	t.Run("Workload Identity invalid file", func(t *testing.T) {
-		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", filepath.Join(t.TempDir(), "invalid.txt"))
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
-	})
-
-	t.Run("Concurrent access to the function", func(t *testing.T) {
-		currentExpiryTime := app.expires
-
-		var wg sync.WaitGroup
-		numGoroutines := 10
-		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
-			go func() {
-				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
-				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.assertion)
-			}()
-		}
-		wg.Wait()
-
-		// Event with multiple concurrent calls the expiry time should not change untile it passes.
-		assert.Equal(t, currentExpiryTime, app.expires)
-	})
-
-	t.Run("Concurrent access to the function when the current token expires", func(t *testing.T) {
-		var wg sync.WaitGroup
-		currentExpiryTime := app.expires
-		app.expires = time.Now()
-		numGoroutines := 10
-		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
-			go func() {
-				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
-				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.assertion)
-			}()
-		}
-		wg.Wait()
-
-		assert.NotEqual(t, currentExpiryTime, app.expires)
-	})
-}
-
-func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
-	tokenRequestAssertions := func(r *http.Request) {
-		err := r.ParseForm()
-		require.NoError(t, err)
-
-		formData := r.Form
-		clientAssertion := formData.Get("client_assertion")
-		clientAssertionType := formData.Get("client_assertion_type")
-		assert.Equal(t, "serviceAccountToken", clientAssertion)
-		assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", clientAssertionType)
-	}
-
-	oidcTestServer := test.GetAzureOIDCTestServer(t, tokenRequestAssertions)
-	t.Cleanup(oidcTestServer.Close)
-
-	dexTestServer := test.GetDexTestServer(t)
-	t.Cleanup(dexTestServer.Close)
-	signature, err := util.MakeSignature(32)
-	require.NoError(t, err)
-
-	setupAzureIdentity(t)
-
-	t.Run("oidc certificate checking during oidc callback should toggle on config", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL:             "https://argocd.example.com",
-			ServerSignature: signature,
-			OIDCConfigRAW: fmt.Sprintf(`
-name: Test
-issuer: %s
-clientID: xxx
-azure:
-  useWorkloadIdentity: true
-skipAudienceCheckWhenTokenHasNoAudience: true
-requestedScopes: ["oidc"]`, oidcTestServer.URL),
-		}
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
-		req.Form = url.Values{
-			"code":  {"abc"},
-			"state": {"123"},
-		}
-		w := httptest.NewRecorder()
-
-		app.HandleCallback(w, req)
-
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
-
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		w = httptest.NewRecorder()
-
-		key, err := cdSettings.GetServerEncryptionKey()
-		require.NoError(t, err)
-		encrypted, _ := crypto.Encrypt([]byte("123"), key)
-		req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 
 		app.HandleCallback(w, req)
 
@@ -742,6 +594,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
+
 	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
@@ -776,9 +629,9 @@ func TestGetUserInfo(t *testing.T) {
 		{
 			name:                  "call UserInfo with wrong userInfoPath",
 			userInfoPath:          "/user",
-			expectedOutput:        jwt.MapClaims{},
+			expectedOutput:        jwt.MapClaims(nil),
 			expectError:           true,
-			expectUnauthenticated: true,
+			expectUnauthenticated: false,
 			expectedCacheItems: []struct {
 				key             string
 				value           string
@@ -786,11 +639,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
@@ -801,7 +654,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -820,11 +673,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "fallbackUser"}),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "fallbackUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 			},
@@ -835,7 +688,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "fallbackUser"}),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -854,11 +707,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 			  notevenJsongarbage
@@ -877,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -896,11 +749,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
@@ -929,13 +782,13 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
+					key:             formatUserInfoResponseCacheKey("randomUser"),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
 				userInfoBytes := `
 				{
@@ -956,177 +809,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]any{"user_id": "randomUser"}}),
-					value:   "FakeAccessToken",
-					encrypt: true,
-				},
-			},
-		},
-		{
-			name:         "call UserInfo with different sub and federated_claims",
-			userInfoPath: "/user-info",
-			expectedOutput: jwt.MapClaims{
-				"sub": "different-sub",
-				"federated_claims": map[string]any{
-					"connector_id": "github",
-					"user_id":      "preferred-id",
-				},
-				"groups": []any{"githubOrg:engineers"},
-			},
-			expectError:           false,
-			expectUnauthenticated: false,
-			expectedCacheItems: []struct {
-				key             string
-				value           string
-				expectEncrypted bool
-				expectError     bool
-			}{
-				{
-					// Key should use federated_claims.user_id (preferred-id) instead of sub
-					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "different-sub", "federated_claims": map[string]any{"user_id": "preferred-id"}}),
-					value:           `{"sub":"different-sub","federated_claims":{"connector_id":"github","user_id":"preferred-id"},"groups":["githubOrg:engineers"]}`,
-					expectEncrypted: true,
-					expectError:     false,
-				},
-			},
-			idpClaims: jwt.MapClaims{
-				"sub": "different-sub",
-				"federated_claims": map[string]any{
-					"connector_id": "github",
-					"user_id":      "preferred-id",
-				},
-				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
-			},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-				w.Header().Set("content-type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				response := jwt.MapClaims{
-					"sub": "different-sub",
-					"federated_claims": map[string]any{
-						"connector_id": "github",
-						"user_id":      "preferred-id",
-					},
-					"groups": []any{"githubOrg:engineers"},
-				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					log.Printf("Failed to encode response: %v", err)
-				}
-			},
-			cache: cache.NewInMemoryCache(24 * time.Hour),
-			cacheItems: []struct {
-				key     string
-				value   string
-				encrypt bool
-			}{
-				{
-					// Access token cache key should also use federated_claims.user_id
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "different-sub", "federated_claims": map[string]any{"user_id": "preferred-id"}}),
-					value:   "FakeAccessToken",
-					encrypt: true,
-				},
-			},
-		},
-		{
-			name:                  "call UserInfo with only sub claim",
-			userInfoPath:          "/user-info",
-			expectedOutput:        jwt.MapClaims{"sub": "sub-only-user", "groups": []any{"githubOrg:engineers"}},
-			expectError:           false,
-			expectUnauthenticated: false,
-			expectedCacheItems: []struct {
-				key             string
-				value           string
-				expectEncrypted bool
-				expectError     bool
-			}{
-				{
-					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "sub-only-user"}),
-					value:           `{"sub":"sub-only-user","groups":["githubOrg:engineers"]}`,
-					expectEncrypted: true,
-					expectError:     false,
-				},
-			},
-			idpClaims: jwt.MapClaims{
-				"sub": "sub-only-user",
-				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
-			},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-				w.Header().Set("content-type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				response := jwt.MapClaims{
-					"sub":    "sub-only-user",
-					"groups": []any{"githubOrg:engineers"},
-				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					log.Printf("Failed to encode response: %v", err)
-				}
-			},
-			cache: cache.NewInMemoryCache(24 * time.Hour),
-			cacheItems: []struct {
-				key     string
-				value   string
-				encrypt bool
-			}{
-				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "sub-only-user"}),
-					value:   "FakeAccessToken",
-					encrypt: true,
-				},
-			},
-		},
-		{
-			name:         "call UserInfo with only federated claims",
-			userInfoPath: "/user-info",
-			expectedOutput: jwt.MapClaims{
-				"federated_claims": map[string]any{
-					"connector_id": "github",
-					"user_id":      "federated-only-user",
-				},
-				"groups": []any{"githubOrg:engineers"},
-			},
-			expectError:           false,
-			expectUnauthenticated: false,
-			expectedCacheItems: []struct {
-				key             string
-				value           string
-				expectEncrypted bool
-				expectError     bool
-			}{
-				{
-					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"federated_claims": map[string]any{"user_id": "federated-only-user"}}),
-					value:           `{"federated_claims":{"connector_id":"github","user_id":"federated-only-user"},"groups":["githubOrg:engineers"]}`,
-					expectEncrypted: true,
-					expectError:     false,
-				},
-			},
-			idpClaims: jwt.MapClaims{
-				"federated_claims": map[string]any{
-					"connector_id": "github",
-					"user_id":      "federated-only-user",
-				},
-				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
-			},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
-				w.Header().Set("content-type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				response := jwt.MapClaims{
-					"federated_claims": map[string]any{
-						"connector_id": "github",
-						"user_id":      "federated-only-user",
-					},
-					"groups": []any{"githubOrg:engineers"},
-				}
-				if err := json.NewEncoder(w).Encode(response); err != nil {
-					log.Printf("Failed to encode response: %v", err)
-				}
-			},
-			cache: cache.NewInMemoryCache(24 * time.Hour),
-			cacheItems: []struct {
-				key     string
-				value   string
-				encrypt bool
-			}{
-				{
-					key:     formatAccessTokenCacheKey(jwt.MapClaims{"federated_claims": map[string]any{"user_id": "federated-only-user"}}),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -1165,9 +848,6 @@ func TestGetUserInfo(t *testing.T) {
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
 				require.Error(t, err)
-				if tt.userInfoPath != "/user-info" {
-					assert.Contains(t, err.Error(), "user info path not found")
-				}
 			} else {
 				require.NoError(t, err)
 			}
@@ -1182,13 +862,7 @@ func TestGetUserInfo(t *testing.T) {
 						tmpValue, err = crypto.Decrypt(tmpValue, encryptionKey)
 						require.NoError(t, err)
 					}
-					// Compare as objects instead of strings
-					var expected, actual map[string]any
-					err = json.Unmarshal([]byte(item.value), &expected)
-					require.NoError(t, err)
-					err = json.Unmarshal(tmpValue, &actual)
-					require.NoError(t, err)
-					assert.Equal(t, expected, actual)
+					assert.Equal(t, item.value, string(tmpValue))
 				}
 			}
 		})

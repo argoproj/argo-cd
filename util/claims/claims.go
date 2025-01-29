@@ -1,7 +1,7 @@
-package utils
+package claims
 
 import (
-	"fmt"
+	"encoding/json"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -23,26 +23,34 @@ type FederatedClaims struct {
 	UserID      string `json:"user_id"`
 }
 
-// GetFederatedClaims extracts federated claims from jwt.MapClaims
-func GetFederatedClaims(claims jwt.MapClaims) *FederatedClaims {
-	if federated, ok := claims["federated_claims"].(map[string]any); ok {
-		return &FederatedClaims{
-			ConnectorID: fmt.Sprint(federated["connector_id"]),
-			UserID:      fmt.Sprint(federated["user_id"]),
-		}
+// MapClaimsToArgoClaims converts a jwt.MapClaims to a ArgoClaims
+func MapClaimsToArgoClaims(claims jwt.MapClaims) (*ArgoClaims, error) {
+	if claims == nil {
+		return &ArgoClaims{}, nil
 	}
-	return nil
+
+	claimsBytes, err := json.Marshal(claims)
+	if err != nil {
+		return nil, err
+	}
+
+	var argoClaims ArgoClaims
+	err = json.Unmarshal(claimsBytes, &argoClaims)
+	if err != nil {
+		return nil, err
+	}
+	return &argoClaims, nil
 }
 
 // GetUserIdentifier returns a consistent user identifier, checking federated_claims.user_id when Dex is in use
-func GetUserIdentifier(claims *ArgoClaims) string {
+func (c *ArgoClaims) GetUserIdentifier() string {
 	// Check federated claims first
-	if claims.FederatedClaims != nil && claims.FederatedClaims.UserID != "" {
-		return claims.FederatedClaims.UserID
+	if c.FederatedClaims != nil && c.FederatedClaims.UserID != "" {
+		return c.FederatedClaims.UserID
 	}
 	// Fallback to sub
-	if claims.Subject != "" {
-		return claims.Subject
+	if c.Subject != "" {
+		return c.Subject
 	}
 	return ""
 }

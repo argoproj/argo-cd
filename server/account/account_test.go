@@ -82,54 +82,30 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 }
 
 func adminContext(ctx context.Context) context.Context {
-	claims := jwt.MapClaims{
-		"sub":    "admin",
-		"iss":    sessionutil.SessionManagerClaimsIssuer,
-		"groups": []string{"role:admin"},
-		"federated_claims": map[string]any{
-			"user_id": "admin",
-		},
-	}
-	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
 	//nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", claims)
-	return ctx
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
-	claims := jwt.MapClaims{
-		"sub":    "admin",
-		"iss":    "https://myargocdhost.com/api/dex",
-		"iat":    jwt.NewNumericDate(iat),
-		"groups": []string{"role:admin"}, // Add admin group
-		"federated_claims": map[string]any{
-			"user_id": "admin",
-		},
-	}
-	// Set both context values
-	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
 	//nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", claims)
-
-	return ctx
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
+		Subject:  "admin",
+		Issuer:   "https://myargocdhost.com/api/dex",
+		IssuedAt: jwt.NewNumericDate(iat),
+	})
 }
 
 func projTokenContext(ctx context.Context) context.Context {
-	claims := jwt.MapClaims{
-		"sub":    "proj:demo:deployer",
-		"iss":    sessionutil.SessionManagerClaimsIssuer,
-		"groups": []string{"proj:demo:deployer"},
-	}
-	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
-	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", claims)
-	return ctx
+	//nolint:staticcheck
+	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
+		Subject: "proj:demo:deployer",
+		Issuer:  sessionutil.SessionManagerClaimsIssuer,
+	})
 }
 
 func TestUpdatePassword(t *testing.T) {
 	accountServer, sessionServer := newTestAccountServer(context.Background())
 	ctx := adminContext(context.Background())
-
 	var err error
 
 	// ensure password is not allowed to be updated if given bad password

@@ -6,9 +6,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
@@ -116,14 +116,12 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	if err != nil {
 		return false
 	}
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(mapClaims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	if err != nil {
+		return false
 	}
 
-	subject := utils.GetUserIdentifier(argoClaims)
+	subject := argoClaims.GetUserIdentifier()
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string

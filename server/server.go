@@ -63,7 +63,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
@@ -107,8 +106,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/ui"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
+
 	"github.com/argoproj/argo-cd/v3/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -1523,28 +1524,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	// Some SSO implementations (Okta) require a call to
-	// the OIDC user info path to get attributes like groups
-	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-	// otherwise this would cause a panic
-	var groupClaims jwt.MapClaims
-	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
-		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
-			groupClaims = *tmpClaims
-		}
+	mapClaims, err := jwtutil.MapClaims(claims)
+	if err != nil {
+		return claims, "", status.Errorf(codes.Internal, "invalid claims")
+	}
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	if err != nil {
+		return claims, "", status.Errorf(codes.Internal, "invalid argo claims")
 	}
 
-	// Convert to ArgoClaims for user identifier comparison
-	argoClaims := &utils.ArgoClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject: jwtutil.StringField(groupClaims, "sub"),
-		},
-		FederatedClaims: utils.GetFederatedClaims(groupClaims),
-	}
-
-	iss := jwtutil.StringField(groupClaims, "iss")
+	// Some SSO implementations (Okta) require a call to the OIDC user info path to get attributes like groups
+	iss := jwtutil.StringField(mapClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1553,19 +1545,17 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			log.Errorf("error fetching user info endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
 		}
-		userInfoClaims := &utils.ArgoClaims{
-			RegisteredClaims: jwt.RegisteredClaims{
-				Subject: jwtutil.StringField(userInfo, "sub"),
-			},
-			FederatedClaims: utils.GetFederatedClaims(userInfo),
+		userInfoClaims, err := claimsutil.MapClaimsToArgoClaims(userInfo)
+		if err != nil {
+			return claims, "", status.Errorf(codes.Internal, "invalid userinfo claims")
 		}
-		if utils.GetUserIdentifier(argoClaims) != utils.GetUserIdentifier(userInfoClaims) {
+		if argoClaims.Subject != userInfoClaims.Subject {
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
-		groupClaims["groups"] = userInfo["groups"]
+		mapClaims["groups"] = userInfo["groups"]
 	}
 
-	return groupClaims, newToken, nil
+	return mapClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
