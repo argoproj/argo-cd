@@ -337,7 +337,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		refresh        bool
 		hardRefresh    bool
 		output         string
-		timeout        int
+		timeout        uint
 		showParams     bool
 		showOperation  bool
 		appNamespace   string
@@ -399,7 +399,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					fmt.Println("Context cancelled due to timeout")
 					cancel()
 				})
 			}
@@ -473,7 +472,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree")
-	command.Flags().IntVar(&timeout, "timeout", 15, "Specifies the maximum duration for the operation to complete. The command will terminate if the timeout is exceeded.")
+	command.Flags().UintVar(&timeout, "timeout", 15, "Specifies the maximum duration for the operation to complete. The command will terminate if the timeout is exceeded.")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
@@ -2589,7 +2588,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 			_, appClient := acdClient.NewApplicationClientOrDie()
-			app, err := appClient.Get(ctx, &application.ApplicationQuery{
+			_, err := appClient.Get(ctx, &application.ApplicationQuery{
 				Name:         &appRealName,
 				AppNamespace: &appNs,
 			})
@@ -2601,7 +2600,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			}
 
 			cancel()
-			printFinalStatus(app)
 
 			if printSummary {
 				fmt.Println()
