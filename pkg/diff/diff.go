@@ -7,6 +7,7 @@ package diff
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -843,6 +844,32 @@ func NormalizeSecret(un *unstructured.Unstructured, opts ...Option) {
 	if gvk.Group != "" || gvk.Kind != "Secret" {
 		return
 	}
+
+	// move stringData to data section
+	if stringData, found, err := unstructured.NestedMap(un.Object, "stringData"); found && err == nil {
+		var data map[string]interface{}
+		data, found, _ = unstructured.NestedMap(un.Object, "data")
+		if !found {
+			data = make(map[string]interface{})
+		}
+
+		// base64 encode string values and add non-string values as is.
+		// This ensures that the apply fails if the secret is invalid.
+		for k, v := range stringData {
+			strVal, ok := v.(string)
+			if ok {
+				data[k] = base64.StdEncoding.EncodeToString([]byte(strVal))
+			} else {
+				data[k] = v
+			}
+		}
+
+		err := unstructured.SetNestedField(un.Object, data, "data")
+		if err == nil {
+			delete(un.Object, "stringData")
+		}
+	}
+
 	o := applyOptions(opts)
 	var secret corev1.Secret
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &secret)
@@ -855,15 +882,6 @@ func NormalizeSecret(un *unstructured.Unstructured, opts ...Option) {
 		if len(v) == 0 {
 			secret.Data[k] = []byte("")
 		}
-	}
-	if len(secret.StringData) > 0 {
-		if secret.Data == nil {
-			secret.Data = make(map[string][]byte)
-		}
-		for k, v := range secret.StringData {
-			secret.Data[k] = []byte(v)
-		}
-		delete(un.Object, "stringData")
 	}
 	newObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&secret)
 	if err != nil {

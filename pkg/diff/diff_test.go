@@ -1044,6 +1044,126 @@ func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
 	assert.Equal(t, map[string]interface{}{"key2": replacement2, "key3": replacement1}, secretData(live))
 }
 
+func TestHideStringDataInInvalidSecret(t *testing.T) {
+	liveUn := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name": "test-secret",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"key1": "a2V5MQ==",
+				"key2": "a2V5MQ==",
+			},
+		},
+	}
+	targetUn := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]interface{}{
+				"name": "test-secret",
+			},
+			"type": "Opaque",
+			"data": map[string]interface{}{
+				"key1": "a2V5MQ==",
+				"key2": "a2V5Mg==",
+				"key3": false,
+			},
+			"stringData": map[string]interface{}{
+				"key4": "key4",
+				"key5": 5,
+			},
+		},
+	}
+
+	liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
+	targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
+
+	target, live, err := HideSecretData(targetUn, liveUn, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement2}, secretData(live))
+	assert.Equal(t, map[string]interface{}{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+}
+
+// stringData in secrets should be normalized even if it is invalid
+func TestNormalizeSecret(t *testing.T) {
+	var tests = []struct {
+		testname   string
+		data       map[string]interface{}
+		stringData map[string]interface{}
+	}{
+		{
+			testname: "Valid secret",
+			data: map[string]interface{}{
+				"key1": "key1",
+			},
+			stringData: map[string]interface{}{
+				"key2": "a2V5Mg==",
+			},
+		},
+		{
+			testname: "Invalid secret",
+			data: map[string]interface{}{
+				"key1": "key1",
+				"key2": 2,
+			},
+			stringData: map[string]interface{}{
+				"key3": "key3",
+				"key4": nil,
+			},
+		},
+		{
+			testname: "Invalid secret with stringData only",
+			data:     nil,
+			stringData: map[string]interface{}{
+				"key3": "key3",
+				"key4": true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testname, func(t *testing.T) {
+			un := &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]interface{}{
+						"name": "test-secret",
+					},
+					"type":       "Opaque",
+					"data":       tt.data,
+					"stringData": tt.stringData,
+				},
+			}
+			un = remarshal(un, applyOptions(diffOptionsForTest()))
+
+			NormalizeSecret(un)
+
+			_, found, _ := unstructured.NestedMap(un.Object, "stringData")
+			assert.False(t, found)
+
+			data, found, _ := unstructured.NestedMap(un.Object, "data")
+			assert.True(t, found)
+
+			// check all secret keys are found under data in normalized secret
+			for _, obj := range []map[string]interface{}{tt.data, tt.stringData} {
+				if obj == nil {
+					continue
+				}
+				for k := range obj {
+					_, ok := data[k]
+					assert.True(t, ok)
+				}
+			}
+		})
+	}
+}
+
 func TestHideSecretAnnotations(t *testing.T) {
 	tests := []struct {
 		name           string

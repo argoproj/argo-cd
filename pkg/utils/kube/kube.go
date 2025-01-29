@@ -205,12 +205,15 @@ var (
 	// See ApplyOpts::Run()
 	// cmdutil.AddSourceToErr(fmt.Sprintf("applying patch:\n%s\nto:\n%v\nfor:", patchBytes, info), info.Source, err)
 	kubectlApplyPatchErrOutRegexp = regexp.MustCompile(`(?s)^error when applying patch:.*\nfor: "\S+": `)
+
+	kubectlErrOutMapRegexp = regexp.MustCompile(`map\[.*\]`)
 )
 
 // cleanKubectlOutput makes the error output of kubectl a little better to read
 func cleanKubectlOutput(s string) string {
 	s = strings.TrimSpace(s)
 	s = kubectlErrOutRegexp.ReplaceAllString(s, "")
+	s = kubectlErrOutMapRegexp.ReplaceAllString(s, "")
 	s = kubectlApplyPatchErrOutRegexp.ReplaceAllString(s, "")
 	s = strings.Replace(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "", -1)
 	return s
