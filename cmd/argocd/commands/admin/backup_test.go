@@ -154,9 +154,8 @@ func TestIsLabelMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isLabelMatches(tt.obj, tt.skipLabels)
+			result := isSkipLabelMatches(tt.obj, tt.skipLabels)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
-

@@ -16,8 +16,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -26,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	secutil "github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -252,10 +251,10 @@ func NewImportCommand() *cobra.Command {
 
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
-				if isLabelMatches(bakObj, skipResourcesWithLabels) {
-					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
-					continue
-				}
+				//if isSkipLabelMatches(bakObj, skipResourcesWithLabels) {
+				//	fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
+				//	continue
+				//}
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
 				if bakObj.GetNamespace() == "" {
@@ -511,8 +510,7 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 }
 
 // skip resource   if any of the specified label exists.
-func isLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
-
+func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
 	if len(skipResourcesWithLabels) == 0 {
 		return false
 	}
