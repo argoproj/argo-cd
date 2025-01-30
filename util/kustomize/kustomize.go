@@ -24,6 +24,7 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
@@ -317,7 +318,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 				for _, c := range opts.Components {
 					resolvedPath, err := securejoin.SecureJoin(k.path, c)
 					if err != nil {
-						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %s", err)
+						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
 					}
 					_, err = os.Stat(resolvedPath)
 					if err != nil {
