@@ -19,7 +19,8 @@ import (
 
 // Component names
 const (
-	ApplicationController = "argocd-application-controller"
+	ApplicationController    = "argocd-application-controller"
+	ApplicationSetController = "argocd-applicationset-controller"
 )
 
 // Default service addresses and URLS of Argo CD internal services

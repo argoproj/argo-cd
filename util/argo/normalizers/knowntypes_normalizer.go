@@ -28,7 +28,7 @@ type knownTypesNormalizer struct {
 	typeFields map[schema.GroupKind][]knownTypeField
 }
 
-// Register some non-code-generated types here. The bulk of them are in corev1_known_types.go
+// RegisterWithClientGo some non-code-generated types here. The bulk of them are in corev1_known_types.go
 func init() {
 	knownTypes["core/Quantity"] = func() any {
 		return &resource.Quantity{}

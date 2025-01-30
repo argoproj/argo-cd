@@ -896,7 +896,7 @@ func (t *ApplicationSetTree) Normalize() {
 }
 
 // func init() {
-// 	SchemeBuilder.Register(&ApplicationSet{}, &ApplicationSetList{})
+// 	SchemeBuilder.RegisterWithClientGo(&ApplicationSet{}, &ApplicationSetList{})
 // }
 
 // RefreshRequired checks if the ApplicationSet needs to be refreshed

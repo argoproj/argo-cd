@@ -118,7 +118,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)
 
-	// Register reflection service on gRPC server.
+	// RegisterWithClientGo reflection service on gRPC server.
 	reflection.Register(server)
 
 	return server, nil

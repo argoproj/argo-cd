@@ -127,7 +127,7 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	healthService := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthService)
 
-	// Register reflection service on gRPC server.
+	// RegisterWithClientGo reflection service on gRPC server.
 	reflection.Register(server)
 
 	return server

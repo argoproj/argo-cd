@@ -57,7 +57,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
 
-	// Register the trace exporter with a TracerProvider, using a batch
+	// RegisterWithClientGo the trace exporter with a TracerProvider, using a batch
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(

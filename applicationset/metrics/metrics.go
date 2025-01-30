@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"github.com/argoproj/argo-cd/v3/common"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -53,9 +54,13 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	appsetCollector := newAppsetCollector(appsetLister, appsetLabels, appsetFilter)
 
-	// Register collectors and metrics
+	// RegisterWithClientGo collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
+
+	kubectlMetricsServer := metricsutil.NewKubectlMetrics(common.ApplicationSetController)
+	kubectlMetricsServer.RegisterWithClientGo()
+	metricsutil.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{
 		reconcileHistogram: reconcileHistogram,

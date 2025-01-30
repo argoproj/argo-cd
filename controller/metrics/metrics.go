@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/robfig/cron/v3"
 	"net/http"
 	"os"
 	"slices"
@@ -13,7 +14,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -198,7 +198,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	return &MetricsServer{
+	kubectlMetricsServer := metricsutil.NewKubectlMetrics(common.ApplicationController)
+	kubectlMetricsServer.RegisterWithClientGo()
+	metricsutil.RegisterWithPrometheus(registry)
+
+	metricsServer := &MetricsServer{
 		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
@@ -220,7 +224,9 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
-	}, nil
+	}
+
+	return metricsServer, nil
 }
 
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
@@ -315,6 +321,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.redisRequestHistogram.Reset()
 		m.resourceEventsProcessingHistogram.Reset()
 		m.resourceEventsNumberGauge.Reset()
+		metricsutil.ResetAll()
 	})
 	if err != nil {
 		return err
