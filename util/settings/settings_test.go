@@ -1829,6 +1829,55 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 	}
 }
 
+func TestUseAzureWorkloadIdentity(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config isnot defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.UseAzureWorkloadIdentity()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
