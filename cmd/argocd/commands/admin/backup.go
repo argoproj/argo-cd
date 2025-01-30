@@ -46,10 +46,6 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
-			tt := time.Now()
-
-			fmt.Printf("backup process started %s\n", namespace)
-
 			var writer io.Writer
 			if out == "-" {
 				writer = os.Stdout
@@ -126,8 +122,6 @@ func NewExportCommand() *cobra.Command {
 					}
 				}
 			}
-			duration := time.Since(tt)
-			fmt.Printf("backup process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
 	}
 
@@ -251,10 +245,10 @@ func NewImportCommand() *cobra.Command {
 
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
-				//if isSkipLabelMatches(bakObj, skipResourcesWithLabels) {
-				//	fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
-				//	continue
-				//}
+				if isSkipLabelMatches(bakObj, skipResourcesWithLabels) {
+					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
+					continue
+				}
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
 				if bakObj.GetNamespace() == "" {
