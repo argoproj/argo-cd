@@ -66,6 +66,7 @@ argocd app create APPNAME [flags]
       --helm-version string                        Helm version
   -h, --help                                       help for create
       --hydrate-to-branch string                   The branch to hydrate the app to
+      --ignore-missing-components                  Ignore locally missing component directories when setting Kustomize components
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var
