@@ -24,21 +24,17 @@ import (
 var _ Generator = (*GitGenerator)(nil)
 
 type GitGenerator struct {
-	getFiles       services.GetFiles
-	getDirectories services.GetDirectories
-	namespace      string
+	repos     services.Repos
+	namespace string
 }
 
 func NewGitGenerator(repos services.Repos, namespace string) Generator {
-	return newGitGenerator(repos.GetFiles, repos.GetDirectories, namespace)
-}
-
-func newGitGenerator(getFiles services.GetFiles, getDirectories services.GetDirectories, namespace string) Generator {
-	return &GitGenerator{
-		getFiles:       getFiles,
-		getDirectories: getDirectories,
-		namespace:      namespace,
+	g := &GitGenerator{
+		repos:     repos,
+		namespace: namespace,
 	}
+
+	return g
 }
 
 func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -108,7 +104,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit, useGoTemplate bool, project string, goTemplateOptions []string) ([]map[string]any, error) {
 	// Directories, not files
-	allPaths, err := g.getDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, noRevisionCache, verifyCommit)
+	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, noRevisionCache, verifyCommit)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from repo: %w", err)
 	}
@@ -135,7 +131,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.getFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, requestedPath.Path, noRevisionCache, verifyCommit)
+		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project, requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}

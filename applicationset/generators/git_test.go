@@ -1,19 +1,18 @@
 package generators
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services"
-
+	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -184,7 +183,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		name            string
 		directories     []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix string
-		getDirectories  services.GetDirectories
+		repoApps        []string
+		repoError       error
 		values          map[string]string
 		expected        []map[string]any
 		expectedError   error
@@ -192,13 +192,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		{
 			name:        "happy flow - created apps",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"app_3",
-					"p1/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
 			},
 			expected: []map[string]any{
 				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
@@ -211,14 +209,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			name:            "It prefixes path parameters with PathParamPrefix",
 			directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			pathParamPrefix: "myRepo",
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"app_3",
-					"p1/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
 				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
@@ -229,13 +226,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		{
 			name:        "It filters application according to the paths",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"p1/app2",
-					"p1/p2/app3",
-					"p1/p2/p3/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"p1/app2",
+				"p1/p2/app3",
+				"p1/p2/p3/app4",
 			},
 			expected: []map[string]any{
 				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
@@ -246,15 +241,14 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		{
 			name:        "It filters application according to the paths with Exclude",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"p1/app2",
-					"p1/app3",
-					"p2/app3",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"p1/app2",
+				"p1/app3",
+				"p2/app3",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
 				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
@@ -265,15 +259,14 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		{
 			name:        "Expecting same exclude behavior with different order",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"p1/app2",
-					"p1/app3",
-					"p2/app3",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"p1/app2",
+				"p1/app3",
+				"p2/app3",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
 				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
@@ -284,12 +277,11 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		{
 			name:        "Value variable interpolation",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"p1/app2",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"p1/app2",
 			},
+			repoError: nil,
 			values: map[string]string{
 				"foo":   "bar",
 				"aaa":   "{{ path[0] }}",
@@ -302,20 +294,18 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:        "handles empty response from repo server",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{}, nil
-			},
+			name:          "handles empty response from repo server",
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps:      []string{},
+			repoError:     nil,
 			expected:      []map[string]any{},
 			expectedError: nil,
 		},
 		{
-			name:        "handles error from repo server",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{}, errors.New("error")
-			},
+			name:          "handles error from repo server",
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps:      []string{},
+			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
 			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
 		},
@@ -326,9 +316,12 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			gitGenerator := newGitGenerator(func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return nil, errors.New("should not be called")
-			}, testCaseCopy.getDirectories, "")
+
+			argoCDServiceMock := mocks.Repos{}
+
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -361,6 +354,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
+
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -370,21 +365,21 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		name            string
 		directories     []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix string
+		repoApps        []string
+		repoError       error
 		expected        []map[string]any
 		expectedError   error
-		getDirectories  services.GetDirectories
 	}{
 		{
 			name:        "happy flow - created apps",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"app_3",
-					"p1/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{
 					"path": map[string]any{
@@ -423,14 +418,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			name:            "It prefixes path parameters with PathParamPrefix",
 			directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
 			pathParamPrefix: "myRepo",
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"app_3",
-					"p1/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"app_3",
+				"p1/app4",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{
 					"myRepo": map[string]any{
@@ -474,14 +468,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		{
 			name:        "It filters application according to the paths",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*"}, {Path: "p1/*/*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"p1/app2",
-					"p1/p2/app3",
-					"p1/p2/p3/app4",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"p1/app2",
+				"p1/p2/app3",
+				"p1/p2/p3/app4",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{
 					"path": map[string]any{
@@ -512,15 +505,14 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		{
 			name:        "It filters application according to the paths with Exclude",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "p1/*", Exclude: true}, {Path: "*"}, {Path: "*/*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"p1/app2",
-					"p1/app3",
-					"p2/app3",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"p1/app2",
+				"p1/app3",
+				"p2/app3",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{
 					"path": map[string]any{
@@ -559,15 +551,14 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		{
 			name:        "Expecting same exclude behavior with different order",
 			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}, {Path: "*/*"}, {Path: "p1/*", Exclude: true}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{
-					"app1",
-					"app2",
-					"p1/app2",
-					"p1/app3",
-					"p2/app3",
-				}, nil
+			repoApps: []string{
+				"app1",
+				"app2",
+				"p1/app2",
+				"p1/app3",
+				"p2/app3",
 			},
+			repoError: nil,
 			expected: []map[string]any{
 				{
 					"path": map[string]any{
@@ -604,20 +595,18 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:        "handles empty response from repo server",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{}, nil
-			},
+			name:          "handles empty response from repo server",
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps:      []string{},
+			repoError:     nil,
 			expected:      []map[string]any{},
 			expectedError: nil,
 		},
 		{
-			name:        "handles error from repo server",
-			directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{}, errors.New("error")
-			},
+			name:          "handles error from repo server",
+			directories:   []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+			repoApps:      []string{},
+			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
 			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
 		},
@@ -629,10 +618,11 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			gitGenerator := newGitGenerator(
-				func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-					return nil, errors.New("this should not be called")
-				}, testCaseCopy.getDirectories, "")
+			argoCDServiceMock := mocks.Repos{}
+
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -665,6 +655,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
+
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -673,18 +665,20 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
-		files         []v1alpha1.GitFileGeneratorItem
-		values        map[string]string
-		expected      []map[string]any
-		expectedError error
-		getFiles      services.GetFiles
+		files []v1alpha1.GitFileGeneratorItem
+		// repoFileContents maps repo path to the literal contents of that path
+		repoFileContents map[string][]byte
+		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
+		repoPathsError error
+		values         map[string]string
+		expected       []map[string]any
+		expectedError  error
 	}{
 		{
 			name:  "happy flow: create params from git files",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`{
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
    "cluster": {
        "owner": "john.doe@example.com",
        "name": "production",
@@ -699,15 +693,15 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
    },
    "key3": 123
 }`),
-					"cluster-config/staging/config.json": []byte(`{
+				"cluster-config/staging/config.json": []byte(`{
    "cluster": {
        "owner": "foo.bar@example.com",
        "name": "staging",
        "address": "https://kubernetes.default.svc"
    }
 }`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -743,9 +737,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		{
 			name:  "Value variable interpolation",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`{
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
    "cluster": {
        "owner": "john.doe@example.com",
        "name": "production",
@@ -760,15 +753,15 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
    },
    "key3": 123
 }`),
-					"cluster-config/staging/config.json": []byte(`{
+				"cluster-config/staging/config.json": []byte(`{
    "cluster": {
        "owner": "foo.bar@example.com",
        "name": "staging",
        "address": "https://kubernetes.default.svc"
    }
 }`),
-				}, nil
 			},
+			repoPathsError: nil,
 			values: map[string]string{
 				"aaa":   "{{ cluster.owner }}",
 				"no-op": "{{ this-does-not-exist }}",
@@ -810,31 +803,28 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:  "handles error during getting repo paths",
-			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return nil, errors.New("paths error")
-			},
-			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: paths error"),
+			name:             "handles error during getting repo paths",
+			files:            []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{},
+			repoPathsError:   errors.New("paths error"),
+			expected:         []map[string]any{},
+			expectedError:    errors.New("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`invalid json file`),
-				}, nil
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
-			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			repoPathsError: nil,
+			expected:       []map[string]any{},
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`
 [
 	{
 		"cluster": {
@@ -854,8 +844,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		}
 	}
 ]`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -888,9 +878,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		{
 			name:  "Test YAML flow",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.yaml": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.yaml": []byte(`
 cluster:
   owner: john.doe@example.com
   name: production
@@ -901,14 +890,14 @@ key2:
   key2_2:
     key2_2_1: val2_2_1
 `),
-					"cluster-config/staging/config.yaml": []byte(`
+				"cluster-config/staging/config.yaml": []byte(`
 cluster:
   owner: foo.bar@example.com
   name: staging
   address: https://kubernetes.default.svc
 `),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -943,9 +932,8 @@ cluster:
 		{
 			name:  "test YAML array",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.yaml": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.yaml": []byte(`
 - cluster:
     owner: john.doe@example.com
     name: production
@@ -956,8 +944,8 @@ cluster:
     owner: john.doe@example.com
     name: staging
     address: https://kubernetes.default.svc`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -994,9 +982,12 @@ cluster:
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			gitGenerator := newGitGenerator(testCaseCopy.getFiles, func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return nil, errors.New("this should not be called")
-			}, "")
+
+			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1029,6 +1020,8 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
+
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1037,17 +1030,19 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
-		files         []v1alpha1.GitFileGeneratorItem
-		expected      []map[string]any
-		expectedError error
-		getFiles      services.GetFiles
+		files []v1alpha1.GitFileGeneratorItem
+		// repoFileContents maps repo path to the literal contents of that path
+		repoFileContents map[string][]byte
+		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
+		repoPathsError error
+		expected       []map[string]any
+		expectedError  error
 	}{
 		{
 			name:  "happy flow: create params from git files",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`{
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{
    "cluster": {
        "owner": "john.doe@example.com",
        "name": "production",
@@ -1062,15 +1057,15 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
    },
    "key3": 123
 }`),
-					"cluster-config/staging/config.json": []byte(`{
+				"cluster-config/staging/config.json": []byte(`{
    "cluster": {
        "owner": "foo.bar@example.com",
        "name": "staging",
        "address": "https://kubernetes.default.svc"
    }
 }`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster": map[string]any{
@@ -1120,31 +1115,28 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:  "handles error during getting repo paths",
-			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return nil, errors.New("paths error")
-			},
-			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: paths error"),
+			name:             "handles error during getting repo paths",
+			files:            []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{},
+			repoPathsError:   errors.New("paths error"),
+			expected:         []map[string]any{},
+			expectedError:    errors.New("error generating params from git: paths error"),
 		},
 		{
 			name:  "test invalid JSON file returns error",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`invalid json file`),
-				}, nil
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`invalid json file`),
 			},
-			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			repoPathsError: nil,
+			expected:       []map[string]any{},
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.json": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`
 [
 	{
 		"cluster": {
@@ -1164,8 +1156,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		}
 	}
 ]`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster": map[string]any{
@@ -1212,9 +1204,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 		{
 			name:  "Test YAML flow",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.yaml": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.yaml": []byte(`
 cluster:
   owner: john.doe@example.com
   name: production
@@ -1225,14 +1216,14 @@ key2:
   key2_2:
     key2_2_1: val2_2_1
 `),
-					"cluster-config/staging/config.yaml": []byte(`
+				"cluster-config/staging/config.yaml": []byte(`
 cluster:
   owner: foo.bar@example.com
   name: staging
   address: https://kubernetes.default.svc
 `),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster": map[string]any{
@@ -1283,9 +1274,8 @@ cluster:
 		{
 			name:  "test YAML array",
 			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
-			getFiles: func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-				return map[string][]byte{
-					"cluster-config/production/config.yaml": []byte(`
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.yaml": []byte(`
 - cluster:
     owner: john.doe@example.com
     name: production
@@ -1296,8 +1286,8 @@ cluster:
     owner: john.doe@example.com
     name: staging
     address: https://kubernetes.default.svc`),
-				}, nil
 			},
+			repoPathsError: nil,
 			expected: []map[string]any{
 				{
 					"cluster": map[string]any{
@@ -1348,9 +1338,12 @@ cluster:
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			gitGenerator := newGitGenerator(testCaseCopy.getFiles, func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return nil, errors.New("this should not be called")
-			}, "")
+
+			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1383,28 +1376,33 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
+
+			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
 
 func TestGitGenerator_GenerateParams(t *testing.T) {
 	cases := []struct {
-		name            string
-		directories     []v1alpha1.GitDirectoryGeneratorItem
-		pathParamPrefix string
-		repoApps        []string
-		values          map[string]string
-		expected        []map[string]any
-		expectedError   error
-		appset          v1alpha1.ApplicationSet
-		getDirectories  services.GetDirectories
-		appProject      v1alpha1.AppProject
+		name               string
+		appProject         v1alpha1.AppProject
+		directories        []v1alpha1.GitDirectoryGeneratorItem
+		pathParamPrefix    string
+		repoApps           []string
+		repoPathsError     error
+		repoFileContents   map[string][]byte
+		values             map[string]string
+		expected           []map[string]any
+		expectedError      error
+		appset             v1alpha1.ApplicationSet
+		callGetDirectories bool
 	}{
 		{
 			name: "Signature Verification - ignores templated project field",
 			repoApps: []string{
 				"app1",
 			},
+			repoPathsError: nil,
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "set",
@@ -1429,20 +1427,16 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return []string{"app1"}, nil
-			},
-			expected:      []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError: nil,
+			callGetDirectories: true,
+			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      nil,
 		},
 		{
 			name: "Signature Verification - Checks for non-templated project field",
 			repoApps: []string{
 				"app1",
 			},
-			getDirectories: func(_ context.Context, _, _, _ string, _, _ bool) ([]string, error) {
-				return nil, errors.New("this should not be called")
-			},
+			repoPathsError: nil,
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "set",
@@ -1467,18 +1461,16 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:      []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError: errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
+			callGetDirectories: false,
+			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
 		{
 			name: "Project field is not templated - verify that project is passed through to repo-server as-is",
 			repoApps: []string{
 				"app1",
 			},
-			getDirectories: func(_ context.Context, _, _, project string, _, _ bool) ([]string, error) {
-				require.Equal(t, "project", project)
-				return []string{"app1"}, nil
-			},
+			callGetDirectories: true,
 			appProject: v1alpha1.AppProject{
 				TypeMeta: metav1.TypeMeta{},
 				ObjectMeta: metav1.ObjectMeta{
@@ -1514,10 +1506,11 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name: "Project field is not templated - verify that project is passed through to repo-server as empty string",
+			name: "Project field is templated - verify that project is passed through to repo-server as empty string",
 			repoApps: []string{
 				"app1",
 			},
+			callGetDirectories: true,
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "set",
@@ -1542,18 +1535,17 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			getDirectories: func(_ context.Context, _, _, project string, _, _ bool) ([]string, error) {
-				require.Equal(t, "", project)
-				return []string{"app1"}, nil
-			},
 			expected:      []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
 			expectedError: nil,
 		},
 	}
 	for _, testCase := range cases {
-		gitGenerator := newGitGenerator(func(_ context.Context, _, _, _, _ string, _, _ bool) (map[string][]byte, error) {
-			return nil, errors.New("this should not be called")
-		}, testCase.getDirectories, "argocd")
+		argoCDServiceMock := mocks.Repos{}
+
+		if testCase.callGetDirectories {
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+		}
+		gitGenerator := NewGitGenerator(&argoCDServiceMock, "argocd")
 
 		scheme := runtime.NewScheme()
 		err := v1alpha1.AddToScheme(scheme)
@@ -1569,5 +1561,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, testCase.expected, got)
 		}
+
+		argoCDServiceMock.AssertExpectations(t)
 	}
 }

@@ -18,11 +18,6 @@ type argoCDService struct {
 	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
 
-type (
-	GetFiles       = func(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
-	GetDirectories = func(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
-)
-
 type Repos interface {
 	// GetFiles returns content of files (not directories) within the target repo
 	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
