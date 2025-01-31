@@ -317,7 +317,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = GetScopesOrDefault(config.RequestedScopes)
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	} else if a.settings.IsDexConfigured() {
-		scopes = append(GetScopesOrDefault(scopes), common.DexFederatedScope)
+		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
 
 	oauth2Config, err := a.oauth2Config(r, scopes)
