@@ -753,7 +753,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		}
 		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps.GetServerSideDiffDryRunApplier()))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
