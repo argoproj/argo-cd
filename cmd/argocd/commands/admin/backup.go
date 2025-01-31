@@ -389,7 +389,7 @@ func NewImportCommand() *cobra.Command {
 				}
 			}
 			duration := time.Since(tt)
-			fmt.Printf("import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
+			fmt.Printf("Import process completed successfully in namespace %s at %s, duration: %s\n", namespace, time.Now().Format(time.RFC3339), duration)
 		},
 	}
 
