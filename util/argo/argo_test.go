@@ -646,6 +646,14 @@ func TestFilterByPath(t *testing.T) {
 		},
 		{
 			Spec: argoappv1.ApplicationSpec{
+				Sources: argoappv1.ApplicationSources{
+					{Path: "example/apps/multi/source1"},
+					{Path: "example/apps/multi/source2"},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
 				Source: &argoappv1.ApplicationSource{
 					Path: "example/apps/bar/chart",
 				},
@@ -653,21 +661,40 @@ func TestFilterByPath(t *testing.T) {
 		},
 	}
 
+	t.Run("Empty path returns all apps", func(t *testing.T) {
+		res := FilterByPath(apps, "")
+		assert.Equal(t, len(apps), len(res))
+	})
+
 	t.Run("No apps for matching path", func(t *testing.T) {
 		res := FilterByPath(apps, "example/apps/baz")
 		assert.Empty(t, res)
 	})
 
-	t.Run("Exact path match", func(t *testing.T) {
+	t.Run("Exact path match - single source", func(t *testing.T) {
 		res := FilterByPath(apps, "example/apps/foo/chart")
+		assert.Len(t, res, 1)
+		assert.Equal(t, filepath.ToSlash(filepath.Clean("example/apps/foo/chart")), res[0].Spec.Source.Path)
+	})
+
+	t.Run("Multiple sources - first source path match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/multi/source1")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/multi/source1", res[0].Spec.Sources[0].Path)
+	})
+
+	t.Run("Multiple sources - second source path match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/multi/source2")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/multi/source2", res[0].Spec.Sources[1].Path)
+	})
+
+	t.Run("Relative path match", func(t *testing.T) {
+		res := FilterByPath(apps, "./example/apps/foo/chart")
 		assert.Len(t, res, 1)
 		assert.Equal(t, "example/apps/foo/chart", res[0].Spec.Source.Path)
 	})
 
-	t.Run("Multiple apps matching path", func(t *testing.T) {
-		res := FilterByPath(apps, "example/apps/foo")
-		assert.Len(t, res, 2)
-	})
 }
 
 func TestFilterByFiles(t *testing.T) {

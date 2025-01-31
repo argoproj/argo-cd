@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -116,14 +117,42 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 }
 
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	filteredApps := make([]argoappv1.Application, 0)
-	for _, app := range apps {
-		if app.Spec.Source != nil && (app.Spec.Source.Path == path || strings.HasPrefix(app.Spec.Source.Path, path+"/")) {
-			filteredApps = append(filteredApps, app)
-		}
-	}
-	return filteredApps
+    if path == "" {
+        return apps
+    }
+
+    absPath, err := filepath.Abs(path)
+    if err != nil {
+        absPath = path 
+    }
+    absPath = filepath.ToSlash(filepath.Clean(absPath))
+    relPath := filepath.ToSlash(filepath.Clean(path))
+
+    items := make([]argoappv1.Application, 0)
+
+    for _, app := range apps {
+        if app.Spec.Source != nil {
+            appPath := filepath.ToSlash(filepath.Clean(app.Spec.Source.Path))            
+            if appPath == absPath || appPath == relPath { 
+                items = append(items, app)
+                continue
+            }
+        }
+
+        if app.Spec.Sources != nil {
+            for _, source := range app.Spec.Sources {
+                appPath := filepath.ToSlash(filepath.Clean(source.Path))
+                if appPath == absPath || appPath == relPath {
+                    items = append(items, app)
+                    break
+                }
+            }
+        }
+    }
+
+    return items
 }
+
 
 func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
 	fileSet := make(map[string]bool)
