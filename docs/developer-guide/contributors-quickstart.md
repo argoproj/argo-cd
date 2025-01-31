@@ -40,7 +40,7 @@ git remote add upstream https://github.com/argoproj/argo-cd.git
 1. Install development tools:
 ```shell
 make install-go-tools-local
-make install-code-gen-tools-local
+make install-codegen-tools-local
 ```
 
 ### Install Go
