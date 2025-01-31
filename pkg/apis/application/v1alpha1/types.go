@@ -39,6 +39,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/helm"
@@ -2435,7 +2437,7 @@ type ResourceActionParam struct {
 	Default string `json:"default,omitempty" protobuf:"bytes,4,opt,name=default"`
 }
 
-// TODO: refactor to use rbacpolicy.ActionGet, rbacpolicy.ActionCreate, without import cycle
+// TODO: refactor to use rbac.ActionGet, rbac.ActionCreate, without import cycle
 var validActions = map[string]bool{
 	"get":      true,
 	"create":   true,
@@ -2464,19 +2466,6 @@ func isValidAction(action string) bool {
 	return false
 }
 
-// TODO: same as validActions, refacotor to use rbacpolicy.ResourceApplications etc.
-var validResources = map[string]bool{
-	"applications": true,
-	"repositories": true,
-	"clusters":     true,
-	"exec":         true,
-	"logs":         true,
-}
-
-func isValidResource(resource string) bool {
-	return validResources[resource]
-}
-
 func isValidObject(proj string, object string) bool {
 	// match against <PROJECT>[/<NAMESPACE>]/<APPLICATION>
 	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s(/[*\w-.]+)?/[*\w-.]+$`, regexp.QuoteMeta(proj)))
@@ -2496,8 +2485,8 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// resource
 	resource := strings.Trim(policyComponents[2], " ")
-	if !isValidResource(resource) {
-		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'repositories' or 'clusters', not '%s'", policy, resource)
+	if !rbac.ProjectScoped[resource] {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': project resource must be: 'applications', 'applicationsets', 'repositories', 'exec', 'logs' or 'clusters', not '%s'", policy, resource)
 	}
 	// action
 	action := strings.Trim(policyComponents[3], " ")

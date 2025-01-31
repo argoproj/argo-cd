@@ -26,7 +26,7 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
         {applications => (
             <React.Fragment>
                 <p>POLICY RULES</p>
-                <div>Manage this role's permissions to applications or repositories</div>
+                <div>Manage this role's permissions to applications, appsets, repositories, clusters, exec and logs</div>
                 <div className='argo-table-list'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
