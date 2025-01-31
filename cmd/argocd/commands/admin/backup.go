@@ -310,7 +310,7 @@ func NewImportCommand() *cobra.Command {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)
 						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
 						if apierrors.IsConflict(err) {
-							fmt.Printf("failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
+							fmt.Printf("Failed to update %s/%s %s in namespace %s: %v\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), err)
 							if overrideOnConflict {
 								err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 									fmt.Printf("resource conflict: retry update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
