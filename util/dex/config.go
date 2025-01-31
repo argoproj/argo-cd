@@ -84,12 +84,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 		"redirectURIs": append([]string{redirectURL}, additionalRedirectURLs...),
 	}
 	argoCDPKCEStaticClient := map[string]any{
-		"id":   "argo-cd-pkce",
-		"name": "Argo CD PKCE",
+		"id":     "argo-cd-pkce",
+		"name":   "Argo CD PKCE",
+		"secret": argocdSettings.DexOAuth2ClientSecret(),
 		"redirectURIs": []string{
-			"http://localhost:4000/pkce/verify",
+			"http://localhost:4000/auth/callback",
 		},
-		"public": true,
 	}
 	argoCDCLIStaticClient := map[string]any{
 		"id":     common.ArgoCDCLIClientAppID,
