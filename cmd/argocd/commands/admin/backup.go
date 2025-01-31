@@ -315,12 +315,10 @@ func NewImportCommand() *cobra.Command {
 								err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 									fmt.Printf("resource conflict: retry update for Group: %s, Kind: %s, Name: %s, Namespace: %s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace())
 									liveObj, getErr := dynClient.Get(ctx, newLive.GetName(), metav1.GetOptions{})
-									newLive.SetResourceVersion(liveObj.GetResourceVersion())
-									annotations := newLive.GetAnnotations()
-									newLive.SetAnnotations(annotations)
 									if getErr != nil {
 										errors.CheckError(getErr)
 									}
+									newLive.SetResourceVersion(liveObj.GetResourceVersion())
 									_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
 									return err
 								})
