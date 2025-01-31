@@ -969,7 +969,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	accountpkg.RegisterAccountServiceServer(grpcS, server.serviceSet.AccountService)
 	certificatepkg.RegisterCertificateServiceServer(grpcS, server.serviceSet.CertificateService)
 	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, server.serviceSet.GpgkeyService)
-	// RegisterWithClientGo reflection service on gRPC server.
+	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
 	grpc_prometheus.Register(grpcS)
 	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs())

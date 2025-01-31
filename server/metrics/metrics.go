@@ -81,7 +81,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(argoVersion)
 
-	kubectlMetricsServer := metricsutil.NewKubectlMetrics(common.DefaultServerName)
+	kubectlMetricsServer := metricsutil.NewKubectlMetrics()
 	kubectlMetricsServer.RegisterWithClientGo()
 	metricsutil.RegisterWithPrometheus(registry)
 
