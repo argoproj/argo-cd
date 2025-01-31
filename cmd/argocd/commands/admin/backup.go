@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -400,7 +401,7 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&overrideOnConflict, "override-on-conflict", false, "Override the resource on conflict when updating resources")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
-	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io --skip-resources-with-labels  my-other-label/example.io'")
+	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io=true --skip-resources-with-labels  my-other-label/example.io=true'")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
@@ -506,9 +507,13 @@ func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels 
 	if len(skipResourcesWithLabels) == 0 {
 		return false
 	}
-	labels := bak.GetLabels()
-	for _, key := range skipResourcesWithLabels {
-		if _, exists := labels[key]; exists {
+	for _, kv := range skipResourcesWithLabels {
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, value := parts[0], parts[1]
+		if val, ok := bak.GetLabels()[key]; ok && val == value {
 			return true
 		}
 	}

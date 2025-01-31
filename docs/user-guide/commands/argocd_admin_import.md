@@ -35,7 +35,7 @@ argocd admin import SOURCE [flags]
       --prune                                Prune secrets, applications and projects which do not appear in the backup
       --request-timeout string               The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                        The address and port of the Kubernetes API server
-      --skip-resources-with-labels strings   Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io --skip-resources-with-labels  my-other-label/example.io'
+      --skip-resources-with-labels strings   Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io=true --skip-resources-with-labels  my-other-label/example.io=true'
       --stop-operation                       Stop any existing operations
       --tls-server-name string               If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                         Bearer token for authentication to the API server

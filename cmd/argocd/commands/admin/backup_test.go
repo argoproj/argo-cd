@@ -104,7 +104,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"test-label", "other-label"},
+			skipLabels: []string{"test-label=value"},
 			expected:   true,
 		},
 		{
@@ -118,7 +118,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"test-label", "other-label"},
+			skipLabels: []string{"test-label=value"},
 			expected:   false,
 		},
 		{
@@ -136,6 +136,21 @@ func TestIsLabelMatches(t *testing.T) {
 			expected:   false,
 		},
 		{
+			name: "No labels value",
+			obj: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{
+							"test-label":    "value",
+							"another-label": "value2",
+						},
+					},
+				},
+			},
+			skipLabels: []string{"test-label"},
+			expected:   false,
+		},
+		{
 			name: "Multiple labels, one matches",
 			obj: &unstructured.Unstructured{
 				Object: map[string]any{
@@ -147,7 +162,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"another-label"},
+			skipLabels: []string{"another-label=value2"},
 			expected:   true,
 		},
 	}
