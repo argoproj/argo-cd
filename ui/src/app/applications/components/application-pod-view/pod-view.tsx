@@ -11,7 +11,7 @@ import {PodViewPreferences, services, ViewPreferences} from '../../../shared/ser
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, podRequests} from '../utils';
 
 import './pod-view.scss';
 import {PodTooltip} from './pod-tooltip';
@@ -90,13 +90,13 @@ export class PodView extends React.Component<PodViewProps> {
                                         if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
                                             return <React.Fragment />;
                                         }
+                                        const GroupPodResources = calculatePodGrouprResquests(group.pods);
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
-                                                <div
-                                                    className='pod-view__node__container--header'
-                                                    onClick={() => this.props.onItemClick(group.fullName)}
-                                                    style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
-                                                    <div style={{display: 'flex', alignItems: 'center'}}>
+                                                <div className='pod-view__node__container--header'>
+                                                    <div
+                                                        style={{display: 'flex', alignItems: 'center', ...(group.kind !== 'node' && {cursor: 'pointer'})}}
+                                                        onClick={() => this.props.onItemClick(group.fullName)}>
                                                         <div style={{marginRight: '10px'}}>
                                                             <ResourceIcon kind={group.kind || 'Unknown'} />
                                                             <br />
@@ -138,6 +138,28 @@ export class PodView extends React.Component<PodViewProps> {
                                                         </div>
                                                     ) : (
                                                         <div className='pod-view__node__info'>
+                                                            {
+                                                                <Tooltip
+                                                                    content={
+                                                                        <React.Fragment>
+                                                                            <div className='row'> Requests: </div>
+                                                                            <div className='row'>
+                                                                                <div className='columns small-6' style={{whiteSpace: 'nowrap'}}>
+                                                                                    CPU:
+                                                                                </div>
+                                                                                <div className='columns small-6'>{GroupPodResources.cpuRequest}</div>
+                                                                            </div>
+                                                                            <div className='row'>
+                                                                                <div className='columns small-6' style={{whiteSpace: 'nowrap'}}>
+                                                                                    Memory:
+                                                                                </div>
+                                                                                <div className='columns small-6'>{GroupPodResources.memoryRequests}</div>
+                                                                            </div>
+                                                                        </React.Fragment>
+                                                                    }>
+                                                                    <div id='cost'> Requests </div>
+                                                                </Tooltip>
+                                                            }
                                                             {group.createdAt ? (
                                                                 <div>
                                                                     <Moment fromNow={true} ago={true}>
@@ -369,7 +391,7 @@ const labelForSortMode = {
 };
 
 const sizes = ['Bytes', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi', 'Yi'];
-function formatSize(bytes: number) {
+export function formatSize(bytes: number) {
     if (!bytes) {
         return '0 Bytes';
     }
@@ -386,6 +408,31 @@ function formatMetric(name: ResourceName, val: number) {
     }
     // cpu millicores
     return (val || '0') + 'm';
+}
+
+function calculatePodGrouprResquests(pods: Pod[]) {
+    const resources = {
+        cpu: 0,
+        memory: 0
+    };
+
+    pods.forEach(pod => {
+        pod.info?.forEach(info => {
+            const numericValue = parseInt(info.value, 10);
+
+            if (info.name === podRequests.CPU) {
+                resources.cpu += numericValue;
+            }
+            if (info.name === podRequests.MEMORY) {
+                resources.memory += numericValue;
+            }
+        });
+    });
+
+    return {
+        cpuRequest: `${resources.cpu}m`,
+        memoryRequests: `${formatSize(resources.memory / 1000)}` // divide by 1000 to convert "milli bytes" to bytes
+    };
 }
 
 function renderStats(info: HostResourceInfo) {
