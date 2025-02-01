@@ -29,7 +29,9 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utiltest "github.com/argoproj/argo-cd/v3/util/test"
@@ -98,11 +100,12 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
-	if subject != "admin" {
-		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
-	}
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "admin", argoClaims.Subject)
 }
 
 func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
@@ -113,9 +116,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()-1), "123")
-	if err != nil {
-		t.Errorf("Could not create token: %v", err)
-	}
+	require.NoError(t, err)
 
 	// verify new token is generated is login token is expiring soon
 	_, newToken, err := mgr.Parse(token)
@@ -125,9 +126,14 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	// verify that new token is valid and for the same user
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
-	assert.Equal(t, "admin", subject)
+
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	require.NoError(t, err)
+
+	assert.Equal(t, "admin", argoClaims.Subject)
 }
 
 func TestSessionManager_AdminToken_Revoked(t *testing.T) {
@@ -197,8 +203,16 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		jwtToken, err := mgr.Create("proj:default:test", 100, "abc")
 		require.NoError(t, err)
 
-		_, _, err = mgr.Parse(jwtToken)
+		claims, _, err := mgr.Parse(jwtToken)
 		require.NoError(t, err)
+
+		mapClaims, err := jwtutil.MapClaims(claims)
+		require.NoError(t, err)
+
+		argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+		require.NoError(t, err)
+
+		assert.Equal(t, "proj:default:test", argoClaims.Subject)
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -221,7 +235,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 }
 
 type tokenVerifierMock struct {
-	claims *jwt.RegisteredClaims
+	claims jwt.Claims
 	err    error
 }
 
@@ -338,29 +352,36 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var loggedOutContext = context.Background()
-
-//nolint:staticcheck
-var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+var (
+	loggedOutContext = context.Background()
+	//nolint:staticcheck
+	loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+	//nolint:staticcheck
+	loggedInContextFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
+)
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
+	assert.Equal(t, "qux", Iss(loggedInContextFederated))
 }
 
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
+	assert.True(t, LoggedIn(loggedInContextFederated))
 }
 
 func TestUsername(t *testing.T) {
 	assert.Empty(t, Username(loggedOutContext))
 	assert.Equal(t, "bar", Username(loggedInContext))
+	assert.Equal(t, "bar", Username(loggedInContextFederated))
 }
 
-func TestSub(t *testing.T) {
-	assert.Empty(t, Sub(loggedOutContext))
-	assert.Equal(t, "foo", Sub(loggedInContext))
+func TestGetUserIdentifier(t *testing.T) {
+	assert.Empty(t, GetUserIdentifier(loggedOutContext))
+	assert.Equal(t, "foo", GetUserIdentifier(loggedInContext))
+	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
 }
 
 func TestGroups(t *testing.T) {

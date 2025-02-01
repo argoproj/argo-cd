@@ -37,15 +37,16 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	issuer := session.Iss(ctx)
-	username := session.Sub(ctx)
-	updatedUsername := username
+	username := session.GetUserIdentifier(ctx)
 
+	updatedUsername := username
 	if q.Name != "" {
 		updatedUsername = q.Name
 	}
+
 	// check for permission is user is trying to change someone else's password
 	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
+	issuer := session.Iss(ctx)
 	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
 			return nil, fmt.Errorf("permission denied: %w", err)
@@ -168,8 +169,10 @@ func toApiAccount(name string, a settings.Account) *account.Account {
 }
 
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
+	id := session.GetUserIdentifier(ctx)
+
 	// account has always has access to itself
-	if session.Sub(ctx) == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, action, account); err != nil {

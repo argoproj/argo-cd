@@ -169,6 +169,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		Issuer:                   o.Issuer,
 		ClientID:                 o.ClientID,
 		ClientSecret:             o.ClientSecret,
+		Azure:                    o.Azure,
 		CLIClientID:              o.CLIClientID,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
@@ -197,6 +198,11 @@ type OIDCConfig struct {
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
+	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+}
+
+type AzureOIDCConfig struct {
+	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -2022,6 +2028,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 		return a.DexOAuth2ClientSecret()
 	}
 	return ""
+}
+
+func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.UseWorkloadIdentity
+	}
+	return false
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
