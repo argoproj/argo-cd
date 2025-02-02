@@ -158,6 +158,8 @@ const (
 	ArgoCDCLIClientAppName = "Argo CD CLI"
 	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
 	ArgoCDCLIClientAppID = "argo-cd-cli"
+	// DexFederatedScope allows to receive the federated_claims from Dex. https://dexidp.io/docs/configuration/custom-scopes-claims-clients/
+	DexFederatedScope = "federated:id"
 )
 
 // Resource metadata labels and annotations (keys and values) used by Argo CD components
