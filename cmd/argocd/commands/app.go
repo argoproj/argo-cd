@@ -402,7 +402,6 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				})
 			}
 			getAppStateWithRetry := func() (*argoappv1.Application, error) {
-
 				type getResponse struct {
 					app *argoappv1.Application
 					err error
