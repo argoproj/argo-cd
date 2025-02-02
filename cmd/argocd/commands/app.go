@@ -2656,13 +2656,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			// Setting refresh = false because we don't want printFinalStatus to execute a refresh
 			refresh = false
 			// Updating the app object to the latest state
-			timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
+			app, err := appClient.Get(ctx, &application.ApplicationQuery{
 				Name:         &appRealName,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
 			// Update the app object
-			appWithLock.SetApp(timedOutAppState)
+			appWithLock.SetApp(app)
 			// Cancel the context to stop the watch
 			cancel()
 
