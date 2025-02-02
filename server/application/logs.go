@@ -120,16 +120,22 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 	var sentAt time.Time
 
 	ticker := time.NewTicker(bufferingDuration)
+	done := make(chan struct{})
 	go func() {
-		for range ticker.C {
-			sentAtLock.Lock()
-			// waited long enough for logs from each streams, send everything accumulated
-			if sentAt.Add(bufferingDuration).Before(time.Now()) {
-				_ = send(true)
-				sentAt = time.Now()
-			}
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				sentAtLock.Lock()
+				// waited long enough for logs from each streams, send everything accumulated
+				if sentAt.Add(bufferingDuration).Before(time.Now()) {
+					_ = send(true)
+					sentAt = time.Now()
+				}
 
-			sentAtLock.Unlock()
+				sentAtLock.Unlock()
+			}
 		}
 	}()
 
@@ -145,6 +151,11 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 		_ = send(true)
 
 		ticker.Stop()
+		// ticker.Stop() does not close the channel, and it does not wait for the channel to be drained. So we need to
+		// explicitly prevent the gorountine from leaking by closing the channel. We also need to prevent the goroutine
+		// from calling `send` again, because `send` pushes to the `merged` channel which we're about to close.
+		// This describes the approach nicely: https://stackoverflow.com/questions/17797754/ticker-stop-behaviour-in-golang
+		done <- struct{}{}
 		close(merged)
 	}()
 	return merged

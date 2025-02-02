@@ -9,10 +9,10 @@ import (
 	"log"
 	"net/http"
 
-	v1 "k8s.io/api/core/v1"
-	v1meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
 
 	"k8s.io/client-go/kubernetes"
 )
@@ -88,8 +88,8 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
-		_, err = secrets.Create(context.TODO(), &v1.Secret{
-			ObjectMeta: v1meta.ObjectMeta{
+		_, err = secrets.Create(context.TODO(), &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "repo-",
 				Namespace:    opts.Namespace,
 				Labels: map[string]string{
@@ -105,7 +105,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 				"url":     []byte(repo.Url),
 				"project": []byte("default"),
 			},
-		}, v1meta.CreateOptions{})
+		}, metav1.CreateOptions{})
 		rg.bar.Increment()
 		rg.bar.Play()
 	}
@@ -119,7 +119,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 func (rg *RepoGenerator) Clean(opts *util.GenerateOpts) error {
 	log.Printf("Clean repos")
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
-	return secrets.DeleteCollection(context.TODO(), v1meta.DeleteOptions{}, v1meta.ListOptions{
+	return secrets.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",
 	})
 }

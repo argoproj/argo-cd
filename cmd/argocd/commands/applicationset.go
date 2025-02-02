@@ -11,18 +11,18 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
-	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	arogappsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
 var appSetExample = templates.Examples(`
@@ -93,7 +93,6 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 			case "wide", "":
 				printAppSetSummaryTable(appSet)
-
 				if len(appSet.Status.Conditions) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -174,11 +173,12 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 
 				var action string
-				if existing == nil {
+				switch {
+				case existing == nil:
 					action = "created"
-				} else if !hasAppSetChanged(existing, created, upsert) {
+				case !hasAppSetChanged(existing, created, upsert):
 					action = "unchanged"
-				} else {
+				default:
 					action = "updated"
 				}
 
@@ -258,7 +258,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 
 			switch output {
 			case "yaml", "json":
-				var resources []interface{}
+				var resources []any
 				for i := range appsList {
 					app := appsList[i]
 					// backfill api version and kind because k8s client always return empty values for these fields
@@ -294,7 +294,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	# List all ApplicationSets
 	argocd appset list
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
@@ -397,7 +397,7 @@ func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
 func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
+	headers := []any{"NAME", "PROJECT", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
@@ -412,7 +412,7 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 				conditions = append(conditions, condition)
 			}
 		}
-		vals := []interface{}{
+		vals := []any{
 			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
@@ -435,7 +435,6 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
-	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
@@ -445,7 +444,17 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	} else {
 		fmt.Println("Sources:")
 	}
-	printAppSourceDetails(&source)
+
+	// if no source has been defined, print the default value for a source
+	if len(appSet.Spec.Template.Spec.GetSources()) == 0 {
+		src := appSet.Spec.Template.Spec.GetSource()
+		printAppSourceDetails(&src)
+	} else {
+		// otherwise range over the sources and print each source details
+		for _, source := range appSet.Spec.Template.Spec.GetSources() {
+			printAppSourceDetails(&source)
+		}
+	}
 
 	var (
 		syncPolicyStr string

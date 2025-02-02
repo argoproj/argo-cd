@@ -2,18 +2,18 @@ package common
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -26,6 +26,8 @@ const (
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
+	// DefaultCommitServerAddr is the gRPC address of the Argo CD commit server
+	DefaultCommitServerAddr = "argocd-commit-server:8086"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
@@ -62,15 +64,19 @@ const (
 	DefaultPortArgoCDMetrics          = 8082
 	DefaultPortArgoCDAPIServerMetrics = 8083
 	DefaultPortRepoServerMetrics      = 8084
+	DefaultPortCommitServer           = 8086
+	DefaultPortCommitServerMetrics    = 8087
 )
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAdminDashboard    = "localhost"
-	DefaultAddressAPIServer         = "0.0.0.0"
-	DefaultAddressAPIServerMetrics  = "0.0.0.0"
-	DefaultAddressRepoServer        = "0.0.0.0"
-	DefaultAddressRepoServerMetrics = "0.0.0.0"
+	DefaultAddressAdminDashboard      = "localhost"
+	DefaultAddressAPIServer           = "0.0.0.0"
+	DefaultAddressAPIServerMetrics    = "0.0.0.0"
+	DefaultAddressRepoServer          = "0.0.0.0"
+	DefaultAddressRepoServerMetrics   = "0.0.0.0"
+	DefaultAddressCommitServer        = "0.0.0.0"
+	DefaultAddressCommitServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system
@@ -152,6 +158,8 @@ const (
 	ArgoCDCLIClientAppName = "Argo CD CLI"
 	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
 	ArgoCDCLIClientAppID = "argo-cd-cli"
+	// DexFederatedScope allows to receive the federated_claims from Dex. https://dexidp.io/docs/configuration/custom-scopes-claims-clients/
+	DexFederatedScope = "federated:id"
 )
 
 // Resource metadata labels and annotations (keys and values) used by Argo CD components
@@ -175,6 +183,8 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
+	LabelValueSecretTypeRepositoryWrite = "repository-write"
 	// LabelValueSecretTypeSCMCreds indicates a secret type of SCM credentials
 	LabelValueSecretTypeSCMCreds = "scm-creds"
 
@@ -184,6 +194,10 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
+
+	// AnnotationIgnoreHealthCheck when set on an Application's immediate child indicates that its health check
+	// can be disregarded.
+	AnnotationIgnoreHealthCheck = "argocd.argoproj.io/ignore-healthcheck"
 
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
@@ -265,6 +279,8 @@ const (
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
 	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
+	// EnvLogFormatTimestamp is the timestamp format used in logs
+	EnvLogFormatTimestamp = "ARGOCD_LOG_FORMAT_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
@@ -342,20 +358,20 @@ const (
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
-	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
+	gnuPgHome := os.Getenv(EnvGnuPGHome)
+	if gnuPgHome == "" {
 		return DefaultGnuPgHomePath
-	} else {
-		return gnuPgHome
 	}
+	return gnuPgHome
 }
 
 // GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
 func GetPluginSockFilePath() string {
-	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
+	pluginSockFilePath := os.Getenv(EnvPluginSockFilePath)
+	if pluginSockFilePath == "" {
 		return DefaultPluginSockFilePath
-	} else {
-		return pluginSockFilePath
 	}
+	return pluginSockFilePath
 }
 
 // GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
@@ -443,7 +459,7 @@ SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it ex
 We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, v1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
 	}

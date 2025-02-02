@@ -1,0 +1,31 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  finalizers:
+    - connect.finalizers.platform.confluent.io
+  generation: 1
+  name: connect
+  namespace: confluent
+spec:
+  class: io.confluent.connect.sftp.SftpSinkConnector
+  configs:
+    topics: test-topic
+  connectClusterRef:
+    name: connect
+  name: test-sftp-connector
+  taskMax: 3
+status:
+  appState: Created
+  conditions:
+    - lastProbeTime: '2024-04-02T07:43:35Z'
+      lastTransitionTime: '2024-04-02T07:43:35Z'
+      message: Application is created
+      reason: Created
+      status: 'True'
+      type: platform.confluent.io/app-ready
+  connectorState: RUNNING
+  restartPolicy:
+    maxRetry: 10
+    type: OnFailure
+  state: CREATED
+  tasksReady: 3/3

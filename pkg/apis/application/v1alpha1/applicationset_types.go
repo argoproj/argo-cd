@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -447,15 +447,16 @@ type SCMProviderGenerator struct {
 }
 
 func (g *SCMProviderGenerator) CustomApiUrl() string {
-	if g.Github != nil {
+	switch {
+	case g.Github != nil:
 		return g.Github.API
-	} else if g.Gitlab != nil {
+	case g.Gitlab != nil:
 		return g.Gitlab.API
-	} else if g.Gitea != nil {
+	case g.Gitea != nil:
 		return g.Gitea.API
-	} else if g.BitbucketServer != nil {
+	case g.BitbucketServer != nil:
 		return g.BitbucketServer.API
-	} else if g.AzureDevOps != nil {
+	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
 	}
 	return ""
@@ -908,7 +909,7 @@ func (a *ApplicationSet) RefreshRequired() bool {
 // If the applicationset has a pre-existing condition of a type that is not in the evaluated list,
 // it will be preserved. If the applicationset has a pre-existing condition of a type, status, reason that
 // is in the evaluated list, but not in the incoming conditions list, it will be removed.
-func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, evaluatedTypes map[ApplicationSetConditionType]bool) {
+func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCondition, _ map[ApplicationSetConditionType]bool) {
 	applicationSetConditions := make([]ApplicationSetCondition, 0)
 	now := metav1.Now()
 	for i := range conditions {
@@ -960,7 +961,6 @@ func (status *ApplicationSetStatus) SetApplicationStatus(newStatus ApplicationSe
 func (a *ApplicationSet) QualifiedName() string {
 	if a.Namespace == "" {
 		return a.Name
-	} else {
-		return a.Namespace + "/" + a.Name
 	}
+	return a.Namespace + "/" + a.Name
 }

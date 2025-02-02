@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
+ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -140,7 +140,8 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
-    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-k8s-auth && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server
 
 USER $ARGOCD_USER_ID
 ENTRYPOINT ["/usr/bin/tini", "--"]

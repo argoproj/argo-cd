@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -18,15 +19,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 type AppOptions struct {
@@ -50,6 +51,7 @@ type AppOptions struct {
 	helmVersion                     string
 	helmPassCredentials             bool
 	helmSkipCrds                    bool
+	helmSkipSchemaValidation        bool
 	helmSkipTests                   bool
 	helmNamespace                   string
 	helmKubeVersion                 string
@@ -89,6 +91,13 @@ type AppOptions struct {
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
 	ref                             string
+	SourceName                      string
+	drySourceRepo                   string
+	drySourceRevision               string
+	drySourcePath                   string
+	syncSourceBranch                string
+	syncSourcePath                  string
+	hydrateToBranch                 string
 }
 
 // SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
@@ -110,6 +119,12 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.drySourceRepo, "dry-source-repo", "", "Repository URL of the app dry source")
+	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
+	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
+	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
+	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
+	command.Flags().StringVar(&opts.hydrateToBranch, "hydrate-to-branch", "", "The branch to hydrate the app to")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
@@ -125,6 +140,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
+	command.Flags().BoolVar(&opts.helmSkipSchemaValidation, "helm-skip-schema-validation", false, "Skip helm schema validation step")
 	command.Flags().BoolVar(&opts.helmSkipTests, "helm-skip-tests", false, "Skip helm test manifests installation step")
 	command.Flags().StringVar(&opts.helmNamespace, "helm-namespace", "", "Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace")
 	command.Flags().StringVar(&opts.helmKubeVersion, "helm-kube-version", "", "Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster")
@@ -164,6 +180,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
+	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
@@ -171,21 +188,28 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtrByPosition(sourcePosition)
-	if source == nil {
-		source = &argoappv1.ApplicationSource{}
-	}
-	source, visited = ConstructSource(source, *appOpts, flags)
-	if spec.HasMultipleSources() {
-		if sourcePosition == 0 {
-			spec.Sources[sourcePosition] = *source
-		} else if sourcePosition > 0 {
-			spec.Sources[sourcePosition-1] = *source
-		} else {
-			spec.Sources = append(spec.Sources, *source)
-		}
+	var h *argoappv1.SourceHydrator
+	h, hasHydratorFlag := constructSourceHydrator(spec.SourceHydrator, *appOpts, flags)
+	if hasHydratorFlag {
+		spec.SourceHydrator = h
 	} else {
-		spec.Source = source
+		source := spec.GetSourcePtrByPosition(sourcePosition)
+		if source == nil {
+			source = &argoappv1.ApplicationSource{}
+		}
+		source, visited = ConstructSource(source, *appOpts, flags)
+		if spec.HasMultipleSources() {
+			switch {
+			case sourcePosition == 0:
+				spec.Sources[sourcePosition] = *source
+			case sourcePosition > 0:
+				spec.Sources[sourcePosition-1] = *source
+			default:
+				spec.Sources = append(spec.Sources, *source)
+			}
+		} else {
+			spec.Source = source
+		}
 	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
@@ -236,7 +260,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.SyncPolicy = nil
 			}
 		case "sync-retry-limit":
-			if appOpts.retryLimit > 0 {
+			switch {
+			case appOpts.retryLimit > 0:
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
@@ -248,13 +273,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
-			} else if appOpts.retryLimit == 0 {
+			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				} else {
 					spec.SyncPolicy.Retry = nil
 				}
-			} else {
+			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
@@ -375,6 +400,7 @@ type helmOpts struct {
 	helmSetFiles            []string
 	passCredentials         bool
 	skipCrds                bool
+	skipSchemaValidation    bool
 	skipTests               bool
 	namespace               string
 	kubeVersion             string
@@ -408,6 +434,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.skipCrds {
 		src.Helm.SkipCrds = opts.skipCrds
+	}
+	if opts.skipSchemaValidation {
+		src.Helm.SkipSchemaValidation = opts.skipSchemaValidation
 	}
 	if opts.skipTests {
 		src.Helm.SkipTests = opts.skipTests
@@ -576,17 +605,15 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
 		},
-		Spec: argoappv1.ApplicationSpec{
-			Source: &argoappv1.ApplicationSource{},
-		},
+		Spec: argoappv1.ApplicationSpec{},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)
@@ -612,7 +639,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			app.Name = appName
 		}
 		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			return nil, stderrors.New("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
 		mergeLabels(app, labels)
@@ -679,6 +706,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "helm-skip-crds":
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
+		case "helm-skip-schema-validation":
+			setHelmOpt(source, helmOpts{skipSchemaValidation: appOpts.helmSkipSchemaValidation})
 		case "helm-skip-tests":
 			setHelmOpt(source, helmOpts{skipTests: appOpts.helmSkipTests})
 		case "helm-namespace":
@@ -751,9 +780,52 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setPluginOptEnvs(source, appOpts.pluginEnvs)
 		case "ref":
 			source.Ref = appOpts.ref
+		case "source-name":
+			source.Name = appOpts.SourceName
 		}
 	})
 	return source, visited
+}
+
+// constructSourceHydrator constructs a source hydrator from the command line flags. It returns the modified source
+// hydrator and a boolean indicating if any hydrator flags were set. We return instead of just modifying the source
+// hydrator in place because the given hydrator `h` might be nil. In that case, we need to create a new source hydrator
+// and return it.
+func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
+	hasHydratorFlag := false
+	ensureNotNil := func(notEmpty bool) {
+		hasHydratorFlag = true
+		if notEmpty && h == nil {
+			h = &argoappv1.SourceHydrator{}
+		}
+	}
+	flags.Visit(func(f *pflag.Flag) {
+		switch f.Name {
+		case "dry-source-repo":
+			ensureNotNil(appOpts.drySourceRepo != "")
+			h.DrySource.RepoURL = appOpts.drySourceRepo
+		case "dry-source-path":
+			ensureNotNil(appOpts.drySourcePath != "")
+			h.DrySource.Path = appOpts.drySourcePath
+		case "dry-source-revision":
+			ensureNotNil(appOpts.drySourceRevision != "")
+			h.DrySource.TargetRevision = appOpts.drySourceRevision
+		case "sync-source-branch":
+			ensureNotNil(appOpts.syncSourceBranch != "")
+			h.SyncSource.TargetBranch = appOpts.syncSourceBranch
+		case "sync-source-path":
+			ensureNotNil(appOpts.syncSourcePath != "")
+			h.SyncSource.Path = appOpts.syncSourcePath
+		case "hydrate-to-branch":
+			ensureNotNil(appOpts.hydrateToBranch != "")
+			if appOpts.hydrateToBranch == "" {
+				h.HydrateTo = nil
+			} else {
+				h.HydrateTo = &argoappv1.HydrateTo{TargetBranch: appOpts.hydrateToBranch}
+			}
+		}
+	})
+	return h, hasHydratorFlag
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {
@@ -826,10 +898,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, fmt.Errorf("No matching resource found")
+		return nil, stderrors.New("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }
