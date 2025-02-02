@@ -2355,10 +2355,6 @@ func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountSe
 func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
-	err := os.WriteFile("outputfile.txt", []byte("Simulating timeout for seconds"), 0644)
-	if err != nil {
-		fmt.Println(err)
-	}
 	time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
 
 	go func() {
