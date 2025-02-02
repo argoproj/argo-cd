@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 	"unicode/utf8"
@@ -2544,6 +2545,50 @@ func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, app
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
+// AppWithLock encapsulates the application and its lock
+type AppWithLock struct {
+	mu      sync.RWMutex
+	app     *argoappv1.Application
+	refresh bool
+}
+
+// NewAppWithLock creates a new AppWithLock instance
+func NewAppWithLock() *AppWithLock {
+	return &AppWithLock{}
+}
+
+// SetApp safely updates the application
+func (a *AppWithLock) SetApp(app *argoappv1.Application) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.app = app
+}
+
+// GetApp safely retrieves the application
+func (a *AppWithLock) GetApp() *argoappv1.Application {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.app
+}
+
+// UpdateApp safely updates the application with a modification function
+func (a *AppWithLock) UpdateApp(updateFn func(*argoappv1.Application)) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.app != nil {
+		updateFn(a.app)
+	}
+}
+
+// WithLock executes a function while holding the lock
+func (a *AppWithLock) WithLock(fn func(*argoappv1.Application)) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.app != nil {
+		fn(a.app)
+	}
+}
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
@@ -2551,9 +2596,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// `app` will be used to print the final status of the app
-	var app *argoappv1.Application
-
+	appWithLock := NewAppWithLock()
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
 	// time when the sync status lags behind when an operation completes
@@ -2622,30 +2665,33 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-			conn, appClient := acdClient.NewApplicationClientOrDie()
-			defer conn.Close()
-			// We want to print the final status of the app even if the conditions are not met
-			if printSummary {
-				fmt.Println()
-				fmt.Println("This is the state of the app after wait timed out:")
-			}
-			// Setting refresh = false because we don't want printFinalStatus to execute a refresh
-			refresh = false
-			// Updating the app object to the latest state
-			timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
-				Name:         &appRealName,
-				AppNamespace: &appNs,
-			})
-			errors.CheckError(err)
-			app = timedOutAppState
-			// Cancel the context to stop the watch
-			cancel()
+			appWithLock.WithLock(func(app *argoappv1.Application) {
+				conn, appClient := acdClient.NewApplicationClientOrDie()
+				defer conn.Close()
+				// We want to print the final status of the app even if the conditions are not met
+				if printSummary {
+					fmt.Println()
+					fmt.Println("This is the state of the app after wait timed out:")
+				}
+				// Setting refresh = false because we don't want printFinalStatus to execute a refresh
+				refresh = false
+				// Updating the app object to the latest state
+				timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
+					Name:         &appRealName,
+					AppNamespace: &appNs,
+				})
+				errors.CheckError(err)
+				app = timedOutAppState
+				// Cancel the context to stop the watch
+				cancel()
 
-			if printSummary {
-				fmt.Println()
-				fmt.Println("The command timed out waiting for the conditions to be met.")
-			}
+				if printSummary {
+					fmt.Println()
+					fmt.Println("The command timed out waiting for the conditions to be met.")
+				}
+			})
 		})
+
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
@@ -2656,11 +2702,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
+
 	app, err := appClient.Get(ctx, &application.ApplicationQuery{
 		Name:         &appRealName,
 		AppNamespace: &appNs,
 	})
 	errors.CheckError(err)
+	appWithLock.SetApp(app) // Update the app object
 
 	// printFinalStatus() will refresh and update the app object, potentially causing the app's
 	// status.operationState to be different than the version when we break out of the event loop.
@@ -2668,10 +2716,11 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// finalOperationState captures the operationState as it was seen when we met the conditions of
 	// the wait, so the caller can rely on it to determine the outcome of the operation.
 	// See: https://github.com/argoproj/argo-cd/issues/5592
-	finalOperationState := app.Status.OperationState
+	finalOperationState := appWithLock.GetApp().Status.OperationState
 
-	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, app.ResourceVersion)
+	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
+
 		app = &appEvent.Application
 
 		finalOperationState = app.Status.OperationState
@@ -2743,7 +2792,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 		_ = w.Flush()
 	}
-	_ = printFinalStatus(app)
+	_ = printFinalStatus(appWithLock.GetApp())
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
