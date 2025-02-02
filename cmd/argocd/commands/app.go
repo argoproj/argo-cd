@@ -2547,9 +2547,8 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 // AppWithLock encapsulates the application and its lock
 type AppWithLock struct {
-	mu      sync.RWMutex
-	app     *argoappv1.Application
-	refresh bool
+	mu  sync.RWMutex
+	app *argoappv1.Application
 }
 
 // NewAppWithLock creates a new AppWithLock instance
@@ -2569,24 +2568,6 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.app
-}
-
-// UpdateApp safely updates the application with a modification function
-func (a *AppWithLock) UpdateApp(updateFn func(*argoappv1.Application)) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.app != nil {
-		updateFn(a.app)
-	}
-}
-
-// WithLock executes a function while holding the lock
-func (a *AppWithLock) WithLock(fn func(*argoappv1.Application)) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.app != nil {
-		fn(a.app)
-	}
 }
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
@@ -2665,31 +2646,30 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-			appWithLock.WithLock(func(app *argoappv1.Application) {
-				conn, appClient := acdClient.NewApplicationClientOrDie()
-				defer conn.Close()
-				// We want to print the final status of the app even if the conditions are not met
-				if printSummary {
-					fmt.Println()
-					fmt.Println("This is the state of the app after wait timed out:")
-				}
-				// Setting refresh = false because we don't want printFinalStatus to execute a refresh
-				refresh = false
-				// Updating the app object to the latest state
-				timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
-					Name:         &appRealName,
-					AppNamespace: &appNs,
-				})
-				errors.CheckError(err)
-				app = timedOutAppState
-				// Cancel the context to stop the watch
-				cancel()
-
-				if printSummary {
-					fmt.Println()
-					fmt.Println("The command timed out waiting for the conditions to be met.")
-				}
+			conn, appClient := acdClient.NewApplicationClientOrDie()
+			defer conn.Close()
+			// We want to print the final status of the app even if the conditions are not met
+			if printSummary {
+				fmt.Println()
+				fmt.Println("This is the state of the app after wait timed out:")
+			}
+			// Setting refresh = false because we don't want printFinalStatus to execute a refresh
+			refresh = false
+			// Updating the app object to the latest state
+			timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
+				Name:         &appRealName,
+				AppNamespace: &appNs,
 			})
+			errors.CheckError(err)
+			// Update the app object
+			appWithLock.SetApp(timedOutAppState)
+			// Cancel the context to stop the watch
+			cancel()
+
+			if printSummary {
+				fmt.Println()
+				fmt.Println("The command timed out waiting for the conditions to be met.")
+			}
 		})
 
 	}
@@ -2721,7 +2701,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
 
-		app = &appEvent.Application
+		appWithLock.SetApp(&appEvent.Application)
+		app = appWithLock.GetApp()
 
 		finalOperationState = app.Status.OperationState
 		operationInProgress := false
