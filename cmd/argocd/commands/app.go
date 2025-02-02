@@ -384,6 +384,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 		Run: func(c *cobra.Command, args []string) {
 			ctx, cancel := context.WithCancel(c.Context())
+			defer cancel()
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -2519,10 +2520,16 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// `app` will be used to print the final status of the app
+	var app *argoappv1.Application
+
 	// refresh controls whether or not we refresh the app before printing the final status.
 	// We only want to do this when an operation is in progress, since operations are the only
 	// time when the sync status lags behind when an operation completes
 	refresh := false
+
+	// appUrl is declared here so that it can be used in the printFinalStatus function when the context is cancelled
+	appUrl := appURL(ctx, acdClient, appName)
 
 	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
 	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
@@ -2546,7 +2553,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		if printSummary {
 			fmt.Println()
-			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+			printAppSummaryTable(app, appUrl, nil)
 			fmt.Println()
 			if watch.operation {
 				printOperationResult(app.Status.OperationState)
@@ -2584,18 +2591,23 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	if timeout != 0 {
 		time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-			_, appClient := acdClient.NewApplicationClientOrDie()
-			_, err := appClient.Get(ctx, &application.ApplicationQuery{
+			conn, appClient := acdClient.NewApplicationClientOrDie()
+			defer conn.Close()
+			// We want to print the final status of the app even if the conditions are not met
+			if printSummary {
+				fmt.Println()
+				fmt.Println("This is the state of the app after wait timed out:")
+			}
+			// Setting refresh = false because we don't want printFinalStatus to execute a refresh
+			refresh = false
+			// Updating the app object to the latest state
+			timedOutAppState, err := appClient.Get(ctx, &application.ApplicationQuery{
 				Name:         &appRealName,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-
-			if printSummary {
-				fmt.Println()
-				fmt.Println("This is the state of the app after `wait` timed out:")
-			}
-
+			app = timedOutAppState
+			// Cancel the context to stop the watch
 			cancel()
 
 			if printSummary {
