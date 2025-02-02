@@ -2671,7 +2671,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				fmt.Println("The command timed out waiting for the conditions to be met.")
 			}
 		})
-
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
@@ -2682,7 +2681,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
-
 	app, err := appClient.Get(ctx, &application.ApplicationQuery{
 		Name:         &appRealName,
 		AppNamespace: &appNs,
@@ -2700,7 +2698,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
-
 		appWithLock.SetApp(&appEvent.Application)
 		app = appWithLock.GetApp()
 
