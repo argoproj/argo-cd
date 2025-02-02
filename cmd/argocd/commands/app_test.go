@@ -2355,8 +2355,6 @@ func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountSe
 func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
-	time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
-
 	go func() {
 		modifiedEvent := new(v1alpha1.ApplicationWatchEvent)
 		modifiedEvent.Type = watch.Modified
