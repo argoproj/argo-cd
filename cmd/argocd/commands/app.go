@@ -400,14 +400,45 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					cancel()
 				})
 			}
+			getAppStateWithRetry := func() (*argoappv1.Application, error) {
 
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{
-				Name:         &appName,
-				Refresh:      getRefreshType(refresh, hardRefresh),
-				AppNamespace: &appNs,
-			})
+				type getResponse struct {
+					app *argoappv1.Application
+					err error
+				}
+
+				ch := make(chan getResponse, 1)
+
+				go func() {
+					app, err := appIf.Get(ctx, &application.ApplicationQuery{
+						Name:         &appName,
+						Refresh:      getRefreshType(refresh, hardRefresh),
+						AppNamespace: &appNs,
+					})
+					ch <- getResponse{app: app, err: err}
+				}()
+
+				select {
+				case result := <-ch:
+					return result.app, result.err
+				case <-ctx.Done():
+					// Timeout occurred, try again without refresh flag
+					// Create new context for retry request
+					ctx := context.Background()
+					app, err := appIf.Get(ctx, &application.ApplicationQuery{
+						Name:         &appName,
+						AppNamespace: &appNs,
+					})
+					return app, err
+				}
+			}
+
+			app, err := getAppStateWithRetry()
 			errors.CheckError(err)
 
+			if ctx.Err() != nil {
+				ctx = context.Background() // Reset context for subsequent requests
+			}
 			if sourceName != "" && sourcePosition != -1 {
 				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
 			}
