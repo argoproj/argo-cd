@@ -319,7 +319,16 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 
 		auth := githttp.BasicAuth{Username: username, Password: token}
 		return &auth, nil
+	case AzureWorkloadIdentityCreds:
+		token, err := creds.GetAzureDevOpsAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+
+		auth := githttp.TokenAuth{Token: token}
+		return &auth, nil
 	}
+
 	return nil, nil
 }
 
@@ -463,10 +472,7 @@ func (m *nativeGitClient) Submodule() error {
 	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	if err := m.runCredentialedCmd("submodule", "update", "--init", "--recursive"); err != nil {
-		return err
-	}
-	return nil
+	return m.runCredentialedCmd("submodule", "update", "--init", "--recursive")
 }
 
 // Checkout checks out the specified revision
@@ -949,7 +955,6 @@ func (m *nativeGitClient) runCmd(args ...string) (string, error) {
 }
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
-// nolint:unparam
 func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {

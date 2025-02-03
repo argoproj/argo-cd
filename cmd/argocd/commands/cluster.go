@@ -117,13 +117,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
-			if clusterOpts.AwsClusterName != "" {
+			switch {
+			case clusterOpts.AwsClusterName != "":
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
 					Profile:     clusterOpts.AwsProfile,
 				}
-			} else if clusterOpts.ExecProviderCommand != "" {
+			case clusterOpts.ExecProviderCommand != "":
 				execProviderConf = &argoappv1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
@@ -131,7 +132,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
-			} else {
+			default:
 				// Install RBAC resources for managing the cluster
 				if clusterOpts.ServiceAccount != "" {
 					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
@@ -166,13 +167,14 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
-				endpoint, err := cmdutil.GetKubePublicEndpoint(clientset)
+				endpoint, caData, err := cmdutil.GetKubePublicEndpoint(clientset)
 				if err != nil || len(endpoint) == 0 {
 					log.Warnf("Failed to find the cluster endpoint from kube-public data: %v", err)
 					log.Infof("Falling back to the endpoint '%s' as listed in the kubeconfig context", clst.Server)
 					endpoint = clst.Server
 				}
 				clst.Server = endpoint
+				clst.Config.TLSClientConfig.CAData = caData
 			}
 
 			if clusterOpts.Shard >= 0 {
@@ -370,7 +372,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
-		// nolint:staticcheck
+		//nolint:staticcheck
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
@@ -465,7 +467,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
-		// nolint:staticcheck
+		//nolint:staticcheck
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()

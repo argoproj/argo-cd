@@ -1694,6 +1694,9 @@ message RepoCreds {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1774,6 +1777,9 @@ message Repository {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -2505,6 +2511,9 @@ message SyncWindow {
 
   // TimeZone of the sync that will be applied to the schedule
   optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

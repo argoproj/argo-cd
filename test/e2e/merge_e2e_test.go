@@ -166,11 +166,9 @@ func TestClusterMergeGenerator(t *testing.T) {
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook", "1"),
 		generateExpectedApp("cluster1", "helm-guestbook", "0"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook", "0"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook", "0"),
 		generateExpectedApp("cluster2", "helm-guestbook", "2"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook", "0"),
 	}
 
 	var expectedAppsNewNamespace []v1alpha1.Application

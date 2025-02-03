@@ -319,18 +319,20 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	var clientID string
 	var issuerURL string
 	var scopes []string
-	if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+	switch {
+	case set.OIDCConfig != nil && set.OIDCConfig.Issuer != "":
 		if set.OIDCConfig.CLIClientID != "" {
 			clientID = set.OIDCConfig.CLIClientID
 		} else {
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
-		scopes = set.OIDCConfig.Scopes
-	} else if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
+	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
+		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
 		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
@@ -341,7 +343,6 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
 	}
-	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)
 	}

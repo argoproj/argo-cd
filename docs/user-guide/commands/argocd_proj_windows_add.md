@@ -43,6 +43,7 @@ argocd proj windows add PROJECT \
       --namespaces strings     Namespaces that the schedule will be applied to. Comma separated, wildcards supported (e.g. --namespaces default,\*-prod)
       --schedule string        Sync window schedule in cron format. (e.g. --schedule "0 22 * * *")
       --time-zone string       Time zone of the sync window (default "UTC")
+      --use-and-operator       Use AND operator for matching applications, namespaces and clusters instead of the default OR operator
 ```
 
 ### Options inherited from parent commands
