@@ -2503,6 +2503,9 @@ message SyncWindow {
 
   // TimeZone of the sync that will be applied to the schedule
   optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

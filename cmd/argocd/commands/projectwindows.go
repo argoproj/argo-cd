@@ -149,6 +149,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		clusters     []string
 		manualSync   bool
 		timeZone     string
+		andOperator  bool
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -185,7 +186,7 @@ argocd proj windows add PROJECT \
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -200,6 +201,7 @@ argocd proj windows add PROJECT \
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
+	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
 
 	return command
 }
@@ -369,8 +371,9 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Applications),
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
-				formatManualOutput(window.ManualSync),
+				formatBoolEnabledOutput(window.ManualSync),
 				window.TimeZone,
+				formatBoolEnabledOutput(window.UseAndOperator),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
@@ -398,7 +401,7 @@ func formatBoolOutput(active bool) string {
 	return o
 }
 
-func formatManualOutput(active bool) string {
+func formatBoolEnabledOutput(active bool) string {
 	var o string
 	if active {
 		o = "Enabled"
