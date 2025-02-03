@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,7 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
