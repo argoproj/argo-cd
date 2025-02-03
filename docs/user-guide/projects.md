@@ -36,7 +36,9 @@ spec:
   sourceRepos: []
   sourceNamespaces: []
   destinations: []
-  clusterResourceWhitelist: []
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: '*'
 ```
 
 After you modify the `default` project, any application that attempts to use it will be denied until you explicitly move the application to a more permissive project.
