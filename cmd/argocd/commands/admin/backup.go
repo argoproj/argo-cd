@@ -74,6 +74,14 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace)
 
+			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+			errors.CheckError(err)
+			for _, secret := range secrets.Items {
+				if isArgoCDSecret(secret) {
+					export(writer, secret, namespace)
+				}
+			}
+
 			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
@@ -185,6 +193,14 @@ func NewImportCommand() *cobra.Command {
 			for _, cm := range configMaps.Items {
 				if isArgoCDConfigMap(cm.GetName()) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
+				}
+			}
+
+			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+			errors.CheckError(err)
+			for _, secret := range secrets.Items {
+				if isArgoCDSecret(secret) {
+					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
 				}
 			}
 			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
