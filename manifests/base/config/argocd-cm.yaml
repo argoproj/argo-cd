@@ -20,7 +20,6 @@ data:
       - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
       - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
       - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
-  # Rollouts affecting Resplicaset/Pods
   resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
     jqPathExpressions:
       # Ignore the rollout restart metadata
