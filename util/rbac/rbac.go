@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 
@@ -244,6 +245,7 @@ func (e *Enforcer) Enforce(rvals ...any) bool {
 func (e *Enforcer) EnforceErr(rvals ...any) error {
 	if !e.Enforce(rvals...) {
 		errMsg := "permission denied"
+
 		if len(rvals) > 0 {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
@@ -252,16 +254,20 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
 				if err == nil {
-					if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-						rvalsStrs = append(rvalsStrs, "sub: "+sub)
-					}
-					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+					if err == nil {
+						if argoClaims.GetUserIdentifier() != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
 					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
+
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
 	return nil

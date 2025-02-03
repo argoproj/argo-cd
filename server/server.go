@@ -106,8 +106,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/ui"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
+
 	"github.com/argoproj/argo-cd/v3/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -1522,19 +1524,19 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
-	// Some SSO implementations (Okta) require a call to
-	// the OIDC user info path to get attributes like groups
-	// we assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
-	// otherwise this would cause a panic
-	var groupClaims jwt.MapClaims
-	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
-		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
-			groupClaims = *tmpClaims
-		}
+	mapClaims, err := jwtutil.MapClaims(claims)
+	if err != nil {
+		return claims, "", status.Errorf(codes.Internal, "invalid claims")
 	}
-	iss := jwtutil.StringField(groupClaims, "iss")
+	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
+	if err != nil {
+		return claims, "", status.Errorf(codes.Internal, "invalid argo claims")
+	}
+
+	// Some SSO implementations (Okta) require a call to the OIDC user info path to get attributes like groups
+	iss := jwtutil.StringField(mapClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
-		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
+		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(mapClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
 		if unauthorized {
 			log.Errorf("error while quering userinfo endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session")
@@ -1543,13 +1545,17 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			log.Errorf("error fetching user info endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
 		}
-		if groupClaims["sub"] != userInfo["sub"] {
+		userInfoClaims, err := claimsutil.MapClaimsToArgoClaims(userInfo)
+		if err != nil {
+			return claims, "", status.Errorf(codes.Internal, "invalid userinfo claims")
+		}
+		if argoClaims.Subject != userInfoClaims.Subject {
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
-		groupClaims["groups"] = userInfo["groups"]
+		mapClaims["groups"] = userInfo["groups"]
 	}
 
-	return groupClaims, newToken, nil
+	return mapClaims, newToken, nil
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
