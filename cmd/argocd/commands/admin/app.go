@@ -42,6 +42,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -403,7 +404,26 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff, ignoreNormalizerOpts)
+		argoDB,
+		appClientset,
+		repoServerClient,
+		namespace,
+		kubeutil.NewKubectl(),
+		func(_ string) (kube.CleanupFunc, error) {
+			return func() {}, nil
+		},
+		settingsMgr,
+		stateCache,
+		projInformer,
+		server,
+		cache,
+		time.Second,
+		argo.NewResourceTracking(),
+		false,
+		0,
+		serverSideDiff,
+		ignoreNormalizerOpts,
+	)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
