@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/robfig/cron/v3"
 	"net/http"
 	"os"
 	"slices"
@@ -14,8 +13,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -24,9 +25,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
 	"github.com/argoproj/argo-cd/v3/util/profile"
-
-	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -198,9 +198,9 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	kubectlMetricsServer := metricsutil.NewKubectlMetrics()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
 	kubectlMetricsServer.RegisterWithClientGo()
-	metricsutil.RegisterWithPrometheus(registry)
+	kubectl.RegisterWithPrometheus(registry)
 
 	metricsServer := &MetricsServer{
 		registry: registry,
@@ -321,7 +321,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.redisRequestHistogram.Reset()
 		m.resourceEventsProcessingHistogram.Reset()
 		m.resourceEventsNumberGauge.Reset()
-		metricsutil.ResetAll()
+		kubectl.ResetAll()
 	})
 	if err != nil {
 		return err

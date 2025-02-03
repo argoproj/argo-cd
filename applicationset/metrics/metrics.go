@@ -10,6 +10,7 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
 )
 
 var (
@@ -57,9 +58,9 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
 
-	kubectlMetricsServer := metricsutil.NewKubectlMetrics()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
 	kubectlMetricsServer.RegisterWithClientGo()
-	metricsutil.RegisterWithPrometheus(metrics.Registry)
+	kubectl.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{
 		reconcileHistogram: reconcileHistogram,

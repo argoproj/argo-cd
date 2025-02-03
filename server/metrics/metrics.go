@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"fmt"
-	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 )
 
@@ -81,9 +81,9 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(argoVersion)
 
-	kubectlMetricsServer := metricsutil.NewKubectlMetrics()
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
 	kubectlMetricsServer.RegisterWithClientGo()
-	metricsutil.RegisterWithPrometheus(registry)
+	kubectl.RegisterWithPrometheus(registry)
 
 	return &MetricsServer{
 		Server: &http.Server{

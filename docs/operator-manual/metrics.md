@@ -45,8 +45,6 @@ to deleted resources, you can schedule a metrics reset to clean the
 history with an application controller flag. Example:
 `--metrics-cache-expiration="24h0m0s"`.
 
-
-
 ### Exposing Application labels as Prometheus metrics
 
 There are use-cases where Argo CD Applications contain labels that are desired to be exposed as Prometheus metrics.
