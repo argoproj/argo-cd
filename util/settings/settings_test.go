@@ -101,15 +101,6 @@ func TestGetSecretByName(t *testing.T) {
 	})
 }
 
-func TestGetRepositories(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repositories": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
-}
-
 func TestGetExtensionConfigs(t *testing.T) {
 	type cases struct {
 		name        string
@@ -154,52 +145,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 			assert.Equal(t, tc.expected, output)
 		})
 	}
-}
-
-func TestSaveRepositories(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-
-	repos, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
-}
-
-func TestSaveRepositoriesNoConfigMap(t *testing.T) {
-	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-}
-
-func TestSaveRepositoryCredentials(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
-
-	creds, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, creds, []RepositoryCredentials{{URL: "http://foo"}})
-}
-
-func TestGetRepositoryCredentials(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repository.credentials": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.Equal(t, []RepositoryCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
