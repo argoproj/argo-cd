@@ -144,7 +144,7 @@ func NewImportCommand() *cobra.Command {
 		ignoreTracking           bool
 		overrideOnConflict       bool
 		promptsEnabled           bool
-		skipResourcesWithLabels  []string
+		skipResourcesWithLabel   string
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
@@ -189,7 +189,7 @@ func NewImportCommand() *cobra.Command {
 				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaces
 			}
 
-			// pruneObjects tracks live objects and it's current resource version. any remaining
+			// pruneObjects tracks live objects, and it's current resource version. any remaining
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
 
@@ -246,7 +246,7 @@ func NewImportCommand() *cobra.Command {
 
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
-				if isSkipLabelMatches(bakObj, skipResourcesWithLabels) {
+				if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
 					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
 					continue
 				}
@@ -401,7 +401,7 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&overrideOnConflict, "override-on-conflict", false, "Override the resource on conflict when updating resources")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
-	command.Flags().StringSliceVarP(&skipResourcesWithLabels, "skip-resources-with-labels", "", []string{}, "Skip importing resources based on the labels e.g. '--skip-resources-with-labels my-label/example.io=true --skip-resources-with-labels  my-other-label/example.io=true'")
+	command.Flags().StringVarP(&skipResourcesWithLabel, "skip-resources-with-label", "", "", "Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
@@ -502,20 +502,18 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 	}
 }
 
-// skip resource   if any of the specified label exists.
-func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabels []string) bool {
-	if len(skipResourcesWithLabels) == 0 {
+// isSkipLabelMatches return if the resource should be skipped based on the labels
+func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabel string) bool {
+	if skipResourcesWithLabel == "" {
 		return false
 	}
-	for _, kv := range skipResourcesWithLabels {
-		parts := strings.SplitN(kv, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key, value := parts[0], parts[1]
-		if val, ok := bak.GetLabels()[key]; ok && val == value {
-			return true
-		}
+	parts := strings.SplitN(skipResourcesWithLabel, "=", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	key, value := parts[0], parts[1]
+	if val, ok := bak.GetLabels()[key]; ok && val == value {
+		return true
 	}
 	return false
 }

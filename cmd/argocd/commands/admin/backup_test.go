@@ -85,12 +85,11 @@ func Test_updateTracking(t *testing.T) {
 		})
 	}
 }
-
-func TestIsLabelMatches(t *testing.T) {
+func TestIsSkipLabelMatches(t *testing.T) {
 	tests := []struct {
 		name       string
 		obj        *unstructured.Unstructured
-		skipLabels []string
+		skipLabels string
 		expected   bool
 	}{
 		{
@@ -104,7 +103,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"test-label=value"},
+			skipLabels: "test-label=value",
 			expected:   true,
 		},
 		{
@@ -118,7 +117,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"test-label=value"},
+			skipLabels: "test-label=value",
 			expected:   false,
 		},
 		{
@@ -132,7 +131,7 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{},
+			skipLabels: "",
 			expected:   false,
 		},
 		{
@@ -147,26 +146,10 @@ func TestIsLabelMatches(t *testing.T) {
 					},
 				},
 			},
-			skipLabels: []string{"test-label"},
+			skipLabels: "test-label",
 			expected:   false,
 		},
-		{
-			name: "Multiple labels, one matches",
-			obj: &unstructured.Unstructured{
-				Object: map[string]any{
-					"metadata": map[string]any{
-						"labels": map[string]any{
-							"test-label":    "value",
-							"another-label": "value2",
-						},
-					},
-				},
-			},
-			skipLabels: []string{"another-label=value2"},
-			expected:   true,
-		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isSkipLabelMatches(tt.obj, tt.skipLabels)
