@@ -9,9 +9,7 @@ import (
 
 const findPathRegex = `/v\d\w*?(/[a-zA-Z0-9-]*)(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?(/[a-zA-Z0-9-]*)?`
 
-var (
-	processPath = regexp.MustCompile(findPathRegex)
-)
+var processPath = regexp.MustCompile(findPathRegex)
 
 // discernGetRequest uses a path from a request to determine if the request is a GET, LIST, or WATCH.
 // The function tries to find an API version within the path and then calculates how many remaining

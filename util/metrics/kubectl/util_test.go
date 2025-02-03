@@ -1,11 +1,11 @@
 package kubectl
 
 import (
-	"github.com/stretchr/testify/require"
 	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test_discernGetRequest is adapted from: https://github.com/argoproj/pkg/blob/f5a0a066030558f089fa645dc6546ddc5917bad5/kubeclientmetrics/metric_test.go
