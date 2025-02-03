@@ -5,3 +5,41 @@ metadata:
   labels:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
+data:
+  ### Default configuration for ignoreResourceUpdates.
+  # The ignoreResourceUpdates list contains K8s resource's properties that are known to be frequently updated
+  # by controllers and operators. These resources, when watched by argo, will cause many unnecessary updates.
+  # Ignoring status for all resources. An update will still be sent if the status update causes the health to change.
+  resource.customizations.ignoreResourceUpdates.all: |
+    jsonPointers:
+      - /status
+  # Legacy annotations used on HPA autoscaling/v1
+  resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+    jqPathExpressions:
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+      - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+  # Rollouts affecting Resplicaset/Pods
+  resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+    jqPathExpressions:
+      # Ignore the rollout restart metadata
+      - '.metadata.annotations."argo-rollouts.argoproj.io/restarted-after"'
+  # Ignores update if EndpointSlice is not excluded globally
+  resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+    jsonPointers:
+      - /metadata
+      - /endpoints
+      - /ports
+  # Ignores update if Endpoints is not excluded globally
+  resource.customizations.ignoreResourceUpdates.Endpoints: |
+    jsonPointers:
+      - /metadata
+      - /subsets
+  # Ignore the cluster-autoscaler status
+  resource.customizations.ignoreResourceUpdates.ConfigMap: |
+    jqPathExpressions:
+      # Ignore the cluster-autoscaler status
+      - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
+      # Ignore the annotation of the legacy Leases election
+      - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
