@@ -992,6 +992,6 @@ func (m *mockCreds) Environ() (io.Closer, []string, error) {
 	return io.NopCloser(nil), m.environ, nil
 }
 
-func (m *mockCreds) GetUserInfo(ctx context.Context) (string, string, error) {
+func (m *mockCreds) GetUserInfo(_ context.Context) (string, string, error) {
 	return "", "", nil
 }

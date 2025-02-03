@@ -248,11 +248,9 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	// skipped. This is insecure, but some environments may need it.
 	if creds.password != "" && creds.forceBasicAuth {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, creds.BasicAuthHeader()))
-	} else {
+	} else if creds.bearerToken != "" {
 		// If bearer token is set, we will set ARGOCD_BEARER_AUTH_HEADER to	hold the HTTP authorization header
-		if creds.bearerToken != "" {
-			env = append(env, fmt.Sprintf("%s=%s", bearerAuthHeaderEnv, creds.BearerAuthHeader()))
-		}
+		env = append(env, fmt.Sprintf("%s=%s", bearerAuthHeaderEnv, creds.BearerAuthHeader()))
 	}
 	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
 	env = append(env, creds.store.Environ(nonce)...)
