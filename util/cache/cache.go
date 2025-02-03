@@ -189,15 +189,16 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				}
 				tlsConfig.Certificates = []tls.Certificate{clientCert}
 			}
-			if insecureRedis {
+			switch {
+			case insecureRedis:
 				tlsConfig.InsecureSkipVerify = true
-			} else if redisCACertificate != "" {
+			case redisCACertificate != "":
 				redisCA, err := certutil.ParseTLSCertificatesFromPath(redisCACertificate)
 				if err != nil {
 					return nil, err
 				}
 				tlsConfig.RootCAs = certutil.GetCertPoolFromPEMData(redisCA)
-			} else {
+			default:
 				var err error
 				tlsConfig.RootCAs, err = x509.SystemCertPool()
 				if err != nil {

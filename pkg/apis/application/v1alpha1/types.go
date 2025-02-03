@@ -1506,11 +1506,12 @@ type SyncStrategy struct {
 
 // Force returns true if the sync strategy specifies to perform a forced sync
 func (m *SyncStrategy) Force() bool {
-	if m == nil {
+	switch {
+	case m == nil:
 		return false
-	} else if m.Apply != nil {
+	case m.Apply != nil:
 		return m.Apply.Force
-	} else if m.Hook != nil {
+	case m.Hook != nil:
 		return m.Hook.Force
 	}
 	return false
@@ -2545,6 +2546,8 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 	// TimeZone of the sync that will be applied to the schedule
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
+	// UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2641,17 +2644,18 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
 	window := &SyncWindow{
-		Kind:       knd,
-		Schedule:   sch,
-		Duration:   dur,
-		ManualSync: ms,
-		TimeZone:   timeZone,
+		Kind:           knd,
+		Schedule:       sch,
+		Duration:       dur,
+		ManualSync:     ms,
+		TimeZone:       timeZone,
+		UseAndOperator: andOperator,
 	}
 
 	if len(app) > 0 {
@@ -2691,36 +2695,72 @@ func (spec *AppProjectSpec) DeleteWindow(id int) error {
 }
 
 // Matches returns a list of sync windows that are defined for a given application
+// It will use the AND operator if the UseAndOperator is set to true otherwise will default to the OR operator
 func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	if w.HasWindows() {
 		var matchingWindows SyncWindows
-		for _, w := range *w {
-			if len(w.Applications) > 0 {
-				for _, a := range w.Applications {
+		var matched, isSet bool
+
+		for _, window := range *w {
+			matched = false
+			isSet = false
+
+			// First check if any applications are configured for the window
+			if len(window.Applications) > 0 {
+				isSet = true
+				for _, a := range window.Applications {
 					if globMatch(a, app.Name, false) {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
 			}
-			if len(w.Clusters) > 0 {
-				for _, c := range w.Clusters {
+
+			// If using the AND operator and window applications were set but did not match, break out of the loop earlier
+			if window.UseAndOperator && !matched && isSet {
+				continue
+			} else if !window.UseAndOperator && matched {
+				matchingWindows = append(matchingWindows, window)
+				continue
+			}
+
+			// Second check if any clusters are configured for the window
+			if len(window.Clusters) > 0 {
+				// check next for cluster matching
+				matched = false
+				isSet = true
+				for _, c := range window.Clusters {
 					dst := app.Spec.Destination
 					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
 					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
 			}
-			if len(w.Namespaces) > 0 {
-				for _, n := range w.Namespaces {
+
+			// If using the AND operator and window clusters were set but did not match, break out of the loop earlier
+			if isSet && window.UseAndOperator && !matched {
+				continue
+			} else if !window.UseAndOperator && matched {
+				matchingWindows = append(matchingWindows, window)
+				continue
+			}
+
+			// Last check if any namespaces are configured for the window
+			if len(window.Namespaces) > 0 {
+				matched = false
+				// If the window clusters matched or if the window clusters were not set check next for namespace matching
+				for _, n := range window.Namespaces {
 					if globMatch(n, app.Spec.Destination.Namespace, false) {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
+			}
+			if matched {
+				matchingWindows = append(matchingWindows, window)
 			}
 		}
 		if len(matchingWindows) > 0 {
@@ -3314,7 +3354,9 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
+
+	switch {
+	case c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false):
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
@@ -3326,9 +3368,9 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			}
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
-	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	case c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "":
 		config, err = rest.InClusterConfig()
-	} else if c.Server == KubernetesInternalAPIServerAddr {
+	case c.Server == KubernetesInternalAPIServerAddr:
 		config, err = rest.InClusterConfig()
 		if err == nil {
 			config.Username = c.Config.Username
@@ -3336,7 +3378,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			config.BearerToken = c.Config.BearerToken
 			config.BearerTokenFile = ""
 		}
-	} else {
+	default:
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
 			ServerName: c.Config.TLSClientConfig.ServerName,
@@ -3344,7 +3386,8 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			KeyData:    c.Config.TLSClientConfig.KeyData,
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
-		if c.Config.AWSAuthConfig != nil {
+		switch {
+		case c.Config.AWSAuthConfig != nil:
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
@@ -3362,7 +3405,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else if c.Config.ExecProviderConfig != nil {
+		case c.Config.ExecProviderConfig != nil:
 			var env []api.ExecEnvVar
 			if c.Config.ExecProviderConfig.Env != nil {
 				for key, value := range c.Config.ExecProviderConfig.Env {
@@ -3384,7 +3427,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else {
+		default:
 			config = &rest.Config{
 				Host:            c.Server,
 				Username:        c.Config.Username,

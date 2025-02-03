@@ -1483,7 +1483,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		var targets []*unstructured.Unstructured
-		if obj.IsList() {
+		switch {
+		case obj.IsList():
 			err = obj.EachListItem(func(object runtime.Object) error {
 				unstructuredObj, ok := object.(*unstructured.Unstructured)
 				if ok {
@@ -1495,9 +1496,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			if err != nil {
 				return nil, err
 			}
-		} else if isNullList(obj) {
+		case isNullList(obj):
 			// noop
-		} else {
+		default:
 			targets = []*unstructured.Unstructured{obj}
 		}
 
@@ -1573,11 +1574,12 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 	for _, filename := range overrides {
 		info, err := os.Stat(filename)
-		if os.IsNotExist(err) {
+		switch {
+		case os.IsNotExist(err):
 			continue
-		} else if info != nil && info.IsDir() {
+		case info != nil && info.IsDir():
 			continue
-		} else if err != nil {
+		case err != nil:
 			// filename should be part of error message here
 			return err
 		}

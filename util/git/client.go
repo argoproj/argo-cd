@@ -478,10 +478,7 @@ func (m *nativeGitClient) Submodule() error {
 	if err := m.runCredentialedCmd("submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	if err := m.runCredentialedCmd("submodule", "update", "--init", "--recursive"); err != nil {
-		return err
-	}
-	return nil
+	return m.runCredentialedCmd("submodule", "update", "--init", "--recursive")
 }
 
 // Checkout checks out the specified revision

@@ -188,11 +188,12 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 
 				var action string
-				if existing == nil {
+				switch {
+				case existing == nil:
 					action = "created"
-				} else if !hasAppChanged(existing, created, upsert) {
+				case !hasAppChanged(existing, created, upsert):
 					action = "unchanged"
-				} else {
+				default:
 					action = "updated"
 				}
 
@@ -1285,7 +1286,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
-			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
+			switch {
+			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
 				numOfSources := int64(len(app.Spec.GetSources()))
 				for _, pos := range sourcePositions {
 					if pos <= 0 || pos > numOfSources {
@@ -1305,7 +1307,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.res = res
 				diffOption.revisions = revisions
 				diffOption.sourcePositions = sourcePositions
-			} else if revision != "" {
+			case revision != "":
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
 					Revision:     &revision,
@@ -1315,7 +1317,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
-			} else if local != "" {
+			case local != "":
 				if serverSideGenerate {
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
@@ -1381,10 +1383,11 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
-	if diffOptions.local != "" {
+	switch {
+	case diffOptions.local != "":
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else if diffOptions.revision != "" || len(diffOptions.revisions) > 0 {
+	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1393,7 +1396,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else if diffOptions.serversideRes != nil {
+	case diffOptions.serversideRes != nil:
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.serversideRes.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1402,7 +1405,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	} else {
+	default:
 		for i := range resources.Items {
 			res := resources.Items[i]
 			live := &unstructured.Unstructured{}
@@ -2456,25 +2459,26 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	}
 	healthCheckPassed := true
 
-	if watch.suspended && watch.health && watch.degraded {
+	switch {
+	case watch.suspended && watch.health && watch.degraded:
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended) ||
 			healthStatus == string(health.HealthStatusDegraded)
-	} else if watch.suspended && watch.degraded {
+	case watch.suspended && watch.degraded:
 		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
 			healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.degraded && watch.health {
+	case watch.degraded && watch.health:
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
 		// below are good
-	} else if watch.suspended && watch.health {
+	case watch.suspended && watch.health:
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.suspended {
+	case watch.suspended:
 		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	} else if watch.health {
+	case watch.health:
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	} else if watch.degraded {
+	case watch.degraded:
 		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
 	}
 
@@ -3019,7 +3023,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			var unstructureds []*unstructured.Unstructured
 			switch source {
 			case "git":
-				if local != "" {
+				switch {
+				case local != "":
 					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
 					defer argoio.Close(settingsConn)
 					argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
@@ -3033,7 +3038,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 					//nolint:staticcheck
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
-				} else if len(revisions) > 0 && len(sourcePositions) > 0 {
+				case len(revisions) > 0 && len(sourcePositions) > 0:
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
@@ -3049,7 +3054,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
-				} else if revision != "" {
+				case revision != "":
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
@@ -3063,7 +3068,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
-				} else {
+				default:
 					targetObjs, err := targetObjects(resources.Items)
 					errors.CheckError(err)
 					unstructureds = targetObjs

@@ -28,6 +28,8 @@ data:
   otlp.insecure: "true"
   # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
   otlp.headers: ""
+  # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
+  otlp.attrs: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
