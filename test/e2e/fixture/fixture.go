@@ -541,28 +541,6 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
-func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetRepos(repos ...settings.RepositoryCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	if err != nil {
