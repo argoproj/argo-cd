@@ -108,6 +108,7 @@ type appStateManager struct {
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
 	kubectl               kubeutil.Kubectl
+	onKubectlRun          kubeutil.OnKubectlRunFunc
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
 	cache                 *appstatecache.Cache
@@ -1065,6 +1066,7 @@ func NewAppStateManager(
 	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
+	onKubectlRun kubeutil.OnKubectlRunFunc,
 	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
@@ -1083,6 +1085,7 @@ func NewAppStateManager(
 		db:                    db,
 		appclientset:          appclientset,
 		kubectl:               kubectl,
+		onKubectlRun:          onKubectlRun,
 		repoClientset:         repoClientset,
 		namespace:             namespace,
 		settingsMgr:           settingsMgr,
