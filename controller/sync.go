@@ -14,6 +14,7 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
+	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -81,6 +82,27 @@ func (m *appStateManager) getResourceOperations(cluster *v1alpha1.Cluster) (kube
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
 	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
+	}
+	return ops, cleanup, nil
+}
+
+// getServerSideDiffDryRunApplier will return the kubectl implementation of the KubeApplier
+// interface that provides functionality to dry run apply kubernetes resources. Returns a
+// cleanup function that must be called to remove the generated kube config for this
+// server.
+func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
+	}
+
+	rawConfig, err := cluster.RawRestConfig()
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+	ops, cleanup, err := m.kubectl.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
