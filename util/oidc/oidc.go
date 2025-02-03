@@ -314,10 +314,13 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	scopes := make([]string, 0)
 	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
-		scopes = config.RequestedScopes
+		scopes = GetScopesOrDefault(config.RequestedScopes)
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
+	} else if a.settings.IsDexConfigured() {
+		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
-	oauth2Config, err := a.oauth2Config(r, GetScopesOrDefault(scopes))
+
+	oauth2Config, err := a.oauth2Config(r, scopes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
