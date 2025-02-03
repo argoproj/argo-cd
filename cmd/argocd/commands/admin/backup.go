@@ -74,14 +74,14 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace)
 
-			referencedSecrets := getReferencedSecrets(*acdConfigMap)
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
-				if isArgoCDSecret(referencedSecrets, secret) {
+				if isArgoCDSecret(secret) {
 					export(writer, secret, namespace)
 				}
 			}
+
 			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
@@ -190,22 +190,16 @@ func NewImportCommand() *cobra.Command {
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
 			configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
-			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
-			// secrets need to be imported too
-			var referencedSecrets map[string]bool
 			for _, cm := range configMaps.Items {
 				if isArgoCDConfigMap(cm.GetName()) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "ConfigMap", Name: cm.GetName(), Namespace: cm.GetNamespace()}] = cm
-				}
-				if cm.GetName() == common.ArgoCDConfigMapName {
-					referencedSecrets = getReferencedSecrets(cm)
 				}
 			}
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
-				if isArgoCDSecret(referencedSecrets, secret) {
+				if isArgoCDSecret(secret) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
 				}
 			}
