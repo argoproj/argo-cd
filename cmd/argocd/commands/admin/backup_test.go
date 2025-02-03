@@ -85,6 +85,7 @@ func Test_updateTracking(t *testing.T) {
 		})
 	}
 }
+
 func TestIsSkipLabelMatches(t *testing.T) {
 	tests := []struct {
 		name       string
