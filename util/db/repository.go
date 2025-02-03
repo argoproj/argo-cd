@@ -168,21 +168,15 @@ func (db *db) ListWriteRepositories(ctx context.Context) ([]*v1alpha1.Repository
 }
 
 func (db *db) listRepositories(ctx context.Context, repoType *string, writeCreds bool) ([]*v1alpha1.Repository, error) {
-	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
-	// 	repositories from secrets overlay repositories from legacys.
-
-	var repositories []*v1alpha1.Repository
-	var err error
+	var backend repositoryBackend
 	if writeCreds {
-		repositories, err = db.repoWriteBackend().ListRepositories(ctx, repoType)
-		if err != nil {
-			return nil, err
-		}
+		backend = db.repoWriteBackend()
 	} else {
-		repositories, err = db.repoBackend().ListRepositories(ctx, repoType)
-		if err != nil {
-			return nil, err
-		}
+		backend = db.repoBackend()
+	}
+	repositories, err := backend.ListRepositories(ctx, repoType)
+	if err != nil {
+		return nil, err
 	}
 	if err = db.enrichCredsToRepos(ctx, repositories); err != nil {
 		return nil, err
