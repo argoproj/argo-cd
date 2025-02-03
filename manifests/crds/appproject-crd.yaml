@@ -278,6 +278,10 @@ spec:
                   description: SyncWindow contains the kind, time, duration and attributes
                     that are used to assign the syncWindows to apps
                   properties:
+                    andOperator:
+                      description: UseAndOperator use AND operator for matching applications,
+                        namespaces and clusters instead of the default OR operator
+                      type: boolean
                     applications:
                       description: Applications contains a list of applications that
                         the window will apply to
