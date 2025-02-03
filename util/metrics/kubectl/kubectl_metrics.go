@@ -110,15 +110,8 @@ var (
 	)
 )
 
-var alreadyRegistered = false
-
-// RegisterWithPrometheus registers the kubectl metrics with the given prometheus registry. Since the metrics are
-// global, this function should only be called once for a given Argo CD component.
+// RegisterWithPrometheus registers the kubectl metrics with the given prometheus registry.
 func RegisterWithPrometheus(registry prometheus.Registerer) {
-	if alreadyRegistered {
-		panic("kubectl metrics already registered")
-	}
-
 	registry.MustRegister(clientCertRotationAgeGauge)
 	registry.MustRegister(requestLatencyHistogram)
 	registry.MustRegister(resolverLatencyHistogram)
@@ -130,8 +123,6 @@ func RegisterWithPrometheus(registry prometheus.Registerer) {
 	registry.MustRegister(requestRetryCounter)
 	registry.MustRegister(transportCacheEntriesGauge)
 	registry.MustRegister(transportCreateCallsCounter)
-
-	alreadyRegistered = true
 }
 
 // ResetAll resets all kubectl metrics
@@ -198,6 +189,8 @@ func NewKubectlMetrics() *KubectlMetrics {
 // RegisterWithClientGo sets the metrics handlers for the go-client library. We do not use the metrics library's `RegisterWithClientGo` method,
 // because it is protected by a sync.Once. controller-runtime registers a single handler, which blocks our registration
 // of our own handlers. So we must rudely set them all directly.
+//
+// Since the metrics are global, this function should only be called once for a given Argo CD component.
 func (k *KubectlMetrics) RegisterWithClientGo() {
 	metrics.ClientCertRotationAge = &k.clientCertRotationAgeMetric
 	metrics.RequestLatency = &k.requestLatencyMetric
