@@ -10,6 +10,29 @@ import (
 	"k8s.io/client-go/tools/metrics"
 )
 
+// The label names are meant to match this: https://github.com/kubernetes/component-base/blob/264c1fd30132a3b36b7588e50ac54eb0ff75f26a/metrics/prometheus/restclient/metrics.go
+// Even in cases where the label name doesn't align well with Argo CD's other labels, we use the Kubernetes labels to
+// make it easier to copy/paste dashboards/alerts/etc. designed for Kubernetes.
+const (
+	// LabelCallStatus represents the status of the exec plugin call, indicating whether it was successful or failed.
+	// These are the possible values, as of the current client-go version:
+	// no_error, plugin_execution_error, plugin_not_found_error, client_internal_error
+	LabelCallStatus = "call_status"
+	// LabelCode represents either the HTTP status code returned by the request or the exit code of the command run.
+	LabelCode = "code"
+	// LabelHost represents the hostname of the server to which the request was made.
+	LabelHost = "host"
+	// LabelMethod represents the HTTP method used for the request (e.g., GET, POST).
+	LabelMethod = "method"
+	// LabelResult represents an attempt to get a transport from the transport cache.
+	// These are the possible values, as of the current client-go version: hit, miss, unreachable
+	// `unreachable` indicates that the cache was not usable for a given REST config because, for example, TLS files
+	// couldn't be loaded, or a proxy is being used.
+	LabelResult = "result"
+	// LabelVerb represents the Kubernetes API verb used in the request (e.g., list, get, create).
+	LabelVerb = "verb"
+)
+
 // All metric names below match https://github.com/kubernetes/component-base/blob/264c1fd30132a3b36b7588e50ac54eb0ff75f26a/metrics/prometheus/restclient/metrics.go
 // except rest_client_ is replaced with argocd_kubectl_.
 //
@@ -29,7 +52,7 @@ var (
 		Name:    "argocd_kubectl_request_duration_seconds",
 		Help:    "Request latency in seconds",
 		Buckets: []float64{0.005, 0.1, 0.5, 2.0, 8.0, 30.0},
-	}, []string{"host", "verb"})
+	}, []string{LabelHost, LabelVerb})
 
 	resolverLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -37,7 +60,7 @@ var (
 			Help:    "Kubectl resolver latency",
 			Buckets: []float64{0.005, 0.1, 0.5, 2.0, 8.0, 30.0},
 		},
-		[]string{"host"},
+		[]string{LabelHost},
 	)
 
 	requestSizeHistogram = prometheus.NewHistogramVec(
@@ -47,7 +70,7 @@ var (
 			// 64 bytes to 16MB
 			Buckets: []float64{64, 512, 4096, 65536, 1048576, 16777216},
 		},
-		[]string{"host", "method"},
+		[]string{LabelHost, LabelMethod},
 	)
 
 	responseSizeHistogram = prometheus.NewHistogramVec(
@@ -57,7 +80,7 @@ var (
 			// 64 bytes to 16MB
 			Buckets: []float64{64, 512, 4096, 65536, 1048576, 16777216},
 		},
-		[]string{"host", "method"},
+		[]string{LabelHost, LabelMethod},
 	)
 
 	rateLimiterLatencyHistogram = prometheus.NewHistogramVec(
@@ -66,7 +89,7 @@ var (
 			Help:    "Kubectl rate limiter latency",
 			Buckets: []float64{0.005, 0.1, 0.5, 2.0, 8.0, 30.0},
 		},
-		[]string{"host", "verb"},
+		[]string{LabelHost, LabelVerb},
 	)
 
 	requestResultCounter = prometheus.NewCounterVec(
@@ -74,7 +97,7 @@ var (
 			Name: "argocd_kubectl_requests_total",
 			Help: "Number of kubectl request results",
 		},
-		[]string{"host", "method", "code"},
+		[]string{LabelHost, LabelMethod, LabelCode},
 	)
 
 	execPluginCallsCounter = prometheus.NewCounterVec(
@@ -82,7 +105,7 @@ var (
 			Name: "argocd_kubectl_exec_plugin_call_total",
 			Help: "Number of kubectl exec plugin calls",
 		},
-		[]string{"code", "call_status"},
+		[]string{LabelCode, LabelCallStatus},
 	)
 
 	requestRetryCounter = prometheus.NewCounterVec(
@@ -90,7 +113,7 @@ var (
 			Name: "argocd_kubectl_request_retries_total",
 			Help: "Number of kubectl request retries",
 		},
-		[]string{"host", "method", "code"},
+		[]string{LabelHost, LabelMethod, LabelCode},
 	)
 
 	transportCacheEntriesGauge = prometheus.NewGaugeVec(
@@ -106,7 +129,7 @@ var (
 			Name: "argocd_kubectl_transport_create_calls_total",
 			Help: "Number of kubectl transport create calls",
 		},
-		[]string{"result"},
+		[]string{LabelResult},
 	)
 )
 
