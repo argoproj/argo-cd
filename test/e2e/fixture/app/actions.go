@@ -543,3 +543,11 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 	require.NoError(a.context.t, fixture.SetImpersonationEnabled("false"))
 	return a
 }
+
+// AddAnnotatedTag creates an annotated git tag
+func (a *Actions) AddAnnotatedTag(tag, message string) *Actions {
+	// Run git commands in the test repo directory with -f flag to force update
+	_, err := fixture.Run("/tmp/argo-e2e/testdata.git", "git", "tag", "-f", "-a", tag, "-m", message)
+	errors.CheckError(err)
+	return a
+}

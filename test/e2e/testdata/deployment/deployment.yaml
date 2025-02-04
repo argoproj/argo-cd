@@ -5,6 +5,7 @@ metadata:
   labels:
     app: nginx
 spec:
+  revisionHistoryLimit: 3
   replicas: 0
   selector:
     matchLabels:
@@ -15,7 +16,7 @@ spec:
         app: nginx
     spec:
       containers:
-        - name: nginx
-          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
-          ports:
-            - containerPort: 80
+      - name: nginx
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+        ports:
+        - containerPort: 80

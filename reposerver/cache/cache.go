@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"math"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -28,6 +30,12 @@ var (
 	ErrCacheMiss      = cacheutil.ErrCacheMiss
 	ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
 )
+
+type NoopCreds struct{}
+
+func (c NoopCreds) Environ() (io.Closer, []string, error) {
+	return nil, nil, nil
+}
 
 type Cache struct {
 	cache                    *cacheutil.Cache
@@ -363,8 +371,27 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	res.CacheEntryHash = ""
 
 	if res.ManifestResponse != nil {
-		// cached manifest response might be reused across different revisions, so we need to assume that the revision is the one we are looking for
-		res.ManifestResponse.Revision = revision
+		// For annotated tags, use the commit SHA instead of the tag object ID
+		if strings.HasPrefix(revision, "refs/tags/") {
+			client, clientErr := git.NewClient("", git.NopCreds{}, false, false, "", "")
+			if clientErr != nil {
+				log.Errorf("Failed to create Git client: %v", clientErr)
+				// Fallback to original revision
+				res.ManifestResponse.Revision = revision
+			} else {
+				commitSHA, err := client.LsRemote(revision)
+				if err != nil {
+					log.Errorf("Failed to resolve commit SHA for annotated tag %s: %v", revision, err)
+					// Fallback to original revision
+					res.ManifestResponse.Revision = revision
+				} else {
+					res.ManifestResponse.Revision = commitSHA
+				}
+			}
+		} else {
+			// For non-tag revisions, use as-is
+			res.ManifestResponse.Revision = revision
+		}
 	}
 
 	return nil
