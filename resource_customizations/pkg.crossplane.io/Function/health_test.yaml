@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for Function
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: ActivePackageRevision UnknownPackageRevisionHealth
+  inputPath: testdata/degraded_healthUnknown.yaml
+- healthStatus:
+    status: Healthy
+    message: ActivePackageRevision HealthyPackageRevision
+  inputPath: testdata/healthy.yaml

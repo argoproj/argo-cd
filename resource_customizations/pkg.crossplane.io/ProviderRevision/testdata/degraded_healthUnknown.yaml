@@ -1,0 +1,35 @@
+apiVersion: pkg.crossplane.io/v1
+kind: ProviderRevision
+metadata:
+  creationTimestamp: '2025-01-15T08:38:34Z'
+  finalizers:
+    - revision.pkg.crossplane.io
+  generation: 1
+  name: azure-provider-family-6a75a19af0aa
+  resourceVersion: '38156'
+  uid: 840c4fa2-a0c0-469c-ba04-62dda00773ca
+  selfLink: >-
+    /apis/pkg.crossplane.io/v1/providerrevisions/azure-provider-family-6a75a19af0aa
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-16T06:41:39Z'
+      message: >-
+        cannot resolve package dependencies: cannot initialize dependency graph
+        from the packages in the lock: node
+        xpkg.upbound.io/upbound/provider-family-azure already exists
+      reason: UnknownPackageRevisionHealth
+      status: Unknown
+      type: Healthy
+spec:
+  desiredState: Active
+  ignoreCrossplaneConstraints: false
+  image: xpkg.upbound.io/upbound/provider-family-azure:v1.11.0
+  packagePullPolicy: IfNotPresent
+  revision: 1
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: provider-azure-family-config
+  skipDependencyResolution: false
+  tlsClientSecretName: azure-provider-family-tls-client
+  tlsServerSecretName: azure-provider-family-tls-server

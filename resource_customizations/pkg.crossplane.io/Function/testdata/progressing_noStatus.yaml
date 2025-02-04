@@ -1,0 +1,20 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  creationTimestamp: '2025-01-15T08:38:33Z'
+  generation: 1
+  name: function-patch-and-transform
+  resourceVersion: '38090'
+  uid: 3cc67701-c68b-47fc-b0c5-1ba28cc6ed75
+  selfLink: /apis/pkg.crossplane.io/v1/functions/function-patch-and-transform
+spec:
+  ignoreCrossplaneConstraints: false
+  package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.8.0
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: default
+  skipDependencyResolution: false

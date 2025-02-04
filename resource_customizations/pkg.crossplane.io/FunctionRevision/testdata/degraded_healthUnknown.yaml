@@ -1,0 +1,40 @@
+apiVersion: pkg.crossplane.io/v1
+kind: FunctionRevision
+metadata:
+  creationTimestamp: '2025-01-15T08:38:34Z'
+  finalizers:
+    - revision.pkg.crossplane.io
+  generation: 1
+  name: function-patch-and-transform-7f558fa06b13
+  resourceVersion: '38088'
+  uid: eb2ba41e-41ec-491f-bfff-408d9217c9d7
+  selfLink: >-
+    /apis/pkg.crossplane.io/v1/functionrevisions/function-patch-and-transform-7f558fa06b13
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-16T06:41:15Z'
+      message: >-
+        cannot resolve package dependencies: cannot initialize dependency graph
+        from the packages in the lock: node
+        xpkg.upbound.io/upbound/provider-family-azure already exists
+      reason: UnknownPackageRevisionHealth
+      status: Unknown
+      type: Healthy
+  endpoint: dns:///function-patch-and-transform.crossplane-system:9443
+  objectRefs:
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: resources.pt.fn.crossplane.io
+      uid: 061a206a-47ce-4cfa-8c36-48fc557b0438
+spec:
+  desiredState: Active
+  ignoreCrossplaneConstraints: false
+  image: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.8.0
+  packagePullPolicy: IfNotPresent
+  revision: 1
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: default
+  skipDependencyResolution: false
+  tlsServerSecretName: function-patch-and-transform-tls-server

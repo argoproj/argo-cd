@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for Configuration
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: UnpackingPackage HealthyPackageRevision
+  inputPath: testdata/degraded_healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: ActivePackageRevision UnknownPackageRevisionHealth
+  inputPath: testdata/degraded_installed.yaml
+- healthStatus:
+    status: Healthy
+    message: ActivePackageRevision HealthyPackageRevision
+  inputPath: testdata/healthy.yaml
