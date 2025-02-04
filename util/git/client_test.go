@@ -907,6 +907,7 @@ func TestNewAuth(t *testing.T) {
 		})
 	}
 }
+
 func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
 	tests := []struct {
 		name         string
