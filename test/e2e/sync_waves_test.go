@@ -3,14 +3,15 @@ package e2e
 import (
 	"testing"
 
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	corev1 "k8s.io/api/core/v1"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestFixingDegradedApp(t *testing.T) {
@@ -142,6 +143,6 @@ func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod-with-finalizers" })).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers" })).
 		Expect(ResourceResultNumbering(4))
 }

@@ -251,7 +251,7 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", false)
+	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
 	require.NoError(t, err)
 	prs, err := host.List(context.Background())
 	require.NoError(t, err)

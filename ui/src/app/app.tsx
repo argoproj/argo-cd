@@ -235,7 +235,7 @@ export class App extends React.Component<
     }
 
     public getChildContext() {
-        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}};
+        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
 
     private async subscribeUnauthorized() {

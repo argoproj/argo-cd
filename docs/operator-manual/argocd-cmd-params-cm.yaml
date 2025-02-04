@@ -28,8 +28,6 @@ data:
   otlp.insecure: "true"
   # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
   otlp.headers: ""
-  # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
-  otlp.attrs: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -37,11 +35,6 @@ data:
   #
   # Feature state: Beta
   application.namespaces: ns1, ns2, ns3
-
-  # Set the logging timestamp format. The default is "" which means "2006-01-02T15:04:05Z07:00" (RFC3339).
-  # See https://pkg.go.dev/time#pkg-constants for more options.
-  # This option is used for all components.
-  log.format.timestamp: ""
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.

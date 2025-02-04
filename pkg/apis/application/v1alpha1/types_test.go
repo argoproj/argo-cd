@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -235,11 +236,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 					Destinations: data.projDest,
 				},
 			}
-			destCluster := &Cluster{
-				Server: data.appDest.Server,
-				Name:   data.appDest.Name,
-			}
-			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -406,11 +403,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		destCluster := &Cluster{
-			Server: data.appDest.Server,
-			Name:   data.appDest.Name,
-		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -482,11 +475,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 				Destinations:                    data.projDest,
 			},
 		}
-		destCluster := &Cluster{
-			Server: data.appDest.Server,
-			Name:   data.appDest.Name,
-		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
 			return data.clusters, nil
 		})
 		assert.Equal(t, data.isPermitted, permitted)
@@ -500,7 +490,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			}},
 		},
 	}
-	_, err := proj.IsDestinationPermitted(&Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ string) ([]*Cluster, error) {
+
+	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
 	assert.ErrorContains(t, err, "could not retrieve project clusters")
@@ -1093,6 +1084,32 @@ func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 	}
 }
 
+func TestAppDestinationEquality(t *testing.T) {
+	left := &ApplicationDestination{
+		Server:    "https://kubernetes.default.svc",
+		Namespace: "default",
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Namespace = "kube-system"
+	assert.False(t, left.Equals(*right))
+}
+
+func TestAppDestinationEquality_InferredServerURL(t *testing.T) {
+	left := ApplicationDestination{
+		Name:      "in-cluster",
+		Namespace: "default",
+	}
+	right := ApplicationDestination{
+		Name:             "in-cluster",
+		Server:           "https://kubernetes.default.svc",
+		Namespace:        "default",
+		isServerInferred: true,
+	}
+	assert.True(t, left.Equals(right))
+	assert.True(t, right.Equals(left))
+}
+
 func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -1113,7 +1130,9 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := AppProjectSpec{Destinations: tt.destinations}
-			require.Equal(t, tt.want, d.DestinationClusters(), "AppProjectSpec.DestinationClusters()")
+			if got := d.DestinationClusters(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1157,7 +1176,9 @@ func TestRepository_HasCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.HasCredentials(), "Repository.HasCredentials()")
+			if got := tt.repo.HasCredentials(); got != tt.want {
+				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1196,7 +1217,9 @@ func TestRepository_IsInsecure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsInsecure(), "Repository.IsInsecure()")
+			if got := tt.repo.IsInsecure(); got != tt.want {
+				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1235,7 +1258,9 @@ func TestRepository_IsLFSEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsLFSEnabled(), "Repository.IsLFSEnabled()")
+			if got := tt.repo.IsLFSEnabled(); got != tt.want {
+				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1351,7 +1376,9 @@ func TestSyncStrategy_Force(t *testing.T) {
 				Apply: tt.fields.Apply,
 				Hook:  tt.fields.Hook,
 			}
-			assert.Equalf(t, tt.want, m.Force(), "SyncStrategy.Force()")
+			if got := m.Force(); got != tt.want {
+				t.Errorf("SyncStrategy.Force() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1374,7 +1401,9 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 			o := &SyncOperation{
 				SyncStrategy: tt.fields.SyncStrategy,
 			}
-			assert.Equalf(t, tt.want, o.IsApplyStrategy(), "SyncOperation.IsApplyStrategy()")
+			if got := o.IsApplyStrategy(); got != tt.want {
+				t.Errorf("SyncOperation.IsApplyStrategy() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1406,8 +1435,12 @@ func TestResourceResults_Find(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := tt.r.Find(tt.args.group, tt.args.kind, tt.args.namespace, tt.args.name, tt.args.phase)
-			assert.Equal(t, tt.want, got, "ResourceResults.Find()")
-			assert.Equal(t, tt.want1, got1, "ResourceResults.Find()")
+			if got != tt.want {
+				t.Errorf("ResourceResults.Find() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
+			}
 		})
 	}
 }
@@ -1425,7 +1458,9 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.wantNum, tt.r.PruningRequired(), "ResourceResults.PruningRequired()")
+			if gotNum := tt.r.PruningRequired(); gotNum != tt.wantNum {
+				t.Errorf("ResourceResults.PruningRequired() = %v, want %v", gotNum, tt.wantNum)
+			}
 		})
 	}
 }
@@ -3928,6 +3963,7 @@ func TestOptionalArrayEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalArray
+	// nolint:testifylint
 	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
@@ -3971,6 +4007,7 @@ func TestOptionalMapEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalMap
+	// nolint:testifylint
 	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's

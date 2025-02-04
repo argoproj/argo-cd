@@ -9,20 +9,20 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
-	secutil "github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	secutil "github.com/argoproj/argo-cd/v2/util/security"
 )
 
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -36,7 +36,7 @@ func NewExportCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "export",
 		Short: "Export all Argo CD data to stdout (default) or a file",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			config, err := clientConfig.ClientConfig()
@@ -61,28 +61,28 @@ func NewExportCommand() *cobra.Command {
 			}
 
 			acdClients := newArgoCDClientsets(config, namespace)
-			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdConfigMap, namespace)
-			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
+			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdRBACConfigMap, namespace)
-			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
+			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdKnownHostsConfigMap, namespace)
-			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
+			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+			secrets, err := acdClients.secrets.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					export(writer, secret, namespace)
 				}
 			}
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				export(writer, proj, namespace)
@@ -97,7 +97,7 @@ func NewExportCommand() *cobra.Command {
 				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaces
 			}
 
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				// Export application only if it is in one of the enabled namespaces
@@ -105,9 +105,9 @@ func NewExportCommand() *cobra.Command {
 					export(writer, app, namespace)
 				}
 			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if err != nil && !apierrors.IsNotFound(err) {
-				if apierrors.IsForbidden(err) {
+			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
+			if err != nil && !apierr.IsNotFound(err) {
+				if apierr.IsForbidden(err) {
 					log.Warn(err)
 				} else {
 					errors.CheckError(err)
@@ -188,7 +188,7 @@ func NewImportCommand() *cobra.Command {
 			// items in this map indicates the resource should be pruned since it no longer appears
 			// in the backup
 			pruneObjects := make(map[kube.ResourceKey]unstructured.Unstructured)
-			configMaps, err := acdClients.configMaps.List(ctx, metav1.ListOptions{})
+			configMaps, err := acdClients.configMaps.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			// referencedSecrets holds any secrets referenced in the argocd-cm configmap. These
 			// secrets need to be imported too
@@ -202,27 +202,27 @@ func NewImportCommand() *cobra.Command {
 				}
 			}
 
-			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
+			secrets, err := acdClients.secrets.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
 					pruneObjects[kube.ResourceKey{Group: "", Kind: "Secret", Name: secret.GetName(), Namespace: secret.GetNamespace()}] = secret
 				}
 			}
-			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
+			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
 				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
 					pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: app.GetName(), Namespace: app.GetNamespace()}] = app
 				}
 			}
-			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
+			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
 				pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: proj.GetName(), Namespace: proj.GetNamespace()}] = proj
 			}
-			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
-			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
+			if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 				log.Warnf("argoproj.io/ApplicationSet: %v\n", err)
 			} else {
 				errors.CheckError(err)
@@ -275,12 +275,11 @@ func NewImportCommand() *cobra.Command {
 					updateTracking(bakObj, &liveObj)
 				}
 
-				switch {
-				case !exists:
+				if !exists {
 					isForbidden := false
 					if !dryRun {
-						_, err = dynClient.Create(ctx, bakObj, metav1.CreateOptions{})
-						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+						_, err = dynClient.Create(ctx, bakObj, v1.CreateOptions{})
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
 						} else {
@@ -290,16 +289,16 @@ func NewImportCommand() *cobra.Command {
 					if !isForbidden {
 						fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
 					}
-				case specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation):
+				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation) {
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
-				default:
+				} else {
 					isForbidden := false
 					if !dryRun {
 						newLive := updateLive(bakObj, &liveObj, stopOperation)
-						_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-						if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+						_, err = dynClient.Update(ctx, newLive, v1.UpdateOptions{})
+						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
 							log.Warnf("%s/%s %s: %v", gvk.Group, gvk.Kind, bakObj.GetName(), err)
 						} else {
@@ -329,8 +328,8 @@ func NewImportCommand() *cobra.Command {
 							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
 								newLive := liveObj.DeepCopy()
 								newLive.SetFinalizers(nil)
-								_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if err != nil && !apierrors.IsNotFound(err) {
+								_, err = dynClient.Update(ctx, newLive, v1.UpdateOptions{})
+								if err != nil && !apierr.IsNotFound(err) {
 									errors.CheckError(err)
 								}
 							}
@@ -345,8 +344,8 @@ func NewImportCommand() *cobra.Command {
 					if !dryRun {
 						canPrune := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to prune %s/%s %s ? [y/n]", key.Group, key.Kind, key.Name))
 						if canPrune {
-							err = dynClient.Delete(ctx, key.Name, metav1.DeleteOptions{})
-							if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+							err = dynClient.Delete(ctx, key.Name, v1.DeleteOptions{})
+							if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 								isForbidden = true
 								log.Warnf("%s/%s %s: %v\n", key.Group, key.Kind, key.Name, err)
 							} else {
@@ -384,7 +383,8 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 	if !stopOperation {
 		return true
 	}
-	if liveObj.GetKind() == application.ApplicationKind {
+	switch liveObj.GetKind() {
+	case application.ApplicationKind:
 		return liveObj.Object["operation"] == nil
 	}
 	return true

@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -9,11 +10,8 @@ import (
 	"testing"
 	"time"
 
-	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func runCmd(workingDir string, name string, args ...string) error {
@@ -50,7 +48,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -64,7 +62,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -87,7 +85,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -132,7 +130,7 @@ func Test_IsAnnotatedTag(t *testing.T) {
 func Test_ChangedFiles(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -187,7 +185,7 @@ func Test_ChangedFiles(t *testing.T) {
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -362,7 +360,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(tempDir, "git", "clone", foo)
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+foo, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", foo), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -418,7 +416,7 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 func Test_IsRevisionPresent(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -452,7 +450,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 
 func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	tempDir := t.TempDir()
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -497,7 +495,7 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -527,7 +525,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
 
-		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -579,7 +577,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		// make origin git repository
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
-		originGitRepoUrl := "file://" + tempDir
+		originGitRepoUrl := fmt.Sprintf("file://%s", tempDir)
 		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
@@ -656,7 +654,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
 
-		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -715,7 +713,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
 
-		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()
@@ -759,7 +757,7 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -807,7 +805,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	require.NoError(t, err)
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -838,18 +836,4 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	require.NoError(t, err)
 	actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 	require.Equal(t, expectedCommitHash, actualCommitHash)
-}
-
-func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
-	tokenprovider := new(mocks.TokenProvider)
-	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
-
-	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
-
-	auth, err := newAuth("", creds)
-	require.NoError(t, err)
-	_, ok := auth.(*githttp.TokenAuth)
-	if !ok {
-		t.Fatalf("expected TokenAuth but got %T", auth)
-	}
 }

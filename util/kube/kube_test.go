@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 const depWithoutSelector = `
@@ -147,7 +147,7 @@ func TestSetSvcLabel(t *testing.T) {
 	require.NoError(t, err)
 	log.Println(string(manifestBytes))
 
-	var s corev1.Service
+	var s apiv1.Service
 	err = json.Unmarshal(manifestBytes, &s)
 	require.NoError(t, err)
 
@@ -176,7 +176,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	require.NoError(t, err)
 	log.Println(string(manifestBytes))
 
-	var s corev1.Service
+	var s apiv1.Service
 	err = json.Unmarshal(manifestBytes, &s)
 	require.NoError(t, err)
 

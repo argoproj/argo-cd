@@ -16,7 +16,6 @@ export interface HTTPSQuery {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
-    useAzureWorkloadIdentity: boolean;
 }
 
 export interface SSHQuery {
@@ -104,8 +103,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -127,8 +125,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -150,8 +147,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
@@ -173,8 +169,7 @@ export class RepositoriesService {
                 noProxy: q.noProxy,
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
-                enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                enableOCI: q.enableOCI
             })
             .then(res => res.body as models.Repository);
     }
