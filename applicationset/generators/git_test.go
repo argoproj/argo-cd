@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
@@ -1394,6 +1395,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		values             map[string]string
 		expected           []map[string]any
 		expectedError      error
+		expectedProject    *string
 		appset             v1alpha1.ApplicationSet
 		callGetDirectories bool
 	}{
@@ -1502,8 +1504,9 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:      []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError: nil,
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedProject: ptr.To("project"),
+			expectedError:   nil,
 		},
 		{
 			name: "Project field is templated - verify that project is passed through to repo-server as empty string",
@@ -1535,15 +1538,23 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:      []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError: nil,
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedProject: ptr.To(""),
+			expectedError:   nil,
 		},
 	}
 	for _, testCase := range cases {
 		argoCDServiceMock := mocks.Repos{}
 
 		if testCase.callGetDirectories {
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+			var project any
+			if testCase.expectedProject != nil {
+				project = *testCase.expectedProject
+			} else {
+				project = mock.Anything
+			}
+
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 		}
 		gitGenerator := NewGitGenerator(&argoCDServiceMock, "argocd")
 
