@@ -14,6 +14,7 @@
     "@fortawesome/fontawesome-free": "^6.5.2",
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^8.1.6",
+    "@tanstack/react-virtual": "^3.10.7",
     "ansi-to-react": "^6.1.6",
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git",
     "buffer": "^6.0.3",
