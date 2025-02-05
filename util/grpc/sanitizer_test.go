@@ -47,5 +47,5 @@ func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {
 		return nil, status.Error(codes.Internal, "error at /my-random/path/sub-dir: something went wrong")
 	})
 
-	assert.Equal(t, "rpc error: code = Internal desc = error at ./sub-dir: something went wrong", err.Error())
+	assert.EqualError(t, err, "rpc error: code = Internal desc = error at ./sub-dir: something went wrong")
 }

@@ -335,6 +335,8 @@ message ApplicationSetSpec {
   repeated string goTemplateOptions = 7;
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
+  // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
@@ -2509,6 +2511,9 @@ message SyncWindow {
 
   // TimeZone of the sync that will be applied to the schedule
   optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
