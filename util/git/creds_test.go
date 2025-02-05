@@ -435,7 +435,5 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 	var creds Creds = NewAzureWorkloadIdentityCreds(NoopCredsStore{}, new(mocks.TokenProvider))
 
 	_, ok := creds.(AzureWorkloadIdentityCreds)
-	if !ok {
-		t.Fatalf("expected HelmCreds but got %T", creds)
-	}
+	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
 }
