@@ -360,7 +360,8 @@ func TestCallExtension(t *testing.T) {
 
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: map[string]string{
-				"": configYaml,
+				"ephemeral": "services:\n- url: http://some-server.com",
+				"":          configYaml,
 			},
 			Secrets: secrets,
 		}
@@ -762,6 +763,12 @@ extensions:
         value: '$extension.auth.header2'
       cluster:
         server: %s
+    - url: http://test.com
+      cluster:
+        name: cl1
+    - url: http://test2.com
+      cluster:
+        name: cl2
 `
 	// second extension is configured with the cluster url rather
 	// than the cluster name so we can validate that both use-cases
