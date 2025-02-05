@@ -3,10 +3,11 @@ package app
 import (
 	"encoding/json"
 	"fmt"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"os"
 	"slices"
 	"strconv"
+
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"

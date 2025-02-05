@@ -3,9 +3,10 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 
 	"github.com/stretchr/testify/require"
 	rbacv1 "k8s.io/api/rbac/v1"
