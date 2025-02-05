@@ -5,6 +5,8 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,7 +18,6 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -461,6 +462,56 @@ func SetTrackingLabel(trackingLabel string) error {
 	})
 }
 
+func SetImpersonationEnabled(impersonationEnabledFlag string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
+		return nil
+	})
+}
+
+func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceAccountName,
+		},
+	}
+	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Rules: policyRules,
+	}
+	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	rolebinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: DeploymentNamespace(),
+			},
+		},
+	}
+	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
