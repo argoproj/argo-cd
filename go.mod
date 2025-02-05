@@ -90,7 +90,7 @@ require (
 	golang.org/x/net v0.34.0
 	golang.org/x/oauth2 v0.26.0
 	golang.org/x/sync v0.11.0
-	golang.org/x/term v0.28.0
+	golang.org/x/term v0.29.0
 	golang.org/x/time v0.10.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241202173237-19429a94021a
 	google.golang.org/grpc v1.70.0
@@ -153,7 +153,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	google.golang.org/api v0.171.0 // indirect
