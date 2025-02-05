@@ -597,9 +597,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload)
-			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
-			}
+			got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false)
+			assert.Equal(t, got, testCopy.hasChanged, "sourceRevisionHasChanged()")
 		})
 	}
 }
@@ -635,9 +634,7 @@ func Test_getWebUrlRegex(t *testing.T) {
 			t.Parallel()
 			regexp, err := getWebUrlRegex(testCopy.webURL)
 			require.NoError(t, err)
-			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
-			}
+			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})
 	}
 }

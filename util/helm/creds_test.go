@@ -141,8 +141,7 @@ func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not allow 'Bearer' authentication")
+	assert.ErrorContains(t, err, "does not allow 'Bearer' authentication")
 }
 
 func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
@@ -159,8 +158,7 @@ func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "service parameter not found in challenge")
+	assert.ErrorContains(t, err, "service parameter not found in challenge")
 }
 
 func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
@@ -177,8 +175,7 @@ func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
 	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "realm parameter not found in challenge")
+	assert.ErrorContains(t, err, "realm parameter not found in challenge")
 }
 
 func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
@@ -228,8 +225,7 @@ func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
 	}
 
 	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to get refresh token")
+	require.ErrorContains(t, err, "failed to get refresh token")
 	assert.Empty(t, refreshToken)
 }
 
@@ -254,7 +250,6 @@ func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
 	}
 
 	refreshToken, err := creds.getAccessTokenAfterChallenge(tokenParams)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to unmarshal response body")
+	require.ErrorContains(t, err, "failed to unmarshal response body")
 	assert.Empty(t, refreshToken)
 }

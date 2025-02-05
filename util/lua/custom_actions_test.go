@@ -220,9 +220,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
 			unstructuredObj, ok := obj["unstructuredObj"].(map[string]any)
-			if !ok {
-				t.Error("Wrong type of unstructuredObj")
-			}
+			assert.True(t, ok, "Wrong type of unstructuredObj")
 			unstructuredList.Items[i] = unstructured.Unstructured{Object: unstructuredObj}
 		}
 	} else {
