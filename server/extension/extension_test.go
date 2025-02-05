@@ -369,7 +369,8 @@ func TestCallExtension(t *testing.T) {
 
 		settings := &settings.ArgoCDSettings{
 			ExtensionConfig: map[string]string{
-				"": configYaml,
+				"ephemeral": "services:\n- url: http://some-server.com",
+				"":          configYaml,
 			},
 			Secrets: secrets,
 		}
@@ -499,11 +500,13 @@ func TestCallExtension(t *testing.T) {
 
 		response1 := "response backend 1"
 		cluster1Name := "cluster1"
+		cluster1URL := "url1"
 		beSrv1 := startBackendTestSrv(response1)
 		defer beSrv1.Close()
 
 		response2 := "response backend 2"
-		cluster2URL := "cluster2"
+		cluster2Name := "cluster2"
+		cluster2URL := "url2"
 		beSrv2 := startBackendTestSrv(response2)
 		defer beSrv2.Close()
 
@@ -511,7 +514,7 @@ func TestCallExtension(t *testing.T) {
 		f.appGetterMock.On("Get", "ns2", "app2").Return(getApp("", cluster2URL, defaultProjectName), nil)
 
 		withRbac(f, true, true)
-		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, beSrv2.URL, cluster2URL), f)
+		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, cluster1URL, beSrv2.URL, cluster2Name, cluster2URL), f)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{cluster2URL}), f)
 		withMetrics(f)
 		withUser(f, "some-user", []string{"group1", "group2"})
@@ -691,7 +694,7 @@ func TestCallExtension(t *testing.T) {
 		f.appGetterMock.On("Get", "ns1", "app1").Return(getApp(maliciousName, destinationServer, defaultProjectName), nil)
 
 		withRbac(f, true, true)
-		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "clusterName", "url2", "clusterURL"), f)
+		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "cluster1Name", "cluster1URL", "url2", "cluster2Name", "cluster2URL"), f)
 		withProject(getProjectWithDestinations("project-name", nil, []string{"srv1", destinationServer}), f)
 		withMetrics(f)
 		withUser(f, "some-user", []string{"group1", "group2"})
@@ -758,7 +761,7 @@ extensions:
 	return fmt.Sprintf(cfg, name, url)
 }
 
-func getExtensionConfigWith2Backends(name, url1, clusName, url2, clusURL string) string {
+func getExtensionConfigWith2Backends(name, url1, clus1Name, clus1URL, url2, clus2Name, clus2URL string) string {
 	cfg := `
 extensions:
 - name: %s
@@ -770,17 +773,22 @@ extensions:
         value: '$extension.auth.header'
       cluster:
         name: %s
+        server: %s
     - url: %s
       headers:
       - name: Authorization
         value: '$extension.auth.header2'
       cluster:
+        name: %s
         server: %s
+    - url: http://test.com
+      cluster:
+        name: cl1
+    - url: http://test2.com
+      cluster:
+        name: cl2
 `
-	// second extension is configured with the cluster url rather
-	// than the cluster name so we can validate that both use-cases
-	// are working
-	return fmt.Sprintf(cfg, name, url1, clusName, url2, clusURL)
+	return fmt.Sprintf(cfg, name, url1, clus1Name, clus1URL, url2, clus2Name, clus2URL)
 }
 
 func getExtensionConfigString() string {
