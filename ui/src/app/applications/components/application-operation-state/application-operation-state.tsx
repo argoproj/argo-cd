@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip, DataLoader} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -250,12 +250,12 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='argo-table-list__row' key={i}>
                                     <div className='row'>
                                         <div className='columns large-1 small-1 application-operation-state__icons_container_padding' title={`${resource.syncWave || '0'}`}>
-                                            {resource.syncWave || '0'}
-                                        </div>
-                                        <div className='columns large-1 show-for-large'>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
+                                            {resource.syncWave || '0'}
+                                        </div>
+                                        <div className='columns large-1 show-for-large'>
                                             <span title={getKind(resource)}>{getKind(resource)}</span>
                                         </div>
                                         <div className='columns large-1 show-for-large' title={resource.namespace}>
