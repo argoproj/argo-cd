@@ -9,6 +9,6 @@ import (
 )
 
 func TestWeight(t *testing.T) {
-	assert.Equal(t, Weight(NewPod()), 0)
-	assert.Equal(t, Weight(Annotate(NewPod(), "helm.sh/hook-weight", "1")), 1)
+	assert.Equal(t, 0, Weight(NewPod()))
+	assert.Equal(t, 1, Weight(Annotate(NewPod(), "helm.sh/hook-weight", "1")))
 }

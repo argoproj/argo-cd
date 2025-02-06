@@ -530,9 +530,9 @@ func TestDiffResourceWithInvalidField(t *testing.T) {
 	diffRes := diff(t, &leftUn, rightUn, diffOptionsForTest()...)
 	assert.True(t, diffRes.Modified)
 	ascii, err := printDiff(diffRes)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
-	assert.True(t, strings.Contains(ascii, "invalidKey"))
+	assert.Contains(t, ascii, "invalidKey")
 	if ascii != "" {
 		t.Log(ascii)
 	}
@@ -1375,7 +1375,7 @@ func TestHideSecretDataHandleEmptySecret(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, target)
 	assert.NotNil(t, live)
-	assert.Equal(t, nil, target.Object["data"])
+	assert.Nil(t, target.Object["data"])
 	assert.Equal(t, map[string]interface{}{"namespace": "++++++++", "token": "++++++++"}, secretData(live))
 }
 

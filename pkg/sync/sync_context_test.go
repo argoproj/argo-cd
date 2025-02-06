@@ -688,7 +688,7 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	syncCtx.hooks = []*unstructured.Unstructured{targetPod, liveSvc}
 	syncCtx.Sync()
 	phase, _, resources := syncCtx.GetState()
-	assert.Len(t, resources, 0)
+	assert.Empty(t, resources)
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
@@ -1715,7 +1715,7 @@ func TestSetOperationFailed(t *testing.T) {
 
 	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
 
-	assert.Equal(t, sc.message, "one or more objects failed to apply, reason: namespace not found")
+	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 
 }
 
@@ -1729,7 +1729,7 @@ func TestSetOperationFailedDuplicatedMessages(t *testing.T) {
 
 	sc.setOperationFailed(nil, tasks, "one or more objects failed to apply")
 
-	assert.Equal(t, sc.message, "one or more objects failed to apply, reason: namespace not found")
+	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 
 }
 
@@ -1739,7 +1739,7 @@ func TestSetOperationFailedNoTasks(t *testing.T) {
 
 	sc.setOperationFailed(nil, nil, "one or more objects failed to apply")
 
-	assert.Equal(t, sc.message, "one or more objects failed to apply")
+	assert.Equal(t, "one or more objects failed to apply", sc.message)
 
 }
 
@@ -1990,7 +1990,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	syncCtx.Sync()
 	phase, _, result = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Equal(t, 1, len(result))
+	assert.Len(t, result, 1)
 	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
 	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
 
@@ -2004,7 +2004,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	syncCtx.Sync()
 	phase, _, result = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
-	assert.Equal(t, 2, len(result))
+	assert.Len(t, result, 2)
 	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
 	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
 
@@ -2017,7 +2017,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	phase, msg, result = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for deletion of /Pod/pod-2", msg)
-	assert.Equal(t, 2, len(result))
+	assert.Len(t, result, 2)
 
 	// simulate successful delete of pod2
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2030,7 +2030,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	syncCtx.Sync()
 	phase, _, result = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
-	assert.Equal(t, 3, len(result))
+	assert.Len(t, result, 3)
 	assert.Equal(t, "pod-3", result[0].ResourceKey.Name)
 	assert.Equal(t, "pod-2", result[1].ResourceKey.Name)
 	assert.Equal(t, "pod-1", result[2].ResourceKey.Name)

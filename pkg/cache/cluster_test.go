@@ -413,9 +413,9 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	require.NoError(t, err)
-	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
-	})
+	}, managedObjs)
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
@@ -466,7 +466,7 @@ metadata:
 	_, err = cluster.GetManagedLiveObjs([]*unstructured.Unstructured{clusterLevelRes}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	otherNamespaceRes := strToUnstructured(`
 apiVersion: apps/v1
@@ -507,9 +507,9 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	require.NoError(t, err)
-	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
-	})
+	}, managedObjs)
 }
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
@@ -535,9 +535,9 @@ metadata:
 		return len(r.OwnerRefs) == 0
 	})
 	require.NoError(t, err)
-	assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
-	})
+	}, managedObjs)
 }
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
@@ -640,9 +640,9 @@ metadata:
 			assert.NoError(t, err)
 			assert.Equal(t, testCaseCopy.expectConvertToVersionCalled, convertToVersionWasCalled)
 			assert.Equal(t, testCaseCopy.expectGetResourceCalled, getResourceWasCalled)
-			assert.Equal(t, managedObjs, map[kube.ResourceKey]*unstructured.Unstructured{
+			assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.NewResourceKey(cronTabGroup, "CronTab", "default", "test-crontab"): mustToUnstructured(testCronTab()),
-			})
+			}, managedObjs)
 		})
 	}
 }

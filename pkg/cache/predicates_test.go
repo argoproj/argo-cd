@@ -82,12 +82,12 @@ func TestGetNamespaceResources(t *testing.T) {
 
 	resources := cluster.FindResources("default", TopLevelResource)
 	assert.Len(t, resources, 2)
-	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel1)].Ref.Name, "helm-guestbook1")
-	assert.Equal(t, resources[getResourceKey(t, defaultNamespaceTopLevel2)].Ref.Name, "helm-guestbook2")
+	assert.Equal(t, "helm-guestbook1", resources[getResourceKey(t, defaultNamespaceTopLevel1)].Ref.Name)
+	assert.Equal(t, "helm-guestbook2", resources[getResourceKey(t, defaultNamespaceTopLevel2)].Ref.Name)
 
 	resources = cluster.FindResources("kube-system", TopLevelResource)
 	assert.Len(t, resources, 1)
-	assert.Equal(t, resources[getResourceKey(t, kubesystemNamespaceTopLevel2)].Ref.Name, "helm-guestbook3")
+	assert.Equal(t, "helm-guestbook3", resources[getResourceKey(t, kubesystemNamespaceTopLevel2)].Ref.Name)
 }
 
 func ExampleNewClusterCache_inspectNamespaceResources() {
