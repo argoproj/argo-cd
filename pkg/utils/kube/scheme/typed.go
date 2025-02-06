@@ -43,8 +43,10 @@ func resolveFromStaticParser(gvk schema.GroupVersionKind, parser *managedfields.
 	return nil
 }
 
-var gvkMap map[schema.GroupVersionKind]string
-var extractOnce sync.Once
+var (
+	gvkMap      map[schema.GroupVersionKind]string
+	extractOnce sync.Once
+)
 
 func getGvkMap(parser *managedfields.GvkParser) map[schema.GroupVersionKind]string {
 	extractOnce.Do(func() {

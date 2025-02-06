@@ -3,9 +3,10 @@ package kube
 import (
 	_ "embed"
 	"encoding/json"
+	"testing"
+
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"github.com/stretchr/testify/require"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2/textlogger"
@@ -14,9 +15,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
 )
 
-var (
-	_ Kubectl = &KubectlCmd{}
-)
+var _ Kubectl = &KubectlCmd{}
 
 func TestConvertToVersion(t *testing.T) {
 	kubectl := KubectlCmd{

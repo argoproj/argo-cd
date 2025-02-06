@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	v1 "k8s.io/api/core/v1"
@@ -36,7 +37,6 @@ func (r *Resource) ResourceKey() kube.ResourceKey {
 
 func (r *Resource) isParentOf(child *Resource) bool {
 	for i, ownerRef := range child.OwnerRefs {
-
 		// backfill UID of inferred owner child references
 		if ownerRef.UID == "" && r.Ref.Kind == ownerRef.Kind && r.Ref.APIVersion == ownerRef.APIVersion && r.Ref.Name == ownerRef.Name {
 			ownerRef.UID = r.Ref.UID

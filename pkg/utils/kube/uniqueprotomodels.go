@@ -2,9 +2,10 @@ package kube
 
 import (
 	"fmt"
+	"sort"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kube-openapi/pkg/util/proto"
-	"sort"
 )
 
 /**

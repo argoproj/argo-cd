@@ -352,7 +352,8 @@ func TestSyncNamespaceAgainstCRD(t *testing.T) {
 			Object: map[string]interface{}{
 				"kind": "Workflow",
 			},
-		}}
+		},
+	}
 	namespace := &syncTask{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -378,7 +379,8 @@ func TestSyncTasksSort_NamespaceAndObjectInNamespace(t *testing.T) {
 					"name":      "mySyncHookJob1",
 				},
 			},
-		}}
+		},
+	}
 	hook2 := &syncTask{
 		phase: common.SyncPhasePreSync,
 		targetObj: &unstructured.Unstructured{
@@ -389,7 +391,8 @@ func TestSyncTasksSort_NamespaceAndObjectInNamespace(t *testing.T) {
 					"name":      "mySyncHookJob2",
 				},
 			},
-		}}
+		},
+	}
 	namespace1 := &syncTask{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -449,7 +452,8 @@ func TestSyncTasksSort_CRDAndCR(t *testing.T) {
 					},
 				},
 			},
-		}}
+		},
+	}
 
 	unsorted := syncTasks{cr, crd}
 	unsorted.Sort()

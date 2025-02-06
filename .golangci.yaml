@@ -1,12 +1,19 @@
 issues:
   exclude-files:
     - "pkg/diff/internal/fieldmanager/borrowed_.*\\.go$"
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
   enable:
+    - gofumpt
+    - gosimple
     - testifylint
+    - whitespace
 linters-settings:
   testifylint:
     enable-all: true
     disable:
       - go-require
       - require-error
+run:
+  timeout: 5m

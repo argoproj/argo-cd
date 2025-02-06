@@ -148,7 +148,7 @@ func getChildren(cluster *clusterCache, un *unstructured.Unstructured) []*Resour
 
 // Benchmark_sync is meant to simulate cluster initialization when populateResourceInfoHandler does nontrivial work.
 func Benchmark_sync(t *testing.B) {
-	var resources = []runtime.Object{}
+	resources := []runtime.Object{}
 	for i := 0; i < 100; i++ {
 		resources = append(resources, &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -617,8 +617,8 @@ metadata:
   name: test-crontab
   namespace: default`)
 
-			var convertToVersionWasCalled = false
-			var getResourceWasCalled = false
+			convertToVersionWasCalled := false
+			getResourceWasCalled := false
 			cluster.kubectl.(*kubetest.MockKubectlCmd).
 				WithConvertToVersionFunc(func(obj *unstructured.Unstructured, _ string, _ string) (*unstructured.Unstructured, error) {
 					convertToVersionWasCalled = true
@@ -1059,7 +1059,8 @@ func TestIterateHierachy(t *testing.T) {
 				kube.GetResourceKey(mustToUnstructured(testPod1())),
 				kube.GetResourceKey(mustToUnstructured(testPod2())),
 				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			},
 			keys)
 	})
 
@@ -1072,7 +1073,8 @@ func TestIterateHierachy(t *testing.T) {
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			},
 			keys)
 	})
 
@@ -1120,7 +1122,8 @@ func TestIterateHierachy(t *testing.T) {
 			[]kube.ResourceKey{
 				kube.GetResourceKey(mustToUnstructured(testPod1())),
 				kube.GetResourceKey(mustToUnstructured(testPod2())),
-				kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))},
+				kube.GetResourceKey(mustToUnstructured(testExtensionsRS())),
+			},
 			keys)
 	})
 }
@@ -1143,7 +1146,8 @@ func TestIterateHierachyV2(t *testing.T) {
 				kube.GetResourceKey(mustToUnstructured(testPod1())),
 				kube.GetResourceKey(mustToUnstructured(testPod2())),
 				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			},
 			keys)
 	})
 
@@ -1157,7 +1161,8 @@ func TestIterateHierachyV2(t *testing.T) {
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			},
 			keys)
 	})
 
@@ -1211,7 +1216,8 @@ func TestIterateHierachyV2(t *testing.T) {
 				kube.GetResourceKey(mustToUnstructured(testPod1())),
 				kube.GetResourceKey(mustToUnstructured(testPod2())),
 				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			},
 			keys)
 	})
 
@@ -1228,7 +1234,8 @@ func TestIterateHierachyV2(t *testing.T) {
 			[]kube.ResourceKey{
 				kube.GetResourceKey(mustToUnstructured(testPod1())),
 				kube.GetResourceKey(mustToUnstructured(testPod2())),
-				kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))},
+				kube.GetResourceKey(mustToUnstructured(testExtensionsRS())),
+			},
 			keys)
 	})
 }

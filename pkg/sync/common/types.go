@@ -116,7 +116,6 @@ func NewHookType(t string) (HookType, bool) {
 			t == string(HookTypePostSync) ||
 			t == string(HookTypeSyncFail) ||
 			t == string(HookTypeSkip)
-
 }
 
 type HookDeletePolicy string

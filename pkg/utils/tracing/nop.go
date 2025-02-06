@@ -5,15 +5,13 @@ var (
 	_ Span   = nopSpan{}
 )
 
-type NopTracer struct {
-}
+type NopTracer struct{}
 
 func (n NopTracer) StartSpan(operationName string) Span {
 	return nopSpan{}
 }
 
-type nopSpan struct {
-}
+type nopSpan struct{}
 
 func (n nopSpan) SetBaggageItem(key string, value interface{}) {
 }

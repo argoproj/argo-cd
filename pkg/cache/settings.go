@@ -17,8 +17,7 @@ func NewNoopSettings() *noopSettings {
 	return &noopSettings{}
 }
 
-type noopSettings struct {
-}
+type noopSettings struct{}
 
 func (f *noopSettings) GetResourceHealth(_ *unstructured.Unstructured) (*health.HealthStatus, error) {
 	return nil, nil

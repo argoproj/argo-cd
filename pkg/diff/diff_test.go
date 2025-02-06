@@ -58,7 +58,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 			return nil, err
 		}
 	}
-	err = os.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 			return nil, err
 		}
 	}
-	err = os.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +390,6 @@ func TestThreeWayDiffExample1(t *testing.T) {
 	if ascii != "" {
 		t.Log(ascii)
 	}
-
 }
 
 // Test for ignoring aggregated cluster roles
@@ -507,7 +506,6 @@ func TestThreeWayDiffExplicitNamespace(t *testing.T) {
 }
 
 func TestDiffResourceWithInvalidField(t *testing.T) {
-
 	// Diff(...) should not silently discard invalid fields (fields that are not present in the underlying k8s resource).
 
 	leftDep := `{
@@ -1091,7 +1089,7 @@ func TestHideStringDataInInvalidSecret(t *testing.T) {
 
 // stringData in secrets should be normalized even if it is invalid
 func TestNormalizeSecret(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		testname   string
 		data       map[string]interface{}
 		stringData map[string]interface{}
@@ -1223,7 +1221,6 @@ func TestHideSecretAnnotations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			unSecret := &unstructured.Unstructured{
 				Object: map[string]interface{}{
 					"apiVersion": "v1",
@@ -1395,7 +1392,6 @@ func TestHideSecretDataLastAppliedConfig(t *testing.T) {
 	assert.Equal(t, map[string]interface{}{"key1": replacement1}, secretData(target))
 	assert.Equal(t, map[string]interface{}{"key1": replacement2}, secretData(live))
 	assert.Equal(t, map[string]interface{}{"key1": replacement3}, secretData(lastAppliedSecret))
-
 }
 
 func TestRemarshal(t *testing.T) {

@@ -137,11 +137,9 @@ func (r *MockResourceOps) UpdateResource(ctx context.Context, obj *unstructured.
 		return obj, nil
 	}
 	return obj, command.Err
-
 }
 
 func (r *MockResourceOps) CreateResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, validate bool) (string, error) {
-
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
 	command, ok := r.Commands[obj.GetName()]
 	if !ok {

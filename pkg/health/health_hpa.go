@@ -14,12 +14,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
-var (
-	progressingStatus = &HealthStatus{
-		Status:  HealthStatusProgressing,
-		Message: "Waiting to Autoscale",
-	}
-)
+var progressingStatus = &HealthStatus{
+	Status:  HealthStatusProgressing,
+	Message: "Waiting to Autoscale",
+}
 
 type hpaCondition struct {
 	Type    string

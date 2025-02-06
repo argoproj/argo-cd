@@ -71,6 +71,7 @@ func (t *syncTask) isHook() bool {
 func (t *syncTask) group() string {
 	return t.groupVersionKind().Group
 }
+
 func (t *syncTask) kind() string {
 	return t.groupVersionKind().Kind
 }

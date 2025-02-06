@@ -83,7 +83,6 @@ func (s syncTasks) Swap(i, j int) {
 // 3. kind
 // 4. name
 func (s syncTasks) Less(i, j int) bool {
-
 	tA := s[i]
 	tB := s[j]
 

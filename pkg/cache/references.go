@@ -3,11 +3,12 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
@@ -23,7 +24,6 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 	gvk := un.GroupVersionKind()
 
 	switch {
-
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
 	case gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(ownerRefs) == 0:
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{

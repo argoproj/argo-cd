@@ -55,8 +55,7 @@ type DiffResultList struct {
 	Modified bool
 }
 
-type noopNormalizer struct {
-}
+type noopNormalizer struct{}
 
 func (n *noopNormalizer) Normalize(un *unstructured.Unstructured) error {
 	return nil
@@ -318,7 +317,6 @@ type SMDParams struct {
 }
 
 func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
-
 	gvk := p.config.GetObjectKind().GroupVersionKind()
 	pt := gescheme.ResolveParseableType(gvk, p.gvkParser)
 	if pt == nil {
@@ -372,7 +370,6 @@ func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 // to correctly calculate the diff with the same logic used in k8s with server-side
 // apply.
 func apply(tvConfig, tvLive *typed.TypedValue, p *SMDParams) (*typed.TypedValue, error) {
-
 	// Build the structured-merge-diff Updater
 	updater := merge.Updater{
 		Converter: fieldmanager.NewVersionConverter(p.gvkParser, scheme.Scheme, p.config.GroupVersionKind().GroupVersion()),
@@ -485,7 +482,6 @@ func handleResourceCreateOrDeleteDiff(config, live *unstructured.Unstructured) (
 // generateSchemeDefaultPatch runs the scheme default functions on the given parameter, and
 // return a patch representing the delta vs the origin parameter object.
 func generateSchemeDefaultPatch(kubeObj runtime.Object) ([]byte, error) {
-
 	// 1) Call scheme defaulter functions on a clone of our k8s resource object
 	patched := kubeObj.DeepCopyObject()
 	gescheme.Scheme.Default(patched)
@@ -511,7 +507,6 @@ func generateSchemeDefaultPatch(kubeObj runtime.Object) ([]byte, error) {
 // applyPatch executes kubernetes server side patch:
 // uses corresponding data structure, applies appropriate defaults and executes strategic merge patch
 func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (runtime.Object, error)) ([]byte, []byte, error) {
-
 	// Construct an empty instance of the object we are applying a patch against
 	predictedLive, err := newVersionedObject()
 	if err != nil {
@@ -527,7 +522,6 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 	// Unmarshal predictedLiveBytes into predictedLive; note that this will discard JSON fields in predictedLiveBytes
 	// which are not in the predictedLive struct. predictedLive is thus "tainted" and we should not use it directly.
 	if err = json.Unmarshal(predictedLiveBytes, &predictedLive); err == nil {
-
 		// 1) Calls 'kubescheme.Scheme.Default(predictedLive)' and generates a patch containing the delta of that
 		// call, which can then be applied to predictedLiveBytes.
 		//
@@ -571,7 +565,6 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 	// However, this is much less likely since liveBytes is coming from a live k8s instance which
 	// has already accepted those resources. Regardless, we still treat 'live' as tainted.
 	if err = json.Unmarshal(liveBytes, live); err == nil {
-
 		// As above, indirectly apply the schema defaults against liveBytes
 		patch, err := generateSchemeDefaultPatch(live)
 		if err != nil {
@@ -592,7 +585,6 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 		if err != nil {
 			return nil, nil, err
 		}
-
 	}
 
 	return liveBytes, predictedLiveBytes, nil
@@ -968,7 +960,6 @@ func normalizeRole(un *unstructured.Unstructured, o options) {
 	if rules != nil && len(rules) == 0 {
 		un.Object["rules"] = nil
 	}
-
 }
 
 // CreateTwoWayMergePatch is a helper to construct a two-way merge patch from objects (instead of bytes)

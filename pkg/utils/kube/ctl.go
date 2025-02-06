@@ -81,7 +81,6 @@ func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, res
 			gv = schema.GroupVersion{}
 		}
 		for _, apiResource := range apiResourcesList.APIResources {
-
 			if resourceFilter.IsExcludedResource(gv.Group, apiResource.Kind, config.Host) {
 				continue
 			}

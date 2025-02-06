@@ -20,7 +20,6 @@ func removeFields(config, live interface{}) interface{} {
 	default:
 		return live
 	}
-
 }
 
 // RemoveMapFields remove all non-existent fields in the live that don't exist in the config

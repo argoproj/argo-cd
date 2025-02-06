@@ -98,6 +98,5 @@ func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {
 
 func (k *MockKubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (kube.ResourceOperations, func(), error) {
 	return &MockResourceOps{}, func() {
-
 	}, nil
 }
