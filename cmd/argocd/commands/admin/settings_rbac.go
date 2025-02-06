@@ -14,12 +14,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 type actionTraitMap map[string]rbacTrait
@@ -463,9 +463,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 func resolveRBACResourceName(name string) string {
 	if res, ok := resourceMap[name]; ok {
 		return res
-	} else {
-		return name
 	}
+	return name
 }
 
 // validateRBACResourceAction checks whether a given resource is a valid RBAC resource.

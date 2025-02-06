@@ -34,14 +34,14 @@ import (
 	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/kube"
-	"github.com/argoproj/argo-cd/v2/util/password"
-	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v3/util/password"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -169,6 +169,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		Issuer:                   o.Issuer,
 		ClientID:                 o.ClientID,
 		ClientSecret:             o.ClientSecret,
+		Azure:                    o.Azure,
 		CLIClientID:              o.CLIClientID,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
@@ -197,6 +198,11 @@ type OIDCConfig struct {
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
+	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+}
+
+type AzureOIDCConfig struct {
+	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -350,6 +356,8 @@ type Repository struct {
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -382,6 +390,8 @@ type RepositoryCredentials struct {
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
 
 // DeepLink structure
@@ -417,12 +427,6 @@ const (
 	settingURLKey = "url"
 	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
 	settingAdditionalUrlsKey = "additionalUrls"
-	// repositoriesKey designates the key where ArgoCDs repositories list is set
-	repositoriesKey = "repositories"
-	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
-	repositoryCredentialsKey = "repository.credentials"
-	// helmRepositoriesKey designates the key where list of helm repositories is set
-	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -511,6 +515,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
+	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -857,6 +863,19 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance] == "" {
+		return true, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
@@ -1208,111 +1227,6 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 	return nil
 }
 
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-	helmRepositories := make([]HelmRepoCredentials, 0)
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
-		}
-	}
-	return helmRepositories, nil
-}
-
-func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-	mgr.mutex.Lock()
-	reposCache := mgr.reposCache
-	mgr.mutex.Unlock()
-	if reposCache != nil {
-		return reposCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	repositories := make([]Repository, 0)
-	repositoriesStr := argoCDCM.Data[repositoriesKey]
-	if repositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal repositories from config map key %q: %w", repositoriesKey, err)
-		}
-	}
-	mgr.reposCache = repositories
-
-	return mgr.reposCache, nil
-}
-
-func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(repos) > 0 {
-			yamlStr, err := yaml.Marshal(repos)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoriesKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoriesKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(creds) > 0 {
-			yamlStr, err := yaml.Marshal(creds)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoryCredentialsKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-	mgr.mutex.Lock()
-	repoCredsCache := mgr.repoCredsCache
-	mgr.mutex.Unlock()
-	if repoCredsCache != nil {
-		return repoCredsCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	creds := make([]RepositoryCredentials, 0)
-	credsStr := argoCDCM.Data[repositoryCredentialsKey]
-	if credsStr != "" {
-		err := yaml.Unmarshal([]byte(credsStr), &creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-	mgr.repoCredsCache = creds
-
-	return mgr.repoCredsCache, nil
-}
-
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1388,14 +1302,14 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 
 	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj any) {
+		UpdateFunc: func(_, _ any) {
 			mgr.invalidateCache()
 			mgr.onRepoOrClusterChanged()
 		},
-		AddFunc: func(obj any) {
+		AddFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
-		DeleteFunc: func(obj any) {
+		DeleteFunc: func(_ any) {
 			mgr.onRepoOrClusterChanged()
 		},
 	}
@@ -2005,6 +1919,13 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.UseWorkloadIdentity
+	}
+	return false
+}
+
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
 // config using the root CAs (if any) specified in the OIDC config. If an external OIDC provider is not configured,
 // returns the API server TLS config, because the API server proxies requests to Dex.
@@ -2176,7 +2097,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 				if err != nil {
 					return err
 				}
-				ku := kube.NewKubeUtil(mgr.clientset, mgr.ctx)
+				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
 				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
 					return err

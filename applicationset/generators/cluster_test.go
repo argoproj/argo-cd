@@ -13,8 +13,8 @@ import (
 
 	kubefake "k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -315,7 +315,7 @@ func TestGenerateParams(t *testing.T) {
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -853,7 +853,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(cl, context.Background(), appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{

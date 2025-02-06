@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_generateParamsFromGitFile(t *testing.T) {
@@ -169,11 +169,12 @@ foo:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GitGenerator.generateParamsFromGitFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, params)
 			}
-			assert.Equal(t, tt.want, params)
 		})
 	}
 }

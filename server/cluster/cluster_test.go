@@ -10,8 +10,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
@@ -23,17 +23,17 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/test"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/test"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -126,7 +126,7 @@ func newEnforcer() *rbac.Enforcer {
 	enforcer := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
 	_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	enforcer.SetDefaultRole("role:test")
-	enforcer.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enforcer.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	return enforcer
@@ -179,18 +179,18 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}
 
 	db.On("ListClusters", mock.Anything).Return(
-		func(ctx context.Context) *v1alpha1.ClusterList {
+		func(_ context.Context) *v1alpha1.ClusterList {
 			return &v1alpha1.ClusterList{
 				ListMeta: metav1.ListMeta{},
 				Items:    clusters,
 			}
 		},
-		func(ctx context.Context) error {
+		func(_ context.Context) error {
 			return nil
 		},
 	)
 	db.On("UpdateCluster", mock.Anything, mock.Anything).Return(
-		func(ctx context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
+		func(_ context.Context, c *v1alpha1.Cluster) *v1alpha1.Cluster {
 			for _, cluster := range clusters {
 				if c.Server == cluster.Server {
 					return c
@@ -198,7 +198,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 			}
 			return nil
 		},
-		func(ctx context.Context, c *v1alpha1.Cluster) error {
+		func(_ context.Context, c *v1alpha1.Cluster) error {
 			for _, cluster := range clusters {
 				if c.Server == cluster.Server {
 					return nil
@@ -208,7 +208,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 		},
 	)
 	db.On("GetCluster", mock.Anything, mock.Anything).Return(
-		func(ctx context.Context, server string) *v1alpha1.Cluster {
+		func(_ context.Context, server string) *v1alpha1.Cluster {
 			for _, cluster := range clusters {
 				if server == cluster.Server {
 					return &cluster
@@ -216,7 +216,7 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 			}
 			return nil
 		},
-		func(ctx context.Context, server string) error {
+		func(_ context.Context, server string) error {
 			for _, cluster := range clusters {
 				if server == cluster.Server {
 					return nil
@@ -707,11 +707,12 @@ func TestListCluster(t *testing.T) {
 			t.Parallel()
 
 			got, err := s.List(context.Background(), tt.q)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "Server.List()")
+			} else {
+				require.NoError(t, err)
+				assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 			}
-			assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 		})
 	}
 }

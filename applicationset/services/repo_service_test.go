@@ -10,11 +10,11 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	repo_mocks "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	repo_mocks "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/util/git"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGetDirectories(t *testing.T) {
@@ -39,12 +39,12 @@ func TestGetDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingDirs", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -54,7 +54,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -66,7 +66,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 		}, args: args{}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -122,12 +122,12 @@ func TestGetFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "ErrorGettingFiles", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -137,7 +137,7 @@ func TestGetFiles(t *testing.T) {
 			},
 		}, args: args{}, want: nil, wantErr: assert.Error},
 		{name: "HappyCase", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -155,7 +155,7 @@ func TestGetFiles(t *testing.T) {
 			"bar.yaml": []byte("yay: appsets"),
 		}, wantErr: assert.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
-			getRepository: func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
 			},
 			repoServerClientFuncs: []func(*repo_mocks.RepoServerServiceClient){
@@ -189,7 +189,7 @@ func TestGetFiles(t *testing.T) {
 }
 
 func TestNewArgoCDService(t *testing.T) {
-	service, err := NewArgoCDService(func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+	service, err := NewArgoCDService(func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{}, nil
 	}, false, &repo_mocks.Clientset{}, false)
 	require.NoError(t, err)

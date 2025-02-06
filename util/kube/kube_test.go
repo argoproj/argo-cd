@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const depWithoutSelector = `
@@ -192,8 +192,7 @@ func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	require.NoError(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string")
 }
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
@@ -218,8 +217,7 @@ func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = GetAppInstanceAnnotation(&obj, "valid-annotation")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string")
 }
 
 func TestGetAppInstanceLabel(t *testing.T) {
@@ -242,8 +240,7 @@ func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	require.NoError(t, err)
 	_, err = GetAppInstanceLabel(&obj, "valid-label")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string")
 }
 
 func TestRemoveLabel(t *testing.T) {
@@ -268,6 +265,5 @@ func TestRemoveLabelWithInvalidData(t *testing.T) {
 	require.NoError(t, err)
 
 	err = RemoveLabel(&obj, "valid-label")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string")
 }

@@ -39,11 +39,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
-	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // Application is a definition of Application resource.
@@ -167,9 +167,8 @@ func (e Env) Envsubst(s string) string {
 		// allow escaping $ with $$
 		if s == "$" {
 			return "$"
-		} else {
-			return valByEnv[s]
 		}
+		return valByEnv[s]
 	})
 }
 
@@ -288,9 +287,8 @@ func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSo
 
 // AllowsConcurrentProcessing returns true if given application source can be processed concurrently
 func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
-	switch {
 	// Kustomize with parameters requires changing kustomization.yaml file
-	case source.Kustomize != nil:
+	if source.Kustomize != nil {
 		return source.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
@@ -678,14 +676,13 @@ type KustomizeReplicas []KustomizeReplica
 // If parsing error occurs, returns 0 and error.
 func (kr KustomizeReplica) GetIntCount() (int, error) {
 	if kr.Count.Type == intstr.String {
-		if count, err := strconv.Atoi(kr.Count.StrVal); err != nil {
+		count, err := strconv.Atoi(kr.Count.StrVal)
+		if err != nil {
 			return 0, fmt.Errorf("expected integer value for count. Received: %s", kr.Count.StrVal)
-		} else {
-			return count, nil
 		}
-	} else {
-		return kr.Count.IntValue(), nil
+		return count, nil
 	}
+	return kr.Count.IntValue(), nil
 }
 
 // NewKustomizeReplica parses a string in format name=count into a KustomizeReplica object and returns it
@@ -815,9 +812,8 @@ func NewJsonnetVar(s string, code bool) JsonnetVar {
 	parts := strings.SplitN(s, "=", 2)
 	if len(parts) == 2 {
 		return JsonnetVar{Name: parts[0], Value: parts[1], Code: code}
-	} else {
-		return JsonnetVar{Name: s, Code: code}
 	}
+	return JsonnetVar{Name: s, Code: code}
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1108,17 +1104,6 @@ type ApplicationDestination struct {
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
-
-	// nolint:govet
-	isServerInferred bool `json:"-"`
-	// nolint:govet
-	isNameInferred bool `json:"-"`
-}
-
-// SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
-// one server is inferred and the other is not.
-func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
-	d.isServerInferred = inferred
 }
 
 type ResourceHealthLocation string
@@ -1285,8 +1270,7 @@ type SyncOperationResource struct {
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name" protobuf:"bytes,3,opt,name=name"`
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
-	// nolint:govet
-	Exclude bool `json:"-"`
+	Exclude   bool   `json:"-"`
 }
 
 // RevisionHistories is a array of history, oldest first and newest last
@@ -1522,15 +1506,15 @@ type SyncStrategy struct {
 
 // Force returns true if the sync strategy specifies to perform a forced sync
 func (m *SyncStrategy) Force() bool {
-	if m == nil {
+	switch {
+	case m == nil:
 		return false
-	} else if m.Apply != nil {
+	case m.Apply != nil:
 		return m.Apply.Force
-	} else if m.Hook != nil {
+	case m.Hook != nil:
 		return m.Hook.Force
-	} else {
-		return false
 	}
+	return false
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -2562,6 +2546,8 @@ type SyncWindow struct {
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
 	// TimeZone of the sync that will be applied to the schedule
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
+	// UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2658,17 +2644,18 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
 	window := &SyncWindow{
-		Kind:       knd,
-		Schedule:   sch,
-		Duration:   dur,
-		ManualSync: ms,
-		TimeZone:   timeZone,
+		Kind:           knd,
+		Schedule:       sch,
+		Duration:       dur,
+		ManualSync:     ms,
+		TimeZone:       timeZone,
+		UseAndOperator: andOperator,
 	}
 
 	if len(app) > 0 {
@@ -2708,36 +2695,72 @@ func (spec *AppProjectSpec) DeleteWindow(id int) error {
 }
 
 // Matches returns a list of sync windows that are defined for a given application
+// It will use the AND operator if the UseAndOperator is set to true otherwise will default to the OR operator
 func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 	if w.HasWindows() {
 		var matchingWindows SyncWindows
-		for _, w := range *w {
-			if len(w.Applications) > 0 {
-				for _, a := range w.Applications {
+		var matched, isSet bool
+
+		for _, window := range *w {
+			matched = false
+			isSet = false
+
+			// First check if any applications are configured for the window
+			if len(window.Applications) > 0 {
+				isSet = true
+				for _, a := range window.Applications {
 					if globMatch(a, app.Name, false) {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
 			}
-			if len(w.Clusters) > 0 {
-				for _, c := range w.Clusters {
+
+			// If using the AND operator and window applications were set but did not match, break out of the loop earlier
+			if window.UseAndOperator && !matched && isSet {
+				continue
+			} else if !window.UseAndOperator && matched {
+				matchingWindows = append(matchingWindows, window)
+				continue
+			}
+
+			// Second check if any clusters are configured for the window
+			if len(window.Clusters) > 0 {
+				// check next for cluster matching
+				matched = false
+				isSet = true
+				for _, c := range window.Clusters {
 					dst := app.Spec.Destination
 					dstNameMatched := dst.Name != "" && globMatch(c, dst.Name, false)
 					dstServerMatched := dst.Server != "" && globMatch(c, dst.Server, false)
 					if dstNameMatched || dstServerMatched {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
 			}
-			if len(w.Namespaces) > 0 {
-				for _, n := range w.Namespaces {
+
+			// If using the AND operator and window clusters were set but did not match, break out of the loop earlier
+			if isSet && window.UseAndOperator && !matched {
+				continue
+			} else if !window.UseAndOperator && matched {
+				matchingWindows = append(matchingWindows, window)
+				continue
+			}
+
+			// Last check if any namespaces are configured for the window
+			if len(window.Namespaces) > 0 {
+				matched = false
+				// If the window clusters matched or if the window clusters were not set check next for namespace matching
+				for _, n := range window.Namespaces {
 					if globMatch(n, app.Spec.Destination.Namespace, false) {
-						matchingWindows = append(matchingWindows, w)
+						matched = true
 						break
 					}
 				}
+			}
+			if matched {
+				matchingWindows = append(matchingWindows, window)
 			}
 		}
 		if len(matchingWindows) > 0 {
@@ -2762,9 +2785,8 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}
 
 	if active.hasAllow() {
@@ -2778,9 +2800,8 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}
 
 	return true, nil
@@ -3213,33 +3234,6 @@ func (source *ApplicationSource) ExplicitType() (*ApplicationSourceType, error) 
 	return &appType, nil
 }
 
-// Equals compares two instances of ApplicationDestination and returns true if instances are equal.
-func (d ApplicationDestination) Equals(other ApplicationDestination) bool {
-	// ignore destination cluster name and isServerInferred fields during comparison
-	// since server URL is inferred from cluster name
-	if d.isServerInferred {
-		d.Server = ""
-		d.isServerInferred = false
-	}
-
-	if other.isServerInferred {
-		other.Server = ""
-		other.isServerInferred = false
-	}
-
-	if d.isNameInferred {
-		d.Name = ""
-		d.isNameInferred = false
-	}
-
-	if other.isNameInferred {
-		other.Name = ""
-		other.isNameInferred = false
-	}
-
-	return reflect.DeepEqual(d, other)
-}
-
 // GetProject returns the application's project. This is preferred over spec.Project which may be empty
 func (spec ApplicationSpec) GetProject() string {
 	if spec.Project == "" {
@@ -3360,7 +3354,9 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
+
+	switch {
+	case c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false):
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
@@ -3372,9 +3368,9 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			}
 			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
-	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
+	case c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "":
 		config, err = rest.InClusterConfig()
-	} else if c.Server == KubernetesInternalAPIServerAddr {
+	case c.Server == KubernetesInternalAPIServerAddr:
 		config, err = rest.InClusterConfig()
 		if err == nil {
 			config.Username = c.Config.Username
@@ -3382,7 +3378,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			config.BearerToken = c.Config.BearerToken
 			config.BearerTokenFile = ""
 		}
-	} else {
+	default:
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.TLSClientConfig.Insecure,
 			ServerName: c.Config.TLSClientConfig.ServerName,
@@ -3390,7 +3386,8 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			KeyData:    c.Config.TLSClientConfig.KeyData,
 			CAData:     c.Config.TLSClientConfig.CAData,
 		}
-		if c.Config.AWSAuthConfig != nil {
+		switch {
+		case c.Config.AWSAuthConfig != nil:
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
@@ -3408,7 +3405,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else if c.Config.ExecProviderConfig != nil {
+		case c.Config.ExecProviderConfig != nil:
 			var env []api.ExecEnvVar
 			if c.Config.ExecProviderConfig.Env != nil {
 				for key, value := range c.Config.ExecProviderConfig.Env {
@@ -3430,7 +3427,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					InteractiveMode: api.NeverExecInteractiveMode,
 				},
 			}
-		} else {
+		default:
 			config = &rest.Config{
 				Host:            c.Server,
 				Username:        c.Config.Username,
@@ -3493,44 +3490,10 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 	return UnmarshalToUnstructured(r.TargetState)
 }
 
-// SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
-func (d *ApplicationDestination) SetInferredServer(server string) {
-	d.isServerInferred = true
-	d.Server = server
-}
-
-// SetInferredName sets the Name field of the destination. See IsNameInferred() for details.
-func (d *ApplicationDestination) SetInferredName(name string) {
-	d.isNameInferred = true
-	d.Name = name
-}
-
-// An ApplicationDestination has an 'inferred server' if the ApplicationDestination
-// contains a Name, but not a Server URL. In this case it is necessary to retrieve
-// the Server URL by looking up the cluster name.
-//
-// As of this writing, looking up the cluster name, and setting the URL, is
-// performed by 'utils.ValidateDestination(...)', which then calls SetInferredServer.
-func (d *ApplicationDestination) IsServerInferred() bool {
-	return d.isServerInferred
-}
-
-func (d *ApplicationDestination) IsNameInferred() bool {
-	return d.isNameInferred
-}
-
 // MarshalJSON marshals an application destination to JSON format
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
 	dest := d
-	if d.isServerInferred {
-		dest = dest.DeepCopy()
-		dest.Server = ""
-	}
-	if d.isNameInferred {
-		dest = dest.DeepCopy()
-		dest.Name = ""
-	}
 
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
@@ -3554,9 +3517,8 @@ func (app *Application) InstanceName(defaultNs string) string {
 func (app *Application) QualifiedName() string {
 	if app.Namespace == "" {
 		return app.Name
-	} else {
-		return app.Namespace + "/" + app.Name
 	}
+	return app.Namespace + "/" + app.Name
 }
 
 // RBACName returns the full qualified RBAC resource name for the application

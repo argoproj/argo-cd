@@ -16,10 +16,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestRequeueAfter(t *testing.T) {
@@ -60,7 +60,7 @@ func TestRequeueAfter(t *testing.T) {
 	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil, true)
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
-		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
+		"Clusters":                generators.NewClusterGenerator(ctx, k8sClient, appClientset, "argocd"),
 		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
 		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
@@ -90,7 +90,7 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,

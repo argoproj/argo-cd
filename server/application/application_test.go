@@ -39,25 +39,25 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -71,7 +71,7 @@ type broadcasterMock struct {
 	objects []runtime.Object
 }
 
-func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, filters ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
+func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
 	// Simulate the broadcaster notifying the subscriber of an application update.
 	// The second parameter to Subscribe is filters. For the purposes of tests, we ignore the filters. Future tests
 	// might require implementing those.
@@ -228,7 +228,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -391,7 +391,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	objects = append(objects, defaultProj, myProj, projWithSyncWindows)
 
 	fakeAppsClientset := apps.NewSimpleClientset(objects...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(fakeAppsClientset, 0, appinformer.WithNamespace(""), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	fakeProjLister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(testNamespace)
 
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
@@ -582,15 +582,15 @@ func (t *TestServerStream) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestServerStream) SendMsg(m any) error {
+func (t *TestServerStream) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) RecvMsg(m any) error {
+func (t *TestServerStream) RecvMsg(_ any) error {
 	return nil
 }
 
-func (t *TestServerStream) SendAndClose(r *apiclient.ManifestResponse) error {
+func (t *TestServerStream) SendAndClose(_ *apiclient.ManifestResponse) error {
 	return nil
 }
 
@@ -616,7 +616,7 @@ type TestResourceTreeServer struct {
 	ctx context.Context
 }
 
-func (t *TestResourceTreeServer) Send(tree *v1alpha1.ApplicationTree) error {
+func (t *TestResourceTreeServer) Send(_ *v1alpha1.ApplicationTree) error {
 	return nil
 }
 
@@ -634,11 +634,11 @@ func (t *TestResourceTreeServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestResourceTreeServer) SendMsg(m any) error {
+func (t *TestResourceTreeServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestResourceTreeServer) RecvMsg(m any) error {
+func (t *TestResourceTreeServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -646,7 +646,7 @@ type TestPodLogsServer struct {
 	ctx context.Context
 }
 
-func (t *TestPodLogsServer) Send(log *application.LogEntry) error {
+func (t *TestPodLogsServer) Send(_ *application.LogEntry) error {
 	return nil
 }
 
@@ -664,11 +664,11 @@ func (t *TestPodLogsServer) Context() context.Context {
 	return t.ctx
 }
 
-func (t *TestPodLogsServer) SendMsg(m any) error {
+func (t *TestPodLogsServer) SendMsg(_ any) error {
 	return nil
 }
 
-func (t *TestPodLogsServer) RecvMsg(m any) error {
+func (t *TestPodLogsServer) RecvMsg(_ any) error {
 	return nil
 }
 
@@ -782,20 +782,16 @@ func TestNoAppEnumeration(t *testing.T) {
 	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("Get", func(t *testing.T) {
-		// nolint:staticcheck
 		_, err := appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		require.NoError(t, err)
-		// nolint:staticcheck
 		_, err = appServer.Get(noRoleCtx, &application.ApplicationQuery{Name: ptr.To("test")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist")})
 		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
-		// nolint:staticcheck
 		_, err = appServer.Get(adminCtx, &application.ApplicationQuery{Name: ptr.To("doest-not-exist"), Project: []string{"test"}})
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
@@ -1301,7 +1297,7 @@ func TestCoupleAppsListApps(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
 	for projectId := 0; projectId < 100; projectId++ {
 		projectName := fmt.Sprintf("proj-%d", projectId)
@@ -1488,7 +1484,6 @@ func TestCreateAppWithDestName(t *testing.T) {
 	app, err := appServer.Create(context.Background(), &createReq)
 	require.NoError(t, err)
 	assert.NotNil(t, app)
-	assert.Equal(t, "https://cluster-api.example.com", app.Spec.Destination.Server)
 }
 
 // TestCreateAppWithOperation tests that an application created with an operation is created with the operation removed.
@@ -1556,15 +1551,15 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.ReactionChain = nil
 	patched := false
 	deleted := false
-	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("delete", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		deleted = true
 		return true, nil, nil
 	})
-	fakeAppCs.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
@@ -1630,11 +1625,15 @@ func TestDeleteApp(t *testing.T) {
 
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourceDeleteRequest{
 		Name:         &testApp.Name,
@@ -1652,6 +1651,14 @@ func TestDeleteResourcesRBAC(t *testing.T) {
 p, test-user, applications, delete, default/test-app, allow
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1661,6 +1668,15 @@ p, test-user, applications, delete, default/test-app, allow
 p, test-user, applications, delete/*, default/test-app, deny
 `)
 		_, err := appServer.DeleteResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("delete with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, allow
+p, test-user, applications, delete/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
@@ -1681,6 +1697,15 @@ p, test-user, applications, delete/*, default/test-app, allow
 		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
 	})
 
+	t.Run("delete with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, delete, default/test-app, deny
+p, test-user, applications, delete/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.DeleteResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenDeleteAllowed)
+	})
+
 	t.Run("delete with specific subresource denied", func(t *testing.T) {
 		_ = appServer.enf.SetBuiltinPolicy(`
 p, test-user, applications, delete/*, default/test-app, allow
@@ -1693,11 +1718,15 @@ p, test-user, applications, delete/fake.io/PodTest/*, default/test-app, deny
 
 func TestPatchResourcesRBAC(t *testing.T) {
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
 	testApp := newTestApp()
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
+
+	argoCM := map[string]string{"server.rbac.disableApplicationFineGrainedRBACInheritance": "false"}
+	appServerWithRBACInheritance := newTestAppServerWithEnforcerConfigure(t, func(_ *rbac.Enforcer) {}, argoCM, testApp)
+	appServerWithRBACInheritance.enf.SetDefaultRole("")
 
 	req := application.ApplicationResourcePatchRequest{
 		Name:         &testApp.Name,
@@ -1715,6 +1744,14 @@ func TestPatchResourcesRBAC(t *testing.T) {
 p, test-user, applications, update, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1724,6 +1761,15 @@ p, test-user, applications, update, default/test-app, allow
 p, test-user, applications, update/*, default/test-app, deny
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("patch with application permission but deny subresource with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, allow
+p, test-user, applications, update/*, default/test-app, deny
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1741,6 +1787,15 @@ p, test-user, applications, update, default/test-app, deny
 p, test-user, applications, update/*, default/test-app, allow
 `)
 		_, err := appServer.PatchResource(ctx, &req)
+		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
+	})
+
+	t.Run("patch with subresource but deny applications with inheritance", func(t *testing.T) {
+		_ = appServerWithRBACInheritance.enf.SetBuiltinPolicy(`
+p, test-user, applications, update, default/test-app, deny
+p, test-user, applications, update/*, default/test-app, allow
+`)
+		_, err := appServerWithRBACInheritance.PatchResource(ctx, &req)
 		assert.EqualError(t, err, expectedErrorWhenUpdateAllowed)
 	})
 
@@ -1871,7 +1926,7 @@ func TestRollbackApp(t *testing.T) {
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1935,7 +1990,7 @@ p, admin, applications, update, my-proj/test-app, allow
 func TestAppJsonPatch(t *testing.T) {
 	testApp := newTestAppWithAnnotations()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -1960,7 +2015,7 @@ func TestAppJsonPatch(t *testing.T) {
 func TestAppMergePatch(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
 	appServer := newTestAppServer(t, testApp)
 	appServer.enf.SetDefaultRole("")
@@ -2014,7 +2069,7 @@ func TestGetCachedAppState(t *testing.T) {
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*apps.Clientset)
-	fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	t.Run("NoError", func(t *testing.T) {
@@ -2033,18 +2088,18 @@ func TestGetCachedAppState(t *testing.T) {
 			fakeClientSet.Lock()
 			fakeClientSet.ReactionChain = nil
 			fakeClientSet.WatchReactionChain = nil
-			fakeClientSet.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			fakeClientSet.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				patched = true
 				updated := testApp.DeepCopy()
 				updated.ResourceVersion = "2"
 				appServer.appBroadcaster.OnUpdate(testApp, updated)
 				return true, testApp, nil
 			})
-			fakeClientSet.AddReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 			})
 			fakeClientSet.Unlock()
-			fakeClientSet.AddWatchReactor("applications", func(action kubetesting.Action) (handled bool, ret watch.Interface, err error) {
+			fakeClientSet.AddWatchReactor("applications", func(_ kubetesting.Action) (handled bool, ret watch.Interface, err error) {
 				return true, watcher, nil
 			})
 		}
@@ -2251,7 +2306,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 	runtimeObjects[podNumber] = testApp
 
 	noRoleCtx := context.Background()
-	// nolint:staticcheck
+	//nolint:staticcheck
 	adminCtx := context.WithValue(noRoleCtx, "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	if len(maxPodLogsToRender) > 0 {
@@ -2262,10 +2317,9 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
 		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
-	} else {
-		appServer := newTestAppServer(t, runtimeObjects...)
-		return appServer, adminCtx
 	}
+	appServer := newTestAppServer(t, runtimeObjects...)
+	return appServer, adminCtx
 }
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done

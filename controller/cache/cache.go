@@ -29,17 +29,17 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
-	"github.com/argoproj/argo-cd/v2/util/lua"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -72,8 +72,8 @@ const (
 	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
 	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
 
-	// EnvClusterCacheEventProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
-	EnvClusterCacheEventProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENT_PROCESSING_INTERVAL"
+	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
+	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
@@ -113,8 +113,8 @@ var (
 	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
 	clusterCacheBatchEventsProcessing = false
 
-	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventProcessingInterval = 100 * time.Millisecond
+	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
 )
 
 func init() {
@@ -127,26 +127,26 @@ func init() {
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, false)
-	clusterCacheEventProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventProcessingInterval, clusterCacheEventProcessingInterval, 0, math.MaxInt64)
+	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
 	// Returns k8s server version
-	GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error)
+	GetVersionsInfo(server *appv1.Cluster) (string, []kube.APIResourceInfo, error)
 	// Returns true of given group kind is a namespaced resource
-	IsNamespaced(server string, gk schema.GroupKind) (bool, error)
+	IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error)
 	// Returns synced cluster cache
-	GetClusterCache(server string) (clustercache.ClusterCache, error)
+	GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
-	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
+	IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Executes give callback against resources specified by the keys and all its children
-	IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
+	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
-	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
-	IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error
+	IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error
 	// Returns all top level resources (resources without owner references) of a specified namespace
-	GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
+	GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
 	Run(ctx context.Context) error
 	// Returns information about monitored clusters
@@ -329,12 +329,11 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 }
 
 func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
-	if !visited[r.ResourceKey()] {
-		visited[r.ResourceKey()] = true
-	} else {
+	if visited[r.ResourceKey()] {
 		log.Warnf("Circular dependency detected: %v.", visited)
 		return resInfo(r).AppName, false
 	}
+	visited[r.ResourceKey()] = true
 
 	if resInfo(r).AppName != "" {
 		return resInfo(r).AppName, true
@@ -438,8 +437,7 @@ func isResourceQuotaConflictErr(err error) bool {
 
 func isTransientNetworkErr(err error) bool {
 	var netErr net.Error
-	switch {
-	case errors.As(err, &netErr):
+	if errors.As(err, &netErr) {
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError
@@ -468,9 +466,9 @@ func isTransientNetworkErr(err error) bool {
 	return false
 }
 
-func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, error) {
+func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
-	clusterCache, ok := c.clusters[server]
+	clusterCache, ok := c.clusters[cluster.Server]
 	cacheSettings := c.cacheSettings
 	c.lock.RUnlock()
 
@@ -481,14 +479,9 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	clusterCache, ok = c.clusters[server]
+	clusterCache, ok = c.clusters[cluster.Server]
 	if ok {
 		return clusterCache, nil
-	}
-
-	cluster, err := c.db.GetCluster(context.Background(), server)
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
 	if c.clusterSharding == nil {
@@ -569,7 +562,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
-		clustercache.SetEventProcessingInterval(clusterCacheEventProcessingInterval),
+		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -619,7 +612,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.onObjectUpdated(toNotify, ref)
 	})
 
-	_ = clusterCache.OnEvent(func(event watch.EventType, un *unstructured.Unstructured) {
+	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
 		gvk := un.GroupVersionKind()
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 	})
@@ -628,12 +621,12 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.metricsServer.ObserveResourceEventsProcessingDuration(cluster.Server, duration, processedEventsNumber)
 	})
 
-	c.clusters[server] = clusterCache
+	c.clusters[cluster.Server] = clusterCache
 
 	return clusterCache, nil
 }
 
-func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCache, error) {
+func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.ClusterCache, error) {
 	clusterCache, err := c.getCluster(server)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
@@ -658,7 +651,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	log.Info("live state cache invalidated")
 }
 
-func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool, error) {
+func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return false, err
@@ -666,7 +659,7 @@ func (c *liveStateCache) IsNamespaced(server string, gk schema.GroupKind) (bool,
 	return clusterInfo.IsNamespaced(gk)
 }
 
-func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
+func (c *liveStateCache) IterateHierarchy(server *appv1.Cluster, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
@@ -677,7 +670,7 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	return nil
 }
 
-func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
+func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
@@ -688,7 +681,7 @@ func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceK
 	return nil
 }
 
-func (c *liveStateCache) IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
+func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return err
@@ -702,7 +695,7 @@ func (c *liveStateCache) IterateResources(server string, callback func(res *clus
 	return nil
 }
 
-func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
+func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error) {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
 		return nil, err
@@ -715,20 +708,20 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 	return res, nil
 }
 
-func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
+func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	clusterInfo, err := c.getSyncedCluster(destCluster)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster info for %q: %w", a.Spec.Destination.Server, err)
+		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
 	})
 }
 
-func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
-	clusterInfo, err := c.getSyncedCluster(serverURL)
+func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.APIResourceInfo, error) {
+	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", serverURL, err)
+		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
@@ -739,11 +732,12 @@ func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bo
 		if !ok {
 			continue
 		}
-		err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, c.db)
+		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
 		if err != nil {
+			log.Warnf("Failed to get destination cluster: %v", err)
 			continue
 		}
-		if app.Spec.Destination.Server == cluster.Server {
+		if destCluster.Server == cluster.Server {
 			return true
 		}
 	}
@@ -827,7 +821,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
-				_, _ = c.getSyncedCluster(cluster.Server)
+				_, _ = c.getSyncedCluster(cluster)
 			}()
 		}
 	}
@@ -909,6 +903,6 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 	return res
 }
 
-func (c *liveStateCache) GetClusterCache(server string) (clustercache.ClusterCache, error) {
+func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error) {
 	return c.getSyncedCluster(server)
 }

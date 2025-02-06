@@ -14,8 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 type state = string
@@ -53,9 +53,8 @@ func OperationMessageContains(text string) Expectation {
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message
-	} else {
-		return pending, message
 	}
+	return pending, message
 }
 
 func SyncStatusIs(expected SyncStatusCode) Expectation {
@@ -176,9 +175,8 @@ func ResourceResultNumbering(num int) Expectation {
 			return pending, fmt.Sprintf("not enough results yet, want %d, got %d", num, actualNum)
 		} else if actualNum == num {
 			return succeeded, fmt.Sprintf("right number of results, want %d, got %d", num, actualNum)
-		} else {
-			return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 		}
+		return failed, fmt.Sprintf("too many results, want %d, got %d", num, actualNum)
 	}
 }
 
@@ -246,7 +244,7 @@ func DoesNotExistNow() Expectation {
 }
 
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -261,7 +259,7 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 }
 
 func NotPod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods()
 		if err != nil {
 			return failed, err.Error()
@@ -282,7 +280,7 @@ func pods() (*corev1.PodList, error) {
 }
 
 func NoNamespace(name string) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		_, err := namespace(name)
 		if err != nil {
 			return succeeded, "namespace not found"
@@ -372,7 +370,7 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 			return failed, fmt.Sprintf("output does not contain '%s'", message)
 		}
 		if !match(c.actions.lastError.Error(), err) {
-			return failed, fmt.Sprintf("error does not contain '%s'", message)
+			return failed, fmt.Sprintf("error does not contain '%s'", err)
 		}
 		return succeeded, fmt.Sprintf("error '%s'", message)
 	}

@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	clusterFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/cluster"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestClusterList(t *testing.T) {
@@ -42,7 +42,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixtu
 			When().
 			List().
 			Then().
-			AndCLIOutput(func(output string, err error) {
+			AndCLIOutput(func(output string, _ error) {
 				last = output
 			})
 		if expected == last {
@@ -65,7 +65,7 @@ func TestClusterAdd(t *testing.T) {
 		Create().
 		List().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME              VERSION  STATUS      MESSAGE  PROJECT
 https://kubernetes.default.svc  test-cluster-add  %v     Successful           %s`, fixture.GetVersions().ServerVersion, fixture.ProjectName), output)
 		})
@@ -88,7 +88,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		IgnoreErrors().
 		Create().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 }
@@ -121,7 +121,7 @@ func TestClusterAddAllowed(t *testing.T) {
 		Create().
 		List().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, fmt.Sprintf(`SERVER                          NAME                      VERSION  STATUS      MESSAGE  PROJECT
 https://kubernetes.default.svc  test-cluster-add-allowed  %v     Successful           argo-project`, fixture.GetVersions().ServerVersion), output)
 		})
@@ -150,7 +150,7 @@ func TestClusterListDenied(t *testing.T) {
 		Create().
 		List().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT", output)
 		})
 }
@@ -168,7 +168,7 @@ func TestClusterSet(t *testing.T) {
 		SetNamespaces().
 		GetByName("in-cluster").
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Contains(t, output, "namespace-edit-1")
 			assert.Contains(t, output, "namespace-edit-2")
 		})
@@ -253,7 +253,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		Create().
 		DeleteByName().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 
@@ -267,7 +267,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		Create().
 		DeleteByServer().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 }
@@ -317,7 +317,7 @@ func TestClusterDelete(t *testing.T) {
 
 	clstAction.DeleteByName().
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, "Cluster 'default' removed", output)
 		})
 

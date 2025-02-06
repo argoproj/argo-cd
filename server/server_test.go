@@ -28,22 +28,22 @@ import (
 	dynfake "k8s.io/client-go/dynamic/fake"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v2/util/oidc"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
-	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-	testutil "github.com/argoproj/argo-cd/v2/util/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/oidc"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+	testutil "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 type FakeArgoCDServer struct {
@@ -616,7 +616,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
 	}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -815,7 +815,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+			expectedClaims:        jwt.MapClaims{"iss": "sso"},
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
@@ -870,7 +870,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			useDex:                true,
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+			expectedClaims:        jwt.MapClaims{"iss": "sso"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, expired token, admin claim",
@@ -897,7 +897,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			t.Parallel()
 
 			// Must be declared here to avoid race.
-			ctx := context.Background() //nolint:ineffassign,staticcheck
+			ctx := context.Background() //nolint:staticcheck
 
 			argocd, oidcURL := getTestServer(t, testDataCopy.anonymousEnabled, true, testDataCopy.useDex, settings_util.OIDCConfig{})
 
@@ -1603,7 +1603,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 func Test_enforceContentTypes(t *testing.T) {
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
 			writer.WriteHeader(http.StatusOK)
 		})

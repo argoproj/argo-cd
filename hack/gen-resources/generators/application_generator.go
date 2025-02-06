@@ -6,17 +6,17 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v3/util/db"
 
-	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 )
 
 type ApplicationGenerator struct {
@@ -40,8 +40,7 @@ func (generator *ApplicationGenerator) buildRandomSource(repositories []*v1alpha
 }
 
 func (generator *ApplicationGenerator) buildSource(opts *util.GenerateOpts, repositories []*v1alpha1.Repository) (*v1alpha1.ApplicationSource, error) {
-	switch opts.ApplicationOpts.SourceOpts.Strategy {
-	case "Random":
+	if opts.ApplicationOpts.SourceOpts.Strategy == "Random" {
 		return generator.buildRandomSource(repositories)
 	}
 	return generator.buildRandomSource(repositories)
@@ -57,8 +56,7 @@ func (generator *ApplicationGenerator) buildRandomDestination(opts *util.Generat
 }
 
 func (generator *ApplicationGenerator) buildDestination(opts *util.GenerateOpts, clusters []v1alpha1.Cluster) (*v1alpha1.ApplicationDestination, error) {
-	switch opts.ApplicationOpts.DestinationOpts.Strategy {
-	case "Random":
+	if opts.ApplicationOpts.DestinationOpts.Strategy == "Random" {
 		return generator.buildRandomDestination(opts, clusters)
 	}
 	return generator.buildRandomDestination(opts, clusters)

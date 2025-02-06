@@ -9,10 +9,8 @@ import (
 	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*MergeGenerator)(nil)
@@ -144,21 +142,9 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 	if err != nil {
 		return nil, err
 	}
-	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selector", appSet.Name)
-		}
-	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
-	}
-	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selector", appSet.Name)
-		}
 	}
 
 	t, err := Transform(
@@ -224,9 +210,8 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
 }
 
 func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MergeGenerator, error) {

@@ -15,9 +15,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	certutil "github.com/argoproj/argo-cd/v2/util/cert"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/common"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
@@ -189,15 +189,16 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 				}
 				tlsConfig.Certificates = []tls.Certificate{clientCert}
 			}
-			if insecureRedis {
+			switch {
+			case insecureRedis:
 				tlsConfig.InsecureSkipVerify = true
-			} else if redisCACertificate != "" {
+			case redisCACertificate != "":
 				redisCA, err := certutil.ParseTLSCertificatesFromPath(redisCACertificate)
 				if err != nil {
 					return nil, err
 				}
 				tlsConfig.RootCAs = certutil.GetCertPoolFromPEMData(redisCA)
-			} else {
+			default:
 				var err error
 				tlsConfig.RootCAs, err = x509.SystemCertPool()
 				if err != nil {
@@ -280,9 +281,8 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	client := c.GetClient()
 	if opts.Delete {
 		return client.Delete(fullKey)
-	} else {
-		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
+	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
 func (c *Cache) GetItem(key string, item any) error {

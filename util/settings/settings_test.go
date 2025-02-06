@@ -19,10 +19,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
@@ -101,15 +101,6 @@ func TestGetSecretByName(t *testing.T) {
 	})
 }
 
-func TestGetRepositories(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repositories": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
-}
-
 func TestGetExtensionConfigs(t *testing.T) {
 	type cases struct {
 		name        string
@@ -154,52 +145,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 			assert.Equal(t, tc.expected, output)
 		})
 	}
-}
-
-func TestSaveRepositories(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-
-	repos, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
-}
-
-func TestSaveRepositoriesNoConfigMap(t *testing.T) {
-	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-}
-
-func TestSaveRepositoryCredentials(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
-
-	creds, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, creds, []RepositoryCredentials{{URL: "http://foo"}})
-}
-
-func TestGetRepositoryCredentials(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repository.credentials": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.Equal(t, []RepositoryCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
@@ -280,6 +225,31 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.False(t, serverRBACLogEnforceEnable)
 }
 
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.True(t, serverRBACLogEnforceEnable)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.True(t, flag)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
+	})
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.False(t, flag)
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -301,15 +271,6 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -839,10 +800,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 			}
 
 			inKeys := settingsManager.GetIncludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+			assert.Len(t, inKeys, len(tt.expectedKeys))
 
 			exKeys := settingsManager.GetExcludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
+			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
 				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
@@ -1813,6 +1774,55 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 	}
 }
 
+func TestUseAzureWorkloadIdentity(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config isnot defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.UseAzureWorkloadIdentity()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
@@ -1884,7 +1894,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Equal(t, len(tt.output), len(keys))
+			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})
 	}

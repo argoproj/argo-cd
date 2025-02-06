@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -24,17 +26,17 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
+	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -220,9 +222,8 @@ func init() {
 	if err != nil {
 		if stderrors.Is(err, os.ErrNotExist) {
 			return
-		} else {
-			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
+		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -462,6 +463,57 @@ func SetTrackingLabel(trackingLabel string) error {
 	})
 }
 
+func SetImpersonationEnabled(impersonationEnabledFlag string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
+		return nil
+	})
+}
+
+func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceAccountName,
+		},
+	}
+	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Rules: policyRules,
+	}
+	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	rolebinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: DeploymentNamespace(),
+			},
+		},
+	}
+	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -538,28 +590,6 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
-		return nil
-	})
-}
-
-func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetRepos(repos ...settings.RepositoryCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["repositories"] = string(yamlBytes)
 		return nil
 	})
 }
@@ -887,7 +917,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
 			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-			// nolint:errcheck
+			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
@@ -1220,9 +1250,8 @@ func RestartAPIServer() {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
-	} else {
-		return base + "/local"
 	}
+	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.

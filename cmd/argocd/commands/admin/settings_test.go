@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utils "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +68,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
-	// nolint:unused,structcheck
+	//nolint:unused,structcheck
 	out bytes.Buffer
 }
 
@@ -156,15 +156,6 @@ clientSecret: aaaabbbbccccddddeee`,
 				"kustomize.versions.v321": "binary-321",
 			},
 			containsSummary: "updated-options",
-		},
-		"Repositories": {
-			validator: "repositories",
-			data: map[string]string{
-				"repositories": `
-- url: https://github.com/argoproj/my-private-repository1
-- url: https://github.com/argoproj/my-private-repository2`,
-			},
-			containsSummary: "2 repositories",
 		},
 		"Accounts": {
 			validator: "accounts",

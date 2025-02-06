@@ -40,12 +40,12 @@ func TestSanitizer_RegexReplacement(t *testing.T) {
 func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {
 	interceptor := ErrorSanitizerUnaryServerInterceptor()
 
-	_, err := interceptor(context.Background(), nil, nil, func(ctx context.Context, req any) (any, error) {
+	_, err := interceptor(context.Background(), nil, nil, func(ctx context.Context, _ any) (any, error) {
 		sanitizer, ok := SanitizerFromContext(ctx)
 		require.True(t, ok)
 		sanitizer.AddReplacement("/my-random/path", ".")
 		return nil, status.Error(codes.Internal, "error at /my-random/path/sub-dir: something went wrong")
 	})
 
-	assert.Equal(t, "rpc error: code = Internal desc = error at ./sub-dir: something went wrong", err.Error())
+	assert.EqualError(t, err, "rpc error: code = Internal desc = error at ./sub-dir: something went wrong")
 }

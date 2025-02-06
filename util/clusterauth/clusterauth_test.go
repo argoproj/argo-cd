@@ -19,7 +19,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const (
@@ -191,7 +191,7 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset.AddReactor("*", "secrets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	kubeclientset.AddReactor("*", "secrets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, generatedSecret, nil
 	})
 
@@ -291,9 +291,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)
@@ -342,9 +340,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)

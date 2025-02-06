@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
@@ -244,26 +245,29 @@ func (e *Enforcer) Enforce(rvals ...any) bool {
 func (e *Enforcer) EnforceErr(rvals ...any) error {
 	if !e.Enforce(rvals...) {
 		errMsg := "permission denied"
+
 		if len(rvals) > 0 {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			switch s := rvals[0].(type) {
-			case jwt.Claims:
+			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
-				if err != nil {
-					break
-				}
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
-				}
-				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+				if err == nil {
+					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+					if err == nil {
+						if argoClaims.GetUserIdentifier() != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
+					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
+
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
 	return nil
@@ -521,18 +525,18 @@ func loadPolicyLine(line string, model model.Model) error {
 	return nil
 }
 
-func (a *argocdAdapter) SavePolicy(model model.Model) error {
+func (a *argocdAdapter) SavePolicy(_ model.Model) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) AddPolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) RemovePolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+func (a *argocdAdapter) RemoveFilteredPolicy(_ string, _ string, _ int, _ ...string) error {
 	return errors.New("not implemented")
 }

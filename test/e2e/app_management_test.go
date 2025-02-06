@@ -26,21 +26,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	projectFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/project"
-	repoFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/test/e2e/testdata"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
+	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
+	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -53,7 +54,7 @@ const (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestGetLogsAllowNoSwitch(t *testing.T) {
+func TestGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
 func TestGetLogsDenySwitchOn(t *testing.T) {
@@ -608,7 +609,7 @@ func TestAppLabels(t *testing.T) {
 		When().
 		CreateApp("-l", "foo=bar").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
 			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
 			assert.NotContains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
@@ -699,6 +700,58 @@ func TestComparisonFailsIfClusterNotAdded(t *testing.T) {
 		CreateApp().
 		Then().
 		Expect(DoesNotExist())
+}
+
+func TestComparisonFailsIfDestinationClusterIsInvalid(t *testing.T) {
+	clusterActions := clusterFixture.Given(t).
+		Name("temp-cluster").
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		Create()
+
+	GivenWithSameState(t).
+		Path(guestbookPath).
+		DestName("temp-cluster").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			clusterActions.DeleteByName()
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, "there are no clusters with this name"))
+}
+
+func TestComparisonFailsIfInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Success("")).
+		Expect(HealthIs(health.HealthStatusUnknown)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionInvalidSpecError, fmt.Sprintf("cluster %q is disabled", KubernetesInternalAPIServerAddr)))
 }
 
 func TestCannotSetInvalidPath(t *testing.T) {
@@ -880,7 +933,7 @@ func TestResourceDiffing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Patch deployment
 			_, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
@@ -962,13 +1015,13 @@ func TestResourceDiffing(t *testing.T) {
 		When().Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
@@ -1115,15 +1168,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1131,18 +1184,18 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource = {}
     impactedResource.operation = "create"
     impactedResource.resource = job
     result = {}
     result[1] = impactedResource
-  
+
     return result`
 
 func TestNewStyleResourceActionPermitted(t *testing.T) {
@@ -1219,15 +1272,15 @@ definitions:
       end
       return _copy(object)
     end
-  
+
     job = {}
     job.apiVersion = "batch/v1"
     job.kind = "Job"
-  
+
     job.metadata = {}
     job.metadata.name = obj.metadata.name .. "-123"
     job.metadata.namespace = obj.metadata.namespace
-  
+
     ownerRef = {}
     ownerRef.apiVersion = obj.apiVersion
     ownerRef.kind = obj.kind
@@ -1235,12 +1288,12 @@ definitions:
     ownerRef.uid = obj.metadata.uid
     job.metadata.ownerReferences = {}
     job.metadata.ownerReferences[1] = ownerRef
-  
+
     job.spec = {}
     job.spec.suspend = false
     job.spec.template = {}
     job.spec.template.spec = deepCopy(obj.spec.jobTemplate.spec.template.spec)
-  
+
     impactedResource1 = {}
     impactedResource1.operation = "create"
     impactedResource1.resource = job
@@ -1253,7 +1306,7 @@ definitions:
     impactedResource2.resource = obj
 
     result[2] = impactedResource2
-  
+
     return result`
 
 func TestNewStyleResourceActionMixedOk(t *testing.T) {
@@ -1585,7 +1638,7 @@ func TestPermissions(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		// make sure application resource actiions are failing
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})
 }
@@ -2158,6 +2211,19 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		})
 }
 
+func TestCreateAppWithInClusterDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		DestServer(KubernetesInternalAPIServerAddr).
+		When().
+		SetParamInSettingConfigMap("cluster.inClusterEnabled", "false").
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		// RPC error messages are quoted: time="2024-12-18T04:13:58Z" level=fatal msg="<Quoted value>"
+		Expect(Error("", fmt.Sprintf(`cluster \"%s\" is disabled`, KubernetesInternalAPIServerAddr)))
+}
+
 func TestListResource(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
@@ -2238,7 +2304,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		When().
 		CreateApp("--sync-option", "CreateNamespace=true").
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Make sure the namespace we are about to update to does not exist
 			_, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			assert.ErrorContains(t, err, "not found")
@@ -2256,7 +2322,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(Success("")).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Verify delete app does not delete the namespace auto created
 			output, err := fixture.Run("", "kubectl", "get", "namespace", updatedNamespace)
 			require.NoError(t, err)
@@ -2558,7 +2624,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Wait for refresh to complete
 			time.Sleep(1 * time.Second)
 		}).

@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 	fakeNamespace     = "fake-ns"
 )
 
-var noOpUpdate = func(cm *corev1.ConfigMap) error {
+var noOpUpdate = func(_ *corev1.ConfigMap) error {
 	return nil
 }
 
@@ -215,7 +215,7 @@ p, alice, *, get, foo/obj, allow
 p, mike, *, get, foo/obj, deny
 `
 	_ = enf.SetUserPolicy(policy)
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return false
 	})
 
@@ -279,7 +279,7 @@ func TestClaimsEnforcerFunc(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	assert.True(t, enf.Enforce(&claims, "applications", "get", "foo/bar"))
@@ -308,7 +308,7 @@ func TestClaimsEnforcerFuncWithRuntimePolicy(t *testing.T) {
 		Subject: "foo",
 	}
 	assert.False(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
-	enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...any) bool {
+	enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool {
 		return true
 	})
 	assert.True(t, enf.EnforceRuntimePolicy("", runtimePolicy, claims, "applications", "get", "foo/bar"))
@@ -355,39 +355,27 @@ func TestEnforceErrorMessage(t *testing.T) {
 	err := enf.syncUpdate(fakeConfigMap(), noOpUpdate)
 	require.NoError(t, err)
 
-	err = enf.EnforceErr("admin", "applications", "get", "foo/bar")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar", err.Error())
+	require.EqualError(t, enf.EnforceErr("admin", "applications", "get", "foo/bar"), "rpc error: code = PermissionDenied desc = permission denied: applications, get, foo/bar")
 
-	err = enf.EnforceErr()
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied", err.Error())
+	require.EqualError(t, enf.EnforceErr(), "rpc error: code = PermissionDenied desc = permission denied")
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, exp, err.Error())
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), exp)
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project", err.Error())
+	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project")
 
-	// nolint:staticcheck
+	//nolint:staticcheck
 	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
-	err = enf.EnforceErr(ctx.Value("claims"), "project")
-	require.Error(t, err)
-	assert.Equal(t, "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin", err.Error())
+	assert.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 }
 
 func TestDefaultGlobMatchMode(t *testing.T) {
