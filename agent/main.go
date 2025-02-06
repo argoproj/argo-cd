@@ -150,7 +150,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 			clusterCache := cache.NewClusterCache(config,
 				cache.SetNamespaces(namespaces),
 				cache.SetLogr(log),
-				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 					// store gc mark of every resource
 					gcMark := un.GetAnnotations()[annotationGCMark]
 					info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}

@@ -514,7 +514,7 @@ func (s *APIServerMock) newHttpServer(t *testing.T, apiFailuresCount int) *httpt
 			w.Write(s.errorBody) // nolint:errcheck
 			return
 		}
-		var list interface{}
+		var list any
 		switch req.URL.Path {
 		case "/api/v1":
 			list = &stable

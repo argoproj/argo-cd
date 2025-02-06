@@ -155,7 +155,7 @@ func parseGroupVersionKind(s proto.Schema) []schema.GroupVersionKind {
 	}
 
 	// gvk extension must be a list of at least 1 element.
-	gvkList, ok := gvkExtension.([]interface{})
+	gvkList, ok := gvkExtension.([]any)
 	if !ok {
 		return []schema.GroupVersionKind{}
 	}
@@ -163,7 +163,7 @@ func parseGroupVersionKind(s proto.Schema) []schema.GroupVersionKind {
 	for _, gvk := range gvkList {
 		// gvk extension list must be a map with group, version, and
 		// kind fields
-		gvkMap, ok := gvk.(map[interface{}]interface{})
+		gvkMap, ok := gvk.(map[any]any)
 		if !ok {
 			continue
 		}

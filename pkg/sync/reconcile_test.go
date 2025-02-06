@@ -20,10 +20,10 @@ func (e *unknownResourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, e
 func TestReconcileWithUnknownDiscoveryDataForClusterScopedResources(t *testing.T) {
 	targetObjs := []*unstructured.Unstructured{
 		{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Namespace",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name": "my-namespace",
 				},
 			},
@@ -31,10 +31,10 @@ func TestReconcileWithUnknownDiscoveryDataForClusterScopedResources(t *testing.T
 	}
 
 	liveNS := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "v1",
 			"kind":       "Namespace",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "my-namespace",
 				"uid":  "c99ff56d-1921-495d-8512-d66cdfcb5740",
 			},

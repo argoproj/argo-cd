@@ -68,16 +68,16 @@ func Test_isStatefulSetChild(t *testing.T) {
 		{
 			name: "Mismatch PVC for sw-broker",
 			args: args{un: &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "apps/v1",
 					"kind":       "StatefulSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name": "sw-broker",
 					},
-					"spec": map[string]interface{}{
-						"volumeClaimTemplates": []interface{}{
-							map[string]interface{}{
-								"metadata": map[string]interface{}{
+					"spec": map[string]any{
+						"volumeClaimTemplates": []any{
+							map[string]any{
+								"metadata": map[string]any{
 									"name": "volume-2",
 								},
 							},

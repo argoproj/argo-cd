@@ -11,6 +11,6 @@ type Tracer interface {
 }
 
 type Span interface {
-	SetBaggageItem(key string, value interface{})
+	SetBaggageItem(key string, value any)
 	Finish()
 }

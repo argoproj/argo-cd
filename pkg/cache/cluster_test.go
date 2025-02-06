@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 )
 
-func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
+func mustToUnstructured(obj any) *unstructured.Unstructured {
 	un, err := kube.ToUnstructured(obj)
 	if err != nil {
 		panic(err)
@@ -44,7 +44,7 @@ func mustToUnstructured(obj interface{}) *unstructured.Unstructured {
 }
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)
@@ -175,7 +175,7 @@ func Benchmark_sync(t *testing.B) {
 
 	c := newCluster(t, resources...)
 
-	c.populateResourceInfoHandler = func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	c.populateResourceInfoHandler = func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		time.Sleep(10 * time.Microsecond)
 		return nil, false
 	}
@@ -394,7 +394,7 @@ func TestGetChildren(t *testing.T) {
 
 func TestGetManagedLiveObjs(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 
@@ -420,7 +420,7 @@ metadata:
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "production"}
@@ -445,7 +445,7 @@ metadata:
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "production"}
@@ -486,7 +486,7 @@ metadata:
 
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = nil
@@ -514,7 +514,7 @@ metadata:
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "production"}
@@ -542,7 +542,7 @@ metadata:
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
-	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 		return nil, true
 	}))
 	cluster.namespaces = []string{"default", "develop"}
@@ -602,7 +602,7 @@ func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
 						Meta:                 metav1.APIResource{Namespaced: true},
 					},
 				})
-			cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+			cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 				return nil, true
 			}))
 			cluster.namespaces = []string{"default"}
@@ -953,14 +953,14 @@ func testCRD() *apiextensions.CustomResourceDefinition {
 }
 
 func testCronTab() *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "stable.example.com/v1",
 		"kind":       "CronTab",
-		"metadata": map[string]interface{}{
+		"metadata": map[string]any{
 			"name":      "test-crontab",
 			"namespace": "default",
 		},
-		"spec": map[string]interface{}{
+		"spec": map[string]any{
 			"cronSpec": "* * * * */5",
 			"image":    "my-awesome-cron-image",
 		},
@@ -1258,7 +1258,7 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 		// Resync watches often to use the semaphore and trigger the rate limiting behavior
 		SetResyncTimeout(500 * time.Millisecond),
 		// Use new resource handler to run code in the list callbacks
-		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
 			if un.GroupVersionKind().GroupKind() == res1.GroupVersionKind().GroupKind() ||
 				un.GroupVersionKind().GroupKind() == res2.GroupVersionKind().GroupKind() {
 				// Create a bottleneck for resources holding the semaphore

@@ -23,7 +23,7 @@ type Resource struct {
 	// Optional creation timestamp of the resource
 	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource
-	Info interface{}
+	Info any
 	// Optional whole resource manifest
 	Resource *unstructured.Unstructured
 

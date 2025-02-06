@@ -13,7 +13,7 @@ func (n NopTracer) StartSpan(operationName string) Span {
 
 type nopSpan struct{}
 
-func (n nopSpan) SetBaggageItem(key string, value interface{}) {
+func (n nopSpan) SetBaggageItem(key string, value any) {
 }
 
 func (n nopSpan) Finish() {

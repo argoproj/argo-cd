@@ -102,7 +102,7 @@ func (c *typeConverter) TypedToObject(value *typed.TypedValue) (runtime.Object, 
 func valueToObject(val value.Value) (runtime.Object, error) {
 	vu := val.Unstructured()
 	switch o := vu.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return &unstructured.Unstructured{Object: o}, nil
 	default:
 		return nil, fmt.Errorf("failed to convert value to unstructured for type %T", vu)

@@ -107,7 +107,7 @@ type OnEventHandler func(event watch.EventType, un *unstructured.Unstructured)
 type OnProcessEventsHandler func(duration time.Duration, processedEventsNumber int)
 
 // OnPopulateResourceInfoHandler returns additional resource metadata that should be stored in cache
-type OnPopulateResourceInfoHandler func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool)
+type OnPopulateResourceInfoHandler func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool)
 
 // OnResourceUpdatedHandler handlers resource update event
 type (
@@ -423,7 +423,7 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 	ownerRefs, isInferredParentOf := c.resolveResourceReferences(un)
 
 	cacheManifest := false
-	var info interface{}
+	var info any
 	if c.populateResourceInfoHandler != nil {
 		info, cacheManifest = c.populateResourceInfoHandler(un, len(ownerRefs) == 0)
 	}

@@ -121,12 +121,12 @@ func TestAPIService(t *testing.T) {
 
 func TestGetArgoWorkflowHealth(t *testing.T) {
 	sampleWorkflow := unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"spec": map[string]interface{}{
+		Object: map[string]any{
+			"spec": map[string]any{
 				"entrypoint":    "sampleEntryPoint",
 				"extraneousKey": "we are agnostic to extraneous keys",
 			},
-			"status": map[string]interface{}{
+			"status": map[string]any{
 				"phase":   "Running",
 				"message": "This node is running",
 			},
@@ -139,12 +139,12 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	assert.Equal(t, "This node is running", health.Message)
 
 	sampleWorkflow = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"spec": map[string]interface{}{
+		Object: map[string]any{
+			"spec": map[string]any{
 				"entrypoint":    "sampleEntryPoint",
 				"extraneousKey": "we are agnostic to extraneous keys",
 			},
-			"status": map[string]interface{}{
+			"status": map[string]any{
 				"phase":   "Succeeded",
 				"message": "This node is has succeeded",
 			},
@@ -157,8 +157,8 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	assert.Equal(t, "This node is has succeeded", health.Message)
 
 	sampleWorkflow = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"spec": map[string]interface{}{
+		Object: map[string]any{
+			"spec": map[string]any{
 				"entrypoint":    "sampleEntryPoint",
 				"extraneousKey": "we are agnostic to extraneous keys",
 			},

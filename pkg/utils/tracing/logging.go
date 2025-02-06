@@ -25,7 +25,7 @@ func (l LoggingTracer) StartSpan(operationName string) Span {
 	return loggingSpan{
 		logger:        l.logger,
 		operationName: operationName,
-		baggage:       make(map[string]interface{}),
+		baggage:       make(map[string]any),
 		start:         time.Now(),
 	}
 }
@@ -33,7 +33,7 @@ func (l LoggingTracer) StartSpan(operationName string) Span {
 type loggingSpan struct {
 	logger        logr.Logger
 	operationName string
-	baggage       map[string]interface{}
+	baggage       map[string]any
 	start         time.Time
 }
 
@@ -43,12 +43,12 @@ func (s loggingSpan) Finish() {
 		Info("Trace")
 }
 
-func (s loggingSpan) SetBaggageItem(key string, value interface{}) {
+func (s loggingSpan) SetBaggageItem(key string, value any) {
 	s.baggage[key] = value
 }
 
-func baggageToVals(baggage map[string]interface{}) []interface{} {
-	result := make([]interface{}, 0, len(baggage)*2)
+func baggageToVals(baggage map[string]any) []any {
+	result := make([]any, 0, len(baggage)*2)
 	for k, v := range baggage {
 		result = append(result, k, v)
 	}
