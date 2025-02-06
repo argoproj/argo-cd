@@ -104,7 +104,6 @@ RUN userdel -r ubuntu && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     HOME=/home/user git config --global --add safe.directory '*' && \
-    mkdir -p /go && \
     mkdir -p /go/src && \
     mkdir -p /go/pkg && \
     chown -R user:user /go && \
