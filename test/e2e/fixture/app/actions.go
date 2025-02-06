@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strconv"
 
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -517,5 +519,19 @@ func (a *Actions) SetInstallationID(installationID string) *Actions {
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
 	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
+	return a
+}
+
+func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
+	errors.CheckError(fixture.SetImpersonationEnabled("true"))
+	if serviceAccountName == "" || policyRules == nil {
+		return a
+	}
+	errors.CheckError(fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	return a
+}
+
+func (a *Actions) WithImpersonationDisabled() *Actions {
+	errors.CheckError(fixture.SetImpersonationEnabled("false"))
 	return a
 }
