@@ -228,12 +228,6 @@ func (k *KubectlMetrics) RegisterWithClientGo() {
 	metrics.TransportCreateCalls = &k.transportCreateCallsMetric
 }
 
-/**
-Here we define a bunch of structs that implement the client-go metrics interfaces. Each struct has an "initiator" field
-that is set to the name of the Argo CD component that is producing the metrics. We set the "initiator" label of each
-metric to the value of this field.
-*/
-
 type kubectlClientCertRotationAgeMetric struct{}
 
 func (k *kubectlClientCertRotationAgeMetric) Observe(certDuration time.Duration) {
