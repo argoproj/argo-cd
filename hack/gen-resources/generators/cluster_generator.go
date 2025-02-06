@@ -219,10 +219,12 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 				KeyData:    key,
 			},
 		},
-		ConnectionState: argoappv1.ConnectionState{},
-		ServerVersion:   "1.18",
-		Namespaces:      []string{opts.ClusterOpts.DestinationNamespace},
-		Labels:          labels,
+		Info: argoappv1.ClusterInfo{
+			ConnectionState: argoappv1.ConnectionState{},
+			ServerVersion:   "1.18",
+		},
+		Namespaces: []string{opts.ClusterOpts.DestinationNamespace},
+		Labels:     labels,
 	})
 	if err != nil {
 		return err

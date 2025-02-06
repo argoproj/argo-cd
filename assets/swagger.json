@@ -7637,9 +7637,6 @@
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
-        "connectionState": {
-          "$ref": "#/definitions/v1alpha1ConnectionState"
-        },
         "info": {
           "$ref": "#/definitions/v1alpha1ClusterInfo"
         },
@@ -7671,10 +7668,6 @@
         "server": {
           "type": "string",
           "title": "Server is the API server URL of the Kubernetes cluster"
-        },
-        "serverVersion": {
-          "type": "string",
-          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
