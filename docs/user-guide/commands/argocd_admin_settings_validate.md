@@ -26,7 +26,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 ### Options
 
 ```
-      --group stringArray   Optional list of setting groups that have to be validated ( one of: accounts, general, kustomize, repositories, resource-overrides)
+      --group stringArray   Optional list of setting groups that have to be validated ( one of: accounts, general, kustomize, resource-overrides)
   -h, --help                help for validate
 ```
 

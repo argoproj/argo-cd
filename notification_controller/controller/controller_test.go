@@ -166,8 +166,7 @@ func TestInitTimeout(t *testing.T) {
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	require.Error(t, err)
-	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
+	assert.EqualError(t, err, "Timed out waiting for caches to sync")
 }
 
 func TestCheckAppNotInAdditionalNamespaces(t *testing.T) {
