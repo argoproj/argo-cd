@@ -2,6 +2,7 @@ package util
 
 import (
 	"bufio"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -18,15 +19,15 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/text/label"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
 type AppOptions struct {
@@ -91,6 +92,12 @@ type AppOptions struct {
 	retryBackoffFactor              int64
 	ref                             string
 	SourceName                      string
+	drySourceRepo                   string
+	drySourceRevision               string
+	drySourcePath                   string
+	syncSourceBranch                string
+	syncSourcePath                  string
+	hydrateToBranch                 string
 }
 
 // SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
@@ -112,6 +119,12 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.drySourceRepo, "dry-source-repo", "", "Repository URL of the app dry source")
+	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
+	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
+	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
+	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
+	command.Flags().StringVar(&opts.hydrateToBranch, "hydrate-to-branch", "", "The branch to hydrate the app to")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
@@ -175,21 +188,28 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtrByPosition(sourcePosition)
-	if source == nil {
-		source = &argoappv1.ApplicationSource{}
-	}
-	source, visited = ConstructSource(source, *appOpts, flags)
-	if spec.HasMultipleSources() {
-		if sourcePosition == 0 {
-			spec.Sources[sourcePosition] = *source
-		} else if sourcePosition > 0 {
-			spec.Sources[sourcePosition-1] = *source
-		} else {
-			spec.Sources = append(spec.Sources, *source)
-		}
+	var h *argoappv1.SourceHydrator
+	h, hasHydratorFlag := constructSourceHydrator(spec.SourceHydrator, *appOpts, flags)
+	if hasHydratorFlag {
+		spec.SourceHydrator = h
 	} else {
-		spec.Source = source
+		source := spec.GetSourcePtrByPosition(sourcePosition)
+		if source == nil {
+			source = &argoappv1.ApplicationSource{}
+		}
+		source, visited = ConstructSource(source, *appOpts, flags)
+		if spec.HasMultipleSources() {
+			switch {
+			case sourcePosition == 0:
+				spec.Sources[sourcePosition] = *source
+			case sourcePosition > 0:
+				spec.Sources[sourcePosition-1] = *source
+			default:
+				spec.Sources = append(spec.Sources, *source)
+			}
+		} else {
+			spec.Source = source
+		}
 	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
@@ -240,7 +260,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				spec.SyncPolicy = nil
 			}
 		case "sync-retry-limit":
-			if appOpts.retryLimit > 0 {
+			switch {
+			case appOpts.retryLimit > 0:
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
@@ -252,13 +273,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
-			} else if appOpts.retryLimit == 0 {
+			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
 					spec.SyncPolicy = nil
 				} else {
 					spec.SyncPolicy.Retry = nil
 				}
-			} else {
+			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
@@ -584,17 +605,15 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: appNs,
 		},
-		Spec: argoappv1.ApplicationSpec{
-			Source: &argoappv1.ApplicationSource{},
-		},
+		Spec: argoappv1.ApplicationSpec{},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)
@@ -620,7 +639,7 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			app.Name = appName
 		}
 		if app.Name == "" {
-			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
+			return nil, stderrors.New("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
 		mergeLabels(app, labels)
@@ -768,6 +787,47 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 	return source, visited
 }
 
+// constructSourceHydrator constructs a source hydrator from the command line flags. It returns the modified source
+// hydrator and a boolean indicating if any hydrator flags were set. We return instead of just modifying the source
+// hydrator in place because the given hydrator `h` might be nil. In that case, we need to create a new source hydrator
+// and return it.
+func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
+	hasHydratorFlag := false
+	ensureNotNil := func(notEmpty bool) {
+		hasHydratorFlag = true
+		if notEmpty && h == nil {
+			h = &argoappv1.SourceHydrator{}
+		}
+	}
+	flags.Visit(func(f *pflag.Flag) {
+		switch f.Name {
+		case "dry-source-repo":
+			ensureNotNil(appOpts.drySourceRepo != "")
+			h.DrySource.RepoURL = appOpts.drySourceRepo
+		case "dry-source-path":
+			ensureNotNil(appOpts.drySourcePath != "")
+			h.DrySource.Path = appOpts.drySourcePath
+		case "dry-source-revision":
+			ensureNotNil(appOpts.drySourceRevision != "")
+			h.DrySource.TargetRevision = appOpts.drySourceRevision
+		case "sync-source-branch":
+			ensureNotNil(appOpts.syncSourceBranch != "")
+			h.SyncSource.TargetBranch = appOpts.syncSourceBranch
+		case "sync-source-path":
+			ensureNotNil(appOpts.syncSourcePath != "")
+			h.SyncSource.Path = appOpts.syncSourcePath
+		case "hydrate-to-branch":
+			ensureNotNil(appOpts.hydrateToBranch != "")
+			if appOpts.hydrateToBranch == "" {
+				h.HydrateTo = nil
+			} else {
+				h.HydrateTo = &argoappv1.HydrateTo{TargetBranch: appOpts.hydrateToBranch}
+			}
+		}
+	})
+	return h, hasHydratorFlag
+}
+
 func mergeLabels(app *argoappv1.Application, labels []string) {
 	mapLabels, err := label.Parse(labels)
 	errors.CheckError(err)
@@ -838,10 +898,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, fmt.Errorf("No matching resource found")
+		return nil, stderrors.New("No matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, fmt.Errorf("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }

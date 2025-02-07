@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -51,7 +51,7 @@ type legacyServicesConfig struct {
 	Webhook  []legacyWebhookOptions    `json:"webhook"`
 }
 
-func mergePatch(orig interface{}, other interface{}) error {
+func mergePatch(orig any, other any) error {
 	origData, err := json.Marshal(orig)
 	if err != nil {
 		return fmt.Errorf("error marshaling json for original: %w", err)
@@ -157,7 +157,7 @@ func (c *legacyServicesConfig) merge(cfg *api.Config) {
 }
 
 // ApplyLegacyConfig settings specified using deprecated config map and secret keys
-func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.ConfigMap, secret *v1.Secret) error {
+func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *corev1.ConfigMap, secret *corev1.Secret) error {
 	if notifiersData, ok := secret.Data["notifiers.yaml"]; ok && len(notifiersData) > 0 {
 		log.Warn("Key 'notifiers.yaml' in Secret is deprecated, please migrate to new settings")
 		legacyServices := &legacyServicesConfig{}

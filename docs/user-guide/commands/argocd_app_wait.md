@@ -43,6 +43,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --delete                 Wait for delete
       --health                 Wait for health
   -h, --help                   help for wait
+      --hydrated               Wait for hydration operations
       --operation              Wait for pending operations
   -o, --output string          Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --resource stringArray   Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
@@ -68,7 +69,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
