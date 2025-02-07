@@ -98,7 +98,7 @@ func ExampleNewClusterCache_inspectNamespaceResources() {
 		// cache default namespace only
 		SetNamespaces([]string{"default", "kube-system"}),
 		// configure custom logic to cache resources manifest and additional metadata
-		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
+		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 			// if resource belongs to 'extensions' group then mark if with 'deprecated' label
 			if un.GroupVersionKind().Group == "extensions" {
 				info = []string{"deprecated"}

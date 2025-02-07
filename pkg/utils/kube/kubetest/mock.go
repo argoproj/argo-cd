@@ -44,11 +44,11 @@ func (k *MockKubectlCmd) WithGetResourceFunc(getResourcefunc func(context.Contex
 	return k
 }
 
-func (k *MockKubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
+func (k *MockKubectlCmd) NewDynamicClient(_ *rest.Config) (dynamic.Interface, error) {
 	return k.DynamicClient, nil
 }
 
-func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+func (k *MockKubectlCmd) GetAPIResources(_ *rest.Config, _ bool, _ kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
 	return k.APIResources, nil
 }
 
@@ -60,11 +60,11 @@ func (k *MockKubectlCmd) GetResource(ctx context.Context, config *rest.Config, g
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) PatchResource(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, _ string, _ string, _ types.PatchType, _ []byte, _ ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
+func (k *MockKubectlCmd) DeleteResource(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, name string, _ string, _ metav1.DeleteOptions) error {
 	command, ok := k.Commands[name]
 	if !ok {
 		return nil
@@ -72,7 +72,7 @@ func (k *MockKubectlCmd) DeleteResource(ctx context.Context, config *rest.Config
 	return command.Err
 }
 
-func (k *MockKubectlCmd) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) CreateResource(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, _ string, _ string, _ *unstructured.Unstructured, _ metav1.CreateOptions, _ ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
@@ -85,18 +85,18 @@ func (k *MockKubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group,
 	return obj, nil
 }
 
-func (k *MockKubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
+func (k *MockKubectlCmd) GetServerVersion(_ *rest.Config) (string, error) {
 	return k.Version, nil
 }
 
-func (k *MockKubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+func (k *MockKubectlCmd) LoadOpenAPISchema(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
 	return nil, nil, nil
 }
 
-func (k *MockKubectlCmd) SetOnKubectlRun(onKubectlRun kube.OnKubectlRunFunc) {
+func (k *MockKubectlCmd) SetOnKubectlRun(_ kube.OnKubectlRunFunc) {
 }
 
-func (k *MockKubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (kube.ResourceOperations, func(), error) {
+func (k *MockKubectlCmd) ManageResources(_ *rest.Config, _ openapi.Resources) (kube.ResourceOperations, func(), error) {
 	return &MockResourceOps{}, func() {
 	}, nil
 }

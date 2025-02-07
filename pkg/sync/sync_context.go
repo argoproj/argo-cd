@@ -598,7 +598,7 @@ func (sc *syncContext) GetState() (common.OperationPhase, string, []common.Resou
 }
 
 func (sc *syncContext) setOperationFailed(syncFailTasks, syncFailedTasks syncTasks, message string) {
-	errorMessageFactory := func(tasks []*syncTask, message string) string {
+	errorMessageFactory := func(_ []*syncTask, message string) string {
 		messages := syncFailedTasks.Map(func(task *syncTask) string {
 			return task.message
 		})
@@ -933,7 +933,7 @@ func (sc *syncContext) setOperationPhase(phase common.OperationPhase, message st
 
 // ensureCRDReady waits until specified CRD is ready (established condition is true).
 func (sc *syncContext) ensureCRDReady(name string) error {
-	return wait.PollUntilContextTimeout(context.Background(), time.Duration(100)*time.Millisecond, crdReadinessTimeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollUntilContextTimeout(context.Background(), time.Duration(100)*time.Millisecond, crdReadinessTimeout, true, func(_ context.Context) (bool, error) {
 		crd, err := sc.extensionsclientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			return false, err

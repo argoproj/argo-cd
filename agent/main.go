@@ -150,7 +150,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 			clusterCache := cache.NewClusterCache(config,
 				cache.SetNamespaces(namespaces),
 				cache.SetLogr(log),
-				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info any, cacheManifest bool) {
+				cache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
 					// store gc mark of every resource
 					gcMark := un.GetAnnotations()[annotationGCMark]
 					info = &resourceInfo{gcMark: un.GetAnnotations()[annotationGCMark]}
@@ -175,7 +175,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 					resync <- true
 				}
 			}()
-			http.HandleFunc("/api/v1/sync", func(writer http.ResponseWriter, request *http.Request) {
+			http.HandleFunc("/api/v1/sync", func(_ http.ResponseWriter, _ *http.Request) {
 				log.Info("Synchronization triggered by API call")
 				resync <- true
 			})

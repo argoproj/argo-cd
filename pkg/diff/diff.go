@@ -57,7 +57,7 @@ type DiffResultList struct {
 
 type noopNormalizer struct{}
 
-func (n *noopNormalizer) Normalize(un *unstructured.Unstructured) error {
+func (n *noopNormalizer) Normalize(_ *unstructured.Unstructured) error {
 	return nil
 }
 
@@ -201,7 +201,7 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 // managedFields. All fields under this condition will be reverted with their state
 // from live. If the given predictedLive does not have the managedFields, an error
 // will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, _ string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())

@@ -895,7 +895,7 @@ func TestServerSideDiff(t *testing.T) {
 		dryRunner := mocks.NewServerSideDryRunner(t)
 
 		dryRunner.On("Run", mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
-			Return(func(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error) {
+			Return(func(_ context.Context, _ *unstructured.Unstructured, _ string) (string, error) {
 				return predictedLive, nil
 			})
 		opts := []Option{

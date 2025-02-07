@@ -98,11 +98,9 @@ linters-settings:
         disabled: true
       - name: unreachable-code
       - name: unused-parameter
-        disabled: true
       - name: use-any
       - name: useless-break
       - name: var-declaration
-        disabled: true
       - name: var-naming
         disabled: true
   testifylint:

@@ -68,7 +68,7 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 		syncRes:   map[string]synccommon.ResourceSyncResult{},
 		validate:  true,
 	}
-	sc.permissionValidator = func(un *unstructured.Unstructured, res *v1.APIResource) error {
+	sc.permissionValidator = func(_ *unstructured.Unstructured, _ *v1.APIResource) error {
 		return nil
 	}
 	mockKubectl := kubetest.MockKubectlCmd{}
@@ -106,7 +106,7 @@ func TestSyncValidate(t *testing.T) {
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil, WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
+	syncCtx := newTestSyncCtx(nil, WithPermissionValidator(func(_ *unstructured.Unstructured, _ *v1.APIResource) error {
 		return fmt.Errorf("not permitted in project")
 	}))
 	targetPod := NewPod()
@@ -998,7 +998,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 	namespace := NewNamespace()
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.namespace = FakeArgoCDNamespace
-	syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
+	syncCtx.syncNamespace = func(_, _ *unstructured.Unstructured) (bool, error) {
 		return true, nil
 	}
 	namespace.SetName(FakeArgoCDNamespace)
@@ -1091,7 +1091,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 }
 
 func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
-	getResourceFunc := func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	getResourceFunc := func(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, _ string, _ string) (*unstructured.Unstructured, error) {
 		return nil, apierrors.NewNotFound(schema.GroupResource{}, FakeArgoCDNamespace)
 	}
 
@@ -1107,7 +1107,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(_, _ *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return true, nil
 		}
@@ -1124,7 +1124,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(_, _ *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return false, nil
 		}
@@ -1141,7 +1141,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod},
 		})
 		creatorCalled := false
-		syncCtx.syncNamespace = func(m, l *unstructured.Unstructured) (bool, error) {
+		syncCtx.syncNamespace = func(_, _ *unstructured.Unstructured) (bool, error) {
 			creatorCalled = true
 			return false, errors.New("some error")
 		}
@@ -1316,7 +1316,7 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
-	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount += 1
 		return true, nil, nil
 	})
@@ -1362,7 +1362,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
-	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount += 1
 		return true, nil, nil
 	})
@@ -1408,7 +1408,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
-	fakeDynamicClient.PrependReactor("delete", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount += 1
 		return true, nil, nil
 	})
@@ -1539,7 +1539,7 @@ func TestSyncWaveHook(t *testing.T) {
 	// call sync again, it should not invoke the SyncWaveHook callback since we only should be
 	// doing this after an apply, and not every reconciliation
 	called = false
-	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+	syncCtx.syncWaveHook = func(_ synccommon.SyncPhase, _ int, _ bool) error {
 		called = true
 		return nil
 	}
@@ -1590,7 +1590,7 @@ func TestSyncWaveHookFail(t *testing.T) {
 	})
 
 	called := false
-	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
+	syncCtx.syncWaveHook = func(_ synccommon.SyncPhase, _ int, _ bool) error {
 		called = true
 		return errors.New("intentional error")
 	}

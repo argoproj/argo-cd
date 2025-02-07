@@ -264,12 +264,12 @@ type clusterCacheSync struct {
 }
 
 // ListRetryFuncNever never retries on errors
-func ListRetryFuncNever(err error) bool {
+func ListRetryFuncNever(_ error) bool {
 	return false
 }
 
 // ListRetryFuncAlways always retries on errors
-func ListRetryFuncAlways(err error) bool {
+func ListRetryFuncAlways(_ error) bool {
 	return true
 }
 
@@ -589,7 +589,7 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 	}
 	defer c.listSemaphore.Release(1)
 
-	var retryCount int64 = 0
+	var retryCount int64
 	resourceVersion := ""
 	listPager := pager.New(func(ctx context.Context, opts metav1.ListOptions) (runtime.Object, error) {
 		var res *unstructured.UnstructuredList

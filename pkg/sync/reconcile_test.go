@@ -13,7 +13,7 @@ import (
 
 type unknownResourceInfoProvider struct{}
 
-func (e *unknownResourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
+func (e *unknownResourceInfoProvider) IsNamespaced(_ schema.GroupKind) (bool, error) {
 	return false, errors.New("unknown")
 }
 
