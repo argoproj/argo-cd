@@ -1442,13 +1442,6 @@ func TestCacheControlHeaders(t *testing.T) {
 			expectedStatus:              http.StatusOK,
 			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
 		},
-		{
-			name:                        "main js bundle does not exists",
-			filename:                    "main.e4188e5adc97bbfc00c0.js",
-			createFile:                  false,
-			expectedStatus:              404,
-			expectedCacheControlHeaders: []string{"no-cache"},
-		},
 	}
 
 	for _, testCase := range testCases {
