@@ -864,7 +864,7 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 			} else if apierr.IsNotFound(err) {
 				tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: nil}, managedNs, nil)
 			} else {
-				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("Namespace auto creation failed: %s", err))
+				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("Namespace auto creation failed: %w", err))
 			}
 		} else {
 			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("Namespace auto creation failed: %s", err))
@@ -876,7 +876,7 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 func (sc *syncContext) appendNsTask(tasks syncTasks, preTask *syncTask, managedNs, liveNs *unstructured.Unstructured) syncTasks {
 	modified, err := sc.syncNamespace(managedNs, liveNs)
 	if err != nil {
-		tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("namespaceModifier error: %s", err))
+		tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("namespaceModifier error: %w", err))
 	} else if modified {
 		tasks = append(tasks, preTask)
 	}

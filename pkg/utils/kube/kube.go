@@ -4,6 +4,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -102,11 +103,11 @@ func GetObjectRef(obj *unstructured.Unstructured) v1.ObjectReference {
 func TestConfig(config *rest.Config) error {
 	kubeclientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("REST config invalid: %s", err)
+		return fmt.Errorf("REST config invalid: %w", err)
 	}
 	_, err = kubeclientset.ServerVersion()
 	if err != nil {
-		return fmt.Errorf("REST config invalid: %s", err)
+		return fmt.Errorf("REST config invalid: %w", err)
 	}
 	return nil
 }
@@ -315,7 +316,7 @@ func SplitYAML(yamlData []byte) ([]*unstructured.Unstructured, error) {
 	for _, yml := range ymls {
 		u := &unstructured.Unstructured{}
 		if err := yaml.Unmarshal([]byte(yml), u); err != nil {
-			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
+			return objs, fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
 		objs = append(objs, u)
 	}
@@ -334,10 +335,10 @@ func SplitYAMLToString(yamlData []byte) ([]string, error) {
 	for {
 		ext := runtime.RawExtension{}
 		if err := d.Decode(&ext); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
-			return objs, fmt.Errorf("failed to unmarshal manifest: %v", err)
+			return objs, fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
 		ext.Raw = bytes.TrimSpace(ext.Raw)
 		if len(ext.Raw) == 0 || bytes.Equal(ext.Raw, []byte("null")) {

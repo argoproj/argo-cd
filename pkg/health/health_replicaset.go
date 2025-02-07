@@ -18,7 +18,7 @@ func getReplicaSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) 
 		var replicaSet appsv1.ReplicaSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &replicaSet)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured ReplicaSet to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured ReplicaSet to typed: %w", err)
 		}
 		return getAppsv1ReplicaSetHealth(&replicaSet)
 	default:

@@ -18,14 +18,14 @@ func getAPIServiceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) 
 		var apiService apiregistrationv1.APIService
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &apiService)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured APIService to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured APIService to typed: %w", err)
 		}
 		return getApiregistrationv1APIServiceHealth(&apiService)
 	case apiregistrationv1beta1.SchemeGroupVersion.WithKind(kube.APIServiceKind):
 		var apiService apiregistrationv1beta1.APIService
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &apiService)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured APIService to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured APIService to typed: %w", err)
 		}
 		return getApiregistrationv1beta1APIServiceHealth(&apiService)
 	default:

@@ -234,7 +234,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		mfs := &fieldpath.Set{}
 		err := mfs.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
 		if err != nil {
-			return nil, fmt.Errorf("error building managedFields set: %s", err)
+			return nil, fmt.Errorf("error building managedFields set: %w", err)
 		}
 		if comparison.Added != nil && !comparison.Added.Empty() {
 			// exclude the added fields owned by this manager from the comparison
@@ -262,7 +262,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		// revert modified fields not owned by any manager
 		typedPredictedLive, err = typedPredictedLive.Merge(liveModValues)
 		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook modified fields in predicted live resource: %s", err)
+			return nil, fmt.Errorf("error reverting webhook modified fields in predicted live resource: %w", err)
 		}
 	}
 
@@ -271,7 +271,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		// revert removed fields not owned by any manager
 		typedPredictedLive, err = typedPredictedLive.Merge(liveRmValues)
 		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook removed fields in predicted live resource: %s", err)
+			return nil, fmt.Errorf("error reverting webhook removed fields in predicted live resource: %w", err)
 		}
 	}
 
@@ -287,7 +287,7 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 	res := make(map[string]any)
 	err := json.Unmarshal([]byte(jsonString), &res)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal error: %s", err)
+		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
 }
@@ -770,7 +770,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) (*unstructu
 	var obj unstructured.Unstructured
 	err := json.Unmarshal([]byte(lastAppliedStr), &obj)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s in %s: %v", corev1.LastAppliedConfigAnnotation, live.GetName(), err)
+		return nil, fmt.Errorf("failed to unmarshal %s in %s: %w", corev1.LastAppliedConfigAnnotation, live.GetName(), err)
 	}
 	return &obj, nil
 }
@@ -1027,7 +1027,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		} else {
 			lastAppliedData, err := json.Marshal(liveLastAppliedAnnotation)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error marshaling json: %s", err)
+				return nil, nil, fmt.Errorf("error marshaling json: %w", err)
 			}
 			annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
 		}
@@ -1055,7 +1055,7 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 				var err error
 				data, _, err = unstructured.NestedMap(obj.Object, fields...)
 				if err != nil {
-					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
+					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %w", err)
 				}
 			}
 			if data == nil {
@@ -1075,7 +1075,7 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 			data[k] = replacement
 			err := unstructured.SetNestedField(obj.Object, data, fields...)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
+				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %w", err)
 			}
 		}
 	}

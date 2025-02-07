@@ -95,13 +95,13 @@ func createManifestFile(obj *unstructured.Unstructured, log logr.Logger) (*os.Fi
 	}
 	manifestFile, err := os.CreateTemp(io.TempDir, "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate temp file for manifest: %v", err)
+		return nil, fmt.Errorf("Failed to generate temp file for manifest: %w", err)
 	}
 	if _, err = manifestFile.Write(manifestBytes); err != nil {
-		return nil, fmt.Errorf("Failed to write manifest: %v", err)
+		return nil, fmt.Errorf("Failed to write manifest: %w", err)
 	}
 	if err = manifestFile.Close(); err != nil {
-		return nil, fmt.Errorf("Failed to close manifest: %v", err)
+		return nil, fmt.Errorf("Failed to close manifest: %w", err)
 	}
 
 	err = maybeLogManifest(manifestBytes, log)
@@ -123,7 +123,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
 		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {
-			return "", fmt.Errorf("error running rbacReconcile: %s", err)
+			return "", fmt.Errorf("error running rbacReconcile: %w", err)
 		}
 		out = append(out, outReconcile)
 		// We still want to fallthrough and run `kubectl apply` in order set the

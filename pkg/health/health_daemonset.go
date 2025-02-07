@@ -17,7 +17,7 @@ func getDaemonSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var daemon appsv1.DaemonSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &daemon)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured DaemonSet to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured DaemonSet to typed: %w", err)
 		}
 		return getAppsv1DaemonSetHealth(&daemon)
 	default:

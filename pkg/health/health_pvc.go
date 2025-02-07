@@ -17,7 +17,7 @@ func getPVCHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var pvc corev1.PersistentVolumeClaim
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pvc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured PersistentVolumeClaim to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured PersistentVolumeClaim to typed: %w", err)
 		}
 		return getCorev1PVCHealth(&pvc)
 	default:

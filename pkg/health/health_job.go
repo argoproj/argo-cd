@@ -19,7 +19,7 @@ func getJobHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var job batchv1.Job
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &job)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Job to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Job to typed: %w", err)
 		}
 		return getBatchv1JobHealth(&job)
 	default:

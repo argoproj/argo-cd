@@ -17,7 +17,7 @@ func getStatefulSetHealth(obj *unstructured.Unstructured) (*HealthStatus, error)
 		var sts appsv1.StatefulSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &sts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured StatefulSet to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured StatefulSet to typed: %w", err)
 		}
 		return getAppsv1StatefulSetHealth(&sts)
 	default:

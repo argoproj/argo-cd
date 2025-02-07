@@ -17,7 +17,7 @@ func getDeploymentHealth(obj *unstructured.Unstructured) (*HealthStatus, error) 
 		var deployment appsv1.Deployment
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &deployment)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Deployment to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Deployment to typed: %w", err)
 		}
 		return getAppsv1DeploymentHealth(&deployment)
 	default:

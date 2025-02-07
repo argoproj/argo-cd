@@ -19,7 +19,7 @@ func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		var pod corev1.Pod
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &pod)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert unstructured Pod to typed: %v", err)
+			return nil, fmt.Errorf("failed to convert unstructured Pod to typed: %w", err)
 		}
 		return getCorev1PodHealth(&pod)
 	default:

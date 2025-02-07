@@ -84,7 +84,7 @@ func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error
 			}
 			items, err := kube.SplitYAML(data)
 			if err != nil {
-				return fmt.Errorf("failed to parse %s: %v", path, err)
+				return fmt.Errorf("failed to parse %s: %w", path, err)
 			}
 			res = append(res, items...)
 			return nil

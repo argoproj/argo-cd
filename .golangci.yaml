@@ -8,7 +8,7 @@ issues:
 linters:
   enable:
     - errcheck
-#    - errorlint
+    - errorlint
     - gocritic
     - gofumpt
     - goimports
