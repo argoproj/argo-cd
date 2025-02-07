@@ -554,6 +554,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: ptr.To(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
+					MatchCase:    ptr.To(matchCase),
 					Container:    ptr.To(container),
 					Previous:     ptr.To(previous),
 					AppNamespace: &appNs,
