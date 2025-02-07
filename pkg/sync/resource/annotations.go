@@ -30,7 +30,7 @@ func GetAnnotationCSVs(obj AnnotationGetter, key string) []string {
 }
 
 // HasAnnotationOption will return if the given obj has an annotation defined
-// as the given key and has in its values, the ocurrence of val.
+// as the given key and has in its values, the occurrence of val.
 func HasAnnotationOption(obj AnnotationGetter, key, val string) bool {
 	for _, item := range GetAnnotationCSVs(obj, key) {
 		if item == val {

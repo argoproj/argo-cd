@@ -1307,7 +1307,7 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 			require.True(t, v)
 		case <-time.After(10 * time.Second):
 			hasDeadlock = true
-			t.Errorf("timeout reached on attempt %d. It is possible that a deadlock occured", i)
+			t.Errorf("timeout reached on attempt %d. It is possible that a deadlock occurred", i)
 			// Tip: to debug the deadlock, increase the timer to a value higher than X in "go test -timeout X"
 			// This will make the test panic with the goroutines information
 			t.FailNow()
