@@ -257,7 +257,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			useGoTemplate: true,
 		},
 		{
-			name:      "simple key, unique paramSets",
+			name:      "simple key, no gotemplates, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
 			expected: map[string]map[string]any{
@@ -266,12 +266,22 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			},
 		},
 		{
-			name:      "templated simple key, unique paramSets",
+			name:      "simple key, gotemplates, unique paramSets",
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
 			expected: map[string]map[string]any{
 				`{"key":"string:a"}`: {"key": "a"},
 				`{"key":"string:b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "simple templated key, gotemplates, unique paramSets",
+			mergeKeys: []string{"{{ .key }}"},
+			paramSets: []map[string]any{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]any{
+				`{"{{ .key }}":"a"}`: {"key": "a"},
+				`{"{{ .key }}":"b"}`: {"key": "b"},
 			},
 			useGoTemplate: true,
 		},

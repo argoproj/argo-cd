@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
+	"regexp"
 	"time"
 
 	"dario.cat/mergo"
@@ -147,6 +147,19 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any, useG
 	return paramSetsByMergeKey, nil
 }
 
+// To be a valid template key (dot separated variable names) a string must be
+//
+//	                              Start with a character or _
+//		                                        |
+//	                                            |    Then be alphnumeric
+//	                                            |    or a _
+//	                                            |         |
+//	                                            |         |    Separate with a dot
+//	                                            |         |          |
+//	                                            |         |          |      Continue with valid var names
+//	                                            |         |          |         |
+var validGoTemplateKey = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*")
+
 // generateparamSetRepr uses the keys to generate a representation for a paramSet.
 //
 // This can be thought of a modulo operation: 'paramSet % keys' leaves a
@@ -164,7 +177,7 @@ func generateParamSetRepr(keys map[string]bool, paramSet map[string]any, useGoTe
 			// To avoid key collisions (e.g. a string containing a valid map
 			// representation), we additionally record the real type of the
 			// key used.
-			if !strings.Contains(mergeKey, "{{") && !strings.Contains(mergeKey, "}}") {
+			if validGoTemplateKey.MatchString(mergeKey) {
 				keyTemplate = fmt.Sprintf("{{ kindOf .%s }}:{{ .%s }}", mergeKey, mergeKey)
 			}
 
