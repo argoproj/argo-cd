@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/util/podutils"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {

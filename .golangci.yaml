@@ -11,7 +11,7 @@ linters:
 #    - errorlint
     - gocritic
     - gofumpt
-#    - goimports
+    - goimports
     - gomodguard
     - gosimple
     - govet
@@ -43,6 +43,8 @@ linters-settings:
       - typeSwitchVar
       - unlambda #FIXME
       - wrapperFunc #FIXME
+  goimports:
+    local-prefixes: github.com/argoproj/gitops-engine
   revive:
     # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
     rules:

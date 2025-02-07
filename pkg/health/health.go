@@ -1,9 +1,10 @@
 package health
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 // Represents resource health status

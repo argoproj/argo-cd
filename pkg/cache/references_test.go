@@ -3,12 +3,13 @@ package cache
 import (
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
 func Test_isStatefulSetChild(t *testing.T) {
