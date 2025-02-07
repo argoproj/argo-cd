@@ -296,7 +296,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/andrii-korotkov-verkada/gitops-engine v0.0.0-20250207150217-8cc9c4286c83
+	github.com/argoproj/gitops-engine => github.com/andrii-korotkov-verkada/gitops-engine v0.0.0-20250207151641-f460e955b46c
 
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
