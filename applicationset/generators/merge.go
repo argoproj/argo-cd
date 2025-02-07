@@ -161,8 +161,11 @@ func generateParamSetRepr(keys map[string]bool, paramSet map[string]interface{},
 			// key, not containing any golang templating.
 			// If so, we just surround the whole key with brackets to make
 			// go templating evaluate it.
+			// To avoid key collisions (e.g. a string containing a valid map
+			// representation), we additionally record the real type of the
+			// key used.
 			if !strings.Contains(mergeKey, "{{") && !strings.Contains(mergeKey, "}}") {
-				keyTemplate = fmt.Sprintf("{{ .%s }}", mergeKey)
+				keyTemplate = fmt.Sprintf("{{ kindOf .%s }}:{{ .%s }}", mergeKey, mergeKey)
 			}
 
 			// Now, this can be templated into a value with respect to the current paramSet

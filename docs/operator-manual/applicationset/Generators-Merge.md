@@ -209,11 +209,35 @@ Assuming a cluster named `germany01` with the label `metadata.labels.location=Ge
                               elements:
                                 - # (...)
 
-1. Merging on nested values while using `goTemplate: true` is currently not supported, this will not work
+1. When using a Merge generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`.
 
-        spec:
-          goTemplate: true
-          generators:
-          - merge:
-              mergeKeys:
-                - values.merge
+        - merge:
+            generators:
+              - merge:
+                  generators:
+                    - list
+                        elements:
+                          - # (...)
+                      selector: { } # Only applied when applyNestedSelectors is true
+
+1. Using complex merge keys with `goTemplate: true` might be error prone:
+
+    ```yaml
+    # ...
+    mergeKeys:
+      - "{{ .values }}"
+    generators:
+      - list:
+          elements:
+            - values:
+                data: "some"
+      - list:
+          elements:
+            - values: "map[data:some]"
+    ```
+    Those two generators, although having different structures, evaluate to
+    the same merge key. To avoid this, use a merge key like
+    `"{{ kindOf .values }}:{{ .values }}"` including type information.
+
+    For simple merge keys like `values` (without any brackets), this is
+    done automatically.
