@@ -40,7 +40,7 @@ func applyOptions(opts []Option) options {
 }
 
 type KubeApplier interface {
-	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string, serverSideDiff bool) (string, error)
+	ApplyResource(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, force, validate, serverSideApply bool, manager string) (string, error)
 }
 
 // ServerSideDryRunner defines the contract to run a server-side apply in
@@ -66,7 +66,7 @@ func NewK8sServerSideDryRunner(kubeApplier KubeApplier) *K8sServerSideDryRunner 
 // obj and the given manager in dryrun mode. Will return the predicted live state
 // json as string.
 func (kdr *K8sServerSideDryRunner) Run(ctx context.Context, obj *unstructured.Unstructured, manager string) (string, error) {
-	return kdr.dryrunApplier.ApplyResource(ctx, obj, cmdutil.DryRunServer, false, false, true, manager, true)
+	return kdr.dryrunApplier.ApplyResource(ctx, obj, cmdutil.DryRunServer, false, false, true, manager)
 }
 
 func IgnoreAggregatedRoles(ignore bool) Option {
