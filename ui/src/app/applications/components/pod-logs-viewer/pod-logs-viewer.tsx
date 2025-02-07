@@ -2,7 +2,7 @@ import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState, useRef} from 'react';
-import {bufferTime, delay, retryWhen} from 'rxjs/operators';
+import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -27,6 +27,7 @@ import {PodNamesToggleButton} from './pod-names-toggle-button';
 import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
 import Ansi from 'ansi-to-react';
+import {EMPTY} from 'rxjs';
 
 export interface PodLogsProps {
     namespace: string;
@@ -95,6 +96,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
         return (val => {
@@ -155,9 +157,20 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 sinceSeconds,
                 filter,
                 previous
-            }) // accumulate log changes and render only once every 100ms to reduce CPU usage
-            .pipe(bufferTime(100))
-            .pipe(retryWhen(errors => errors.pipe(delay(500))))
+            })
+            .pipe(
+                bufferTime(100),
+                catchError((error: any) => {
+                    const errorBody = JSON.parse(error.body);
+                    if (errorBody.error && errorBody.error.message) {
+                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
+                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                        }
+                    }
+                }),
+                retryWhen(errors => errors.pipe(delay(500)))
+            )
             .subscribe(log => setLogs(previousLogs => previousLogs.concat(log)));
 
         return () => logsSource.unsubscribe();
@@ -268,7 +281,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
-                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines, prefs)}</AutoSizer>
+                            {errorMessage ? (
+                                <div>{errorMessage}</div>
+                            ) : (
+                                <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines, prefs)}</AutoSizer>
+                            )}
                         </div>
                     </React.Fragment>
                 );

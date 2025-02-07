@@ -642,6 +642,14 @@ func appendProxy(registry ProxyRegistry,
 		}
 		registry[key] = proxy
 	}
+	if service.Cluster.Name != "" && service.Cluster.Server != "" {
+		key := proxyKey(extName, service.Cluster.Name, service.Cluster.Server)
+		if _, exist := registry[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		registry[key] = proxy
+	}
+
 	return nil
 }
 
