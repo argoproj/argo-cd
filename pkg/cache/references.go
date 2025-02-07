@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -60,7 +60,7 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 }
 
 func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) bool, error) {
-	sts := v1.StatefulSet{}
+	sts := appsv1.StatefulSet{}
 	data, err := json.Marshal(un)
 	if err != nil {
 		return nil, err

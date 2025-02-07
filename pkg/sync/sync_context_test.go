@@ -1313,7 +1313,7 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
-		deletedCount += 1
+		deletedCount++
 		return true, nil, nil
 	})
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -1359,7 +1359,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
-		deletedCount += 1
+		deletedCount++
 		return true, nil, nil
 	})
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -1405,7 +1405,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 	syncCtx.dynamicIf = fakeDynamicClient
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
-		deletedCount += 1
+		deletedCount++
 		return true, nil, nil
 	})
 	syncCtx.resources = groupResources(ReconciliationResult{

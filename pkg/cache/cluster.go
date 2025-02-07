@@ -12,7 +12,7 @@ import (
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/semaphore"
 	authorizationv1 "k8s.io/api/authorization/v1"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -607,7 +607,7 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 			if ierr != nil {
 				// Log out a retry
 				if c.listRetryLimit > 1 && c.listRetryFunc(ierr) {
-					retryCount += 1
+					retryCount++
 					c.log.Info(fmt.Sprintf("Error while listing resources: %v (try %d/%d)", ierr, retryCount, c.listRetryLimit))
 				}
 				return ierr
@@ -718,7 +718,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				c.recordEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
 					var resources []kube.APIResourceInfo
-					crd := v1.CustomResourceDefinition{}
+					crd := apiextensionsv1.CustomResourceDefinition{}
 					err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd)
 					if err != nil {
 						c.log.Error(err, "Failed to extract CRD resources")
@@ -734,7 +734,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 							Meta: metav1.APIResource{
 								Group:        crd.Spec.Group,
 								SingularName: crd.Spec.Names.Singular,
-								Namespaced:   crd.Spec.Scope == v1.NamespaceScoped,
+								Namespaced:   crd.Spec.Scope == apiextensionsv1.NamespaceScoped,
 								Name:         crd.Spec.Names.Plural,
 								Kind:         crd.Spec.Names.Singular,
 								Version:      v.Name,

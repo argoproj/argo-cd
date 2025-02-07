@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	v1extensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -937,8 +937,8 @@ func (sc *syncContext) ensureCRDReady(name string) error {
 			return false, err
 		}
 		for _, condition := range crd.Status.Conditions {
-			if condition.Type == v1extensions.Established {
-				return condition.Status == v1extensions.ConditionTrue, nil
+			if condition.Type == apiextensionsv1.Established {
+				return condition.Status == apiextensionsv1.ConditionTrue, nil
 			}
 		}
 		return false, nil
