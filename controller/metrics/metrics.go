@@ -414,6 +414,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if healthStatus == "" {
 		healthStatus = health.HealthStatusUnknown
 	}
+
 	var skipReconcile bool
 	if annotations := app.GetAnnotations(); annotations != nil {
 		if skipVal, ok := annotations[common.AnnotationKeyAppSkipReconcile]; ok {
