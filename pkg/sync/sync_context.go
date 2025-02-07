@@ -718,9 +718,7 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		task.liveObj = sc.liveObj(task.targetObj)
 	}
 
-	isRetryable := func(err error) bool {
-		return apierrors.IsUnauthorized(err)
-	}
+	isRetryable := apierrors.IsUnauthorized
 
 	serverResCache := make(map[schema.GroupVersionKind]*metav1.APIResource)
 
@@ -849,20 +847,19 @@ func (sc *syncContext) autoCreateNamespace(tasks syncTasks) syncTasks {
 		managedNs, err := kubeutil.ToUnstructured(nsSpec)
 		if err == nil {
 			liveObj, err := sc.kubectl.GetResource(context.TODO(), sc.config, managedNs.GroupVersionKind(), managedNs.GetName(), metav1.NamespaceNone)
-			if err == nil {
+			switch {
+			case err == nil:
 				nsTask := &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: liveObj}
 				_, ok := sc.syncRes[nsTask.resultKey()]
 				if ok {
 					tasks = sc.appendNsTask(tasks, nsTask, managedNs, liveObj)
-				} else {
-					if liveObj != nil {
-						sc.log.WithValues("namespace", sc.namespace).Info("Namespace already exists")
-						tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: liveObj}, managedNs, liveObj)
-					}
+				} else if liveObj != nil {
+					sc.log.WithValues("namespace", sc.namespace).Info("Namespace already exists")
+					tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: liveObj}, managedNs, liveObj)
 				}
-			} else if apierrors.IsNotFound(err) {
+			case apierrors.IsNotFound(err):
 				tasks = sc.appendNsTask(tasks, &syncTask{phase: common.SyncPhasePreSync, targetObj: managedNs, liveObj: nil}, managedNs, nil)
-			} else {
+			default:
 				tasks = sc.appendFailedNsTask(tasks, managedNs, fmt.Errorf("Namespace auto creation failed: %w", err))
 			}
 		} else {

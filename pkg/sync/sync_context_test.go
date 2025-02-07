@@ -131,12 +131,13 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 	assert.Len(t, resources, 2)
 	for i := range resources {
 		result := resources[i]
-		if result.ResourceKey.Kind == "Pod" {
+		switch result.ResourceKey.Kind {
+		case "Pod":
 			assert.Equal(t, synccommon.ResultCodeSynced, result.Status)
 			assert.Equal(t, "", result.Message)
-		} else if result.ResourceKey.Kind == "Service" {
+		case "Service":
 			assert.Equal(t, "", result.Message)
-		} else {
+		default:
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
@@ -255,13 +256,14 @@ func TestSyncSuccessfully(t *testing.T) {
 	assert.Len(t, resources, 2)
 	for i := range resources {
 		result := resources[i]
-		if result.ResourceKey.Kind == "Pod" {
+		switch result.ResourceKey.Kind {
+		case "Pod":
 			assert.Equal(t, synccommon.ResultCodePruned, result.Status)
 			assert.Equal(t, "pruned", result.Message)
-		} else if result.ResourceKey.Kind == "Service" {
+		case "Service":
 			assert.Equal(t, synccommon.ResultCodeSynced, result.Status)
 			assert.Equal(t, "", result.Message)
-		} else {
+		default:
 			t.Error("Resource isn't a pod or a service")
 		}
 	}
@@ -284,13 +286,14 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 	for i := range resources {
 		result := resources[i]
-		if result.ResourceKey.Kind == "Pod" {
+		switch result.ResourceKey.Kind {
+		case "Pod":
 			assert.Equal(t, synccommon.ResultCodePruned, result.Status)
 			assert.Equal(t, "pruned", result.Message)
-		} else if result.ResourceKey.Kind == "Service" {
+		case "Service":
 			assert.Equal(t, synccommon.ResultCodePruned, result.Status)
 			assert.Equal(t, "pruned", result.Message)
-		} else {
+		default:
 			t.Error("Resource isn't a pod or a service")
 		}
 	}

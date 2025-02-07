@@ -34,15 +34,8 @@ linters-settings:
     disabled-checks:
       - appendAssign
       - assignOp # Keep it disabled for readability
-      - commentFormatting #FIXME
       - exitAfterDefer
-      - elseif #FIXME
-      - ifElseChain #FIXME
-      - mapKey
-      - singleCaseSwitch #FIXME
       - typeSwitchVar
-      - unlambda #FIXME
-      - wrapperFunc #FIXME
   goimports:
     local-prefixes: github.com/argoproj/gitops-engine
   importas:

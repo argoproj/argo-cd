@@ -116,15 +116,13 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 	orig, err := GetLastAppliedConfigAnnotation(live)
 	if err != nil {
 		o.log.V(1).Info(fmt.Sprintf("Failed to get last applied configuration: %v", err))
-	} else {
-		if orig != nil && config != nil {
-			Normalize(orig, opts...)
-			dr, err := ThreeWayDiff(orig, config, live)
-			if err == nil {
-				return dr, nil
-			}
-			o.log.V(1).Info(fmt.Sprintf("three-way diff calculation failed: %v. Falling back to two-way diff", err))
+	} else if orig != nil && config != nil {
+		Normalize(orig, opts...)
+		dr, err := ThreeWayDiff(orig, config, live)
+		if err == nil {
+			return dr, nil
 		}
+		o.log.V(1).Info(fmt.Sprintf("three-way diff calculation failed: %v. Falling back to two-way diff", err))
 	}
 	return TwoWayDiff(config, live)
 }
@@ -810,11 +808,12 @@ func Normalize(un *unstructured.Unstructured, opts ...Option) {
 	unstructured.RemoveNestedField(un.Object, "metadata", "creationTimestamp")
 
 	gvk := un.GroupVersionKind()
-	if gvk.Group == "" && gvk.Kind == "Secret" {
+	switch {
+	case gvk.Group == "" && gvk.Kind == "Secret":
 		NormalizeSecret(un, opts...)
-	} else if gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role") {
+	case gvk.Group == "rbac.authorization.k8s.io" && (gvk.Kind == "ClusterRole" || gvk.Kind == "Role"):
 		normalizeRole(un, o)
-	} else if gvk.Group == "" && gvk.Kind == "Endpoints" {
+	case gvk.Group == "" && gvk.Kind == "Endpoints":
 		normalizeEndpoint(un, o)
 	}
 

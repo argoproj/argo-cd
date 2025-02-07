@@ -215,7 +215,7 @@ func cleanKubectlOutput(s string) string {
 	s = kubectlErrOutRegexp.ReplaceAllString(s, "")
 	s = kubectlErrOutMapRegexp.ReplaceAllString(s, "")
 	s = kubectlApplyPatchErrOutRegexp.ReplaceAllString(s, "")
-	s = strings.Replace(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "", -1)
+	s = strings.ReplaceAll(s, "; if you choose to ignore these errors, turn validation off with --validate=false", "")
 	return s
 }
 

@@ -92,10 +92,8 @@ func (r *Resource) iterateChildren(ns map[kube.ResourceKey]*Resource, parents ma
 			if parents[childKey] {
 				key := r.ResourceKey()
 				_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-			} else {
-				if action(nil, child, ns) {
-					child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
-				}
+			} else if action(nil, child, ns) {
+				child.iterateChildren(ns, newResourceKeySet(parents, r.ResourceKey()), action)
 			}
 		}
 	}

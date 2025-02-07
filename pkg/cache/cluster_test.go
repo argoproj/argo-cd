@@ -847,11 +847,12 @@ func ExampleNewClusterCache_resourceUpdatedEvents() {
 		panic(err)
 	}
 	unsubscribe := clusterCache.OnResourceUpdated(func(newRes *Resource, oldRes *Resource, _ map[kube.ResourceKey]*Resource) {
-		if newRes == nil {
+		switch {
+		case newRes == nil:
 			fmt.Printf("%s deleted\n", oldRes.Ref.String())
-		} else if oldRes == nil {
+		case oldRes == nil:
 			fmt.Printf("%s created\n", newRes.Ref.String())
-		} else {
+		default:
 			fmt.Printf("%s updated\n", newRes.Ref.String())
 		}
 	})
@@ -1378,7 +1379,7 @@ func BenchmarkIterateHierarchyV2(b *testing.B) {
 	}
 }
 
-//func BenchmarkIterateHierarchy(b *testing.B) {
+// func BenchmarkIterateHierarchy(b *testing.B) {
 //	cluster := newCluster(b)
 //	for _, resource := range testResources {
 //		cluster.setNode(resource)
