@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/antonmedv/expr v1.15.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-7e21b91e9d0f
+	github.com/argoproj/gitops-engine v0.7.1-0.20250207161338-3ef5ab187edd
 	github.com/argoproj/notifications-engine v0.4.1-0.20241007194503-2fef5c9049fd
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.55.6
@@ -296,8 +296,6 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => github.com/andrii-korotkov-verkada/gitops-engine v0.0.0-20250207152013-88408d0209bb
-
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
