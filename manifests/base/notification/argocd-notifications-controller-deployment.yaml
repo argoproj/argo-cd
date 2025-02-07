@@ -70,7 +70,7 @@ spec:
           livenessProbe:
             tcpSocket:
               port: 9001
-          image: quay.io/argoproj/argocd:2.14.2
+          image: quay.io/argoproj/argocd:latest
           imagePullPolicy: Always
           name: argocd-notifications-controller
           volumeMounts:

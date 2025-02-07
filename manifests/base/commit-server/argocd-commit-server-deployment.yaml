@@ -19,7 +19,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: argocd-commit-server
-        image: quay.io/argoproj/argocd:2.14.2
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         args:
           - /usr/local/bin/argocd-commit-server
@@ -92,7 +92,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:2.14.2
+        image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
           runAsNonRoot: true

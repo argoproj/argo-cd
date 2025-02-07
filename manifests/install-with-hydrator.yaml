@@ -24745,7 +24745,7 @@ spec:
               key: commitserver.log.level
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:2.14.2
+        image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -24791,7 +24791,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:2.14.2
+        image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false

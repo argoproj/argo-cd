@@ -20,7 +20,7 @@ spec:
             - argocd
             - admin
             - redis-initial-password
-          image: quay.io/argoproj/argocd:2.14.2
+          image: quay.io/argoproj/argocd:latest
           imagePullPolicy: IfNotPresent
           name: secret-init
           securityContext:
