@@ -27,8 +27,8 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
         with:
-          version:  v1.58.2
-          args: --timeout 5m
+          version:  v1.63.4
+          args: --verbose
       - uses: codecov/codecov-action@a2f73fb6db51fcd2e0aa085dfb36dea90c5e3689 # v5.0.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required

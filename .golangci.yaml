@@ -7,12 +7,42 @@ issues:
   max-same-issues: 0
 linters:
   enable:
+    - errcheck
+#    - errorlint
+    - gocritic
     - gofumpt
+#    - goimports
+    - gomodguard
     - gosimple
+    - govet
+    - importas
+    - ineffassign
+#    - misspell
+    # Disabled because of https://github.com/argoproj/argo-cd/issues/21705
+    # - nolintlint
+#    - perfsprint
     - revive
+    - staticcheck
     - testifylint
+#    - thelper
+#    - unparam
+    - unused
+    - usestdlibvars
     - whitespace
 linters-settings:
+  gocritic:
+    disabled-checks:
+      - appendAssign
+      - assignOp # Keep it disabled for readability
+      - commentFormatting #FIXME
+      - exitAfterDefer
+      - elseif #FIXME
+      - ifElseChain #FIXME
+      - mapKey
+      - singleCaseSwitch #FIXME
+      - typeSwitchVar
+      - unlambda #FIXME
+      - wrapperFunc #FIXME
   revive:
     # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
     rules:
