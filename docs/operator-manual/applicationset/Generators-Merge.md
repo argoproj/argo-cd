@@ -131,6 +131,7 @@ spec:
     # Use the selector set by both child generators to combine them.
     - merge:
         mergeKeys:
+          # Simple keys are converted to goTemplates automatically, see Restrictions
           - values.selector
         generators:
           # Assuming, all configured clusters have a label for their location:
@@ -219,6 +220,29 @@ Assuming a cluster named `germany01` with the label `metadata.labels.location=Ge
                         elements:
                           - # (...)
                       selector: { } # Only applied when applyNestedSelectors is true
+
+1. Automatic goTemplates only work for basic keys:
+
+    ```yaml
+    # ...
+    mergeKeys:
+      - values
+      - values.key
+      - values.nested.key
+    ```
+
+  Does not work:
+
+    ```yaml
+    # ...
+    mergeKeys:
+      # Do not start with a dot for auto-conversion
+      - .values
+      # Dashes are not valid in key names, use {{ index .values "key-key }}
+      - values.key-key
+      # Key parts cannot start with a number, use {{ index .values "0key }}
+      - "values.0key"
+    ```
 
 1. Using complex merge keys with `goTemplate: true` might be error prone:
 
