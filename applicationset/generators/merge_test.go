@@ -372,6 +372,19 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			useGoTemplate: true,
 		},
 		{
+			name:      "compound templated ordered key",
+			mergeKeys: []string{"key1", "key2"},
+			paramSets: []map[string]interface{}{
+				{"key1": "a", "key2": map[string]interface{}{"key3": "a", "key4": "b"}},
+				{"key1": "b", "key2": map[string]interface{}{"key4": "b", "key3": "a"}},
+			},
+			expected: map[string]map[string]interface{}{
+				`{"key1":"a","key2":"map[key3:a key4:b]"}`: {"key1": "a", "key2": map[string]interface{}{"key3": "a", "key4": "b"}},
+				`{"key1":"b","key2":"map[key3:a key4:b]"}`: {"key1": "b", "key2": map[string]interface{}{"key4": "b", "key3": "a"}},
+			},
+			useGoTemplate: true,
+		},
+		{
 			name:      "compound key, non-unique paramSets",
 			mergeKeys: []string{"key1", "key2"},
 			paramSets: []map[string]any{
