@@ -131,8 +131,6 @@ spec:
     # Use the selector set by both child generators to combine them.
     - merge:
         mergeKeys:
-          # Note that this would not work with goTemplate enabled,
-          # nested merge keys are not supported there.
           - values.selector
         generators:
           # Assuming, all configured clusters have a label for their location:
