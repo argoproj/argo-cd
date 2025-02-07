@@ -299,7 +299,7 @@ const (
 // getOperationPhase returns a hook status from an _live_ unstructured object
 func (sc *syncContext) getOperationPhase(hook *unstructured.Unstructured) (common.OperationPhase, string, error) {
 	phase := common.OperationSucceeded
-	message := fmt.Sprintf("%s created", hook.GetName())
+	message := hook.GetName() + " created"
 
 	resHealth, err := health.GetResourceHealth(hook, sc.healthOverride)
 	if err != nil {

@@ -161,7 +161,7 @@ func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	o := applyOptions(opts)
 	if o.serverSideDryRunner == nil {
-		return nil, fmt.Errorf("serverSideDryRunner is null")
+		return nil, errors.New("serverSideDryRunner is null")
 	}
 	predictedLiveStr, err := o.serverSideDryRunner.Run(context.Background(), config, o.manager)
 	if err != nil {

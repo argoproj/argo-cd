@@ -63,7 +63,7 @@ func printDiffInternal(name string, live *unstructured.Unstructured, target *uns
 	if err != nil {
 		return nil, err
 	}
-	liveFile := filepath.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveFile := filepath.Join(tempDir, name+"-live.yaml")
 	liveData := []byte("")
 	if live != nil {
 		liveData, err = yaml.Marshal(live)

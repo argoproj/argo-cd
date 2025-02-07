@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -107,7 +106,7 @@ func TestSyncValidate(t *testing.T) {
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithPermissionValidator(func(_ *unstructured.Unstructured, _ *v1.APIResource) error {
-		return fmt.Errorf("not permitted in project")
+		return errors.New("not permitted in project")
 	}))
 	targetPod := NewPod()
 	targetPod.SetNamespace("kube-system")
@@ -307,7 +306,7 @@ func TestSyncCreateFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			testSvc.GetName(): {
 				Output: "",
-				Err:    fmt.Errorf("foo"),
+				Err:    errors.New("foo"),
 			},
 		},
 	}
@@ -316,7 +315,7 @@ func TestSyncCreateFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			testSvc.GetName(): {
 				Output: "",
-				Err:    fmt.Errorf("foo"),
+				Err:    errors.New("foo"),
 			},
 		},
 	}
@@ -457,7 +456,7 @@ func TestSyncPruneFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
-				Err:    fmt.Errorf("foo"),
+				Err:    errors.New("foo"),
 			},
 		},
 	}
@@ -466,7 +465,7 @@ func TestSyncPruneFailure(t *testing.T) {
 		Commands: map[string]kubetest.KubectlOutput{
 			"test-service": {
 				Output: "",
-				Err:    fmt.Errorf("foo"),
+				Err:    errors.New("foo"),
 			},
 		},
 	}
@@ -1195,11 +1194,11 @@ func TestSyncFailureHookWithFailedSync(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{newHook(synccommon.HookTypeSyncFail)}
 	mockKubectl := &kubetest.MockKubectlCmd{
-		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
+		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
 	}
 	syncCtx.kubectl = mockKubectl
 	mockResourceOps := kubetest.MockResourceOps{
-		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: fmt.Errorf("")}},
+		Commands: map[string]kubetest.KubectlOutput{pod.GetName(): {Err: errors.New("")}},
 	}
 	syncCtx.resourceOps = &mockResourceOps
 
@@ -1248,18 +1247,18 @@ func TestRunSyncFailHooksFailed(t *testing.T) {
 	mockKubectl := &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
-			pod.GetName(): {Err: fmt.Errorf("")},
+			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
-			failedSyncFailHook.GetName(): {Err: fmt.Errorf("")},
+			failedSyncFailHook.GetName(): {Err: errors.New("")},
 		},
 	}
 	syncCtx.kubectl = mockKubectl
 	mockResourceOps := kubetest.MockResourceOps{
 		Commands: map[string]kubetest.KubectlOutput{
 			// Fail operation
-			pod.GetName(): {Err: fmt.Errorf("")},
+			pod.GetName(): {Err: errors.New("")},
 			// Fail a single SyncFail hook
-			failedSyncFailHook.GetName(): {Err: fmt.Errorf("")},
+			failedSyncFailHook.GetName(): {Err: errors.New("")},
 		},
 	}
 	syncCtx.resourceOps = &mockResourceOps

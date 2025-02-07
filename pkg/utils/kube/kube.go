@@ -410,10 +410,10 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 // RetryUntilSucceed keep retrying given action with specified interval until action succeed or specified context is done.
 func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string, log logr.Logger, action func() error) {
 	pollErr := wait.PollUntilContextCancel(ctx, interval, true, func(_ context.Context) (bool /*done*/, error) {
-		log.V(1).Info(fmt.Sprintf("Start %s", desc))
+		log.V(1).Info("Start " + desc)
 		err := action()
 		if err == nil {
-			log.V(1).Info(fmt.Sprintf("Completed %s", desc))
+			log.V(1).Info("Completed " + desc)
 			return true, nil
 		}
 		log.V(1).Info(fmt.Sprintf("Failed to %s: %+v, retrying in %v", desc, err, interval))
@@ -421,6 +421,6 @@ func RetryUntilSucceed(ctx context.Context, interval time.Duration, desc string,
 	})
 	if pollErr != nil {
 		// The only error that can happen here is wait.ErrWaitTimeout if ctx is done.
-		log.V(1).Info(fmt.Sprintf("Stop retrying %s", desc))
+		log.V(1).Info("Stop retrying " + desc)
 	}
 }
