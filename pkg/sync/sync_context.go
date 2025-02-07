@@ -295,12 +295,12 @@ const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
 
-// getOperationPhase returns a hook status from an _live_ unstructured object
-func (sc *syncContext) getOperationPhase(hook *unstructured.Unstructured) (common.OperationPhase, string, error) {
+// getOperationPhase returns a health status from a _live_ unstructured object
+func (sc *syncContext) getOperationPhase(obj *unstructured.Unstructured) (common.OperationPhase, string, error) {
 	phase := common.OperationSucceeded
-	message := hook.GetName() + " created"
+	message := obj.GetName() + " created"
 
-	resHealth, err := health.GetResourceHealth(hook, sc.healthOverride)
+	resHealth, err := health.GetResourceHealth(obj, sc.healthOverride)
 	if err != nil {
 		return "", "", err
 	}
@@ -475,6 +475,15 @@ func (sc *syncContext) Sync() {
 		return
 	}
 
+	hooksCompleted := tasks.Filter(func(task *syncTask) bool {
+		return task.isHook() && task.completed()
+	})
+	for _, task := range hooksCompleted {
+		if err := sc.removeHookFinalizer(task); err != nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
+		}
+	}
+
 	// collect all completed hooks which have appropriate delete policy
 	hooksPendingDeletionSuccessful := tasks.Filter(func(task *syncTask) bool {
 		return task.isHook() && task.liveObj != nil && !task.running() && task.deleteOnPhaseSuccessful()
@@ -576,6 +585,64 @@ func (sc *syncContext) filterOutOfSyncTasks(tasks syncTasks) syncTasks {
 	})
 }
 
+func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
+	if task.liveObj == nil {
+		return nil
+	}
+	removeFinalizerMutation := func(obj *unstructured.Unstructured) bool {
+		finalizers := obj.GetFinalizers()
+		for i, finalizer := range finalizers {
+			if finalizer == hook.HookFinalizer {
+				obj.SetFinalizers(append(finalizers[:i], finalizers[i+1:]...))
+				return true
+			}
+		}
+		return false
+	}
+
+	// The cached live object may be stale in the controller cache, and the actual object may have been updated in the meantime,
+	// and Kubernetes API will return a conflict error on the Update call.
+	// In that case, we need to get the latest version of the object and retry the update.
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		mutated := removeFinalizerMutation(task.liveObj)
+		if !mutated {
+			return nil
+		}
+
+		updateErr := sc.updateResource(task)
+		if apierrors.IsConflict(updateErr) {
+			sc.log.WithValues("task", task).V(1).Info("Retrying hook finalizer removal due to conflict on update")
+			resIf, err := sc.getResourceIf(task, "get")
+			if err != nil {
+				return err
+			}
+			liveObj, err := resIf.Get(context.TODO(), task.liveObj.GetName(), metav1.GetOptions{})
+			if apierrors.IsNotFound(err) {
+				sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
+				return nil
+			} else if err != nil {
+				return err
+			}
+			task.liveObj = liveObj
+		} else if apierrors.IsNotFound(updateErr) {
+			// If the resource is already deleted, it is a no-op
+			sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
+			return nil
+		}
+		return updateErr
+	})
+}
+
+func (sc *syncContext) updateResource(task *syncTask) error {
+	sc.log.WithValues("task", task).V(1).Info("Updating resource")
+	resIf, err := sc.getResourceIf(task, "update")
+	if err != nil {
+		return err
+	}
+	_, err = resIf.Update(context.TODO(), task.liveObj, metav1.UpdateOptions{})
+	return err
+}
+
 func (sc *syncContext) deleteHooks(hooksPendingDeletion syncTasks) {
 	for _, task := range hooksPendingDeletion {
 		err := sc.deleteResource(task)
@@ -597,8 +664,8 @@ func (sc *syncContext) GetState() (common.OperationPhase, string, []common.Resou
 }
 
 func (sc *syncContext) setOperationFailed(syncFailTasks, syncFailedTasks syncTasks, message string) {
-	errorMessageFactory := func(_ []*syncTask, message string) string {
-		messages := syncFailedTasks.Map(func(task *syncTask) string {
+	errorMessageFactory := func(tasks syncTasks, message string) string {
+		messages := tasks.Map(func(task *syncTask) string {
 			return task.message
 		})
 		if len(messages) > 0 {
@@ -619,7 +686,9 @@ func (sc *syncContext) setOperationFailed(syncFailTasks, syncFailedTasks syncTas
 		// the phase, so we make sure we have at least one more sync
 		sc.log.WithValues("syncFailTasks", syncFailTasks).V(1).Info("Running sync fail tasks")
 		if sc.runTasks(syncFailTasks, false) == failed {
-			sc.setOperationPhase(common.OperationFailed, errorMessage)
+			failedSyncFailTasks := syncFailTasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
+			syncFailTasksMessage := errorMessageFactory(failedSyncFailTasks, "one or more SyncFail hooks failed")
+			sc.setOperationPhase(common.OperationFailed, fmt.Sprintf("%s\n%s", errorMessage, syncFailTasksMessage))
 		}
 	} else {
 		sc.setOperationPhase(common.OperationFailed, errorMessage)
@@ -679,7 +748,9 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 					generateName := obj.GetGenerateName()
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
-
+				if !hook.HasHookFinalizer(targetObj) {
+					targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
+				}
 				hookTasks = append(hookTasks, &syncTask{phase: phase, targetObj: targetObj})
 			}
 		}
@@ -1085,6 +1156,11 @@ func (sc *syncContext) Terminate() {
 		if !task.isHook() || task.liveObj == nil {
 			continue
 		}
+		if err := sc.removeHookFinalizer(task); err != nil {
+			sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to remove hook finalizer: %v", err))
+			terminateSuccessful = false
+			continue
+		}
 		phase, msg, err := sc.getOperationPhase(task.liveObj)
 		if err != nil {
 			sc.setOperationPhase(common.OperationError, fmt.Sprintf("Failed to get hook health: %v", err))
@@ -1092,7 +1168,7 @@ func (sc *syncContext) Terminate() {
 		}
 		if phase == common.OperationRunning {
 			err := sc.deleteResource(task)
-			if err != nil {
+			if err != nil && !apierrors.IsNotFound(err) {
 				sc.setResourceResult(task, "", common.OperationFailed, fmt.Sprintf("Failed to delete: %v", err))
 				terminateSuccessful = false
 			} else {

@@ -8,6 +8,21 @@ import (
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
 )
 
+const (
+	// HookFinalizer is the finalizer added to hooks to ensure they are deleted only after the sync phase is completed.
+	HookFinalizer = "argocd.argoproj.io/hook-finalizer"
+)
+
+func HasHookFinalizer(obj *unstructured.Unstructured) bool {
+	finalizers := obj.GetFinalizers()
+	for _, finalizer := range finalizers {
+		if finalizer == HookFinalizer {
+			return true
+		}
+	}
+	return false
+}
+
 func IsHook(obj *unstructured.Unstructured) bool {
 	_, ok := obj.GetAnnotations()[common.AnnotationKeyHook]
 	if ok {

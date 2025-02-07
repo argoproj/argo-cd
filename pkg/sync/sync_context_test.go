@@ -29,6 +29,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
@@ -1285,15 +1286,19 @@ func (r resourceNameHealthOverride) GetResourceHealth(obj *unstructured.Unstruct
 }
 
 func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
-	completedHook := newHook(synccommon.HookTypePreSync)
-	completedHook.SetName("completed-hook")
-	completedHook.SetNamespace(testingutils.FakeArgoCDNamespace)
-	_ = testingutils.Annotate(completedHook, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1.SetName("completed-hook")
+	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
+	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
+	completedHook := hook1.DeepCopy()
+	completedHook.SetFinalizers(append(completedHook.GetFinalizers(), hook.HookFinalizer))
 
-	inProgressHook := newHook(synccommon.HookTypePreSync)
-	inProgressHook.SetNamespace(testingutils.FakeArgoCDNamespace)
-	inProgressHook.SetName("in-progress-hook")
-	_ = testingutils.Annotate(inProgressHook, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
+	hook2.SetName("in-progress-hook")
+	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
+	inProgressHook := hook2.DeepCopy()
+	inProgressHook.SetFinalizers(append(inProgressHook.GetFinalizers(), hook.HookFinalizer))
 
 	syncCtx := newTestSyncCtx(nil,
 		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
@@ -1312,6 +1317,12 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		// Removing the finalizers
+		updatedCount++
+		return true, nil, nil
+	})
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount++
@@ -1321,7 +1332,7 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 		Live:   []*unstructured.Unstructured{completedHook, inProgressHook},
 		Target: []*unstructured.Unstructured{nil, nil},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{completedHook, inProgressHook}
+	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2}
 
 	syncCtx.kubectl = &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{},
@@ -1330,19 +1341,24 @@ func TestRunSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	syncCtx.Sync()
 
 	assert.Equal(t, synccommon.OperationRunning, syncCtx.phase)
+	assert.Equal(t, 0, updatedCount)
 	assert.Equal(t, 0, deletedCount)
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
-	completedHook1 := newHook(synccommon.HookTypePreSync)
-	completedHook1.SetName("completed-hook1")
-	completedHook1.SetNamespace(testingutils.FakeArgoCDNamespace)
-	_ = testingutils.Annotate(completedHook1, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+	hook1 := newHook(synccommon.HookTypePreSync)
+	hook1.SetName("completed-hook1")
+	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
+	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
+	completedHook1 := hook1.DeepCopy()
+	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	completedHook2 := newHook(synccommon.HookTypePreSync)
-	completedHook2.SetNamespace(testingutils.FakeArgoCDNamespace)
-	completedHook2.SetName("completed-hook2")
-	_ = testingutils.Annotate(completedHook2, synccommon.AnnotationKeyHookDeletePolicy, "HookSucceeded")
+	hook2 := newHook(synccommon.HookTypePreSync)
+	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
+	hook2.SetName("completed-hook2")
+	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookSucceeded))
+	completedHook2 := hook2.DeepCopy()
+	completedHook2.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
 	syncCtx := newTestSyncCtx(nil,
 		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
@@ -1358,6 +1374,12 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		// Removing the finalizers
+		updatedCount++
+		return true, nil, nil
+	})
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount++
@@ -1367,7 +1389,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 		Live:   []*unstructured.Unstructured{completedHook1, completedHook2},
 		Target: []*unstructured.Unstructured{nil, nil},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{completedHook1, completedHook2}
+	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2}
 
 	syncCtx.kubectl = &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{},
@@ -1376,19 +1398,24 @@ func TestRunSync_HooksDeletedAfterPhaseCompleted(t *testing.T) {
 	syncCtx.Sync()
 
 	assert.Equal(t, synccommon.OperationSucceeded, syncCtx.phase)
+	assert.Equal(t, 2, updatedCount)
 	assert.Equal(t, 2, deletedCount)
 }
 
 func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
-	completedHook1 := newHook(synccommon.HookTypeSync)
-	completedHook1.SetName("completed-hook1")
-	completedHook1.SetNamespace(testingutils.FakeArgoCDNamespace)
-	_ = testingutils.Annotate(completedHook1, synccommon.AnnotationKeyHookDeletePolicy, "HookFailed")
+	hook1 := newHook(synccommon.HookTypeSync)
+	hook1.SetName("completed-hook1")
+	hook1.SetNamespace(testingutils.FakeArgoCDNamespace)
+	_ = testingutils.Annotate(hook1, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
+	completedHook1 := hook1.DeepCopy()
+	completedHook1.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
-	completedHook2 := newHook(synccommon.HookTypeSync)
-	completedHook2.SetNamespace(testingutils.FakeArgoCDNamespace)
-	completedHook2.SetName("completed-hook2")
-	_ = testingutils.Annotate(completedHook2, synccommon.AnnotationKeyHookDeletePolicy, "HookFailed")
+	hook2 := newHook(synccommon.HookTypeSync)
+	hook2.SetNamespace(testingutils.FakeArgoCDNamespace)
+	hook2.SetName("completed-hook2")
+	_ = testingutils.Annotate(hook2, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyHookFailed))
+	completedHook2 := hook2.DeepCopy()
+	completedHook2.SetFinalizers(append(completedHook1.GetFinalizers(), hook.HookFinalizer))
 
 	syncCtx := newTestSyncCtx(nil,
 		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
@@ -1404,6 +1431,12 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 		))
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	syncCtx.dynamicIf = fakeDynamicClient
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		// Removing the finalizers
+		updatedCount++
+		return true, nil, nil
+	})
 	deletedCount := 0
 	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		deletedCount++
@@ -1413,7 +1446,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 		Live:   []*unstructured.Unstructured{completedHook1, completedHook2},
 		Target: []*unstructured.Unstructured{nil, nil},
 	})
-	syncCtx.hooks = []*unstructured.Unstructured{completedHook1, completedHook2}
+	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2}
 
 	syncCtx.kubectl = &kubetest.MockKubectlCmd{
 		Commands: map[string]kubetest.KubectlOutput{},
@@ -1422,6 +1455,7 @@ func TestRunSync_HooksDeletedAfterPhaseCompletedFailed(t *testing.T) {
 	syncCtx.Sync()
 
 	assert.Equal(t, synccommon.OperationFailed, syncCtx.phase)
+	assert.Equal(t, 2, updatedCount)
 	assert.Equal(t, 2, deletedCount)
 }
 

@@ -4,6 +4,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -65,7 +66,7 @@ func IsWorse(current, new HealthStatusCode) bool {
 
 // GetResourceHealth returns the health of a k8s resource
 func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOverride) (health *HealthStatus, err error) {
-	if obj.GetDeletionTimestamp() != nil {
+	if obj.GetDeletionTimestamp() != nil && !hook.HasHookFinalizer(obj) {
 		return &HealthStatus{
 			Status:  HealthStatusProgressing,
 			Message: "Pending deletion",
