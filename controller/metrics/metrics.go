@@ -16,7 +16,7 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
-	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -181,7 +181,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains app controller specific metrics
 		registry,
 		// contains workqueue metrics, process and golang metrics
-		ctrl_metrics.Registry,
+		ctrlmetrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
