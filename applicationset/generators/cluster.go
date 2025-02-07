@@ -93,7 +93,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	logCtx.Debugf("Using flat mode = %t for cluster generator", isFlatMode)
 	clustersParams := make([]map[string]any, 0)
 
-	for _, cluster := range clustersFromArgoCD.Items {
+	for _, cluster := range clustersFromArgoCD {
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
 		// handled by the next step.
 		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
