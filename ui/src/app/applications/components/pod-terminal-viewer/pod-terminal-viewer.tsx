@@ -26,8 +26,14 @@ export interface ShellFrame {
     cols?: number;
 }
 
-const TooltipWrapper = (props: {content: React.ReactNode | string; enabled: boolean} & React.PropsWithRef<any>) => {
-    return props.enabled ? <Tooltip content={props.content}>{props.children}</Tooltip> : props.children;
+const TooltipWrapper = (props: {content: React.ReactNode | string; disabled?: boolean; inverted?: boolean} & React.PropsWithRef<any>) => {
+    return !props.disabled ? (
+        <Tooltip content={props.content} inverted={props.inverted}>
+            {props.children}
+        </Tooltip>
+    ) : (
+        props.children
+    );
 };
 
 export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
@@ -252,7 +258,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
                         {group.containers.map((container: any, i: number) => {
                             const running = isContainerRunning(container);
                             return (
-                                <TooltipWrapper key={container.name} content={!running ? 'Container is not running' : ''} enabled={!running} inverted={false}>
+                                <TooltipWrapper key={container.name} content={!running ? 'Container is not running' : ''} disabled={running}>
                                     <div
                                         className={`application-details__container pod-terminal-viewer__tab ${!running ? 'pod-terminal-viewer__tab--disabled' : ''}`}
                                         onClick={() => {
