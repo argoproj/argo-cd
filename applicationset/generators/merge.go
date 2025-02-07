@@ -151,8 +151,8 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any, useG
 //
 // This can be thought of a modulo operation: 'paramSet % keys' leaves a
 // representation of the paramSet with respect to the keys.
-func generateParamSetRepr(keys map[string]bool, paramSet map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (paramSetRepr map[string]interface{}, err error) {
-	paramSetRepr = make(map[string]interface{})
+func generateParamSetRepr(keys map[string]bool, paramSet map[string]any, useGoTemplate bool, goTemplateOptions []string) (paramSetRepr map[string]any, err error) {
+	paramSetRepr = make(map[string]any)
 	// For each part of these keys, fetch the value from the paramSet
 	for mergeKey := range keys {
 		if useGoTemplate {
