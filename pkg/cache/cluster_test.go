@@ -74,10 +74,11 @@ var (
       - hostname: localhost`, testCreationTime.UTC().Format(time.RFC3339)))
 )
 
-func newCluster(t testing.TB, objs ...runtime.Object) *clusterCache {
-	cache := newClusterWithOptions(t, []UpdateSettingsFunc{}, objs...)
+func newCluster(tb testing.TB, objs ...runtime.Object) *clusterCache {
+	tb.Helper()
+	cache := newClusterWithOptions(tb, []UpdateSettingsFunc{}, objs...)
 
-	t.Cleanup(func() {
+	tb.Cleanup(func() {
 		cache.Invalidate()
 	})
 
@@ -860,6 +861,7 @@ func ExampleNewClusterCache_resourceUpdatedEvents() {
 }
 
 func getResourceKey(t *testing.T, obj runtime.Object) kube.ResourceKey {
+	t.Helper()
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	m, err := meta.Accessor(obj)
 	require.NoError(t, err)

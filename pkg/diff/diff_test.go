@@ -151,6 +151,7 @@ func newDeployment() *appsv1.Deployment {
 }
 
 func diff(t *testing.T, config, live *unstructured.Unstructured, options ...Option) *DiffResult {
+	t.Helper()
 	res, err := Diff(config, live, options...)
 	assert.NoError(t, err)
 	return res
@@ -754,6 +755,7 @@ func TestUnsortedEndpoints(t *testing.T) {
 }
 
 func buildGVKParser(t *testing.T) *managedfields.GvkParser {
+	t.Helper()
 	document := &openapi_v2.Document{}
 	err := proto.Unmarshal(testdata.OpenAPIV2Doc, document)
 	if err != nil {

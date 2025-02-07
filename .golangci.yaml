@@ -24,7 +24,7 @@ linters:
     - revive
     - staticcheck
     - testifylint
-#    - thelper
+    - thelper
 #    - unparam
     - unused
     - usestdlibvars

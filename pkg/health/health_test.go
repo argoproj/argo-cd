@@ -15,12 +15,14 @@ import (
 )
 
 func assertAppHealth(t *testing.T, yamlPath string, expectedStatus HealthStatusCode) {
-	health := getHealthStatus(yamlPath, t)
+	t.Helper()
+	health := getHealthStatus(t, yamlPath)
 	assert.NotNil(t, health)
 	assert.Equal(t, expectedStatus, health.Status)
 }
 
-func getHealthStatus(yamlPath string, t *testing.T) *HealthStatus {
+func getHealthStatus(t *testing.T, yamlPath string) *HealthStatus {
+	t.Helper()
 	yamlBytes, err := os.ReadFile(yamlPath)
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -69,7 +71,7 @@ func TestIngressHealth(t *testing.T) {
 }
 
 func TestCRD(t *testing.T) {
-	assert.Nil(t, getHealthStatus("./testdata/knative-service.yaml", t))
+	assert.Nil(t, getHealthStatus(t, "./testdata/knative-service.yaml"))
 }
 
 func TestJob(t *testing.T) {
@@ -108,8 +110,8 @@ func TestPod(t *testing.T) {
 }
 
 func TestApplication(t *testing.T) {
-	assert.Nil(t, getHealthStatus("./testdata/application-healthy.yaml", t))
-	assert.Nil(t, getHealthStatus("./testdata/application-degraded.yaml", t))
+	assert.Nil(t, getHealthStatus(t, "./testdata/application-healthy.yaml"))
+	assert.Nil(t, getHealthStatus(t, "./testdata/application-degraded.yaml"))
 }
 
 func TestAPIService(t *testing.T) {
