@@ -403,7 +403,7 @@ jobs:
       fail-fast: false
       matrix:
         k3s:
-          - version: 1.32.1
+          - version: v1.32.1
             latest: true
           - version: v1.31.0
             # We designate the latest version because we only collect code coverage for that version.
