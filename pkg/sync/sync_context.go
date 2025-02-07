@@ -905,9 +905,8 @@ func isNamespaceKind(res *unstructured.Unstructured) bool {
 func obj(a, b *unstructured.Unstructured) *unstructured.Unstructured {
 	if a != nil {
 		return a
-	} else {
-		return b
 	}
+	return b
 }
 
 func (sc *syncContext) liveObj(obj *unstructured.Unstructured) *unstructured.Unstructured {
@@ -1021,21 +1020,19 @@ func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dr
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
-	} else {
-		if dryRun {
-			return common.ResultCodePruned, "pruned (dry run)"
-		} else {
-			// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
-			deletionTimestamp := liveObj.GetDeletionTimestamp()
-			if deletionTimestamp == nil || deletionTimestamp.IsZero() {
-				err := sc.kubectl.DeleteResource(context.TODO(), sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), sc.getDeleteOptions())
-				if err != nil {
-					return common.ResultCodeSyncFailed, err.Error()
-				}
-			}
-			return common.ResultCodePruned, "pruned"
+	}
+	if dryRun {
+		return common.ResultCodePruned, "pruned (dry run)"
+	}
+	// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
+	deletionTimestamp := liveObj.GetDeletionTimestamp()
+	if deletionTimestamp == nil || deletionTimestamp.IsZero() {
+		err := sc.kubectl.DeleteResource(context.TODO(), sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), sc.getDeleteOptions())
+		if err != nil {
+			return common.ResultCodeSyncFailed, err.Error()
 		}
 	}
+	return common.ResultCodePruned, "pruned"
 }
 
 func (sc *syncContext) getDeleteOptions() metav1.DeleteOptions {

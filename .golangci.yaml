@@ -61,7 +61,6 @@ linters-settings:
       - name: duplicated-imports
         disabled: true
       - name: early-return
-        disabled: true
         arguments:
           - 'preserveScope'
       - name: empty-block
@@ -77,7 +76,6 @@ linters-settings:
       - name: increment-decrement
         disabled: true
       - name: indent-error-flow
-        disabled: true
         arguments:
           - 'preserveScope'
       - name: modifies-parameter
@@ -97,7 +95,6 @@ linters-settings:
       - name: unexported-return
         disabled: true
       - name: unnecessary-stmt
-        disabled: true
       - name: unreachable-code
       - name: unused-parameter
       - name: use-any

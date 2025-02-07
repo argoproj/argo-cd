@@ -474,9 +474,8 @@ func handleResourceCreateOrDeleteDiff(config, live *unstructured.Unstructured) (
 			return nil, err
 		}
 		return &DiffResult{Modified: true, NormalizedLive: []byte("null"), PredictedLive: predictedLiveData}, nil
-	} else {
-		return nil, errors.New("both live and config are null objects")
 	}
+	return nil, errors.New("both live and config are null objects")
 }
 
 // generateSchemeDefaultPatch runs the scheme default functions on the given parameter, and
@@ -740,22 +739,21 @@ func threeWayMergePatch(orig, config, live *unstructured.Unstructured) ([]byte, 
 			return scheme.Scheme.New(orig.GroupVersionKind())
 		}
 		return patch, newVersionedObject, nil
-	} else {
-		// Remove defaulted fields from the live object.
-		// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
-		live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
-
-		liveBytes, err := json.Marshal(live.Object)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origBytes, configBytes, liveBytes)
-		if err != nil {
-			return nil, nil, err
-		}
-		return patch, nil, nil
 	}
+	// Remove defaulted fields from the live object.
+	// This subtracts any extra fields in the live object which are not present in last-applied-configuration.
+	live = &unstructured.Unstructured{Object: jsonutil.RemoveMapFields(orig.Object, live.Object)}
+
+	liveBytes, err := json.Marshal(live.Object)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	patch, err := jsonmergepatch.CreateThreeWayJSONMergePatch(origBytes, configBytes, liveBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return patch, nil, nil
 }
 
 func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) (*unstructured.Unstructured, error) {

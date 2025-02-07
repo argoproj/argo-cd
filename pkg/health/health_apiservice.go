@@ -35,19 +35,17 @@ func getAPIServiceHealth(obj *unstructured.Unstructured) (*HealthStatus, error) 
 
 func getApiregistrationv1APIServiceHealth(apiservice *apiregistrationv1.APIService) (*HealthStatus, error) {
 	for _, c := range apiservice.Status.Conditions {
-		switch c.Type {
-		case apiregistrationv1.Available:
+		if c.Type == apiregistrationv1.Available {
 			if c.Status == apiregistrationv1.ConditionTrue {
 				return &HealthStatus{
 					Status:  HealthStatusHealthy,
 					Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
 				}, nil
-			} else {
-				return &HealthStatus{
-					Status:  HealthStatusProgressing,
-					Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
-				}, nil
 			}
+			return &HealthStatus{
+				Status:  HealthStatusProgressing,
+				Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
+			}, nil
 		}
 	}
 	return &HealthStatus{
@@ -58,19 +56,17 @@ func getApiregistrationv1APIServiceHealth(apiservice *apiregistrationv1.APIServi
 
 func getApiregistrationv1beta1APIServiceHealth(apiservice *apiregistrationv1beta1.APIService) (*HealthStatus, error) {
 	for _, c := range apiservice.Status.Conditions {
-		switch c.Type {
-		case apiregistrationv1beta1.Available:
+		if c.Type == apiregistrationv1beta1.Available {
 			if c.Status == apiregistrationv1beta1.ConditionTrue {
 				return &HealthStatus{
 					Status:  HealthStatusHealthy,
 					Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
 				}, nil
-			} else {
-				return &HealthStatus{
-					Status:  HealthStatusProgressing,
-					Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
-				}, nil
 			}
+			return &HealthStatus{
+				Status:  HealthStatusProgressing,
+				Message: fmt.Sprintf("%s: %s", c.Reason, c.Message),
+			}, nil
 		}
 	}
 	return &HealthStatus{

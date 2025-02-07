@@ -65,10 +65,9 @@ func getBatchv1JobHealth(job *batchv1.Job) (*HealthStatus, error) {
 			Status:  HealthStatusSuspended,
 			Message: failMsg,
 		}, nil
-	} else {
-		return &HealthStatus{
-			Status:  HealthStatusHealthy,
-			Message: message,
-		}, nil
 	}
+	return &HealthStatus{
+		Status:  HealthStatusHealthy,
+		Message: message,
+	}, nil
 }

@@ -646,10 +646,9 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 			c.replaceResourceCache(api.GroupKind, items, ns)
 			return nil
 		})
-	} else {
-		c.replaceResourceCache(api.GroupKind, items, ns)
-		return resourceVersion, nil
 	}
+	c.replaceResourceCache(api.GroupKind, items, ns)
+	return resourceVersion, nil
 }
 
 func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
@@ -845,10 +844,10 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 			}
 			if resp != nil && resp.Status.Allowed {
 				return true, nil
-			} else {
-				// unsupported, remove from watch list
-				return false, nil
 			}
+			// unsupported, remove from watch list
+			//nolint:staticcheck //FIXME
+			return false, nil
 		}
 	}
 	// checkPermission follows the same logic of determining namespace/cluster resource as the processApi function
@@ -1157,13 +1156,12 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 					continue
 				}
 				graphKeyNode, ok := nsNodes[kube.ResourceKey{Group: group.Group, Kind: ownerRef.Kind, Namespace: childNode.Ref.Namespace, Name: ownerRef.Name}]
-				if ok {
-					ownerRef.UID = graphKeyNode.Ref.UID
-					childNode.OwnerRefs[i] = ownerRef
-				} else {
+				if !ok {
 					// No resource found with the given graph key, so move on.
 					continue
 				}
+				ownerRef.UID = graphKeyNode.Ref.UID
+				childNode.OwnerRefs[i] = ownerRef
 			}
 
 			// Now that we have the UID of the parent, update the graph.

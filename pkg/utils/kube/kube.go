@@ -190,11 +190,10 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 		if r.Kind == gvk.Kind {
 			if isSupportedVerb(&r, verb) {
 				return &r, nil
-			} else {
-				// We have a match, but the API does not support the action
-				// that was requested. Memorize this.
-				retErr = apierr.NewMethodNotSupported(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, verb)
 			}
+			// We have a match, but the API does not support the action
+			// that was requested. Memorize this.
+			retErr = apierr.NewMethodNotSupported(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, verb)
 		}
 	}
 	return nil, retErr

@@ -112,23 +112,19 @@ func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unst
 			return getDaemonSetHealth
 		}
 	case "extensions":
-		switch gvk.Kind {
-		case kube.IngressKind:
+		if gvk.Kind == kube.IngressKind {
 			return getIngressHealth
 		}
 	case "argoproj.io":
-		switch gvk.Kind {
-		case "Workflow":
+		if gvk.Kind == "Workflow" {
 			return getArgoWorkflowHealth
 		}
 	case "apiregistration.k8s.io":
-		switch gvk.Kind {
-		case kube.APIServiceKind:
+		if gvk.Kind == kube.APIServiceKind {
 			return getAPIServiceHealth
 		}
 	case "networking.k8s.io":
-		switch gvk.Kind {
-		case kube.IngressKind:
+		if gvk.Kind == kube.IngressKind {
 			return getIngressHealth
 		}
 	case "":
@@ -141,13 +137,11 @@ func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unst
 			return getPodHealth
 		}
 	case "batch":
-		switch gvk.Kind {
-		case kube.JobKind:
+		if gvk.Kind == kube.JobKind {
 			return getJobHealth
 		}
 	case "autoscaling":
-		switch gvk.Kind {
-		case kube.HorizontalPodAutoscalerKind:
+		if gvk.Kind == kube.HorizontalPodAutoscalerKind {
 			return getHPAHealth
 		}
 	}

@@ -23,7 +23,6 @@ func syncPhases(obj *unstructured.Unstructured) []common.SyncPhase {
 			phases = append(phases, phase)
 		}
 		return phases
-	} else {
-		return []common.SyncPhase{common.SyncPhaseSync}
 	}
+	return []common.SyncPhase{common.SyncPhaseSync}
 }
