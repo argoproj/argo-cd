@@ -83,7 +83,8 @@ func TestMergeGenerate(t *testing.T) {
 			expected: []map[string]any{
 				{"a": "2_1", "b": "same", "c": "1_3"},
 			},
-		}, {
+		},
+		{
 			name: "happy flow templated - generate paramSets",
 			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
 				*getNestedListGenerator(`{"a": "1_1","b": "same"}`),
@@ -269,8 +270,8 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			mergeKeys: []string{"key"},
 			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
 			expected: map[string]map[string]interface{}{
-				`{"key":"a"}`: {"key": "a"},
-				`{"key":"b"}`: {"key": "b"},
+				`{"key":"string:a"}`: {"key": "a"},
+				`{"key":"string:b"}`: {"key": "b"},
 			},
 			useGoTemplate: true,
 		},
@@ -365,9 +366,9 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "b", "key2": "a", "key3": map[string]interface{}{"key4": "b"}},
 			},
 			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":"a","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "a", "key3": map[string]interface{}{"key4": "a"}},
-				`{"key1":"a","key2":"b","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "b", "key3": map[string]interface{}{"key4": "a", "key5": "b"}},
-				`{"key1":"b","key2":"a","{{ .key3.key4 }}":"b"}`: {"key1": "b", "key2": "a", "key3": map[string]interface{}{"key4": "b"}},
+				`{"key1":"string:a","key2":"string:a","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "a", "key3": map[string]interface{}{"key4": "a"}},
+				`{"key1":"string:a","key2":"string:b","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "b", "key3": map[string]interface{}{"key4": "a", "key5": "b"}},
+				`{"key1":"string:b","key2":"string:a","{{ .key3.key4 }}":"b"}`: {"key1": "b", "key2": "a", "key3": map[string]interface{}{"key4": "b"}},
 			},
 			useGoTemplate: true,
 		},
@@ -379,8 +380,21 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				{"key1": "b", "key2": map[string]interface{}{"key4": "b", "key3": "a"}},
 			},
 			expected: map[string]map[string]interface{}{
-				`{"key1":"a","key2":"map[key3:a key4:b]"}`: {"key1": "a", "key2": map[string]interface{}{"key3": "a", "key4": "b"}},
-				`{"key1":"b","key2":"map[key3:a key4:b]"}`: {"key1": "b", "key2": map[string]interface{}{"key4": "b", "key3": "a"}},
+				`{"key1":"string:a","key2":"map:map[key3:a key4:b]"}`: {"key1": "a", "key2": map[string]interface{}{"key3": "a", "key4": "b"}},
+				`{"key1":"string:b","key2":"map:map[key3:a key4:b]"}`: {"key1": "b", "key2": map[string]interface{}{"key4": "b", "key3": "a"}},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "compound templated hierarchical key",
+			mergeKeys: []string{"key1"},
+			paramSets: []map[string]interface{}{
+				{"key1": map[string]interface{}{"key2": "a"}},
+				{"key1": "map[key2:a]"},
+			},
+			expected: map[string]map[string]interface{}{
+				`{"key1":"map:map[key2:a]"}`:    {"key1": map[string]interface{}{"key2": "a"}},
+				`{"key1":"string:map[key2:a]"}`: {"key1": "map[key2:a]"},
 			},
 			useGoTemplate: true,
 		},
