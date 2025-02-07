@@ -716,35 +716,55 @@ func TestGetGitDirectories(t *testing.T) {
 func TestGetGitFiles(t *testing.T) {
 	t.Run("GetGitFiles cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
+		globbingEnabled := true
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json", globbingEnabled)
 		require.ErrorIs(t, err, ErrCacheMiss)
-		assert.Empty(t, directories)
+		assert.Empty(t, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
 	t.Run("GetGitFiles cache hit", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
+		globbingEnabled := true
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			gitFilesKey("test-repo", "test-revision", "*.json"),
+			gitFilesKey("test-repo", "test-revision", "*.json", globbingEnabled),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json", globbingEnabled)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
+	})
+
+	t.Run("GetGitFiles cache miss different globing", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		globbingEnabled := true
+		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
+		err := cache.cache.SetItem(
+			gitFilesKey("test-repo", "test-revision", "*.json", globbingEnabled),
+			expectedItem,
+			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
+		require.NoError(t, err)
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json", !globbingEnabled)
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Empty(t, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 
 	t.Run("SetGitFiles", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		globbingEnabled := true
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", expectedItem)
+		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", globbingEnabled, expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json", globbingEnabled)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
