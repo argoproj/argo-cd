@@ -14,6 +14,7 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
+	gitopsDiff "github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -33,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/glob"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -66,11 +68,11 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
-// getResourceOperations will return the kubectl implementation of the ResourceOperations
-// interface that provides functionality to manage kubernetes resources. Returns a
+// getServerSideDiffDryRunApplier will return the kubectl implementation of the KubeApplier
+// interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
+func (m *appStateManager) getServerSideDiffDryRunApplier(server string) (gitopsDiff.KubeApplier, func(), error) {
 	clusterCache, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
@@ -85,7 +87,7 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, clusterCache.GetOpenAPISchema(), m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
