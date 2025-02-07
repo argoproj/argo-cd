@@ -70,7 +70,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	// - Since local clusters do not have secrets, they do not have labels to match against
 	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0
 
-	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
+	// ListCluster will include the local cluster in the list of clusters
 	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error listing clusters: %w", err)
