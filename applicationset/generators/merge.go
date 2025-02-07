@@ -157,7 +157,7 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any, useG
 //	                                            |         |          |
 //	                                            |         |          |      Continue with valid var names
 //	                                            |         |          |         |
-var validGoTemplateKey = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*`)
+var validGoTemplateKey = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$`)
 
 // generateparamSetRepr uses the keys to generate a representation for a paramSet.
 //
