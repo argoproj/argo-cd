@@ -56,6 +56,7 @@ func TestMergeGenerate(t *testing.T) {
 		mergeKeys      []string
 		expectedErr    error
 		expected       []map[string]any
+		useGoTemplate  bool
 	}{
 		{
 			name:           "no generators",
@@ -82,6 +83,18 @@ func TestMergeGenerate(t *testing.T) {
 			expected: []map[string]any{
 				{"a": "2_1", "b": "same", "c": "1_3"},
 			},
+		}, {
+			name: "happy flow templated - generate paramSets",
+			baseGenerators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				*getNestedListGenerator(`{"a": "1_1","b": "same"}`),
+				*getNestedListGenerator(`{"a": "1_1","b": "same","c": "2_3"}`),
+				*getNestedListGenerator(`{"a": "3_1","b": "different","c": "3_3"}`), // gets ignored because its merge key value isn't in the base params set
+			},
+			mergeKeys: []string{"{{ .a }}-{{ .b }}"},
+			expected: []map[string]interface{}{
+				{"a": "1_1", "b": "same", "c": "2_3"},
+			},
+			useGoTemplate: true,
 		},
 		{
 			name: "merge keys absent - do not merge",
@@ -155,6 +168,7 @@ func TestMergeGenerate(t *testing.T) {
 			t.Parallel()
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
+			appSet.Spec.GoTemplate = testCaseCopy.useGoTemplate
 
 			mergeGenerator := NewMergeGenerator(
 				map[string]Generator{
@@ -211,11 +225,13 @@ func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {
 
 func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 	testCases := []struct {
-		name        string
-		mergeKeys   []string
-		paramSets   []map[string]any
-		expectedErr error
-		expected    map[string]map[string]any
+		name              string
+		mergeKeys         []string
+		paramSets         []map[string]any
+		expectedErr       error
+		expected          map[string]map[string]any
+		useGoTemplate     bool
+		goTemplateOptions []string
 	}{
 		{
 			name:        "no merge keys",
@@ -336,7 +352,7 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
+			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets, testCaseCopy.useGoTemplate, testCaseCopy.goTemplateOptions)
 
 			if testCaseCopy.expectedErr != nil {
 				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
