@@ -26,4 +26,4 @@ jobs:
       - uses: codecov/codecov-action@a2f73fb6db51fcd2e0aa085dfb36dea90c5e3689 # v5.0.2
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required
-          file: ./coverage.out
+          files: ./coverage.out

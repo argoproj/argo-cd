@@ -233,9 +233,7 @@ func TestSyncCustomResources(t *testing.T) {
 				}
 			}
 
-			if tt.wantDryRun != !skipDryRun {
-				t.Errorf("dryRun = %v, want: %v", !skipDryRun, tt.wantDryRun)
-			}
+			assert.Equalf(t, tt.wantDryRun, !skipDryRun, "dryRun = %v, want: %v", !skipDryRun, tt.wantDryRun)
 		})
 	}
 }
@@ -1003,7 +1001,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 	namespace.SetName(testingutils.FakeArgoCDNamespace)
 
 	task, err := createNamespaceTask(syncCtx.namespace)
-	assert.NoError(t, err, "Failed creating test data: namespace task")
+	require.NoError(t, err, "Failed creating test data: namespace task")
 
 	// Namespace auto creation pre-sync task should not be there
 	// since there is namespace resource in syncCtx.resources
@@ -1457,9 +1455,8 @@ func Test_syncContext_liveObj(t *testing.T) {
 				resources: groupResources(tt.fields.compareResult),
 				hooks:     tt.fields.compareResult.Hooks,
 			}
-			if got := sc.liveObj(tt.args.obj); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("syncContext.liveObj() = %v, want %v", got, tt.want)
-			}
+			got := sc.liveObj(tt.args.obj)
+			assert.Truef(t, reflect.DeepEqual(got, tt.want), "syncContext.liveObj() = %v, want %v", got, tt.want)
 		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 )
@@ -76,7 +77,7 @@ func Test_convertToVersionWithScheme(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			obj := testingutils.UnstructuredFromFile("testdata/" + tt.file)
 			target, err := schema.ParseGroupVersion(tt.outputVersion)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			out, err := convertToVersionWithScheme(obj, target.Group, target.Version)
 			if assert.NoError(t, err) {
 				assert.NotNil(t, out)

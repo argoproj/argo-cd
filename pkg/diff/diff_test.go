@@ -172,9 +172,7 @@ func TestDiff(t *testing.T) {
 func TestDiff_KnownTypeInvalidValue(t *testing.T) {
 	leftDep := newDeployment()
 	leftUn := mustToUnstructured(leftDep)
-	if !assert.NoError(t, unstructured.SetNestedField(leftUn.Object, "badValue", "spec", "revisionHistoryLimit")) {
-		return
-	}
+	require.NoError(t, unstructured.SetNestedField(leftUn.Object, "badValue", "spec", "revisionHistoryLimit"))
 
 	t.Run("NoDifference", func(t *testing.T) {
 		diffRes := diff(t, leftUn, leftUn, diffOptionsForTest()...)
@@ -188,9 +186,7 @@ func TestDiff_KnownTypeInvalidValue(t *testing.T) {
 
 	t.Run("HasDifference", func(t *testing.T) {
 		rightUn := leftUn.DeepCopy()
-		if !assert.NoError(t, unstructured.SetNestedField(rightUn.Object, "3", "spec", "revisionHistoryLimit")) {
-			return
-		}
+		require.NoError(t, unstructured.SetNestedField(rightUn.Object, "3", "spec", "revisionHistoryLimit"))
 
 		diffRes := diff(t, leftUn, rightUn, diffOptionsForTest()...)
 		assert.True(t, diffRes.Modified)
@@ -206,13 +202,13 @@ func TestDiffWithNils(t *testing.T) {
 	// This "difference" is checked at the comparator.
 	assert.False(t, diffRes.Modified)
 	diffRes, err := TwoWayDiff(nil, resource)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, diffRes.Modified)
 
 	diffRes = diff(t, resource, nil, diffOptionsForTest()...)
 	assert.True(t, diffRes.Modified)
 	diffRes, err = TwoWayDiff(resource, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, diffRes.Modified)
 }
 
@@ -529,7 +525,7 @@ func TestDiffResourceWithInvalidField(t *testing.T) {
 	diffRes := diff(t, &leftUn, rightUn, diffOptionsForTest()...)
 	assert.True(t, diffRes.Modified)
 	ascii, err := printDiff(diffRes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Contains(t, ascii, "invalidKey")
 	if ascii != "" {
@@ -756,19 +752,12 @@ func TestUnsortedEndpoints(t *testing.T) {
 func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	t.Helper()
 	document := &openapi_v2.Document{}
-	err := proto.Unmarshal(testdata.OpenAPIV2Doc, document)
-	if err != nil {
-		t.Fatalf("error unmarshaling openapi doc: %s", err)
-	}
+	require.NoErrorf(t, proto.Unmarshal(testdata.OpenAPIV2Doc, document), "error unmarshaling openapi doc")
 	models, err := openapiproto.NewOpenAPIData(document)
-	if err != nil {
-		t.Fatalf("error building openapi data: %s", err)
-	}
+	require.NoErrorf(t, err, "error building openapi data: %s", err)
 
 	gvkParser, err := managedfields.NewGVKParser(models, false)
-	if err != nil {
-		t.Fatalf("error building gvkParser: %s", err)
-	}
+	require.NoErrorf(t, err, "error building gvkParser: %s", err)
 	return gvkParser
 }
 
@@ -1353,10 +1342,7 @@ func getLiveSecretJsonBytes() []byte {
 func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructured {
 	t.Helper()
 	var jsonMap map[string]any
-	err := json.Unmarshal(jsonBytes, &jsonMap)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, json.Unmarshal(jsonBytes, &jsonMap))
 	return &unstructured.Unstructured{
 		Object: jsonMap,
 	}
@@ -1371,7 +1357,7 @@ func TestHideSecretDataHandleEmptySecret(t *testing.T) {
 	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
 
 	// then
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, target)
 	assert.NotNil(t, live)
 	assert.Nil(t, target.Object["data"])
@@ -1405,8 +1391,7 @@ metadata:
   name: my-sa
 `)
 	var un unstructured.Unstructured
-	err := yaml.Unmarshal(manifest, &un)
-	assert.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
 	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
 	_, ok := newUn.Object["imagePullSecrets"]
 	assert.False(t, ok)
@@ -1438,8 +1423,7 @@ spec:
         cpu: 0.2
 `)
 	un := unstructured.Unstructured{}
-	err := yaml.Unmarshal(manifest, &un)
-	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
 
 	testCases := []struct {
 		name        string
@@ -1521,20 +1505,14 @@ func diffOptionsForTest() []Option {
 func YamlToSvc(t *testing.T, y []byte) *corev1.Service {
 	t.Helper()
 	svc := corev1.Service{}
-	err := yaml.Unmarshal(y, &svc)
-	if err != nil {
-		t.Fatalf("error unmarshaling service bytes: %s", err)
-	}
+	require.NoErrorf(t, yaml.Unmarshal(y, &svc), "error unmarshaling service bytes")
 	return &svc
 }
 
 func YamlToDeploy(t *testing.T, y []byte) *appsv1.Deployment {
 	t.Helper()
 	deploy := appsv1.Deployment{}
-	err := yaml.Unmarshal(y, &deploy)
-	if err != nil {
-		t.Fatalf("error unmarshaling deployment bytes: %s", err)
-	}
+	require.NoErrorf(t, yaml.Unmarshal(y, &deploy), "error unmarshaling deployment bytes")
 	return &deploy
 }
 

@@ -467,7 +467,7 @@ metadata:
 	_, err = cluster.GetManagedLiveObjs([]*unstructured.Unstructured{clusterLevelRes}, func(r *Resource) bool {
 		return len(r.OwnerRefs) == 0
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	otherNamespaceRes := strToUnstructured(`
 apiVersion: apps/v1
@@ -638,7 +638,7 @@ metadata:
 			managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(_ *Resource) bool {
 				return true
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, testCaseCopy.expectConvertToVersionCalled, convertToVersionWasCalled)
 			assert.Equal(t, testCaseCopy.expectGetResourceCalled, getResourceWasCalled)
 			assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
