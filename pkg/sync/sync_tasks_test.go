@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func Test_syncTasks_kindOrder(t *testing.T) {
@@ -59,7 +59,7 @@ var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Pod",
 			},
 		},
@@ -67,7 +67,7 @@ var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Service",
 			},
 		},
@@ -75,7 +75,7 @@ var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "PersistentVolume",
 			},
 		},
@@ -126,7 +126,7 @@ var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 			},
 		},
 	},
@@ -140,7 +140,7 @@ var unsortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "ConfigMap",
 			},
 		},
@@ -166,7 +166,7 @@ var sortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "ConfigMap",
 			},
 		},
@@ -174,7 +174,7 @@ var sortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "PersistentVolume",
 			},
 		},
@@ -182,7 +182,7 @@ var sortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Service",
 			},
 		},
@@ -190,7 +190,7 @@ var sortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Pod",
 			},
 		},
@@ -198,7 +198,7 @@ var sortedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 			},
 		},
 	},
@@ -281,7 +281,7 @@ var unnamedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "ConfigMap",
 			},
 		},
@@ -289,7 +289,7 @@ var unnamedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "PersistentVolume",
 			},
 		},
@@ -297,7 +297,7 @@ var unnamedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Service",
 			},
 		},
@@ -305,7 +305,7 @@ var unnamedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 				"kind":         "Pod",
 			},
 		},
@@ -313,7 +313,7 @@ var unnamedTasks = syncTasks{
 	{
 		targetObj: &unstructured.Unstructured{
 			Object: map[string]any{
-				"GroupVersion": apiv1.SchemeGroupVersion.String(),
+				"GroupVersion": corev1.SchemeGroupVersion.String(),
 			},
 		},
 	},
@@ -463,7 +463,7 @@ func TestSyncTasksSort_CRDAndCR(t *testing.T) {
 
 func Test_syncTasks_multiStep(t *testing.T) {
 	t.Run("Single", func(t *testing.T) {
-		tasks := syncTasks{{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: common.SyncPhaseSync}}
+		tasks := syncTasks{{liveObj: testingutils.Annotate(testingutils.NewPod(), common.AnnotationSyncWave, "-1"), phase: common.SyncPhaseSync}}
 		assert.Equal(t, common.SyncPhaseSync, string(tasks.phase()))
 		assert.Equal(t, -1, tasks.wave())
 		assert.Equal(t, common.SyncPhaseSync, string(tasks.lastPhase()))
@@ -472,8 +472,8 @@ func Test_syncTasks_multiStep(t *testing.T) {
 	})
 	t.Run("Double", func(t *testing.T) {
 		tasks := syncTasks{
-			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "-1"), phase: common.SyncPhasePreSync},
-			{liveObj: Annotate(NewPod(), common.AnnotationSyncWave, "1"), phase: common.SyncPhasePostSync},
+			{liveObj: testingutils.Annotate(testingutils.NewPod(), common.AnnotationSyncWave, "-1"), phase: common.SyncPhasePreSync},
+			{liveObj: testingutils.Annotate(testingutils.NewPod(), common.AnnotationSyncWave, "1"), phase: common.SyncPhasePostSync},
 		}
 		assert.Equal(t, common.SyncPhasePreSync, string(tasks.phase()))
 		assert.Equal(t, -1, tasks.wave())

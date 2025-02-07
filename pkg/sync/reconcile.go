@@ -6,7 +6,6 @@ import (
 
 	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 )
@@ -69,7 +68,7 @@ type ReconciliationResult struct {
 	Hooks  []*unstructured.Unstructured
 }
 
-func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.ResourceKey]*unstructured.Unstructured, namespace string, resInfo kubeutil.ResourceInfoProvider) ReconciliationResult {
+func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kubeutil.ResourceKey]*unstructured.Unstructured, namespace string, resInfo kubeutil.ResourceInfoProvider) ReconciliationResult {
 	targetObjs, hooks := splitHooks(targetObjs)
 	dedupLiveResources(targetObjs, liveObjByKey)
 

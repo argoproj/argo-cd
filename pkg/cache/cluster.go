@@ -13,8 +13,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -670,7 +669,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		w, err := watchutil.NewRetryWatcher(resourceVersion, &cache.ListWatch{
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				res, err := resClient.Watch(ctx, options)
-				if errors.IsNotFound(err) {
+				if apierrors.IsNotFound(err) {
 					c.stopWatching(api.GroupKind, ns)
 				}
 				return res, err
@@ -807,7 +806,7 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 
 // isRestrictedResource checks if the kube api call is unauthorized or forbidden
 func (c *clusterCache) isRestrictedResource(err error) bool {
-	return c.respectRBAC != RespectRbacDisabled && (k8sErrors.IsForbidden(err) || k8sErrors.IsUnauthorized(err))
+	return c.respectRBAC != RespectRbacDisabled && (apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err))
 }
 
 // checkPermission runs a self subject access review to check if the controller has permissions to list the resource
@@ -1196,7 +1195,7 @@ func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	if isNamespaced, ok := c.namespacedResources[gk]; ok {
 		return isNamespaced, nil
 	}
-	return false, errors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")
+	return false, apierrors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")
 }
 
 func (c *clusterCache) managesNamespace(namespace string) bool {
@@ -1249,7 +1248,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 					var err error
 					managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), existingObj.Ref.Name, existingObj.Ref.Namespace)
 					if err != nil {
-						if errors.IsNotFound(err) {
+						if apierrors.IsNotFound(err) {
 							return nil
 						}
 						return err
@@ -1259,7 +1258,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 				var err error
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
 				if err != nil {
-					if errors.IsNotFound(err) {
+					if apierrors.IsNotFound(err) {
 						return nil
 					}
 					return err
@@ -1274,7 +1273,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 				c.log.V(1).Info(fmt.Sprintf("Failed to convert resource: %v", err))
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), managedObj.GetName(), managedObj.GetNamespace())
 				if err != nil {
-					if errors.IsNotFound(err) {
+					if apierrors.IsNotFound(err) {
 						return nil
 					}
 					return err

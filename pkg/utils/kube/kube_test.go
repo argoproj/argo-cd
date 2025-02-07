@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakedisco "k8s.io/client-go/discovery/fake"
@@ -38,7 +38,7 @@ spec:
         - containerPort: 80
 `
 
-var standardVerbs = v1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
+var standardVerbs = metav1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
 
 func TestUnsetLabels(t *testing.T) {
 	for _, yamlStr := range [][]byte{[]byte(depWithLabel)} {
@@ -198,10 +198,10 @@ func TestSplitYAML_TrailingNewLines(t *testing.T) {
 
 func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
 	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
-	fakeDisco.Resources = append(make([]*v1.APIResourceList, 0),
-		&v1.APIResourceList{
+	fakeDisco.Resources = append(make([]*metav1.APIResourceList, 0),
+		&metav1.APIResourceList{
 			GroupVersion: "test.argoproj.io/v1alpha1",
-			APIResources: []v1.APIResource{
+			APIResources: []metav1.APIResource{
 				{Kind: "TestAllVerbs", Group: "test.argoproj.io", Version: "v1alpha1", Namespaced: true, Verbs: standardVerbs},
 				{Kind: "TestSomeVerbs", Group: "test.argoproj.io", Version: "v1alpha1", Namespaced: true, Verbs: []string{"get", "list"}},
 			},
@@ -222,13 +222,13 @@ func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
 	t.Run("Verb not supported", func(t *testing.T) {
 		for _, v := range []string{"patch"} {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestSomeVerbs"), v)
-			assert.Equal(t, err, apierr.NewMethodNotSupported(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestSomeVerbs"}, v))
+			assert.Equal(t, err, apierrors.NewMethodNotSupported(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestSomeVerbs"}, v))
 		}
 	})
 	t.Run("Resource not found", func(t *testing.T) {
 		for _, v := range standardVerbs {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestNonExisting"), v)
-			assert.Equal(t, err, apierr.NewNotFound(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestNonExisting"}, ""))
+			assert.Equal(t, err, apierrors.NewNotFound(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestNonExisting"}, ""))
 		}
 	})
 }

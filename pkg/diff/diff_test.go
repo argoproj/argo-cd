@@ -17,7 +17,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -126,18 +125,18 @@ func newDeployment() *appsv1.Deployment {
 					"app": "demo",
 				},
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "demo",
 					},
 				},
-				Spec: v1.PodSpec{
-					Containers: []v1.Container{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
 						{
 							Name:  "demo",
 							Image: "gcr.io/kuar-demo/kuard-amd64:1",
-							Ports: []v1.ContainerPort{
+							Ports: []corev1.ContainerPort{
 								{
 									ContainerPort: 80,
 								},
@@ -302,7 +301,7 @@ func TestThreeWayDiff(t *testing.T) {
 	// difference
 	configBytes, err := json.Marshal(configDep)
 	require.NoError(t, err)
-	liveDep.Annotations[v1.LastAppliedConfigAnnotation] = string(configBytes)
+	liveDep.Annotations[corev1.LastAppliedConfigAnnotation] = string(configBytes)
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
@@ -324,7 +323,7 @@ func TestThreeWayDiff(t *testing.T) {
 	// last-applied-configuration annotation from the live object, and redo the diff. This time,
 	// the diff will report not modified (because we have no way of knowing what was a defaulted
 	// field without this annotation)
-	delete(liveDep.Annotations, v1.LastAppliedConfigAnnotation)
+	delete(liveDep.Annotations, corev1.LastAppliedConfigAnnotation)
 	configUn = mustToUnstructured(configDep)
 	liveUn = mustToUnstructured(liveDep)
 	res = diff(t, configUn, liveUn, diffOptionsForTest()...)

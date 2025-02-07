@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func TestNoHooks(t *testing.T) {
@@ -74,14 +74,14 @@ func TestGarbageAndHook(t *testing.T) {
 }
 
 func TestHelmHook(t *testing.T) {
-	obj := Annotate(NewPod(), "helm.sh/hook", "pre-install")
+	obj := testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
 	assert.Equal(t, []common.HookType{common.HookTypePreSync}, Types(obj))
 }
 
 func TestGarbageHelmHook(t *testing.T) {
-	obj := Annotate(NewPod(), "helm.sh/hook", "garbage")
+	obj := testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "garbage")
 	assert.True(t, IsHook(obj))
 	assert.False(t, Skip(obj))
 	assert.Nil(t, Types(obj))
@@ -89,10 +89,10 @@ func TestGarbageHelmHook(t *testing.T) {
 
 // we should ignore Helm hooks if we have an Argo CD hook
 func TestBothHooks(t *testing.T) {
-	obj := Annotate(example("Sync"), "helm.sh/hook", "pre-install")
+	obj := testingutils.Annotate(example("Sync"), "helm.sh/hook", "pre-install")
 	assert.Equal(t, []common.HookType{common.HookTypeSync}, Types(obj))
 }
 
 func example(hook string) *unstructured.Unstructured {
-	return Annotate(NewPod(), "argocd.argoproj.io/hook", hook)
+	return testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", hook)
 }

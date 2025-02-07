@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -238,7 +237,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
 		ObjectMeta: metav1.ObjectMeta{UID: "123", Name: "web", Namespace: "default"},
 		Spec: appsv1.StatefulSetSpec{
-			VolumeClaimTemplates: []v1.PersistentVolumeClaim{{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "www",
 				},
@@ -249,14 +248,14 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	tests := []struct {
 		name          string
 		cluster       *clusterCache
-		pvc           *v1.PersistentVolumeClaim
+		pvc           *corev1.PersistentVolumeClaim
 		expectedRefs  []metav1.OwnerReference
 		expectNoOwner bool
 	}{
 		{
 			name:    "STSTemplateNameNotMatching",
 			cluster: newCluster(t, sts),
-			pvc: &v1.PersistentVolumeClaim{
+			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
 			},
@@ -265,7 +264,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		{
 			name:    "MatchingSTSExists",
 			cluster: newCluster(t, sts),
-			pvc: &v1.PersistentVolumeClaim{
+			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
 			},
@@ -274,7 +273,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		{
 			name:    "STSTemplateNameNotMatchingWithBatchProcessing",
 			cluster: newClusterWithOptions(t, opts, sts),
-			pvc: &v1.PersistentVolumeClaim{
+			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www1-web-0", Namespace: "default"},
 			},
@@ -283,7 +282,7 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 		{
 			name:    "MatchingSTSExistsWithBatchProcessing",
 			cluster: newClusterWithOptions(t, opts, sts),
-			pvc: &v1.PersistentVolumeClaim{
+			pvc: &corev1.PersistentVolumeClaim{
 				TypeMeta:   metav1.TypeMeta{Kind: kube.PersistentVolumeClaimKind},
 				ObjectMeta: metav1.ObjectMeta{Name: "www-web-0", Namespace: "default"},
 			},

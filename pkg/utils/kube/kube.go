@@ -13,9 +13,9 @@ import (
 
 	"github.com/go-logr/logr"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,8 +89,8 @@ func GetResourceKey(obj *unstructured.Unstructured) ResourceKey {
 	return NewResourceKey(gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 }
 
-func GetObjectRef(obj *unstructured.Unstructured) v1.ObjectReference {
-	return v1.ObjectReference{
+func GetObjectRef(obj *unstructured.Unstructured) corev1.ObjectReference {
+	return corev1.ObjectReference{
 		UID:        obj.GetUID(),
 		APIVersion: obj.GetAPIVersion(),
 		Kind:       obj.GetKind(),
@@ -181,7 +181,7 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 // See: https://github.com/ksonnet/ksonnet/blob/master/utils/client.go
 func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk schema.GroupVersionKind, verb string) (*metav1.APIResource, error) {
 	// default is to return a not found for the requested resource
-	retErr := apierr.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
+	retErr := apierrors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 	resources, err := disco.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func ServerResourceForGroupVersionKind(disco discovery.DiscoveryInterface, gvk s
 			}
 			// We have a match, but the API does not support the action
 			// that was requested. Memorize this.
-			retErr = apierr.NewMethodNotSupported(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, verb)
+			retErr = apierrors.NewMethodNotSupported(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, verb)
 		}
 	}
 	return nil, retErr

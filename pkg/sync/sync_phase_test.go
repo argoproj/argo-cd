@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func TestSyncPhaseNone(t *testing.T) {
@@ -49,9 +49,9 @@ func TestSyncDuplicatedPhases(t *testing.T) {
 }
 
 func pod(hookType string) *unstructured.Unstructured {
-	return Annotate(NewPod(), "argocd.argoproj.io/hook", hookType)
+	return testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", hookType)
 }
 
 func podWithHelmHook(hookType string) *unstructured.Unstructured {
-	return Annotate(NewPod(), "helm.sh/hook", hookType)
+	return testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", hookType)
 }

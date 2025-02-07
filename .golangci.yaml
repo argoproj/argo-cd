@@ -45,6 +45,16 @@ linters-settings:
       - wrapperFunc #FIXME
   goimports:
     local-prefixes: github.com/argoproj/gitops-engine
+  importas:
+    alias:
+      - alias: corev1
+        pkg: k8s.io/api/core/v1
+      - alias: apierrors
+        pkg: k8s.io/apimachinery/pkg/api/errors
+      - alias: metav1
+        pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+      - alias: testingutils
+        pkg: github.com/argoproj/gitops-engine/pkg/utils/testing
   perfsprint:
     # Optimizes even if it requires an int or uint type cast.
     int-conversion: true
@@ -68,9 +78,7 @@ linters-settings:
       - name: context-keys-type
         disabled: true
       - name: dot-imports
-        disabled: true
       - name: duplicated-imports
-        disabled: true
       - name: early-return
         arguments:
           - 'preserveScope'

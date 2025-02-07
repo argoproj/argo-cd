@@ -9,17 +9,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
 )
 
 func newHook(obj *unstructured.Unstructured, hookType common.HookType) *unstructured.Unstructured {
-	return Annotate(obj, "argocd.argoproj.io/hook", string(hookType))
+	return testingutils.Annotate(obj, "argocd.argoproj.io/hook", string(hookType))
 }
 
 func TestIgnore(t *testing.T) {
-	assert.False(t, Ignore(NewPod()))
-	assert.False(t, Ignore(newHook(NewPod(), "Sync")))
-	assert.True(t, Ignore(newHook(NewPod(), "garbage")))
-	assert.False(t, Ignore(HelmHook(NewPod(), "pre-install")))
-	assert.True(t, Ignore(HelmHook(NewPod(), "garbage")))
+	assert.False(t, Ignore(testingutils.NewPod()))
+	assert.False(t, Ignore(newHook(testingutils.NewPod(), "Sync")))
+	assert.True(t, Ignore(newHook(testingutils.NewPod(), "garbage")))
+	assert.False(t, Ignore(testingutils.HelmHook(testingutils.NewPod(), "pre-install")))
+	assert.True(t, Ignore(testingutils.HelmHook(testingutils.NewPod(), "garbage")))
 }
