@@ -239,9 +239,21 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			expectedErr: ErrNoMergeKeys,
 		},
 		{
+			name:          "no merge keys templated",
+			mergeKeys:     []string{},
+			expectedErr:   ErrNoMergeKeys,
+			useGoTemplate: true,
+		},
+		{
 			name:      "no paramSets",
 			mergeKeys: []string{"key"},
 			expected:  make(map[string]map[string]any),
+		},
+		{
+			name:          "no paramSets templated",
+			mergeKeys:     []string{"key"},
+			expected:      make(map[string]map[string]interface{}),
+			useGoTemplate: true,
 		},
 		{
 			name:      "simple key, unique paramSets",
@@ -251,6 +263,26 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				`{"key":"a"}`: {"key": "a"},
 				`{"key":"b"}`: {"key": "b"},
 			},
+		},
+		{
+			name:      "templated simple key, unique paramSets",
+			mergeKeys: []string{"key"},
+			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]interface{}{
+				`{"key":"a"}`: {"key": "a"},
+				`{"key":"b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
+		},
+		{
+			name:      "templated multi-key, unique paramSets",
+			mergeKeys: []string{"{{ .key }}-{{ .key }}"},
+			paramSets: []map[string]interface{}{{"key": "a"}, {"key": "b"}},
+			expected: map[string]map[string]interface{}{
+				`{"{{ .key }}-{{ .key }}":"a-a"}`: {"key": "a"},
+				`{"{{ .key }}-{{ .key }}":"b-b"}`: {"key": "b"},
+			},
+			useGoTemplate: true,
 		},
 		{
 			name:      "simple key object, unique paramSets",
@@ -323,6 +355,21 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				`{"key1":"a","key2":"b"}`: {"key1": "a", "key2": "b"},
 				`{"key1":"b","key2":"a"}`: {"key1": "b", "key2": "a"},
 			},
+		},
+		{
+			name:      "compound templated duplicate key, unique nested paramSets",
+			mergeKeys: []string{"key1", "key2", "{{ .key3.key4 }}", "key2"},
+			paramSets: []map[string]interface{}{
+				{"key1": "a", "key2": "a", "key3": map[string]interface{}{"key4": "a"}},
+				{"key1": "a", "key2": "b", "key3": map[string]interface{}{"key4": "a", "key5": "b"}},
+				{"key1": "b", "key2": "a", "key3": map[string]interface{}{"key4": "b"}},
+			},
+			expected: map[string]map[string]interface{}{
+				`{"key1":"a","key2":"a","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "a", "key3": map[string]interface{}{"key4": "a"}},
+				`{"key1":"a","key2":"b","{{ .key3.key4 }}":"a"}`: {"key1": "a", "key2": "b", "key3": map[string]interface{}{"key4": "a", "key5": "b"}},
+				`{"key1":"b","key2":"a","{{ .key3.key4 }}":"b"}`: {"key1": "b", "key2": "a", "key3": map[string]interface{}{"key4": "b"}},
+			},
+			useGoTemplate: true,
 		},
 		{
 			name:      "compound key, non-unique paramSets",
