@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/evanphx/json-patch v4.12.0+incompatible
+	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/go-logr/logr v1.4.2
 	github.com/golang/mock v1.6.0
 	github.com/google/gnostic-models v0.6.8
