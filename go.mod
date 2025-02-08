@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/antonmedv/expr v1.15.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-7e21b91e9d0f
+	github.com/argoproj/gitops-engine v0.7.1-0.20250207161338-3ef5ab187edd
 	github.com/argoproj/notifications-engine v0.4.1-0.20241007194503-2fef5c9049fd
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.55.6
@@ -88,10 +88,10 @@ require (
 	golang.org/x/crypto v0.32.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/net v0.34.0
-	golang.org/x/oauth2 v0.25.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/term v0.28.0
-	golang.org/x/time v0.9.0
+	golang.org/x/oauth2 v0.26.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/term v0.29.0
+	golang.org/x/time v0.10.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241202173237-19429a94021a
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.4
@@ -153,7 +153,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	google.golang.org/api v0.171.0 // indirect

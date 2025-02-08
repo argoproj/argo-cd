@@ -581,6 +581,9 @@ message ApplicationSourceKustomize {
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
 
+  // IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+  optional bool ignoreMissingComponents = 17;
+
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
   optional bool labelWithoutSelector = 14;
 

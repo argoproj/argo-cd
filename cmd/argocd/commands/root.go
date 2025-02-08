@@ -76,7 +76,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.AuthToken, "auth-token", config.GetFlag("auth-token", env.StringFromEnv(common.EnvAuthToken, "")), fmt.Sprintf("Authentication token; set this or the %s environment variable", common.EnvAuthToken))
 	command.PersistentFlags().BoolVar(&clientOpts.GRPCWeb, "grpc-web", config.GetBoolFlag("grpc-web"), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.")
 	command.PersistentFlags().StringVar(&clientOpts.GRPCWebRootPath, "grpc-web-root-path", config.GetFlag("grpc-web-root-path", ""), "Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.")
-	command.PersistentFlags().StringVar(&cmdutil.LogFormat, "logformat", config.GetFlag("logformat", "text"), "Set the logging format. One of: text|json")
+	command.PersistentFlags().StringVar(&cmdutil.LogFormat, "logformat", config.GetFlag("logformat", "json"), "Set the logging format. One of: json|text")
 	command.PersistentFlags().StringVar(&cmdutil.LogLevel, "loglevel", config.GetFlag("loglevel", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.PersistentFlags().StringSliceVarP(&clientOpts.Headers, "header", "H", config.GetStringSliceFlag("header", []string{}), "Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)")
 	command.PersistentFlags().BoolVar(&clientOpts.PortForward, "port-forward", config.GetBoolFlag("port-forward"), "Connect to a random argocd-server port using port forwarding")

@@ -41,7 +41,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

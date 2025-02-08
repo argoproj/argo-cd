@@ -64,6 +64,7 @@ argocd admin app generate-spec APPNAME [flags]
       --helm-version string                        Helm version
   -h, --help                                       help for generate-spec
       --hydrate-to-branch string                   The branch to hydrate the app to
+      --ignore-missing-components                  Ignore locally missing component directories when setting Kustomize components
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
   -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
@@ -128,7 +129,7 @@ argocd admin app generate-spec APPNAME [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

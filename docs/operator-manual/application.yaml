@@ -130,6 +130,8 @@ spec:
         count: 4
       components:
         - ../component  # relative to the kustomization.yaml (`source.path`).
+      # Ignore locally missing component directories when using Kustomize Components. Defaults to false
+      ignoreMissingComponents: true
       patches:
         - target:
             kind: Deployment
