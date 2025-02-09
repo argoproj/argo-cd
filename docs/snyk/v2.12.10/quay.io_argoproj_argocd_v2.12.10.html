@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="27 known vulnerabilities found in 110 vulnerable dependency paths.">
+  <meta name="description" content="29 known vulnerabilities found in 113 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 2nd 2025, 12:27:34 am (UTC+00:00)</p>
+                <p class="timestamp">February 9th 2025, 12:27:51 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>110 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>29</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>113 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2292</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1134,6 +1134,12 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-10963">https://access.redhat.com/security/cve/CVE-2024-10963</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2324291">https://bugzilla.redhat.com/show_bug.cgi?id=2324291</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10232">https://access.redhat.com/errata/RHSA-2024:10232</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10244">https://access.redhat.com/errata/RHSA-2024:10244</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10518">https://access.redhat.com/errata/RHSA-2024:10518</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10528">https://access.redhat.com/errata/RHSA-2024:10528</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10852">https://access.redhat.com/errata/RHSA-2024:10852</a></li>
         </ul>
         
               <hr/>
@@ -1408,6 +1414,90 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:gopkg.in:retry.v1:LGPL-3.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2025-0395</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.12.10/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.12.10 and glibc/libc-bin@2.39-0ubuntu8.3
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.12.10
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.39-0ubuntu8.3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.12.10
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.39-0ubuntu8.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>When the assert() function in the GNU C Library versions 2.13 to 2.40 fails, it does not allocate enough space for the assertion failure message string and size information, which may lead to a buffer overflow if the message string size aligns to page size.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>glibc</code> to version 2.39-0ubuntu8.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0395">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0395</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=32582">https://sourceware.org/bugzilla/show_bug.cgi?id=32582</a></li>
+        <li><a href="https://sourceware.org/git/?p=glibc.git;a=blob;f=advisories/GLIBC-SA-2025-0001">https://sourceware.org/git/?p=glibc.git;a=blob;f=advisories/GLIBC-SA-2025-0001</a></li>
+        <li><a href="https://sourceware.org/pipermail/libc-announce/2025/000044.html">https://sourceware.org/pipermail/libc-announce/2025/000044.html</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/01/22/4">https://www.openwall.com/lists/oss-security/2025/01/22/4</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/01/22/4">http://www.openwall.com/lists/oss-security/2025/01/22/4</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/01/23/2">http://www.openwall.com/lists/oss-security/2025/01/23/2</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-8659172">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3397,6 +3487,84 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GIT-6723389">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-0167</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.12.10/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v2.12.10, git@1:2.43.0-1ubuntu7.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.12.10
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>When asked to use a <code>.netrc</code> file for credentials <strong>and</strong> to follow HTTP
+        redirects, curl could leak the password used for the first host to the
+        followed-to host under certain circumstances.</p>
+        <p>This flaw only manifests itself if the netrc file has a <code>default</code> entry that
+        omits both login and password. A rare circumstance.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-0167.json">https://curl.se/docs/CVE-2025-0167.json</a></li>
+        <li><a href="https://hackerone.com/reports/2917232">https://hackerone.com/reports/2917232</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-0167.html">https://curl.se/docs/CVE-2025-0167.html</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-8689015">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
