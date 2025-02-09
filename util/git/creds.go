@@ -181,9 +181,7 @@ func (creds HTTPSCreds) BasicAuthHeader() string {
 }
 
 func (creds HTTPSCreds) BearerAuthHeader() string {
-	h := "Authorization: Bearer "
-	t := creds.bearerToken
-	h += base64.StdEncoding.EncodeToString([]byte(t))
+	h := "Authorization: Bearer " + creds.bearerToken
 	return h
 }
 
@@ -252,7 +250,12 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// If bearer token is set, we will set ARGOCD_BEARER_AUTH_HEADER to	hold the HTTP authorization header
 		env = append(env, fmt.Sprintf("%s=%s", bearerAuthHeaderEnv, creds.BearerAuthHeader()))
 	}
-	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
+	nonce := ""
+	// if creds.password != "" {
+	nonce = creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
+	// } else if creds.bearerToken != "" {
+	// 	nonce = creds.store.Add("", creds.bearerToken)
+	// }
 	env = append(env, creds.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		creds.store.Remove(nonce)
