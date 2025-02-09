@@ -853,9 +853,7 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	auth, err := newAuth("", creds)
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
-	if !ok {
-		t.Fatalf("expected TokenAuth but got %T", auth)
-	}
+	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
 }
 
 func TestNewAuth(t *testing.T) {

@@ -317,7 +317,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned",
 	}
 
-	assert.Equal(t, len(jsonMap), len(expectedFields))
+	assert.Len(t, jsonMap, len(expectedFields))
 
 	// If this test failed, you probably also forgot to update CachedManifestResponse.shallowCopy(), so
 	// go do that first :)

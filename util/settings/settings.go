@@ -427,12 +427,6 @@ const (
 	settingURLKey = "url"
 	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
 	settingAdditionalUrlsKey = "additionalUrls"
-	// repositoriesKey designates the key where ArgoCDs repositories list is set
-	repositoriesKey = "repositories"
-	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
-	repositoryCredentialsKey = "repository.credentials"
-	// helmRepositoriesKey designates the key where list of helm repositories is set
-	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
@@ -1231,111 +1225,6 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 		Path: path,
 	}
 	return nil
-}
-
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-	helmRepositories := make([]HelmRepoCredentials, 0)
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
-		}
-	}
-	return helmRepositories, nil
-}
-
-func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-	mgr.mutex.Lock()
-	reposCache := mgr.reposCache
-	mgr.mutex.Unlock()
-	if reposCache != nil {
-		return reposCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	repositories := make([]Repository, 0)
-	repositoriesStr := argoCDCM.Data[repositoriesKey]
-	if repositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal repositories from config map key %q: %w", repositoriesKey, err)
-		}
-	}
-	mgr.reposCache = repositories
-
-	return mgr.reposCache, nil
-}
-
-func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(repos) > 0 {
-			yamlStr, err := yaml.Marshal(repos)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoriesKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoriesKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(creds) > 0 {
-			yamlStr, err := yaml.Marshal(creds)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoryCredentialsKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-	mgr.mutex.Lock()
-	repoCredsCache := mgr.repoCredsCache
-	mgr.mutex.Unlock()
-	if repoCredsCache != nil {
-		return repoCredsCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	creds := make([]RepositoryCredentials, 0)
-	credsStr := argoCDCM.Data[repositoryCredentialsKey]
-	if credsStr != "" {
-		err := yaml.Unmarshal([]byte(credsStr), &creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-	mgr.repoCredsCache = creds
-
-	return mgr.repoCredsCache, nil
 }
 
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {

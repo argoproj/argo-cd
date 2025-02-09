@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
@@ -15,9 +16,7 @@ func TestGetGitCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testing
 	creds := repository.GetGitCreds(git.NoopCredsStore{})
 
 	_, ok := creds.(git.AzureWorkloadIdentityCreds)
-	if !ok {
-		t.Fatalf("expected AzureWorkloadIdentityCreds but got %T", creds)
-	}
+	require.Truef(t, ok, "expected AzureWorkloadIdentityCreds but got %T", creds)
 }
 
 func TestGetHelmCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testing.T) {
@@ -26,9 +25,7 @@ func TestGetHelmCredsShouldReturnAzureWorkloadIdentityCredsIfSpecified(t *testin
 	creds := repository.GetHelmCreds()
 
 	_, ok := creds.(helm.AzureWorkloadIdentityCreds)
-	if !ok {
-		t.Fatalf("expected AzureWorkloadIdentityCreds but got %T", creds)
-	}
+	require.Truef(t, ok, "expected AzureWorkloadIdentityCreds but got %T", creds)
 }
 
 func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {
@@ -37,9 +34,7 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 	creds := repository.GetHelmCreds()
 
 	_, ok := creds.(helm.HelmCreds)
-	if !ok {
-		t.Fatalf("expected HelmCreds but got %T", creds)
-	}
+	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
 }
 
 func TestGetGitCreds(t *testing.T) {
