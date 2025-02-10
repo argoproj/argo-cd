@@ -305,6 +305,13 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			},
 		},
 		{
+			name:          "invalid auto convertable, leading dot",
+			mergeKeys:     []string{".key"},
+			paramSets:     []map[string]any{{".key": "a"}, {".key": "b"}},
+			expectedErr:   fmt.Errorf("failed generating paramSetRepr for paramSet %v: %w", 0, fmt.Errorf("merge key is not valid goTemplate, missing curly brackets: %s", ".key")),
+			useGoTemplate: true,
+		},
+		{
 			name:        "simple key, non-unique paramSets",
 			mergeKeys:   []string{"key"},
 			paramSets:   []map[string]any{{"key": "a"}, {"key": "b"}, {"key": "b"}},
