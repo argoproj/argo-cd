@@ -197,8 +197,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			revision = changes.New.Name
 			change.shaBefore = changes.Old.Target.Hash
 			change.shaAfter = changes.New.Target.Hash
-			var repoCreds *v1alpha1.RepoCreds = nil
-			var err error = nil
+			var repoCreds *v1alpha1.RepoCreds
+			var err error
 			// when webhook.bitbucket.secret is set in argocd-secret, then the payload must be signed and
 			// signature is validated before payload is parsed. Get DiffSet only for authenticated webhooks.
 			if len(a.settings.WebhookBitbucketServerSecret) > 0 {
