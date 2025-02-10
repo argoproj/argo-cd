@@ -10,14 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/pkg/errors"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
@@ -443,6 +446,30 @@ func TestHookFinalizerPostSync(t *testing.T) {
 func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
 	Given(t).
+		And(func() {
+			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
+					HealthLua: `
+						local hs = {}
+						hs.status = "Healthy"
+						if obj.metadata.deletionTimestamp == nil then
+							hs.status = "Progressing"
+							hs.message = "Waiting to be externally deleted"
+							return hs
+						end
+						if obj.metadata.finalizers ~= nil  then
+							for i, finalizer in ipairs(obj.metadata.finalizers) do
+								if finalizer == "argocd.argoproj.io/hook-finalizer" then
+									hs.message = "Resource has finalizer"
+									return hs
+								end
+							end
+						end
+						hs.message = "no finalizer for a hook is wrong"
+						return hs`,
+				},
+			}))
+		}).
 		Path("hook-resource-deleted-externally").
 		When().
 		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
@@ -454,5 +481,5 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
-		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Message: "Reached expected number of succeeded pods", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
