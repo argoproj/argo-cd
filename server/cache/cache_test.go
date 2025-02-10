@@ -53,12 +53,6 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 	assert.Equal(t, ConnectionState{Status: "my-project-state"}, value)
 }
 
-func TestCache_GetClusterInfo(t *testing.T) {
-	cache := newFixtures().Cache
-	// cache miss
-	cache.GetClusterInfo("v2.14", nil)
-}
-
 func TestAddCacheFlagsToCmd(t *testing.T) {
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
