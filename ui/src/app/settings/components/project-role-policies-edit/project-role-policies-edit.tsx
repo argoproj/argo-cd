@@ -91,7 +91,11 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                 <div className='columns small-3'>
                     <datalist id='resource'>
                         <option>applications</option>
+                        <option>applicationsets</option>
+                        <option>clusters</option>
                         <option>repositories</option>
+                        <option>logs</option>
+                        <option>exec</option>
                     </datalist>
                     <input
                         className='argo-field'
