@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -75,13 +77,18 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-
+	mockDB := mocks.ArgoDB{}
+	mockDB.On("GetRepositoryCredentials", context.Background(), mock.AnythingOfType("string")).Return(&v1alpha1.RepoCreds{
+		URL:      "test",
+		Username: "test",
+		Password: "test",
+	}, nil)
 	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{}, maxPayloadSize)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mockDB, maxPayloadSize)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -596,9 +603,11 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload)
-			got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false)
-			assert.Equal(t, got, testCopy.hasChanged, "sourceRevisionHasChanged()")
+			h := NewMockHandler(nil, []string{})
+			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
+			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
+				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
+			}
 		})
 	}
 }
@@ -643,7 +652,9 @@ func Test_GetWebURLRegex(t *testing.T) {
 			t.Parallel()
 			regexp, err := GetWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
-			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
+			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
+				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+			}
 		})
 	}
 
