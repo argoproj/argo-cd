@@ -782,12 +782,13 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 		groups := m.userGetter.GetGroups(r.Context())
 		prepareRequest(r, m.namespace, extName, app, user, groups)
 		m.log.WithFields(log.Fields{
-			HeaderArgoCDUsername: user,
-			HeaderArgoCDGroups:   strings.Join(groups, ","),
-			"extension":          extName,
-			"path":               r.URL.Path,
-		})
-		m.log.Debug("sending proxy extension request")
+			HeaderArgoCDUsername:        user,
+			HeaderArgoCDGroups:          strings.Join(groups, ","),
+			HeaderArgoCDNamespace:       m.namespace,
+			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
+			"extension":                 extName,
+			"path":                      r.URL.Path,
+		}).Info("sending proxy extension request")
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
 		// https://github.com/felixge/httpsnoop#why-this-package-exists
