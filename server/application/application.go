@@ -1803,7 +1803,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				return
 			}
 			if q.Filter != nil {
-				lineContainsFilter := strings.Contains(entry.line, literal)
+				var lineContainsFilter bool
+				if q.GetMatchCase() {
+					lineContainsFilter = strings.Contains(entry.line, literal)
+				} else {
+					lineContainsFilter = strings.Contains(strings.ToLower(entry.line), strings.ToLower(literal))
+				}
+
 				if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
 					continue
 				}
