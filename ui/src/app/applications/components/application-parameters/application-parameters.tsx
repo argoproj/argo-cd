@@ -269,6 +269,7 @@ export const ApplicationParameters = (props: {
             );
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
+            // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
