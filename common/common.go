@@ -473,3 +473,21 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
 }
+
+// RedisCompressionConfig is the key for the redis compression config
+const RedisCompressionConfigKey = "redis.compression"
+
+func SetOptionalRedisCompressionFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string) (string, error) {
+	config, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get configmap %s/%s: %w", namespace, ArgoCDCmdParamsConfigMapName, err)
+	}
+	if config == nil {
+		return "", fmt.Errorf("failed to get configmap %s/%s: configmap is nil", namespace, ArgoCDCmdParamsConfigMapName)
+	}
+	compressionStr, ok := config.Data[RedisCompressionConfigKey]
+	if !ok {
+		compressionStr = "gzip"
+	}
+	return compressionStr, nil
+}
