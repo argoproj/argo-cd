@@ -46,8 +46,7 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 			TimestampFormat: checkTimestampFormat(),
 		}
 	default:
-		formatType = &logrus.TextFormatter{
-			FullTimestamp:   checkEnableFullTimestamp(),
+		formatType = &logrus.JSONFormatter{
 			TimestampFormat: checkTimestampFormat(),
 		}
 	}

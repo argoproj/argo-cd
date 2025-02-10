@@ -24,6 +24,8 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+
+	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
 // represents a Docker image in the format NAME[:TAG].
@@ -310,8 +312,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				for _, c := range opts.Components {
+					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+					}
+					_, err = os.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
