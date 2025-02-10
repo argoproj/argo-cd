@@ -183,8 +183,7 @@ func TestHTTPSCreds_Environ_bearerTokenAuth(t *testing.T) {
 				break
 			}
 		}
-		b64enc := base64.StdEncoding.EncodeToString([]byte("token"))
-		assert.Equal(t, "Authorization: Bearer "+b64enc, header)
+		assert.Equal(t, "Authorization: Bearer token", header)
 	})
 }
 

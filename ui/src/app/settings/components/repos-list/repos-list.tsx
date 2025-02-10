@@ -218,7 +218,7 @@ export class ReposList extends React.Component<
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
                     bearerToken:
                         (httpsValues.password && httpsValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
-                        (httpsValues.type != 'git' && 'Bearer token is only supported for Git repositories'),
+                        (httpsValues.type != 'git' && 'Bearer token is only supported for Git BitBucket repositories'),
                     tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
                 };
             case ConnectionMethod.GITHUBAPP:
@@ -690,7 +690,7 @@ export class ReposList extends React.Component<
                                                         <div className='argo-form-row'>
                                                             <FormField
                                                                 formApi={formApi}
-                                                                label='Bearer token (optional)'
+                                                                label='Bearer token (optional, for BitBucket only)'
                                                                 field='bearerToken'
                                                                 component={Text}
                                                                 componentProps={{type: 'password'}}
