@@ -32,6 +32,7 @@ argocd app unset APPNAME parameters [flags]
 ```
   -N, --app-namespace string            Unset application parameters in namespace
   -h, --help                            help for unset
+      --ignore-missing-components       Unset the kustomize ignore-missing-components option (revert to false)
       --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
       --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
       --kustomize-namespace             Kustomize namespace
@@ -64,7 +65,7 @@ argocd app unset APPNAME parameters [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

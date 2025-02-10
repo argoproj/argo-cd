@@ -44,7 +44,7 @@ argocd admin settings rbac [flags]
       --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --load-cluster-settings           Indicates that config map and secret should be loaded from cluster unless local file path is provided
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
   -n, --namespace string                If present, the namespace scope for this CLI request
       --password string                 Password for basic authentication to the API server

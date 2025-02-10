@@ -7275,6 +7275,10 @@
           "type": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
         },
+        "ignoreMissingComponents": {
+          "type": "boolean",
+          "title": "IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
