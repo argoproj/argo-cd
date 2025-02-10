@@ -135,20 +135,20 @@ metadata:
 spec:
   ...
   roles:
-  - name: admin 
-    description: some-role 
+  - name: custom-project-role
+    description: The "custom-project-role" will be applied to the `some-users` group.
     groups:
     - some-user
     policies:
-    - p, proj:sample-test-project:admin, applications, *, *, allow
+    - p, proj:sample-test-project:custom-project-role, applications, *, *, allow
   ...
 ```
 
 Argo CD will use the policies defined in the AppProject roles while authorizing users actions. To determine which role a given users is associated with, it will dynamically create groups based on the role name in runtime. The project definition above will generate the following Casbin RBAC rules:
 
 ```
-    p, proj:sample-test-project:admin, applications, *, *, allow
-    g, some-user, proj:sample-test-project:admin
+    p, proj:sample-test-project:custom-project-role, applications, *, *, allow
+    g, some-user, proj:sample-test-project:custom-project-role
 ```
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
