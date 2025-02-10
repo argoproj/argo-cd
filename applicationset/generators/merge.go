@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"dario.cat/mergo"
@@ -178,6 +179,17 @@ func generateParamSetRepr(keys map[string]bool, paramSet map[string]any, useGoTe
 			// key used.
 			if validGoTemplateKey.MatchString(mergeKey) {
 				keyTemplate = fmt.Sprintf("{{ kindOf .%s }}:{{ .%s }}", mergeKey, mergeKey)
+			}
+
+			// If by now, a string does not contain at least one {{ and }}, someone
+			// probably passed in something that should be a goTemplate, but it is not.
+			// An example is ".Values". The user intended for this to be a goTemplate,
+			// but it is not auto-converted because it starts with a dot.
+			// So it will be evaluated to a static string, which is then the same key
+			// across all invocations, throwing a "Duplicate key was ..." error.
+			// We can do better here:
+			if !strings.Contains(keyTemplate, "{{") && !strings.Contains(keyTemplate, "}}") {
+				return nil, fmt.Errorf("merge key is not valid goTemplate, missing curly brackets: %s", keyTemplate)
 			}
 
 			// Now, this can be templated into a value with respect to the current paramSet
