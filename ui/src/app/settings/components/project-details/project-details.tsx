@@ -487,7 +487,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
                                     <div className='row'>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             STATUS
                                             {helpTip(
                                                 'If a window is active or inactive and what the current ' +
@@ -497,31 +497,31 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                     'Green: all syncs allowed'
                                             )}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             WINDOW
                                             {helpTip('The kind, start time and duration of the window')}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             APPLICATIONS
                                             {helpTip('The applications assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             NAMESPACES
                                             {helpTip('The namespaces assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             CLUSTERS
                                             {helpTip('The clusters assigned to the window, wildcards are supported')}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             MANUALSYNC
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
-                                        <div className='columns small-2'>
+                                        <div className='columns small-8-elements'>
                                             USE AND OPERATOR
                                             {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
                                         </div>
-                                        <div className='columns small-7-elements'>
+                                        <div className='columns small-8-elements'>
                                             DESCRIPTION
                                             {helpTip('Add a description to your sync window (eg "Ticket 12345")')}
                                         </div>
@@ -530,20 +530,20 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                 {(proj.spec.syncWindows || []).map((window, i) => (
                                     <div className='argo-table-list__row' key={`${i}`} onClick={() => ctx.navigation.goto(`.`, {editWindow: `${i}`})}>
                                         <div className='row'>
-                                            <div className='columns small-7-elements'>
+                                            <div className='columns small-8-elements'>
                                                 <span>
                                                     <SyncWindowStatusIcon state={data} window={window} />
                                                 </span>
                                             </div>
-                                            <div className='columns small-7-elements'>
+                                            <div className='columns small-8-elements'>
                                                 {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
                                             </div>
-                                            <div className='columns small-7-elements'>{(window.applications || ['-']).join(',')}</div>
-                                            <div className='columns small-7-elements'>{(window.namespaces || ['-']).join(',')}</div>
-                                            <div className='columns small-7-elements'>{(window.clusters || ['-']).join(',')}</div>
-                                            <div className='columns small-7-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-7-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-7-elements'>{window.description || ''}</div>
+                                            <div className='columns small-8-elements'>{(window.applications || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
+                                            <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.description || ''}</div>
                                         </div>
                                     </div>
                                 ))}
