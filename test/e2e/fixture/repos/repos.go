@@ -36,7 +36,7 @@ func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
@@ -44,6 +44,9 @@ func AddHTTPSRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLTy
 	}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
+	}
+	if project != "" {
+		args = append(args, "--project", project)
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }

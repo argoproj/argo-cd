@@ -153,6 +153,8 @@ type LiveStateCache interface {
 	GetClustersInfo() []clustercache.ClusterInfo
 	// Init must be executed before cache can be used
 	Init() error
+	// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+	UpdateShard(shard int) bool
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
@@ -905,4 +907,9 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 
 func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error) {
 	return c.getSyncedCluster(server)
+}
+
+// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+func (c *liveStateCache) UpdateShard(shard int) bool {
+	return c.clusterSharding.UpdateShard(shard)
 }
