@@ -678,9 +678,7 @@ func Test_GetApiUrlRegex(t *testing.T) {
 			t.Parallel()
 			regexp, err := GetApiUrlRegex(testCopy.apiURL)
 			require.NoError(t, err)
-			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
-			}
+			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})
 	}
 
