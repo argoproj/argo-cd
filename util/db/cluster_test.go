@@ -64,7 +64,7 @@ func Test_secretToCluster(t *testing.T) {
 			"config": []byte("{\"username\":\"foo\"}"),
 		},
 	}
-	cluster, err := SecretToCluster(secret)
+	cluster, err := SecretToCluster(fake.NewClientset(), secret)
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.Cluster{
 		Name:   "test",
@@ -90,7 +90,7 @@ func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 			"config": []byte("{\"username\":\"foo\"}"),
 		},
 	}
-	cluster, err := SecretToCluster(secret)
+	cluster, err := SecretToCluster(fake.NewClientset(), secret)
 	require.NoError(t, err)
 	assert.Empty(t, cluster.Annotations)
 }
@@ -143,7 +143,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 			"server": []byte("http://mycluster"),
 		},
 	}
-	cluster, err := SecretToCluster(secret)
+	cluster, err := SecretToCluster(fake.NewClientset(), secret)
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.Cluster{
 		Name:        "test",
@@ -165,7 +165,7 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 			"config": []byte("{'tlsClientConfig':{'insecure':false}}"),
 		},
 	}
-	cluster, err := SecretToCluster(secret)
+	cluster, err := SecretToCluster(fake.NewClientset(), secret)
 	require.Error(t, err)
 	assert.Nil(t, cluster)
 }
@@ -706,7 +706,7 @@ func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 	)
 	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, "default")
 	db := NewDB("default", settingsManager, kubeClient)
-	cluster, _ := SecretToCluster(clusterSecret)
+	cluster, _ := SecretToCluster(kubeClient, clusterSecret)
 	go func() {
 		for {
 			// create a copy so we dont act on the same argo cluster

@@ -457,7 +457,7 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	var inClusterSecrets []string
 	for _, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(clusterSecret)
+		cluster, err := db.SecretToCluster(server.KubeClientset, clusterSecret)
 		if err != nil {
 			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
 		}
