@@ -2064,8 +2064,6 @@ type Cluster struct {
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,6,opt,name=namespaces"`
-	// NamespaceSelector is a label selector to filter namespaces in the cluster. Cluster level resources will be ignored if namespace selector is not empty.
-	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,7,opt,name=namespaceSelector"`
 	// RefreshRequestedAt holds time when cluster cache refresh has been requested
 	RefreshRequestedAt *metav1.Time `json:"refreshRequestedAt,omitempty" protobuf:"bytes,7,opt,name=refreshRequestedAt"`
 	// Info holds information about cluster cache and state
@@ -2080,6 +2078,8 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// NamespaceSelector is a label selector to filter namespaces in the cluster. Cluster level resources will be ignored if namespace selector is not empty.
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,14,opt,name=namespaceSelector"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal

@@ -433,7 +433,6 @@ func SecretToCluster(kubeClient kubernetes.Interface, s *corev1.Secret) (*appv1.
 		for _, ns := range nsList.Items {
 			namespaces = append(namespaces, ns.Name)
 		}
-
 	} else {
 		for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
 			if ns = strings.TrimSpace(ns); ns != "" {

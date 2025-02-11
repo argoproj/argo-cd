@@ -823,6 +823,9 @@ message Cluster {
 
   // Annotations for cluster secret metadata
   map<string, string> annotations = 13;
+
+  // NamespaceSelector is a label selector to filter namespaces in the cluster. Cluster level resources will be ignored if namespace selector is not empty.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector namespaceSelector = 14;
 }
 
 // ClusterCacheInfo contains information about the cluster cache

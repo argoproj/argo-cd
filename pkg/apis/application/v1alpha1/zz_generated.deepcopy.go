@@ -1648,6 +1648,11 @@ func (in *Cluster) DeepCopyInto(out *Cluster) {
 			(*out)[key] = val
 		}
 	}
+	if in.NamespaceSelector != nil {
+		in, out := &in.NamespaceSelector, &out.NamespaceSelector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
