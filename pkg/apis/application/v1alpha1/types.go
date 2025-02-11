@@ -1507,6 +1507,18 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	// Enable allows apps to explicitly control automated sync
+	Enable *bool `json:"enable,omitempty" protobuf:"bytes,4,opt,name=enable"`
+}
+
+// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
+func (s *SyncPolicyAutomated) IsAutomatedSyncEnabled() *bool {
+	var isEnabled bool
+
+	if s != nil && (s.Enable == nil || *s.Enable == true) {
+		isEnabled = true
+	}
+	return &isEnabled
 }
 
 // SyncStrategy controls the manner in which a sync is performed
