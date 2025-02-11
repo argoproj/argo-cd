@@ -1245,6 +1245,58 @@ func RestartAPIServer() {
 	}
 }
 
+// StopApplicationController stops the application controller by either:
+//  1. scaling down the controller statefulset if tests are being run against a workload that is running in a remote cluster.
+//  2. stopping the controller process using goreman if tests are being run locally.
+func StopApplicationController() {
+	log.Infof("Stopping application controller")
+	if IsRemote() {
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-"
+		if prefix != "" {
+			workload = prefix + "-application-controller"
+		}
+		FailOnErr(Run("", "kubectl", "scale", "--replicas=0", "-n", TestNamespace(), "statefulset", workload))
+	} else {
+		FailOnErr(Run("", "goreman", "run", "stop", "controller"))
+	}
+}
+
+func WaitForResourceToBeCreated(kind, namespace, name string, timeout time.Duration) {
+	log.Infof("Waiting for %s %s/%s to be created", kind, namespace, name)
+	var result string
+	var err error
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(500 * time.Millisecond) {
+		result, err = Run("", "kubectl", "get", kind, name, "-n", namespace)
+		if err == nil {
+			break
+		}
+	}
+	FailOnErr(result, err)
+}
+
+func DeleteResource(kind, namespace, name string, wait bool) {
+	log.Infof("Deleting %s %s/%s", kind, namespace, name)
+	FailOnErr(Run("", "kubectl", "delete", kind, name, "-n", namespace, fmt.Sprintf("--wait=%t", wait)))
+}
+
+// StartApplicationController starts the application controller by either:
+//  1. scaling up the controller statefulset if tests are being run against a workload that is running in a remote cluster.
+//  2. starting the controller process using goreman if tests are being run locally.
+func StartApplicationController() {
+	log.Infof("Starting application controller")
+	if IsRemote() {
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-"
+		if prefix != "" {
+			workload = prefix + "-application-controller"
+		}
+		FailOnErr(Run("", "kubectl", "scale", "--replicas=1", "-n", TestNamespace(), "statefulset", workload))
+	} else {
+		FailOnErr(Run("", "goreman", "run", "start", "controller"))
+	}
+}
+
 // LocalOrRemotePath selects a path for a given application based on whether
 // tests are running local or remote.
 func LocalOrRemotePath(base string) string {
