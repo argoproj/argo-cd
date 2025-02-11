@@ -2517,6 +2517,9 @@ message SyncWindow {
 
   // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
   optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

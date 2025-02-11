@@ -150,6 +150,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		manualSync   bool
 		timeZone     string
 		andOperator  bool
+		description  string
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -160,7 +161,8 @@ argocd proj windows add PROJECT \
     --kind allow \
     --schedule "0 22 * * *" \
     --duration 1h \
-    --applications "*"
+    --applications "*" \
+	--description "Ticket 123"
 
 #Add a deny sync window with the ability to manually sync.
 argocd proj windows add PROJECT \
@@ -170,7 +172,8 @@ argocd proj windows add PROJECT \
     --applications "prod-\\*,website" \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
-    --manual-sync
+    --manual-sync \
+	--description "Ticket 123"
 	`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -186,7 +189,7 @@ argocd proj windows add PROJECT \
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator, description)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -202,6 +205,7 @@ argocd proj windows add PROJECT \
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
 	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
+	command.Flags().StringVar(&description, "description", "", `Sync window description. (e.g. --description ticket "123456")`)
 
 	return command
 }
