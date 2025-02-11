@@ -607,6 +607,7 @@ export interface Repository {
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -810,6 +811,7 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    andOperator: boolean;
     description: string;
 }
 

@@ -3,8 +3,8 @@
 package mocks
 
 import (
-	apiclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	io "github.com/argoproj/argo-cd/v2/util/io"
+	apiclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	io "github.com/argoproj/argo-cd/v3/util/io"
 
 	mock "github.com/stretchr/testify/mock"
 )

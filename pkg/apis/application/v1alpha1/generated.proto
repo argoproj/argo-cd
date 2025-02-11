@@ -3,7 +3,7 @@
 
 syntax = "proto2";
 
-package github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1;
+package github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1;
 
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/generated.proto";
@@ -13,7 +13,7 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -335,6 +335,8 @@ message ApplicationSetSpec {
   repeated string goTemplateOptions = 7;
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
+  // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
@@ -578,6 +580,9 @@ message ApplicationSourceKustomize {
 
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
+
+  // IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+  optional bool ignoreMissingComponents = 17;
 
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
   optional bool labelWithoutSelector = 14;
@@ -1692,6 +1697,9 @@ message RepoCreds {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1772,6 +1780,9 @@ message Repository {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -2504,8 +2515,8 @@ message SyncWindow {
   // TimeZone of the sync that will be applied to the schedule
   optional string timeZone = 8;
 
-  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-  optional string description = 9;
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

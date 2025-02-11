@@ -517,6 +517,10 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             MANUALSYNC
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
+                                        <div className='columns small-2'>
+                                            USE AND OPERATOR
+                                            {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
+                                        </div>
                                         <div className='columns small-7-elements'>
                                             DESCRIPTION
                                             {helpTip('Add a description to your sync window (eg "Ticket 12345")')}
@@ -538,6 +542,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                             <div className='columns small-7-elements'>{(window.namespaces || ['-']).join(',')}</div>
                                             <div className='columns small-7-elements'>{(window.clusters || ['-']).join(',')}</div>
                                             <div className='columns small-7-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-7-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
                                             <div className='columns small-7-elements'>{window.description || ''}</div>
                                         </div>
                                     </div>
