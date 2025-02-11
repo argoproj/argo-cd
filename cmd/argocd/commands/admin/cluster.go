@@ -180,13 +180,12 @@ func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset
 
 func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		shard               int
-		replicas            int
-		shardingAlgorithm   string
-		clientConfig        clientcmd.ClientConfig
-		cacheSrc            func() (*appstatecache.Cache, error)
-		portForwardRedis    bool
-		redisCompressionStr string
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	command := cobra.Command{
 		Use:   "shards",
@@ -210,7 +209,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			if replicas == 0 {
 				return
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, redisCompressionStr)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, clientOpts.RedisCompression)
 			errors.CheckError(err)
 			if len(clusters) == 0 {
 				return
@@ -231,7 +230,6 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
 	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
-	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
 
@@ -461,13 +459,12 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 
 func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		shard               int
-		replicas            int
-		shardingAlgorithm   string
-		clientConfig        clientcmd.ClientConfig
-		cacheSrc            func() (*appstatecache.Cache, error)
-		portForwardRedis    bool
-		redisCompressionStr string
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	command := cobra.Command{
 		Use:   "stats",
@@ -497,7 +494,7 @@ argocd admin cluster stats target-cluster`,
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, redisCompressionStr)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, clientOpts.RedisCompression)
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -519,7 +516,6 @@ argocd admin cluster stats target-cluster`,
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
 	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
-	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
 
