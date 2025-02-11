@@ -374,8 +374,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 
-	for _, repoUrl := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoUrl); err != nil {
+	for _, repoURL := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoURL); err != nil {
 			return nil, err
 		}
 	}

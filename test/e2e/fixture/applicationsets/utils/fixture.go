@@ -363,7 +363,7 @@ func init() {
 }
 
 // PrettyPrintJson is a utility function for debugging purposes
-func PrettyPrintJson(obj any) string {
+func PrettyPrintJson(obj any) string { //nolint:revive //FIXME(var-naming)
 	bytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
 		return err.Error()
@@ -372,7 +372,7 @@ func PrettyPrintJson(obj any) string {
 }
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string {
+func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
 	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
 	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
 

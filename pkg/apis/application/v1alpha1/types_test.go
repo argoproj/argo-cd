@@ -3946,9 +3946,9 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, environ, 2)
 	assert.Contains(t, environ, "PARAM_VERSION=1.2.3")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
@@ -3963,9 +3963,9 @@ func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_0=redis")
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_1=minio")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
@@ -3985,9 +3985,9 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_TAG=v2.4.0")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
@@ -4016,9 +4016,9 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	assert.Contains(t, environ, "PARAM_SOME_NAME_1=minio")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_TAG=v2.4.0")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func getApplicationSpec() *ApplicationSpec {
