@@ -281,9 +281,8 @@ func TestRepoURLToSecretName(t *testing.T) {
 	}}
 
 	for _, v := range tables {
-		if sn := RepoURLToSecretName(repoSecretPrefix, v.repoUrl, v.project); sn != v.secretName {
-			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v.secretName, v.repoUrl, sn)
-		}
+		sn := RepoURLToSecretName(repoSecretPrefix, v.repoUrl, v.project)
+		assert.Equal(t, sn, v.secretName, "Expected secret name %q for repo %q; instead, got %q", v.secretName, v.repoUrl, sn)
 	}
 }
 
@@ -296,9 +295,8 @@ func Test_CredsURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := RepoURLToSecretName(credSecretPrefix, k, ""); sn != v {
-			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
-		}
+		sn := RepoURLToSecretName(credSecretPrefix, k, "")
+		assert.Equal(t, sn, v, "Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 	}
 }
 

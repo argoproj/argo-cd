@@ -24,7 +24,7 @@ argocd-repo-server [flags]
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
       --include-hidden-directories                     Include hidden directories from Git
-      --logformat string                               Set the logging format. One of: text|json (default "text")
+      --logformat string                               Set the logging format. One of: json|text (default "json")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
