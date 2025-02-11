@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
-	appfixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin/utils"
+	appfixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 func TestBackupExportImport(t *testing.T) {
@@ -69,7 +69,7 @@ func TestBackupExportImport(t *testing.T) {
 		When().
 		RunImport(exportRawOutput).
 		Then().
-		AndCLIOutput(func(output string, err error) {
+		AndCLIOutput(func(_ string, err error) {
 			require.NoError(t, err, "import finished with error")
 			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), "exported-app1", metav1.GetOptions{})
 			require.NoError(t, err, "failed getting test namespace application after import")

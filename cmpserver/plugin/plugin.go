@@ -15,13 +15,13 @@ import (
 	"github.com/argoproj/pkg/rand"
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/buffered_context"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	argoexec "github.com/argoproj/argo-cd/v2/util/exec"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/buffered_context"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	securejoin "github.com/cyphar/filepath-securejoin"
@@ -172,7 +172,7 @@ func getTempDirMustCleanup(baseDir string) (workDir string, cleanup func(), err 
 	}
 	cleanup = func() {
 		if err := os.RemoveAll(workDir); err != nil {
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				common.SecurityField:    common.SecurityHigh,
 				common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 			}).Errorf("Failed to clean up temp directory: %s", err)
@@ -315,7 +315,7 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 
 	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
 	if err != nil {
-		log.WithFields(map[string]interface{}{
+		log.WithFields(map[string]any{
 			common.SecurityField:    common.SecurityHigh,
 			common.SecurityCWEField: common.SecurityCWEIncompleteCleanup,
 		}).Errorf("error joining workdir %q and appRelPath %q: %v", workdir, appRelPath, err)
@@ -425,7 +425,7 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 	return repoResponse, nil
 }
 
-func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
+func (s *Service) CheckPluginConfiguration(_ context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
 	isDiscoveryConfigured := s.isDiscoveryConfigured()
 	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
 

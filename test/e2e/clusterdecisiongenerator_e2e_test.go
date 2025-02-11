@@ -3,16 +3,15 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 var tenSec = int64(10)
@@ -20,7 +19,7 @@ var tenSec = int64(10)
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
-	expectedApp := argov1alpha1.Application{
+	expectedApp := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "Application",
 			APIVersion: "argoproj.io/v1alpha1",
@@ -30,25 +29,25 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 			Namespace:  externalNamespace,
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: argov1alpha1.ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Name:      "cluster1",
 				Namespace: "guestbook",
 			},
 		},
 	}
 
-	var expectedAppNewNamespace *argov1alpha1.Application
-	var expectedAppNewMetadata *argov1alpha1.Application
+	var expectedAppNewNamespace *v1alpha1.Application
+	var expectedAppNewMetadata *v1alpha1.Application
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
@@ -71,14 +70,14 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name: "{{clusterName}}",
 							// Server:    "{{server}}",
 							Namespace: "guestbook",
@@ -94,7 +93,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -104,7 +103,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -120,15 +119,15 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
-	expectedApp := argov1alpha1.Application{
+	expectedApp := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -138,25 +137,25 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: argov1alpha1.ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Name:      "cluster1",
 				Namespace: "guestbook",
 			},
 		},
 	}
 
-	var expectedAppNewNamespace *argov1alpha1.Application
-	var expectedAppNewMetadata *argov1alpha1.Application
+	var expectedAppNewNamespace *v1alpha1.Application
+	var expectedAppNewMetadata *v1alpha1.Application
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
@@ -177,14 +176,14 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name: "{{clusterName}}",
 							// Server:    "{{server}}",
 							Namespace: "guestbook",
@@ -200,7 +199,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
@@ -210,7 +209,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		}).
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Spec.Destination.Namespace = "guestbook2"
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
 		// Update the metadata fields in the appset template, and make sure it propagates to the apps
 		When().
@@ -222,15 +221,15 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
-	expectedAppTemplate := argov1alpha1.Application{
+	expectedAppTemplate := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -240,14 +239,14 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: argov1alpha1.ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Name:      "{{clusterName}}",
 				Namespace: "guestbook",
 			},
@@ -262,12 +261,12 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
@@ -288,14 +287,14 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name: "{{clusterName}}",
 							// Server:    "{{server}}",
 							Namespace: "guestbook",
@@ -312,20 +311,20 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
-		Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
+		Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.T) {
-	expectedAppTemplate := argov1alpha1.Application{
+	expectedAppTemplate := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -335,14 +334,14 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: argov1alpha1.ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Name:      "{{name}}",
 				Namespace: "guestbook",
 			},
@@ -357,12 +356,12 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
@@ -384,14 +383,14 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name: "{{clusterName}}",
 							// Server:    "{{server}}",
 							Namespace: "guestbook",
@@ -408,21 +407,21 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
 		DeleteClusterSecret("my-secret2").
-		Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1})).
-		Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppCluster2})).
+		Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1})).
+		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster2})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppCluster1}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *testing.T) {
-	expectedAppTemplate := argov1alpha1.Application{
+	expectedAppTemplate := v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
 			APIVersion: "argoproj.io/v1alpha1",
@@ -432,14 +431,14 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 		},
-		Spec: argov1alpha1.ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 				TargetRevision: "HEAD",
 				Path:           "guestbook",
 			},
-			Destination: argov1alpha1.ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Name:      "{{name}}",
 				Namespace: "guestbook",
 			},
@@ -454,19 +453,19 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
 	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
 
-	clusterList := []interface{}{
-		map[string]interface{}{
+	clusterList := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"clusterName": "cluster2",
 			"reason":      "argotest",
 		},
 	}
 
-	clusterListSmall := []interface{}{
-		map[string]interface{}{
+	clusterListSmall := []any{
+		map[string]any{
 			"clusterName": "cluster1",
 			"reason":      "argotest",
 		},
@@ -488,14 +487,14 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
-					Spec: argov1alpha1.ApplicationSpec{
+					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
-						Source: &argov1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
 							TargetRevision: "HEAD",
 							Path:           "guestbook",
 						},
-						Destination: argov1alpha1.ApplicationDestination{
+						Destination: v1alpha1.ApplicationDestination{
 							Name: "{{clusterName}}",
 							// Server:    "{{server}}",
 							Namespace: "guestbook",
@@ -512,15 +511,15 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2})).
 
 		// Update the ApplicationSet template namespace, and verify it updates the Applications
 		When().
 		StatusUpdatePlacementDecision("my-placementdecision", clusterListSmall).
-		Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedAppCluster1})).
-		Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppCluster2})).
+		Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedAppCluster1})).
+		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster2})).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedAppCluster1}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }

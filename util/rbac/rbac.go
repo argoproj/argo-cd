@@ -10,24 +10,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
 	"github.com/casbin/govaluate"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	apiv1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	v1 "k8s.io/client-go/informers/core/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
@@ -46,7 +47,7 @@ const (
 // CasbinEnforcer represents methods that must be implemented by a Casbin enforces
 type CasbinEnforcer interface {
 	EnableLog(bool)
-	Enforce(rvals ...interface{}) (bool, error)
+	Enforce(rvals ...any) (bool, error)
 	LoadPolicy() error
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
@@ -140,9 +141,9 @@ func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnf
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
-type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...interface{}) bool
+type ClaimsEnforcerFunc func(claims jwt.Claims, rvals ...any) bool
 
-func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...interface{}) (e CasbinEnforcer, err error) {
+func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...any) (e CasbinEnforcer, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -193,7 +194,7 @@ func (e *Enforcer) LoadPolicy() error {
 }
 
 // Glob match func
-func globMatchFunc(args ...interface{}) (interface{}, error) {
+func globMatchFunc(args ...any) (any, error) {
 	if len(args) < 2 {
 		return false, nil
 	}
@@ -236,34 +237,37 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
-func (e *Enforcer) Enforce(rvals ...interface{}) bool {
+func (e *Enforcer) Enforce(rvals ...any) bool {
 	return enforce(e.getCabinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
-func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
+func (e *Enforcer) EnforceErr(rvals ...any) error {
 	if !e.Enforce(rvals...) {
 		errMsg := "permission denied"
+
 		if len(rvals) > 0 {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
 				rvalsStrs[i] = fmt.Sprintf("%s", rval)
 			}
-			switch s := rvals[0].(type) {
-			case jwt.Claims:
+			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
-				if err != nil {
-					break
-				}
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
-				}
-				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+				if err == nil {
+					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+					if err == nil {
+						if argoClaims.GetUserIdentifier() != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
+					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
+
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
 	return nil
@@ -272,7 +276,7 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 // EnforceRuntimePolicy enforces a policy defined at run-time which augments the built-in and
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
-func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...any) bool {
 	enf := e.CreateEnforcerWithRuntimePolicy(project, policy)
 	return e.EnforceWithCustomEnforcer(enf, rvals...)
 }
@@ -285,15 +289,15 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
-func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...interface{}) bool {
+func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...any) bool {
 	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...interface{}) bool {
+func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...any) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
-		if ok, err := enf.Enforce(append([]interface{}{defaultRole}, rvals[1:]...)...); ok && err == nil {
+		if ok, err := enf.Enforce(append([]any{defaultRole}, rvals[1:]...)...); ok && err == nil {
 			return true
 		}
 	}
@@ -310,9 +314,9 @@ func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEn
 		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
 			return true
 		}
-		rvals = append([]interface{}{""}, rvals[1:]...)
+		rvals = append([]any{""}, rvals[1:]...)
 	default:
-		rvals = append([]interface{}{""}, rvals[1:]...)
+		rvals = append([]any{""}, rvals[1:]...)
 	}
 	ok, err := enf.Enforce(rvals...)
 	return ok && err == nil
@@ -341,14 +345,14 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 		options.FieldSelector = cmFieldSelector.String()
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
-	return v1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
+	return informersv1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
 // RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
-func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) error {
+func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) error {
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
-		if !apierr.IsNotFound(err) {
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
 	} else {
@@ -361,12 +365,12 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 	return nil
 }
 
-func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
+func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) {
 	cmInformer := e.newInformer()
 	_, err := cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				if cm, ok := obj.(*apiv1.ConfigMap); ok {
+			AddFunc: func(obj any) {
+				if cm, ok := obj.(*corev1.ConfigMap); ok {
 					err := e.syncUpdate(cm, onUpdated)
 					if err != nil {
 						log.Error(err)
@@ -375,9 +379,9 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 					}
 				}
 			},
-			UpdateFunc: func(old, new interface{}) {
-				oldCM := old.(*apiv1.ConfigMap)
-				newCM := new.(*apiv1.ConfigMap)
+			UpdateFunc: func(old, new any) {
+				oldCM := old.(*corev1.ConfigMap)
+				newCM := new.(*corev1.ConfigMap)
 				if oldCM.ResourceVersion == newCM.ResourceVersion {
 					return
 				}
@@ -430,7 +434,7 @@ func PolicyCSV(data map[string]string) string {
 }
 
 // syncUpdate updates the enforcer
-func (e *Enforcer) syncUpdate(cm *apiv1.ConfigMap, onUpdated func(cm *apiv1.ConfigMap) error) error {
+func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	policyCSV := PolicyCSV(cm.Data)
@@ -521,18 +525,18 @@ func loadPolicyLine(line string, model model.Model) error {
 	return nil
 }
 
-func (a *argocdAdapter) SavePolicy(model model.Model) error {
+func (a *argocdAdapter) SavePolicy(_ model.Model) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) AddPolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) AddPolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
+func (a *argocdAdapter) RemovePolicy(_ string, _ string, _ []string) error {
 	return errors.New("not implemented")
 }
 
-func (a *argocdAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
+func (a *argocdAdapter) RemoveFilteredPolicy(_ string, _ string, _ int, _ ...string) error {
 	return errors.New("not implemented")
 }

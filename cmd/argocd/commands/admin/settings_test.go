@@ -7,13 +7,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	utils "github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	utils "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -44,7 +44,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewClientset(&v1.ConfigMap{
+	clientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -53,7 +53,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			},
 		},
 		Data: data,
-	}, &v1.Secret{
+	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDSecretName,
@@ -68,7 +68,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
-	// nolint:unused,structcheck
+	//nolint:unused,structcheck
 	out bytes.Buffer
 }
 
@@ -156,15 +156,6 @@ clientSecret: aaaabbbbccccddddeee`,
 				"kustomize.versions.v321": "binary-321",
 			},
 			containsSummary: "updated-options",
-		},
-		"Repositories": {
-			validator: "repositories",
-			data: map[string]string{
-				"repositories": `
-- url: https://github.com/argoproj/my-private-repository1
-- url: https://github.com/argoproj/my-private-repository2`,
-			},
-			containsSummary: "2 repositories",
 		},
 		"Accounts": {
 			validator: "accounts",
