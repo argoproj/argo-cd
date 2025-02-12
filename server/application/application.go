@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -69,7 +71,10 @@ const (
 	foregroundPropagationPolicy string = "foreground"
 )
 
-var watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+var (
+	ErrCacheMiss       = cacheutil.ErrCacheMiss
+	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+)
 
 // Server provides an Application service
 type Server struct {
@@ -1348,6 +1353,9 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
 	})
 	if err != nil {
+		if errors.Is(err, ErrCacheMiss) {
+			fmt.Println("Cache Key is missing.\nEnsure that the Redis compression setting on the Application controller and CLI is same. See --redis-compress.")
+		}
 		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
 	}
 	return &tree, nil
