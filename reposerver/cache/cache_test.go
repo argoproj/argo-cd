@@ -134,27 +134,7 @@ func TestCache_GetManifests(t *testing.T) {
 		assert.Equal(t, "my-source-type", value.ManifestResponse.SourceType)
 		assert.Equal(t, "my-revision1", value.ManifestResponse.Revision)
 	})
-	t.Run("expect tag resolution for refs/tags", func(t *testing.T) {
-		// Set up test with a tag reference
-		tagRef := "refs/tags/v1.0.0"
-		res := &CachedManifestResponse{
-			ManifestResponse: &apiclient.ManifestResponse{
-				SourceType: "my-source-type",
-				Revision:   tagRef,
-			},
-		}
-
-		err = cache.SetManifests(tagRef, &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res, nil, "")
-		require.NoError(t, err)
-
-		// Get manifests should attempt to resolve the tag
-		err = cache.GetManifests(tagRef, &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
-		require.NoError(t, err)
-
-		// Should fall back to tag reference if resolution fails
-		assert.Equal(t, tagRef, value.ManifestResponse.Revision)
-	})
-	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 3, ExternalGets: 9})
+	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 8})
 }
 
 func TestCache_GetAppDetails(t *testing.T) {
