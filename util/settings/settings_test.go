@@ -12,22 +12,21 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/yaml"
-
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	testutil "github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/test"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
-func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Clientset, *SettingsManager) {
-	cm := &v1.ConfigMap{
+func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
+	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -37,7 +36,7 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 		},
 		Data: data,
 	}
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
@@ -50,14 +49,14 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 	for i := range opts {
 		opts[i](secret)
 	}
-	kubeClient := fake.NewSimpleClientset(cm, secret)
+	kubeClient := fake.NewClientset(cm, secret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
 
 func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
-	var argocdCM *v1.ConfigMap
+	var argocdCM *corev1.ConfigMap
 	settings := ArgoCDSettings{}
 	data, err := os.ReadFile("../../docs/operator-manual/argocd-cm.yaml")
 	require.NoError(t, err)
@@ -66,59 +65,86 @@ func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
 	updateSettingsFromConfigMap(&settings, argocdCM)
 }
 
-func TestGetRepositories(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repositories": "\n  - url: http://foo\n",
+func TestGetConfigMapByName(t *testing.T) {
+	t.Run("data is never nil", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		cm, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		assert.NotNil(t, cm.Data)
 	})
-	filter, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
-}
-
-func TestSaveRepositories(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-
-	repos, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
-}
-
-func TestSaveRepositoriesNoConfigMap(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-}
-
-func TestSaveRepositoryCredentials(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
-
-	creds, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, creds, []RepositoryCredentials{{URL: "http://foo"}})
-}
-
-func TestGetRepositoryCredentials(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repository.credentials": "\n  - url: http://foo\n",
+	t.Run("cannot update informer value", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		cm1, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		cm1.Data["test"] = "invalid"
+		cm2, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
+		require.NoError(t, err)
+		assert.NotContains(t, cm2.Data, "test")
 	})
-	filter, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.Equal(t, []RepositoryCredentials{{URL: "http://foo"}}, filter)
+}
+
+func TestGetSecretByName(t *testing.T) {
+	t.Run("data is never nil", func(t *testing.T) {
+		_, settingsManager := fixtures(nil, func(secret *corev1.Secret) { secret.Data = nil })
+		secret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		assert.NotNil(t, secret.Data)
+	})
+	t.Run("cannot update informer value", func(t *testing.T) {
+		_, settingsManager := fixtures(nil)
+		s1, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		s1.Data["test"] = []byte("invalid")
+		s2, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		assert.NotContains(t, s2.Data, "test")
+	})
+}
+
+func TestGetExtensionConfigs(t *testing.T) {
+	type cases struct {
+		name        string
+		input       map[string]string
+		expected    map[string]string
+		expectedLen int
+	}
+
+	testCases := []cases{
+		{
+			name:        "will return main config successfully",
+			expectedLen: 1,
+			input: map[string]string{
+				extensionConfig: "test",
+			},
+			expected: map[string]string{
+				"": "test",
+			},
+		},
+		{
+			name:        "will return main and additional config successfully",
+			expectedLen: 2,
+			input: map[string]string{
+				extensionConfig:                       "main config",
+				extensionConfig + ".anotherExtension": "another config",
+			},
+			expected: map[string]string{
+				"":                 "main config",
+				"anotherExtension": "another config",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			// When
+			output := getExtensionConfigs(tc.input)
+
+			// Then
+			assert.Len(t, output, tc.expectedLen)
+			assert.Equal(t, tc.expected, output)
+		})
+	}
 }
 
 func TestGetResourceFilter(t *testing.T) {
@@ -152,8 +178,8 @@ func TestInClusterServerAddressEnabled(t *testing.T) {
 }
 
 func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(
-		&v1.ConfigMap{
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -163,7 +189,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 			Data: map[string]string{},
 		},
-		&v1.Secret{
+		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -199,6 +225,31 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 	assert.False(t, serverRBACLogEnforceEnable)
 }
 
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.True(t, serverRBACLogEnforceEnable)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.True(t, flag)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
+	})
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.False(t, flag)
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -220,15 +271,6 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -758,10 +800,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 			}
 
 			inKeys := settingsManager.GetIncludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+			assert.Len(t, inKeys, len(tt.expectedKeys))
 
 			exKeys := settingsManager.GetExcludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
+			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
 				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
@@ -874,8 +916,8 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 
 func TestSettingsManager_GetSettings(t *testing.T) {
 	t.Run("UserSessionDurationNotProvided", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -885,7 +927,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 				Data: nil,
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -904,8 +946,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
 	})
 	t.Run("UserSessionDurationInvalidFormat", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -917,7 +959,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					"users.session.duration": "10hh",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -936,8 +978,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
 	})
 	t.Run("UserSessionDurationProvided", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -949,7 +991,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 					"users.session.duration": "10h",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -970,8 +1012,8 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 }
 
 func TestGetOIDCConfig(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(
-		&v1.ConfigMap{
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -983,7 +1025,7 @@ func TestGetOIDCConfig(t *testing.T) {
 				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
 			},
 		},
-		&v1.Secret{
+		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -1050,8 +1092,8 @@ func Test_validateExternalURL(t *testing.T) {
 }
 
 func TestGetOIDCSecretTrim(t *testing.T) {
-	kubeClient := fake.NewSimpleClientset(
-		&v1.ConfigMap{
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
@@ -1063,7 +1105,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 				"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 			},
 		},
-		&v1.Secret{
+		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
@@ -1096,8 +1138,8 @@ func getCNFromCertificate(cert *tls.Certificate) string {
 
 func Test_GetTLSConfiguration(t *testing.T) {
 	t.Run("Valid external TLS secret with success", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1109,7 +1151,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1122,7 +1164,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1142,8 +1184,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 	})
 
 	t.Run("Valid external TLS secret overrides argocd-secret", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1155,7 +1197,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1170,7 +1212,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"tls.key":          []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-e2e-server.key")),
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1189,8 +1231,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.Contains(t, getCNFromCertificate(settings.Certificate), "localhost")
 	})
 	t.Run("Invalid external TLS secret", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1202,7 +1244,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1215,7 +1257,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      externalServerTLSSecretName,
 					Namespace: "default",
@@ -1232,8 +1274,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		assert.NotNil(t, settings)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
-		kubeClient := fake.NewSimpleClientset(
-			&v1.ConfigMap{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1245,7 +1287,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 					"oidc.config": "\n  name: Okta\n  clientSecret: test-secret\r\n \n  clientID: aaaabbbbccccddddeee\n",
 				},
 			},
-			&v1.Secret{
+			&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1304,7 +1346,7 @@ requestedScopes: ["openid", "profile", "email"]
 # Optional set of OIDC claims to request on the ID token.
 requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	}
-	cm := &v1.ConfigMap{
+	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: "default",
@@ -1314,7 +1356,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 		Data: data,
 	}
-	argocdSecret := &v1.Secret{
+	argocdSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: "default",
@@ -1325,7 +1367,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			"webhook.github.secret": []byte("$ext:webhook.github.secret"),
 		},
 	}
-	secret := &v1.Secret{
+	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "ext",
 			Namespace: "default",
@@ -1339,7 +1381,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			"webhook.github.secret": []byte("mywebhooksecret"),
 		},
 	}
-	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+	kubeClient := fake.NewClientset(cm, secret, argocdSecret)
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	settings, err := settingsManager.GetSettings()
@@ -1376,7 +1418,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			cm := &v1.ConfigMap{
+			cm := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1386,7 +1428,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 				},
 				Data: tc.data,
 			}
-			argocdSecret := &v1.Secret{
+			argocdSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1397,7 +1439,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 				},
 			}
 
-			kubeClient := fake.NewSimpleClientset(cm, argocdSecret)
+			kubeClient := fake.NewClientset(cm, argocdSecret)
 			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
@@ -1434,7 +1476,7 @@ func TestGetHelmSettings(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			cm := &v1.ConfigMap{
+			cm := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: "default",
@@ -1444,7 +1486,7 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 				Data: tc.data,
 			}
-			argocdSecret := &v1.Secret{
+			argocdSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDSecretName,
 					Namespace: "default",
@@ -1454,7 +1496,7 @@ func TestGetHelmSettings(t *testing.T) {
 					"server.secretkey": nil,
 				},
 			}
-			secret := &v1.Secret{
+			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "acme",
 					Namespace: "default",
@@ -1466,7 +1508,7 @@ func TestGetHelmSettings(t *testing.T) {
 					"clientSecret": []byte("deadbeef"),
 				},
 			}
-			kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
+			kubeClient := fake.NewClientset(cm, secret, argocdSecret)
 			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 			helmSettings, err := settingsManager.GetHelmSettings()
@@ -1732,10 +1774,59 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 	}
 }
 
+func TestUseAzureWorkloadIdentity(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config isnot defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.UseAzureWorkloadIdentity()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
-	kubeClient := fake.NewSimpleClientset()
+	kubeClient := fake.NewClientset()
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
@@ -1773,4 +1864,38 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+}
+
+func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output map[string]bool
+	}{
+		{
+			name:   "Empty input",
+			input:  "",
+			output: map[string]bool{},
+		},
+		{
+			name:   "Comma separated data",
+			input:  "example.com/token-secret.value,token,key",
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true, "key": true},
+		},
+		{
+			name:   "Comma separated data with space",
+			input:  "example.com/token-secret.value, token,    key",
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true, "key": true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(map[string]string{
+				resourceSensitiveAnnotationsKey: tt.input,
+			})
+			keys := settingsManager.GetSensitiveAnnotations()
+			assert.Len(t, keys, len(tt.output))
+			assert.Equal(t, tt.output, keys)
+		})
+	}
 }

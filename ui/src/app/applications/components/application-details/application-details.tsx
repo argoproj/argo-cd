@@ -31,6 +31,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
 
 interface ApplicationDetailsState {
     page: number;
@@ -82,10 +83,46 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
-    private appNamespace: string;
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            truncateNameOnRight: false,
+            collapsedNodes: [],
+            ...this.getExtensionsState()
+        };
+    }
+
+    public componentDidMount() {
+        services.extensions.addEventListener('resource', this.onExtensionsUpdate);
+        services.extensions.addEventListener('appView', this.onExtensionsUpdate);
+        services.extensions.addEventListener('statusPanel', this.onExtensionsUpdate);
+        services.extensions.addEventListener('topBar', this.onExtensionsUpdate);
+    }
+
+    public componentWillUnmount() {
+        services.extensions.removeEventListener('resource', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('appView', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('statusPanel', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('topBar', this.onExtensionsUpdate);
+    }
+
+    private getAppNamespace() {
+        if (typeof this.props.match.params.appnamespace === 'undefined') {
+            return '';
+        }
+        return this.props.match.params.appnamespace;
+    }
+
+    private onExtensionsUpdate = () => {
+        this.setState({...this.state, ...this.getExtensionsState()});
+    };
+
+    private getExtensionsState = () => {
         const extensions = services.extensions.getAppViewExtensions();
         const extensionsMap: {[key: string]: AppViewExtension} = {};
         extensions.forEach(ext => {
@@ -101,25 +138,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         topBarActionMenuExts.forEach(ext => {
             topBarActionMenuExtsMap[ext.id] = ext;
         });
-        this.state = {
-            page: 0,
-            groupedResources: [],
-            slidingPanelPage: 0,
-            filteredGraph: [],
-            truncateNameOnRight: false,
-            collapsedNodes: [],
-            extensions,
-            extensionsMap,
-            statusExtensions,
-            statusExtensionsMap,
-            topBarActionMenuExts,
-            topBarActionMenuExtsMap
-        };
-        if (typeof this.props.match.params.appnamespace === 'undefined') {
-            this.appNamespace = '';
-        } else {
-            this.appNamespace = this.props.match.params.appnamespace;
-        }
+        return {extensions, extensionsMap, statusExtensions, statusExtensionsMap, topBarActionMenuExts, topBarActionMenuExtsMap};
+    };
+
+    private get showHydrateOperationState() {
+        return new URLSearchParams(this.props.history.location.search).get('hydrateOperation') === 'true';
     }
 
     private get showOperationState() {
@@ -296,7 +319,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const getContentForNonChart = (
             aRevision: string,
             aSourceIndex: number,
-            aVersionId: number,
+            aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
             sourceHeader?: JSX.Element
@@ -409,7 +432,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name, this.props.match.params.appnamespace), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.getAppNamespace()), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
                                     const application = items[0].application;
                                     const pref = items[1].appDetails;
@@ -461,6 +484,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const isAppSelected = selectedItem === application;
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = application.status.operationState;
+                            const hydrateOperationState = application.status.sourceHydrator.currentOperation;
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
@@ -655,6 +679,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     application={application}
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
+                                                    showHydrateOperation={() => this.setHydrateOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
                                                     showExtension={id => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
@@ -863,6 +888,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                                             {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
                                         </SlidingPanel>
+                                        <SlidingPanel
+                                            isShown={this.showHydrateOperationState && !!hydrateOperationState}
+                                            onClose={() => this.setHydrateOperationStatusVisible(false)}>
+                                            {hydrateOperationState && <ApplicationHydrateOperationState hydrateOperationState={hydrateOperationState} />}
+                                        </SlidingPanel>
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
@@ -888,7 +918,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
                                         </SlidingPanel>
                                         <SlidingPanel
-                                            isMiddle={activeTopBarActionMenuExt?.isMiddle}
+                                            isMiddle={activeTopBarActionMenuExt?.isMiddle ?? true}
                                             isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
                                             {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
@@ -920,20 +950,31 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
                 action: () => this.selectNode(fullName),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
+                disabled:
+                    app.status.sync.status === appModels.SyncStatuses.Synced ||
+                    (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator)
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
                 action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
             },
+            ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
+                ? [
+                      {
+                          iconClassName: 'fa fa-check',
+                          title: <ActionMenuItem actionLabel='Confirm Pruning' />,
+                          action: () => this.confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
+                      }
+                  ]
+                : []),
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
@@ -948,11 +989,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 },
                 disabled: !app.status.operationState
             },
-            {
-                iconClassName: 'fa fa-times-circle',
-                title: <ActionMenuItem actionLabel='Delete' />,
-                action: () => this.deleteApplication()
-            },
+            app.metadata.deletionTimestamp &&
+            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
+            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
+                ? {
+                      iconClassName: 'fa fa-check',
+                      title: <ActionMenuItem actionLabel='Confirm Deletion' />,
+                      action: () => this.confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
+                  }
+                : {
+                      iconClassName: 'fa fa-times-circle',
+                      title: <ActionMenuItem actionLabel='Delete' />,
+                      action: () => this.deleteApplication(),
+                      disabled: !!app.metadata.deletionTimestamp
+                  },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
@@ -1121,6 +1171,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
     }
 
+    private setHydrateOperationStatusVisible(isVisible: boolean) {
+        this.appContext.apis.navigation.goto('.', {hydrateOperation: isVisible}, {replace: true});
+    }
+
     private setConditionsStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', {conditions: isVisible}, {replace: true});
     }
@@ -1153,8 +1207,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     update.spec.syncPolicy = {automated: null};
                     await services.applications.update(update);
                 }
-                await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
+                await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);
+                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.getAppNamespace()));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -1170,7 +1224,18 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
+        await AppUtils.deleteApplication(this.props.match.params.name, this.getAppNamespace(), this.appContext.apis);
+    }
+
+    private async confirmDeletion(app: appModels.Application, title: string, message: string) {
+        const confirmed = await this.appContext.apis.popup.confirm(title, message);
+        if (confirmed) {
+            if (!app.metadata.annotations) {
+                app.metadata.annotations = {};
+            }
+            app.metadata.annotations[appModels.AppDeletionConfirmedAnnotation] = new Date().toISOString();
+            await services.applications.update(app);
+        }
     }
 }
 

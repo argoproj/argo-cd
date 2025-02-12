@@ -19,10 +19,10 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
-	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -171,11 +171,11 @@ status:
     status: Healthy
 `
 
-var noOpHealthCheck = func(r *http.Request) error {
+var noOpHealthCheck = func(_ *http.Request) error {
 	return nil
 }
 
-var appFilter = func(obj interface{}) bool {
+var appFilter = func(_ any) bool {
 	return true
 }
 
@@ -203,7 +203,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 		fakeApps = append(fakeApps, a)
 	}
 	appClientset := appclientset.NewSimpleClientset(fakeApps...)
-	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(options *metav1.ListOptions) {}))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(appClientset, 0, appinformer.WithNamespace("argocd"), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	go appInformer.Run(ctx.Done())
 	if !cache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
@@ -230,7 +230,9 @@ type TestMetricServerConfig struct {
 	ExpectedResponse string
 	AppLabels        []string
 	AppConditions    []string
+	ClusterLabels    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
+	ClusterLister    ClusterLister
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
@@ -240,6 +242,7 @@ func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse stri
 		ExpectedResponse: expectedResponse,
 		AppLabels:        appLabels,
 		AppConditions:    appConditions,
+		ClusterLabels:    []string{},
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
 	}
 	runTest(t, cfg)
@@ -254,10 +257,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
-		collector := &clusterCollector{
-			infoSource: ci,
-			info:       ci.GetClustersInfo(),
-		}
+		collector := NewClusterCollector(context.Background(), ci, cfg.ClusterLister, cfg.ClusterLabels)
 		metricsServ.registry.MustRegister(collector)
 	}
 
@@ -399,30 +399,6 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 	}
 }
 
-func TestLegacyMetrics(t *testing.T) {
-	t.Setenv(EnvVarLegacyControllerMetrics, "true")
-
-	expectedResponse := `
-# HELP argocd_app_created_time Creation time in unix timestamp for an application.
-# TYPE argocd_app_created_time gauge
-argocd_app_created_time{name="my-app",namespace="argocd",project="important-project"} -6.21355968e+10
-# HELP argocd_app_health_status The application current health status.
-# TYPE argocd_app_health_status gauge
-argocd_app_health_status{health_status="Degraded",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Healthy",name="my-app",namespace="argocd",project="important-project"} 1
-argocd_app_health_status{health_status="Missing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Progressing",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Suspended",name="my-app",namespace="argocd",project="important-project"} 0
-argocd_app_health_status{health_status="Unknown",name="my-app",namespace="argocd",project="important-project"} 0
-# HELP argocd_app_sync_status The application current sync status.
-# TYPE argocd_app_sync_status gauge
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="OutOfSync"} 0
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Synced"} 1
-argocd_app_sync_status{name="my-app",namespace="argocd",project="important-project",sync_status="Unknown"} 0
-`
-	testApp(t, []string{fakeApp}, expectedResponse)
-}
-
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
@@ -507,6 +483,31 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
+}
+
+func TestOrphanedResourcesMetric(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
+
+	expectedMetrics := `
+# HELP argocd_app_orphaned_resources_count Number of orphaned resources per application
+# TYPE argocd_app_orphaned_resources_count gauge
+argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="important-project"} 1
+`
+	app := newFakeApp(fakeApp4)
+	numOrphanedResources := 1
+	metricsServ.SetOrphanedResourcesMetric(app, numOrphanedResources)
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
 func TestMetricsReset(t *testing.T) {

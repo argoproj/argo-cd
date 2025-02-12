@@ -9,12 +9,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewProjectWindowsCommand returns a new instance of the `argocd proj windows` command
@@ -148,6 +149,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		clusters     []string
 		manualSync   bool
 		timeZone     string
+		andOperator  bool
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -184,7 +186,7 @@ argocd proj windows add PROJECT \
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
-			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone)
+			err = proj.Spec.AddWindow(kind, schedule, duration, applications, namespaces, clusters, manualSync, timeZone, andOperator)
 			errors.CheckError(err)
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
@@ -199,6 +201,7 @@ argocd proj windows add PROJECT \
 	command.Flags().StringSliceVar(&clusters, "clusters", []string{}, "Clusters that the schedule will be applied to. Comma separated, wildcards supported (e.g. --clusters prod,staging)")
 	command.Flags().BoolVar(&manualSync, "manual-sync", false, "Allow manual syncs for both deny and allow windows")
 	command.Flags().StringVar(&timeZone, "time-zone", "UTC", "Time zone of the sync window")
+	command.Flags().BoolVar(&andOperator, "use-and-operator", false, "Use AND operator for matching applications, namespaces and clusters instead of the default OR operator")
 
 	return command
 }
@@ -235,8 +238,14 @@ argocd proj windows delete new-project 1`,
 			err = proj.Spec.DeleteWindow(id)
 			errors.CheckError(err)
 
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm("Are you sure you want to delete sync window? [y/n]")
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete the sync window was cancelled\n")
+			}
 		},
 	}
 	return command
@@ -347,13 +356,13 @@ argocd proj windows list test-project`,
 func printSyncWindows(proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []interface{}{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
+	headers := []any{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "TIMEZONE"}
 	fmtStr = strings.Repeat("%s\t", len(headers)) + "\n"
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
 			isActive, _ := window.Active()
-			vals := []interface{}{
+			vals := []any{
 				strconv.Itoa(i),
 				formatBoolOutput(isActive),
 				window.Kind,
@@ -362,8 +371,9 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 				formatListOutput(window.Applications),
 				formatListOutput(window.Namespaces),
 				formatListOutput(window.Clusters),
-				formatManualOutput(window.ManualSync),
+				formatBoolEnabledOutput(window.ManualSync),
 				window.TimeZone,
+				formatBoolEnabledOutput(window.UseAndOperator),
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
@@ -391,7 +401,7 @@ func formatBoolOutput(active bool) string {
 	return o
 }
 
-func formatManualOutput(active bool) string {
+func formatBoolEnabledOutput(active bool) string {
 	var o string
 	if active {
 		o = "Enabled"

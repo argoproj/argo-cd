@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_getQueryBySelector(t *testing.T) {
@@ -26,7 +26,7 @@ func Test_getQueryBySelector(t *testing.T) {
 	assert.Equal(t, "https://my-server", query.Server)
 }
 
-func Test_printClusterTable(t *testing.T) {
+func Test_printClusterTable(_ *testing.T) {
 	printClusterTable([]v1alpha1.Cluster{
 		{
 			Server: "my-server",
@@ -98,12 +98,12 @@ func Test_getRestConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := getRestConfig(tt.args.pathOpts, tt.args.ctxName); err == nil {
-				require.Equal(t, tt.expected, got)
-			} else if tt.wantErr {
-				require.Equal(t, tt.expectedErr, err.Error())
+			got, err := getRestConfig(tt.args.pathOpts, tt.args.ctxName)
+			if tt.wantErr {
+				require.EqualError(t, err, tt.expectedErr)
 			} else {
-				t.Errorf("An unexpected error occurred during test %s:\n%s", tt.name, err.Error())
+				require.NoErrorf(t, err, "An unexpected error occurred during test %s", tt.name)
+				require.Equal(t, tt.expected, got)
 			}
 		})
 	}

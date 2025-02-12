@@ -25,11 +25,13 @@ argocd [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
@@ -47,6 +49,7 @@ argocd [flags]
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
 * [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash, zsh or fish)
+* [argocd configure](argocd_configure.md)	 - Manage local configuration
 * [argocd context](argocd_context.md)	 - Switch between contexts
 * [argocd gpg](argocd_gpg.md)	 - Manage GPG keys used for signature verification
 * [argocd login](argocd_login.md)	 - Log in to Argo CD
@@ -54,6 +57,6 @@ argocd [flags]
 * [argocd proj](argocd_proj.md)	 - Manage projects
 * [argocd relogin](argocd_relogin.md)	 - Refresh an expired authenticate token
 * [argocd repo](argocd_repo.md)	 - Manage repository connection parameters
-* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
+* [argocd repocreds](argocd_repocreds.md)	 - Manage credential templates for repositories
 * [argocd version](argocd_version.md)	 - Print version information
 

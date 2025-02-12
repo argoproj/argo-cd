@@ -5,20 +5,21 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	argoio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -130,23 +131,32 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
+
+		promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+
 		for i := range objectsToDelete {
 			obj := objectsToDelete[i]
 			gvk := obj.GroupVersionKind()
-			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Force:        &force,
-				Orphan:       &orphan,
-				Project:      ptr.To(project),
-			})
-			errors.CheckError(err)
-			log.Infof("Resource '%s' deleted", obj.GetName())
+
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete %s/%s %s/%s ? [y/n]", gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName()))
+			if canDelete {
+				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
+					Name:         &appName,
+					AppNamespace: &appNs,
+					Namespace:    ptr.To(obj.GetNamespace()),
+					ResourceName: ptr.To(obj.GetName()),
+					Version:      ptr.To(gvk.Version),
+					Group:        ptr.To(gvk.Group),
+					Kind:         ptr.To(gvk.Kind),
+					Force:        &force,
+					Orphan:       &orphan,
+					Project:      ptr.To(project),
+				})
+				errors.CheckError(err)
+				log.Infof("Resource '%s' deleted", obj.GetName())
+			} else {
+				fmt.Printf("The command to delete %s/%s %s/%s was cancelled.\n", gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
+			}
 		}
 	}
 
@@ -201,7 +211,8 @@ func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceN
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if output == "tree=detailed" {
+	switch output {
+	case "tree=detailed":
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
@@ -213,7 +224,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	} else if output == "tree" {
+	case "tree":
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
@@ -225,8 +236,8 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
 		}
-	} else {
-		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
+	default:
+		headers := []any{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
 		if !orphaned || listAll {

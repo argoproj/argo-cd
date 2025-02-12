@@ -63,6 +63,37 @@ data:
             server: https://some-cluster
 ```
 
+Proxy extensions can also be provided individually using dedicated
+Argo CD configmap keys for better GitOps operations. The example below
+demonstrates how to configure the same hypothetical httpbin config
+above using a dedicated key:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  extension.config.httpbin: |
+    connectionTimeout: 2s
+    keepAlive: 15s
+    idleConnectionTimeout: 60s
+    maxIdleConnections: 30
+    services:
+    - url: http://httpbin.org
+      headers:
+      - name: some-header
+        value: '$some.argocd.secret.key'
+      cluster:
+        name: some-cluster
+        server: https://some-cluster
+```
+
+Attention: Extension names must be unique in the Argo CD configmap. If
+duplicated keys are found, the Argo CD API server will log an error
+message and no proxy extension will be registered.
+
 Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
@@ -153,12 +184,11 @@ the argocd-secret with key 'some.argocd.secret.key'.
 If provided, and multiple services are configured, will have to match
 the application destination name or server to have requests properly
 forwarded to this service URL. If there are multiple backends for the
-same extension this field is required. In this case at least one of
-the two will be required: name or server. It is better to provide both
-values to avoid problems with applications unable to send requests to
-the proper backend service. If only one backend service is
-configured, this field is ignored, and all requests are forwarded to
-the configured one.
+same extension this field is required. In this case, it is necessary
+to provide both values to avoid problems with applications unable to
+send requests to the proper backend service. If only one backend
+service is configured, this field is ignored, and all requests are
+forwarded to the configured one.
 
 #### `extensions.backend.services.cluster.name` (*string*)
 (optional)

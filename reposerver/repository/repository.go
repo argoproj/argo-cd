@@ -30,6 +30,8 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -37,30 +39,29 @@ import (
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/yaml"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
-	"github.com/argoproj/argo-cd/v2/util/app/discovery"
-	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
-	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
-	"github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/helm"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
-	"github.com/argoproj/argo-cd/v2/util/kustomize"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/argoproj/argo-cd/v2/util/text"
-	"github.com/argoproj/argo-cd/v2/util/versions"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
+	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v3/util/app/discovery"
+	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/helm"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/kustomize"
+	"github.com/argoproj/argo-cd/v3/util/manifeststream"
+	"github.com/argoproj/argo-cd/v3/util/text"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 const (
@@ -181,7 +182,7 @@ func (s *Service) Init() error {
 }
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
-func (s *Service) ListRefs(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
 		return nil, fmt.Errorf("error creating git client: %w", err)
@@ -238,7 +239,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 }
 
 // ListPlugins lists the contents of a GitHub repo
-func (s *Service) ListPlugins(ctx context.Context, _ *empty.Empty) (*apiclient.PluginList, error) {
+func (s *Service) ListPlugins(_ context.Context, _ *empty.Empty) (*apiclient.PluginList, error) {
 	pluginSockFilePath := common.GetPluginSockFilePath()
 
 	sockFiles, err := os.ReadDir(pluginSockFilePath)
@@ -358,9 +359,9 @@ func (s *Service) runRepoOperation(
 		}
 		defer io.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(chartPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
 			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
+				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
@@ -369,86 +370,83 @@ func (s *Service) runRepoOperation(
 						"file":               oobError.File,
 					}).Warn("chart contains out-of-bounds symlink")
 					return fmt.Errorf("chart contains out-of-bounds symlinks. file: %s", oobError.File)
-				} else {
-					return err
 				}
+				return err
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, ""}, nil
 		})
-	} else {
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
-		})
+	}
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled)
+	})
+	if err != nil {
+		return err
+	}
+
+	defer io.Close(closer)
+
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 		if err != nil {
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               repo.Repo,
+					"revision":           revision,
+					"file":               oobError.File,
+				}).Warn("repository contains out-of-bounds symlink")
+				return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
 			return err
 		}
+	}
 
-		defer io.Close(closer)
-
-		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
-			if err != nil {
-				oobError := &argopath.OutOfBoundsSymlinkError{}
-				if errors.As(err, &oobError) {
-					log.WithFields(log.Fields{
-						common.SecurityField: common.SecurityHigh,
-						"repo":               repo.Repo,
-						"revision":           revision,
-						"file":               oobError.File,
-					}).Warn("repository contains out-of-bounds symlink")
-					return fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-				} else {
-					return err
-				}
-			}
+	var commitSHA string
+	if hasMultipleSources {
+		commitSHA = revision
+	} else {
+		commit, err := gitClient.CommitSHA()
+		if err != nil {
+			return fmt.Errorf("failed to get commit SHA: %w", err)
 		}
+		commitSHA = commit
+	}
 
-		var commitSHA string
-		if hasMultipleSources {
-			commitSHA = revision
-		} else {
-			commit, err := gitClient.CommitSHA()
-			if err != nil {
-				return fmt.Errorf("failed to get commit SHA: %w", err)
-			}
-			commitSHA = commit
+	// double-check locking
+	if !settings.noCache {
+		if ok, err := cacheFn(revision, repoRefs, false); ok {
+			return err
 		}
+	}
 
-		// double-check locking
-		if !settings.noCache {
-			if ok, err := cacheFn(revision, repoRefs, false); ok {
-				return err
+	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
+	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
+	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+		var signature string
+		if verifyCommit {
+			// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
+			// to the verification routine. For everything else, we work with the SHA that the target revision is
+			// pointing to (i.e. the resolved revision).
+			var rev string
+			if gitClient.IsAnnotatedTag(revision) {
+				rev = unresolvedRevision
+			} else {
+				rev = revision
 			}
-		}
-
-		// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
-		// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-		return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-			var signature string
-			if verifyCommit {
-				// When the revision is an annotated tag, we need to pass the unresolved revision (i.e. the tag name)
-				// to the verification routine. For everything else, we work with the SHA that the target revision is
-				// pointing to (i.e. the resolved revision).
-				var rev string
-				if gitClient.IsAnnotatedTag(revision) {
-					rev = unresolvedRevision
-				} else {
-					rev = revision
-				}
-				signature, err = gitClient.VerifyCommitSignature(rev)
-				if err != nil {
-					return nil, err
-				}
-			}
-			appPath, err := argopath.Path(gitClient.Root(), source.Path)
+			signature, err = gitClient.VerifyCommitSignature(rev)
 			if err != nil {
 				return nil, err
 			}
-			return &operationContext{appPath, signature}, nil
-		})
-	}
+		}
+		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
+		if err != nil {
+			return nil, err
+		}
+		return &operationContext{appPath, signature}, nil
+	})
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -495,7 +493,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 				return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 			}
 			if refSourceMapping.Chart != "" {
-				return nil, fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+				return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 			}
 			normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 			_, ok = repoRefs[normalizedRepoURL]
@@ -539,7 +537,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	operation := func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
-			log.WithFields(map[string]interface{}{
+			log.WithFields(map[string]any{
 				"source": q.ApplicationSource,
 			}).Debugf("not generating manifests as path and chart fields are empty")
 			res = &apiclient.ManifestResponse{
@@ -602,23 +600,22 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		err := apppathutil.CheckOutOfBoundsSymlinks(workDir)
 		if err != nil {
-			oobError := &argopath.OutOfBoundsSymlinkError{}
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
 					"file":               oobError.File,
 				}).Warn("streamed files contains out-of-bounds symlink")
 				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
-			} else {
-				return err
 			}
+			return err
 		}
 	}
 
 	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
-		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		appPath, err := apppathutil.Path(workDir, req.ApplicationSource.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
@@ -741,7 +738,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						if refSourceMapping.Chart != "" {
-							ch.errCh <- fmt.Errorf("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+							ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
 							return
 						}
 						normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
@@ -780,9 +777,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 							// Symlink check must happen after acquiring lock.
 							if !s.initConstants.AllowOutOfBoundsSymlinks {
-								err := argopath.CheckOutOfBoundsSymlinks(gitClient.Root())
+								err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
 								if err != nil {
-									oobError := &argopath.OutOfBoundsSymlinkError{}
+									oobError := &apppathutil.OutOfBoundsSymlinkError{}
 									if errors.As(err, &oobError) {
 										log.WithFields(log.Fields{
 											common.SecurityField: common.SecurityHigh,
@@ -792,10 +789,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 										}).Warn("repository contains out-of-bounds symlink")
 										ch.errCh <- fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
 										return
-									} else {
-										ch.errCh <- err
-										return
 									}
+									ch.errCh <- err
+									return
 								}
 							}
 
@@ -997,6 +993,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				repo.SSHPrivateKey = repositoryCredential.SSHPrivateKey
 				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
 				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+				repo.UseAzureWorkloadIdentity = repositoryCredential.UseAzureWorkloadIdentity
 			} else if repo.EnableOCI {
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
@@ -1006,6 +1003,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
+						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
 						break
 					}
 				}
@@ -1136,6 +1134,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
+		if appHelm.Namespace != "" {
+			templateOpts.Namespace = appHelm.Namespace
+		}
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
@@ -1189,6 +1190,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 		passCredentials = appHelm.PassCredentials
 		templateOpts.SkipCrds = appHelm.SkipCrds
+		templateOpts.SkipSchemaValidation = appHelm.SkipSchemaValidation
 		templateOpts.SkipTests = appHelm.SkipTests
 	}
 	if templateOpts.Name == "" {
@@ -1458,7 +1460,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1481,21 +1483,22 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 
 		var targets []*unstructured.Unstructured
-		if obj.IsList() {
+		switch {
+		case obj.IsList():
 			err = obj.EachListItem(func(object runtime.Object) error {
 				unstructuredObj, ok := object.(*unstructured.Unstructured)
 				if ok {
 					targets = append(targets, unstructuredObj)
 					return nil
 				}
-				return fmt.Errorf("resource list item has unexpected type")
+				return errors.New("resource list item has unexpected type")
 			})
 			if err != nil {
 				return nil, err
 			}
-		} else if isNullList(obj) {
+		case isNullList(obj):
 			// noop
-		} else {
+		default:
 			targets = []*unstructured.Unstructured{obj}
 		}
 
@@ -1527,6 +1530,7 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: q.ProjectName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
@@ -1570,11 +1574,12 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 	for _, filename := range overrides {
 		info, err := os.Stat(filename)
-		if os.IsNotExist(err) {
+		switch {
+		case os.IsNotExist(err):
 			continue
-		} else if info != nil && info.IsDir() {
+		case info != nil && info.IsDir():
 			continue
-		} else if err != nil {
+		case err != nil:
 			// filename should be part of error message here
 			return err
 		}
@@ -1954,7 +1959,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	for i, v := range env {
 		parsedVar, err := v1alpha1.NewEnvEntry(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse env vars")
+			return nil, errors.New("failed to parse env vars")
 		}
 		parsedEnv[i] = parsedVar
 	}
@@ -1975,7 +1980,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1994,6 +1999,22 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
 		rootPath = getApplicationRootPath(q, appPath, repoPath)
 		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
+	}
+
+	pluginConfigResponse, err := cmpClient.CheckPluginConfiguration(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, fmt.Errorf("error calling cmp-server checkPluginConfiguration: %w", err)
+	}
+
+	if pluginConfigResponse.ProvideGitCreds {
+		if creds != nil {
+			closer, environ, err := creds.Environ()
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve git creds environment variables: %w", err)
+			}
+			defer func() { _ = closer.Close() }()
+			env = append(env, environ...)
+		}
 	}
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
@@ -2224,10 +2245,10 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	res.Plugin = &apiclient.PluginAppSpec{}
 
 	envVars := []string{
-		fmt.Sprintf("ARGOCD_APP_NAME=%s", q.AppName),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_REPO_URL=%s", q.Repo.Repo),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_PATH=%s", q.Source.Path),
-		fmt.Sprintf("ARGOCD_APP_SOURCE_TARGET_REVISION=%s", q.Source.TargetRevision),
+		"ARGOCD_APP_NAME=" + q.AppName,
+		"ARGOCD_APP_SOURCE_REPO_URL=" + q.Repo.Repo,
+		"ARGOCD_APP_SOURCE_PATH=" + q.Source.Path,
+		"ARGOCD_APP_SOURCE_TARGET_REVISION=" + q.Source.TargetRevision,
 	}
 
 	env, err := getPluginParamEnvs(envVars, q.Source.Plugin)
@@ -2267,7 +2288,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
-func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !(git.IsCommitSHA(q.Revision) || git.IsTruncatedCommitSHA(q.Revision)) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
@@ -2278,15 +2299,14 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		// and re-generate the meta data. Otherwise, if there is signature info
 		// in the metadata, but none was requested, we remove it from the data
 		// that we return.
-		if q.CheckSignature && metadata.SignatureInfo == "" {
-			log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
-		} else {
+		if !q.CheckSignature || metadata.SignatureInfo != "" {
 			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
 			if !q.CheckSignature {
 				metadata.SignatureInfo = ""
 			}
 			return metadata, nil
 		}
+		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
 	} else {
 		if !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
@@ -2329,7 +2349,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		if cs != "" {
 			vr := gpg.ParseGitCommitVerification(cs)
 			if vr.Result == gpg.VerifyResultUnknown {
-				signatureInfo = fmt.Sprintf("UNKNOWN signature: %s", vr.Message)
+				signatureInfo = "UNKNOWN signature: " + vr.Message
 			} else {
 				signatureInfo = fmt.Sprintf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 			}
@@ -2344,17 +2364,16 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
-func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+func (s *Service) GetRevisionChartDetails(_ context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
 	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
 	if err == nil {
 		log.Infof("revision chart details cache hit: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 		return details, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
 	} else {
-		if errors.Is(err, cache.ErrCacheMiss) {
-			log.Infof("revision metadata cache miss: %s/%s/%s", q.Repo.Repo, q.Name, q.Revision)
-		} else {
-			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
-		}
+		log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 	}
 	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
 	if err != nil {
@@ -2474,7 +2493,6 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-// nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(gitClient, revision, submoduleEnabled)
@@ -2492,7 +2510,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	revisionPresent := gitClient.IsRevisionPresent(revision)
 
-	log.WithFields(map[string]interface{}{
+	log.WithFields(map[string]any{
 		"skipFetch": revisionPresent,
 	}).Debugf("Checking out revision %v", revision)
 
@@ -2505,7 +2523,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	err = gitClient.Checkout(revision, submoduleEnabled)
+	_, err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2517,7 +2535,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
@@ -2526,7 +2544,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	return err
 }
 
-func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
+func (s *Service) GetHelmCharts(_ context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
 	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(true, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
 		return nil, err
@@ -2541,7 +2559,7 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 	return &res, nil
 }
 
-func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
+func (s *Service) TestRepository(_ context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
 	repo := q.Repo
 	// per Type doc, "git" should be assumed if empty or absent
 	if repo.Type == "" {
@@ -2558,10 +2576,9 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				}
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).TestHelmOCI()
 				return err
-			} else {
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
-				return err
 			}
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
+			return err
 		},
 	}
 	check := checks[repo.Type]
@@ -2574,7 +2591,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 }
 
 // ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
-func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
+func (s *Service) ResolveRevision(_ context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
 	repo := q.Repo
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
@@ -2589,21 +2606,20 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			Revision:          revision,
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
-	} else {
-		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		revision, err = gitClient.LsRemote(ambiguousRevision)
-		if err != nil {
-			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		return &apiclient.ResolveRevisionResponse{
-			Revision:          revision,
-			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
-		}, nil
 	}
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	if err != nil {
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	revision, err = gitClient.LsRemote(ambiguousRevision)
+	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          revision,
+		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
+	}, nil
 }
 
 func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
@@ -2684,14 +2700,12 @@ func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision str
 
 		if cs == "" {
 			return fmt.Errorf("revision %s is not signed", revision)
-		} else {
-			vr := gpg.ParseGitCommitVerification(cs)
-			if vr.Result == gpg.VerifyResultUnknown {
-				return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
-			} else {
-				log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
-			}
 		}
+		vr := gpg.ParseGitCommitVerification(cs)
+		if vr.Result == gpg.VerifyResultUnknown {
+			return fmt.Errorf("UNKNOWN signature: %s", vr.Message)
+		}
+		log.Debugf("%s signature from %s key %s", vr.Result, vr.Cipher, gpg.KeyID(vr.KeyID))
 	}
 	return nil
 }

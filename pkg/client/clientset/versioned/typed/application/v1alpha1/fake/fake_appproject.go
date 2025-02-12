@@ -5,10 +5,9 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -20,28 +19,30 @@ type FakeAppProjects struct {
 	ns   string
 }
 
-var appprojectsResource = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
+var appprojectsResource = v1alpha1.SchemeGroupVersion.WithResource("appprojects")
 
-var appprojectsKind = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "AppProject"}
+var appprojectsKind = v1alpha1.SchemeGroupVersion.WithKind("AppProject")
 
 // Get takes name of the appProject, and returns the corresponding appProject object, and an error if there is any.
 func (c *FakeAppProjects) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.AppProject, err error) {
+	emptyResult := &v1alpha1.AppProject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(appprojectsResource, c.ns, name), &v1alpha1.AppProject{})
+		Invokes(testing.NewGetActionWithOptions(appprojectsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.AppProject), err
 }
 
 // List takes label and field selectors, and returns the list of AppProjects that match those selectors.
 func (c *FakeAppProjects) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.AppProjectList, err error) {
+	emptyResult := &v1alpha1.AppProjectList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(appprojectsResource, appprojectsKind, c.ns, opts), &v1alpha1.AppProjectList{})
+		Invokes(testing.NewListActionWithOptions(appprojectsResource, appprojectsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -60,28 +61,30 @@ func (c *FakeAppProjects) List(ctx context.Context, opts v1.ListOptions) (result
 // Watch returns a watch.Interface that watches the requested appProjects.
 func (c *FakeAppProjects) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(appprojectsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(appprojectsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a appProject and creates it.  Returns the server's representation of the appProject, and an error, if there is any.
 func (c *FakeAppProjects) Create(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.CreateOptions) (result *v1alpha1.AppProject, err error) {
+	emptyResult := &v1alpha1.AppProject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(appprojectsResource, c.ns, appProject), &v1alpha1.AppProject{})
+		Invokes(testing.NewCreateActionWithOptions(appprojectsResource, c.ns, appProject, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.AppProject), err
 }
 
 // Update takes the representation of a appProject and updates it. Returns the server's representation of the appProject, and an error, if there is any.
 func (c *FakeAppProjects) Update(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.UpdateOptions) (result *v1alpha1.AppProject, err error) {
+	emptyResult := &v1alpha1.AppProject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(appprojectsResource, c.ns, appProject), &v1alpha1.AppProject{})
+		Invokes(testing.NewUpdateActionWithOptions(appprojectsResource, c.ns, appProject, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.AppProject), err
 }
@@ -96,7 +99,7 @@ func (c *FakeAppProjects) Delete(ctx context.Context, name string, opts v1.Delet
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeAppProjects) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(appprojectsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(appprojectsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.AppProjectList{})
 	return err
@@ -104,11 +107,12 @@ func (c *FakeAppProjects) DeleteCollection(ctx context.Context, opts v1.DeleteOp
 
 // Patch applies the patch and returns the patched appProject.
 func (c *FakeAppProjects) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.AppProject, err error) {
+	emptyResult := &v1alpha1.AppProject{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(appprojectsResource, c.ns, name, pt, data, subresources...), &v1alpha1.AppProject{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(appprojectsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v1alpha1.AppProject), err
 }
