@@ -248,6 +248,7 @@ type ApplicationSetOpts struct {
 	ScmRootCAPath            string
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
+	AllowedPluginGenUrls     []string
 }
 
 // GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
@@ -1046,6 +1047,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AllowedScmProviders,
 		a.EnableScmProviders,
 		a.EnableK8sEvent,
+		a.AllowedPluginGenUrls,
 	)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)

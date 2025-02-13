@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 		enableScmProviders           bool
 		webhookParallelism           int
 		tokenRefStrictMode           bool
+		allowedPluginGenUrls         []string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -190,7 +191,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, allowedPluginGenUrls)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -268,6 +269,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
+	command.Flags().StringSliceVar(&allowedPluginGenUrls, "allowed-plugin-gen-urls", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS", []string{}, ","), "List of allowed plugin generator baseUrl, glob compatible. Applicable as soon as plugin generator configuration are not in the same namespace as the ApplicationSet using it. (Default: Empty = all)")
 	return &command
 }
 

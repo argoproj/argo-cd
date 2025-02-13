@@ -5411,8 +5411,11 @@ spec:
                                     properties:
                                       name:
                                         type: string
+                                      namespace:
+                                        type: string
                                     required:
                                     - name
+                                    - namespace
                                     type: object
                                   input:
                                     properties:
@@ -11193,8 +11196,11 @@ spec:
                                     properties:
                                       name:
                                         type: string
+                                      namespace:
+                                        type: string
                                     required:
                                     - name
+                                    - namespace
                                     type: object
                                   input:
                                     properties:
@@ -14290,8 +14296,11 @@ spec:
                           properties:
                             name:
                               type: string
+                            namespace:
+                              type: string
                           required:
                           - name
+                          - namespace
                           type: object
                         input:
                           properties:
