@@ -1762,10 +1762,13 @@ func TestKustomizeImage_Match(t *testing.T) {
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
 	assert.False(t, KustomizeImage("foo:1").Match("bar=1"))
+	assert.False(t, KustomizeImage("foobar:2").Match("foo:2"))
+	assert.False(t, KustomizeImage("foobar@2").Match("foo@2"))
 	// matches
 	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
 	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
+	assert.True(t, KustomizeImage("nginx").Match("nginx"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
