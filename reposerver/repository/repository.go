@@ -2462,12 +2462,12 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 		tags = entries.Tags()
 	}
 
-	version, err := versions.MaxVersion(revision, tags)
+	maxV, err := versions.MaxVersion(revision, tags)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid revision: %w", err)
 	}
 
-	return helmClient, version.String(), nil
+	return helmClient, maxV, nil
 }
 
 // directoryPermissionInitializer ensures the directory has read/write/execute permissions and returns
