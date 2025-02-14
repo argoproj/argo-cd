@@ -18,8 +18,9 @@ const formatYamlWithArrays = (input: any): string => {
     });
 
     // Format nested arrays to improve readability when collapsed
-    //- puts first item on new line, keeps subsequent items inline
-    yaml = yaml.replace(/:(\s*)\n(\s*)-(\s+)(\w+):(\s*)\n(\s*)-/, ':$1\n$2-\n$2  $4:$5\n$6-');
+    yaml = yaml.replace(/(\s+)(-\s*)(\w+):/g, (match, indent, dash, key) => {
+        return `${indent}-${indent}  ${key}:`;
+    });
 
     return yaml;
 };
