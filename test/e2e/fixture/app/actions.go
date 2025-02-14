@@ -6,7 +6,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"time"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -80,6 +79,18 @@ func (a *Actions) AddSignedTag(name string) *Actions {
 func (a *Actions) AddTag(name string) *Actions {
 	a.context.t.Helper()
 	fixture.AddTag(a.context.t, name)
+	return a
+}
+
+func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
+	a.context.t.Helper()
+	fixture.AddAnnotatedTag(name, message)
+	return a
+}
+
+func (a *Actions) AddTagWithForce(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTagWithForce(name)
 	return a
 }
 
@@ -493,8 +504,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	time.Sleep(fixture.WhenThenSleepInterval)
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 30}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -544,10 +554,11 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 	return a
 }
 
-// AddAnnotatedTag creates an annotated git tag
+/* // AddAnnotatedTag creates an annotated git tag
 func (a *Actions) AddAnnotatedTag(tag, message string) *Actions {
 	// Run git commands in the test repo directory with -f flag to force update
 	_, err := fixture.Run("/tmp/argo-e2e/testdata.git", "git", "tag", "-f", "-a", tag, "-m", message)
 	errors.CheckError(err)
 	return a
 }
+*/

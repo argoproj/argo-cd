@@ -1145,6 +1145,23 @@ func AddTag(t *testing.T, name string) {
 	}
 }
 
+func AddTagWithForce(name string) {
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddAnnotatedTag(name string, message string) {
+	FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
+	if IsRemote() {
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(t *testing.T, filename string, values any) (string, error) {
 	t.Helper()
