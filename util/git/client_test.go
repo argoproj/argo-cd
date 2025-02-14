@@ -141,15 +141,11 @@ func Test_resolveTagReference(t *testing.T) {
 	tagRef := plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "sometaghash")
 
 	// Test single function
-	resolvedRef := resolveTagReference(tagRef, commitHash)
+	resolvedRef := plumbing.NewHashReference(tagRef.Name(), commitHash)
 
 	// Verify
 	assert.Equal(t, commitHash, resolvedRef.Hash())
 	assert.Equal(t, tagRef.Name(), resolvedRef.Name())
-}
-
-func resolveTagReference(tagRef *plumbing.Reference, commitHash plumbing.Hash) *plumbing.Reference {
-	return plumbing.NewHashReference(tagRef.Name(), commitHash)
 }
 
 func Test_ChangedFiles(t *testing.T) {
