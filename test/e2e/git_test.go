@@ -11,11 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/stretchr/testify/require"
+
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGitSemverResolutionNotUsingConstraint(t *testing.T) {
@@ -104,7 +105,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		When().
 		// Create annotated tag name 'annotated-tag'
 		AddAnnotatedTag("annotated-tag", "my-generic-tag-message").
-		// Create Application targetting annotated-tag, with automatedSync: true
+		// Create Application targeting annotated-tag, with automatedSync: true
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
@@ -112,14 +113,13 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-
 			annotatedTagIDOutput, err := fixture.Run(fixture.TmpDir+"/testdata.git", "git", "show-ref", "annotated-tag")
 			require.NoError(t, err)
 			require.NotEmpty(t, annotatedTagIDOutput)
 			// example command output:
 			// "569798c430515ffe170bdb23e3aafaf8ae24b9ff refs/tags/annotated-tag"
 			annotatedTagIDFields := strings.Fields(string(annotatedTagIDOutput))
-			require.Equal(t, len(annotatedTagIDFields), 2)
+			require.Len(t, annotatedTagIDFields, 2)
 
 			targetCommitID, err := fixture.Run(fixture.TmpDir+"/testdata.git", "git", "rev-parse", "--verify", "annotated-tag^{commit}")
 			// example command output:
@@ -136,7 +136,6 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 
 // Test updates to K8s resources should not trigger a self-heal when self-heal is false.
 func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -156,19 +155,15 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		Refresh(RefreshTypeHard).
 		// The Application should update to the new annotated tag value within 10 seconds.
 		And(func() {
-
 			// Deployment revisionHistoryLimit should switch to 10
 			timeoutErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-
 				if err != nil {
 					return false, nil
 				}
 
 				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
 				return revisionHistoryLimit != nil && *revisionHistoryLimit == 10, nil
-
 			})
 			require.NoError(t, timeoutErr)
 		}).
@@ -179,26 +174,21 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false. It should remain at 9.
 		And(func() {
-
 			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-
 				if err != nil {
 					return false, nil
 				}
 
 				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
 				return revisionHistoryLimit != nil && *revisionHistoryLimit != 9, nil
-
 			})
 			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
 		})
 }
 
 func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
-
 	Given(t).
 		Path(guestbookPath).
 		When().
@@ -218,19 +208,15 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		Refresh(RefreshTypeHard).
 		// The Application should update to the new annotated tag value within 10 seconds.
 		And(func() {
-
 			// Deployment revisionHistoryLimit should switch to 10
 			timeoutErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-
 				if err != nil {
 					return false, nil
 				}
 
 				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
 				return revisionHistoryLimit != nil && *revisionHistoryLimit == 10, nil
-
 			})
 			require.NoError(t, timeoutErr)
 		}).
@@ -241,19 +227,15 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false
 		And(func() {
-
 			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-
 				if err != nil {
 					return false, nil
 				}
 
 				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
 				return revisionHistoryLimit != nil && *revisionHistoryLimit != 9, nil
-
 			})
 			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
 		})
