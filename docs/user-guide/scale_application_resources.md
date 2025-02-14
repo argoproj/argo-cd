@@ -18,4 +18,5 @@ This enables users to scale resources directly from the ArgoCD UI. Users will be
     This feature will only apply to `Deployments`, and `StatefulSets`.
 
 !!! note
+    If you use HPA(Horizontal Pod Autoscaling) or enabled ArgoCD auto-sync, changing the replica count in scale actions would be overwritten.
     Ensure that invalid values (e.g., `non-numeric` characters, `negative` numbers, or values beyond the `max integer limit`) cannot be entered.
