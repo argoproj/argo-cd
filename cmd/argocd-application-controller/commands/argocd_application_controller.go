@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -217,6 +218,19 @@ func NewCommand() *cobra.Command {
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
+			}
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)

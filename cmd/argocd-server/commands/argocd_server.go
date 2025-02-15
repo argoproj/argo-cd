@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/server"
@@ -253,6 +254,19 @@ func NewCommand() *cobra.Command {
 				ScmRootCAPath:            scmRootCAPath,
 				AllowedScmProviders:      allowedScmProviders,
 				EnableScmProviders:       enableScmProviders,
+			}
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
 			}
 
 			stats.RegisterStackDumper()

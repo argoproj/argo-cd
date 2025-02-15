@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmpserver"
 	"github.com/argoproj/argo-cd/v3/cmpserver/plugin"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -78,6 +79,19 @@ func NewCommand() *cobra.Command {
 			})
 			errors.CheckError(err)
 
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
+			}
+
 			// register dumper
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
@@ -85,6 +99,7 @@ func NewCommand() *cobra.Command {
 
 			// run argocd-cmp-server server
 			server.Run()
+
 			return nil
 		},
 	}

@@ -21,6 +21,7 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/reposerver"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
@@ -203,6 +204,19 @@ func NewCommand() *cobra.Command {
 			}
 
 			log.Infof("argocd-repo-server is listening on %s", listener.Addr())
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
+			}
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")

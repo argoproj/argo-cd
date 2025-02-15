@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
 
@@ -228,6 +229,17 @@ func NewCommand() *cobra.Command {
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
+			}
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				if err := mgr.Add(pprofSrv); err != nil {
+					log.Fatal(err, "unable to set up pprof handler")
+				}
 			}
 
 			stats.StartStatsTicker(10 * time.Minute)

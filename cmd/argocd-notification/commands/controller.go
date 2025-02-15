@@ -12,8 +12,8 @@ import (
 	"syscall"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/pprof"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
@@ -171,6 +171,20 @@ func NewCommand() *cobra.Command {
 			}()
 
 			go ctrl.Run(ctx, processorsCount)
+
+			// run pprof server
+			if pprof.IsEnabled() {
+				pprofSrv, err := pprof.NewPprofServer()
+				if err != nil {
+					log.Fatal(err, "failed to create pprof handler")
+				}
+				go func() {
+					if err := pprofSrv.Start(ctx); err != nil {
+						log.Fatal(err, "unable to start pprof handler")
+					}
+				}()
+			}
+
 			<-ctx.Done()
 			return nil
 		},

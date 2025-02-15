@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
-	"github.com/argoproj/argo-cd/v3/util/profile"
 
 	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -183,7 +182,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains workqueue metrics, process and golang metrics
 		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
-	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
 	registry.MustRegister(syncCounter)
