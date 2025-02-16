@@ -45,8 +45,8 @@ func TestRefreshApp(t *testing.T) {
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
-	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
-	//assert.True(t, ok)
+	// _, ok := newApp.Annotations[common.AnnotationKeyRefresh]
+	// assert.True(t, ok)
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
@@ -260,9 +260,8 @@ func TestContainsSyncResource(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		if out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr); out != table.expected {
-			t.Errorf("Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
-		}
+		out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr)
+		assert.Equal(t, table.expected, out, "Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 	}
 }
 
@@ -773,7 +772,7 @@ func TestValidatePermissions(t *testing.T) {
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "unable to find destination server")
+		assert.Contains(t, conditions[0].Message, "Cluster does not exist")
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
@@ -805,7 +804,7 @@ func TestValidatePermissions(t *testing.T) {
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "unable to find destination server: there are no clusters with this name: does-not-exist")
+		assert.Contains(t, conditions[0].Message, "there are no clusters with this name: does-not-exist")
 	})
 
 	t.Run("Cannot get cluster info from DB", func(t *testing.T) {
@@ -926,16 +925,21 @@ func TestSetAppOperations(t *testing.T) {
 	})
 }
 
-func TestValidateDestination(t *testing.T) {
+func TestGetDestinationCluster(t *testing.T) {
 	t.Run("Validate destination with server url", func(t *testing.T) {
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
 		}
 
-		appCond := ValidateDestination(context.Background(), &dest, nil)
-		require.Error(t, appCond)
-		assert.False(t, dest.IsServerInferred())
+		expectedCluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		db := &dbmocks.ArgoDB{}
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
+
+		destCluster, err := GetDestinationCluster(context.Background(), dest, db)
+		require.NoError(t, err)
+		require.NotNil(t, expectedCluster)
+		assert.Equal(t, expectedCluster, destCluster)
 	})
 
 	t.Run("Validate destination with server name", func(t *testing.T) {
@@ -945,11 +949,11 @@ func TestValidateDestination(t *testing.T) {
 
 		db := &dbmocks.ArgoDB{}
 		db.On("GetClusterServersByName", context.Background(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
 
-		appCond := ValidateDestination(context.Background(), &dest, db)
-		require.NoError(t, appCond)
-		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
-		assert.True(t, dest.IsServerInferred())
+		destCluster, err := GetDestinationCluster(context.Background(), dest, db)
+		require.NoError(t, err)
+		assert.Equal(t, "https://127.0.0.1:6443", destCluster.Server)
 	})
 
 	t.Run("Error when having both server url and name", func(t *testing.T) {
@@ -959,9 +963,8 @@ func TestValidateDestination(t *testing.T) {
 			Namespace: "default",
 		}
 
-		err := ValidateDestination(context.Background(), &dest, nil)
-		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(context.Background(), dest, nil)
+		assert.EqualError(t, err, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443")
 	})
 
 	t.Run("GetClusterServersByName fails", func(t *testing.T) {
@@ -972,9 +975,8 @@ func TestValidateDestination(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, errors.New("an error occurred"))
 
-		err := ValidateDestination(context.Background(), &dest, db)
+		_, err := GetDestinationCluster(context.Background(), dest, db)
 		require.ErrorContains(t, err, "an error occurred")
-		assert.False(t, dest.IsServerInferred())
 	})
 
 	t.Run("Destination cluster does not exist", func(t *testing.T) {
@@ -985,9 +987,8 @@ func TestValidateDestination(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.On("GetClusterServersByName", context.Background(), "minikube").Return(nil, nil)
 
-		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: there are no clusters with this name: minikube", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(context.Background(), dest, db)
+		assert.EqualError(t, err, "there are no clusters with this name: minikube")
 	})
 
 	t.Run("Validate too many clusters with the same name", func(t *testing.T) {
@@ -998,9 +999,8 @@ func TestValidateDestination(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.On("GetClusterServersByName", context.Background(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
-		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(context.Background(), dest, db)
+		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
 	})
 }
 
@@ -1589,8 +1589,7 @@ func TestAugmentSyncMsg(t *testing.T) {
 			tt.res.Message = tt.msg
 			msg, err := AugmentSyncMsg(tt.res, tt.mockFn)
 			if tt.errMsg != "" {
-				require.Error(t, err)
-				assert.Equal(t, tt.errMsg, err.Error())
+				assert.EqualError(t, err, tt.errMsg)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedMessage, msg)
@@ -1700,7 +1699,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
-			assert.Equal(t, len(tt.expectedEventLabels), len(eventLabels))
+			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]
 				assert.True(t, found)

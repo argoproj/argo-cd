@@ -78,7 +78,7 @@ type ClusterWithInfo struct {
 	Namespaces []string
 }
 
-func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClient *versioned.Clientset, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
+func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClient versioned.Interface, replicas int, shardingAlgorithm string, namespace string, portForwardRedis bool, cacheSrc func() (*appstatecache.Cache, error), shard int, redisName string, redisHaProxyName string, redisCompressionStr string) ([]ClusterWithInfo, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace)
 
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
@@ -123,13 +123,6 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 	}
 
 	apps := appItems.Items
-	for i, app := range apps {
-		err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB)
-		if err != nil {
-			return nil, err
-		}
-		apps[i] = app
-	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
 
 	batchSize := 10
@@ -154,7 +147,11 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			}
 			nsSet := map[string]bool{}
 			for _, app := range apps {
-				if app.Spec.Destination.Server == cluster.Server {
+				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+				if err != nil {
+					return fmt.Errorf("error validating application destination: %w", err)
+				}
+				if destCluster.Server == cluster.Server {
 					nsSet[app.Spec.Destination.Namespace] = true
 				}
 			}
@@ -183,13 +180,12 @@ func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset
 
 func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		shard               int
-		replicas            int
-		shardingAlgorithm   string
-		clientConfig        clientcmd.ClientConfig
-		cacheSrc            func() (*appstatecache.Cache, error)
-		portForwardRedis    bool
-		redisCompressionStr string
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	command := cobra.Command{
 		Use:   "shards",
@@ -213,7 +209,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			if replicas == 0 {
 				return
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, redisCompressionStr)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, clientOpts.RedisCompression)
 			errors.CheckError(err)
 			if len(clusters) == 0 {
 				return
@@ -232,9 +228,8 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
-	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
 
@@ -281,18 +276,16 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 		return fmt.Errorf("error listing application: %w", err)
 	}
 	apps := appItems.Items
-	for i, app := range apps {
-		if err := argo.ValidateDestination(ctx, &app.Spec.Destination, argoDB); err != nil {
-			return fmt.Errorf("error validating application destination: %w", err)
-		}
-		apps[i] = app
-	}
-
 	clusters := map[string][]string{}
 	for _, cluster := range clustersList.Items {
 		nsSet := map[string]bool{}
 		for _, app := range apps {
-			if app.Spec.Destination.Server != cluster.Server {
+			destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+			if err != nil {
+				return fmt.Errorf("error validating application destination: %w", err)
+			}
+
+			if destCluster.Server != cluster.Server {
 				continue
 			}
 			// Use namespaces of actually deployed resources, since some application use dummy target namespace
@@ -466,13 +459,12 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 
 func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		shard               int
-		replicas            int
-		shardingAlgorithm   string
-		clientConfig        clientcmd.ClientConfig
-		cacheSrc            func() (*appstatecache.Cache, error)
-		portForwardRedis    bool
-		redisCompressionStr string
+		shard             int
+		replicas          int
+		shardingAlgorithm string
+		clientConfig      clientcmd.ClientConfig
+		cacheSrc          func() (*appstatecache.Cache, error)
+		portForwardRedis  bool
 	)
 	command := cobra.Command{
 		Use:   "stats",
@@ -502,7 +494,7 @@ argocd admin cluster stats target-cluster`,
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
-			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, redisCompressionStr)
+			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, clientOpts.RedisCompression)
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -522,9 +514,8 @@ argocd admin cluster stats target-cluster`,
 
 	// parse all added flags so far to get the redis-compression flag that was added by AddCacheFlagsToCmd() above
 	// we can ignore unchecked error here as the command will be parsed again and checked when command.Execute() is run later
-	// nolint:errcheck
+	//nolint:errcheck
 	command.ParseFlags(os.Args[1:])
-	redisCompressionStr, _ = command.Flags().GetString(cacheutil.CLIFlagRedisCompress)
 	return &command
 }
 
@@ -621,13 +612,14 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 
 			var awsAuthConf *v1alpha1.AWSAuthConfig
 			var execProviderConf *v1alpha1.ExecProviderConfig
-			if clusterOpts.AwsClusterName != "" {
+			switch {
+			case clusterOpts.AwsClusterName != "":
 				awsAuthConf = &v1alpha1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
 					Profile:     clusterOpts.AwsProfile,
 				}
-			} else if clusterOpts.ExecProviderCommand != "" {
+			case clusterOpts.ExecProviderCommand != "":
 				execProviderConf = &v1alpha1.ExecProviderConfig{
 					Command:     clusterOpts.ExecProviderCommand,
 					Args:        clusterOpts.ExecProviderArgs,
@@ -635,10 +627,10 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 					APIVersion:  clusterOpts.ExecProviderAPIVersion,
 					InstallHint: clusterOpts.ExecProviderInstallHint,
 				}
-			} else if generateToken {
+			case generateToken:
 				bearerToken, err = GenerateToken(clusterOpts, conf)
 				errors.CheckError(err)
-			} else if bearerToken == "" {
+			case bearerToken == "":
 				bearerToken = "bearer-token"
 			}
 			if clusterOpts.Name != "" {

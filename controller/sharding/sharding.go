@@ -535,7 +535,10 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break
 				}
-				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				// if `err == nil`, should not log the following warning message
+				if err != nil {
+					log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				}
 			}
 			errors.CheckError(err)
 		} else {

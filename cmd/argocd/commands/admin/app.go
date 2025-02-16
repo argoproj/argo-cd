@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -403,7 +404,26 @@ func reconcileApplications(
 	)
 
 	appStateManager := controller.NewAppStateManager(
-		argoDB, appClientset, repoServerClient, namespace, kubeutil.NewKubectl(), settingsMgr, stateCache, projInformer, server, cache, time.Second, argo.NewResourceTracking(), false, 0, serverSideDiff, ignoreNormalizerOpts)
+		argoDB,
+		appClientset,
+		repoServerClient,
+		namespace,
+		kubeutil.NewKubectl(),
+		func(_ string) (kube.CleanupFunc, error) {
+			return func() {}, nil
+		},
+		settingsMgr,
+		stateCache,
+		projInformer,
+		server,
+		cache,
+		time.Second,
+		argo.NewResourceTracking(),
+		false,
+		0,
+		serverSideDiff,
+		ignoreNormalizerOpts,
+	)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
@@ -417,14 +437,19 @@ func reconcileApplications(
 	var items []appReconcileResult
 	prevServer := ""
 	for _, app := range appsList.Items {
-		if prevServer != app.Spec.Destination.Server {
+		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+		if err != nil {
+			return nil, fmt.Errorf("error getting destination cluster: %w", err)
+		}
+
+		if prevServer != destCluster.Server {
 			if prevServer != "" {
-				if clusterCache, err := stateCache.GetClusterCache(prevServer); err == nil {
+				if clusterCache, err := stateCache.GetClusterCache(destCluster); err == nil {
 					clusterCache.Invalidate()
 				}
 			}
-			printLine("Reconciling apps of %s", app.Spec.Destination.Server)
-			prevServer = app.Spec.Destination.Server
+			printLine("Reconciling apps of %s", destCluster.Server)
+			prevServer = destCluster.Server
 		}
 		printLine(app.Name)
 

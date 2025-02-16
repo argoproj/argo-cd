@@ -343,6 +343,7 @@ type Manager struct {
 	settings    SettingsGetter
 	application ApplicationGetter
 	project     ProjectGetter
+	cluster     argo.ClusterGetter
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
@@ -362,13 +363,14 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
+func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, cg argo.ClusterGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
 	return &Manager{
 		log:         log,
 		namespace:   namespace,
 		settings:    sg,
 		application: ag,
 		project:     pg,
+		cluster:     cg,
 		rbac:        rbac,
 		userGetter:  ug,
 	}
@@ -640,6 +642,14 @@ func appendProxy(registry ProxyRegistry,
 		}
 		registry[key] = proxy
 	}
+	if service.Cluster.Name != "" && service.Cluster.Server != "" {
+		key := proxyKey(extName, service.Cluster.Name, service.Cluster.Server)
+		if _, exist := registry[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		registry[key] = proxy
+	}
+
 	return nil
 }
 
@@ -685,7 +695,11 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if proj == nil {
 		return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
 	}
-	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.cluster)
+	if err != nil {
+		return nil, fmt.Errorf("error getting destination cluster: %w", err)
+	}
+	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
 	if err != nil {
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
@@ -767,7 +781,14 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 		user := m.userGetter.GetUser(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
 		prepareRequest(r, m.namespace, extName, app, user, groups)
-		m.log.Debugf("proxing request for extension %q", extName)
+		m.log.WithFields(log.Fields{
+			HeaderArgoCDUsername:        user,
+			HeaderArgoCDGroups:          strings.Join(groups, ","),
+			HeaderArgoCDNamespace:       m.namespace,
+			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
+			"extension":                 extName,
+			"path":                      r.URL.Path,
+		}).Info("sending proxy extension request")
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
 		// https://github.com/felixge/httpsnoop#why-this-package-exists
