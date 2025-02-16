@@ -1,3 +1,4 @@
-- when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
+- when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and !time.Parse(app.status.health.lastTransitionTime).Before(time.Parse(app.status.operationState.finishedAt))
   description: Application syncing has succeeded
   send: [app-sync-succeeded]
+  oncePer: app.status.operationState?.syncResult?.revision
