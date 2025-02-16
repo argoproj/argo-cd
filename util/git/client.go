@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
 var ErrInvalidRepoURL = errors.New("repo URL is invalid")
@@ -655,9 +656,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	version, err := versions.MaxVersion(revision, getGitTags(refs))
+	maxV, err := versions.MaxVersion(revision, getGitTags(refs))
 	if err == nil {
-		revision = version.Original()
+		revision = maxV
 	}
 
 	// refToHash keeps a maps of remote refs to their hash
