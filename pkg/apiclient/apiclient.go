@@ -125,6 +125,7 @@ type ClientOptions struct {
 	ServerName           string
 	RedisHaProxyName     string
 	RedisName            string
+	RedisCompression     string
 	RepoServerName       string
 	PromptsEnabled       bool
 }
@@ -327,9 +328,10 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
-		scopes = set.OIDCConfig.Scopes
+		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
 	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
+		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
 		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
 	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
@@ -342,7 +344,6 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
 	}
-	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)
 	}

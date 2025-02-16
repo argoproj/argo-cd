@@ -6916,8 +6916,8 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "type": "boolean",
-          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
+          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
+          "type": "boolean"
         },
         "generators": {
           "type": "array",
@@ -7274,6 +7274,10 @@
         "forceCommonLabels": {
           "type": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
+        },
+        "ignoreMissingComponents": {
+          "type": "boolean",
+          "title": "IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file"
         },
         "images": {
           "type": "array",
@@ -10100,6 +10104,10 @@
       "type": "object",
       "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
       "properties": {
+        "andOperator": {
+          "type": "boolean",
+          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
+        },
         "applications": {
           "type": "array",
           "title": "Applications contains a list of applications that the window will apply to",

@@ -136,12 +136,12 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(false, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(true, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
@@ -157,7 +157,7 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
 	fixture.CreateSubmoduleRepos("https")
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	repos.AddHTTPSRepo(false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 
