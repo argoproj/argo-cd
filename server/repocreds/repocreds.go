@@ -112,11 +112,12 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository credentials details: %v", getErr)
 		}
 
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			err = nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}
@@ -146,11 +147,12 @@ func (s *Server) CreateWriteRepositoryCredentials(ctx context.Context, q *repocr
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository credentials details: %v", getErr)
 		}
 
-		if reflect.DeepEqual(existing, r) {
+		switch {
+		case reflect.DeepEqual(existing, r):
 			err = nil
-		} else if q.Upsert {
+		case q.Upsert:
 			return s.UpdateWriteRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
-		} else {
+		default:
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}

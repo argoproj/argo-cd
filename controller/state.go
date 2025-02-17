@@ -108,6 +108,7 @@ type appStateManager struct {
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
 	kubectl               kubeutil.Kubectl
+	onKubectlRun          kubeutil.OnKubectlRunFunc
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
 	cache                 *appstatecache.Cache
@@ -747,13 +748,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		resourceOps, cleanup, err := m.getResourceOperations(destCluster)
+		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
 		if err != nil {
-			log.Errorf("CompareAppState error getting resource operations: %s", err)
+			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		}
 		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -821,12 +822,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// namespace from being pruned.
 		isManagedNs := isManagedNamespace(targetObj, app) && liveObj == nil
 
-		if resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj {
+		switch {
+		case resState.Hook || ignore.Ignore(obj) || (targetObj != nil && hookutil.Skip(targetObj)) || !isSelfReferencedObj:
 			// For resource hooks, skipped resources or objects that may have
 			// been created by another controller with annotations copied from
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
-		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
+		case !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil):
 			// Set resource state to OutOfSync since one of the following is true:
 			// * target and live resource are different
 			// * target resource not defined and live resource is extra
@@ -837,7 +839,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
-		} else {
+		default:
 			resState.Status = v1alpha1.SyncStatusCodeSynced
 		}
 		// set unknown status to all resource that are not permitted in the app project
@@ -1064,6 +1066,7 @@ func NewAppStateManager(
 	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
+	onKubectlRun kubeutil.OnKubectlRunFunc,
 	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
@@ -1082,6 +1085,7 @@ func NewAppStateManager(
 		db:                    db,
 		appclientset:          appclientset,
 		kubectl:               kubectl,
+		onKubectlRun:          onKubectlRun,
 		repoClientset:         repoClientset,
 		namespace:             namespace,
 		settingsMgr:           settingsMgr,

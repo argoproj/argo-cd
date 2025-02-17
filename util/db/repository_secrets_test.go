@@ -37,7 +37,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		EnableLFS:             true,
 	}
 	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
-		clientset := getClientset(map[string]string{}, objects...)
+		clientset := getClientset(objects...)
 		settingsMgr := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
 			ns:            testNamespace,
@@ -210,7 +210,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -283,7 +283,7 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -295,15 +295,16 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		if repository.Name == "ArgoCD" {
+		switch {
+		case repository.Name == "ArgoCD":
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		} else if repository.Name == "UserManagedRepo" {
+		case repository.Name == "UserManagedRepo":
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
-		} else {
+		default:
 			assert.Fail(t, "unexpected repository found in list")
 		}
 	}
@@ -405,7 +406,7 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -514,7 +515,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -546,7 +547,7 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 }
 
 func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
-	clientset := getClientset(map[string]string{})
+	clientset := getClientset()
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -675,7 +676,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -732,7 +733,7 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -793,7 +794,7 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -862,7 +863,7 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoSecrets...)
+	clientset := getClientset(repoSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -916,7 +917,7 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 		},
 	}
 
-	clientset := getClientset(map[string]string{}, repoCredSecrets...)
+	clientset := getClientset(repoCredSecrets...)
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,

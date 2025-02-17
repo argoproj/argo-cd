@@ -334,7 +334,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -437,7 +437,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		// nolint:staticcheck
+		//nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -549,7 +549,8 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
-	if spec.SourceHydrator != nil {
+	switch {
+	case spec.SourceHydrator != nil:
 		condition := validateSourceHydrator(spec.SourceHydrator)
 		if len(condition) > 0 {
 			conditions = append(conditions, condition...)
@@ -561,7 +562,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
 			})
 		}
-	} else if spec.HasMultipleSources() {
+	case spec.HasMultipleSources():
 		for _, source := range spec.Sources {
 			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
@@ -576,7 +577,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				})
 			}
 		}
-	} else {
+	default:
 		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
@@ -910,13 +911,14 @@ func NormalizeSource(source *argoappv1.ApplicationSource) *argoappv1.Application
 		source.Helm = nil
 	}
 	if source.Directory != nil && source.Directory.IsZero() {
-		if source.Directory.Exclude != "" && source.Directory.Include != "" {
+		switch {
+		case source.Directory.Exclude != "" && source.Directory.Include != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: source.Directory.Exclude, Include: source.Directory.Include}
-		} else if source.Directory.Exclude != "" {
+		case source.Directory.Exclude != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: source.Directory.Exclude}
-		} else if source.Directory.Include != "" {
+		case source.Directory.Include != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Include: source.Directory.Include}
-		} else {
+		default:
 			source.Directory = nil
 		}
 	}

@@ -40,15 +40,6 @@ var (
 	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
 )
 
-type Creds struct {
-	Username           string
-	Password           string
-	CAPath             string
-	CertData           []byte
-	KeyData            []byte
-	InsecureSkipVerify bool
-}
-
 type indexCache interface {
 	SetHelmIndex(repo string, indexData []byte) error
 	GetHelmIndex(repo string, indexData *[]byte) error
@@ -187,7 +178,11 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		defer func() { _ = os.RemoveAll(tempDest) }()
 
 		if c.enableOci {
-			if c.creds.Password != "" && c.creds.Username != "" {
+			helmPassword, err := c.creds.GetPassword()
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
+			}
+			if helmPassword != "" && c.creds.GetUsername() != "" {
 				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
@@ -293,7 +288,11 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
-	if c.creds.Username != "" && c.creds.Password != "" {
+	helmPassword, err := c.creds.GetPassword()
+	if err != nil {
+		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if c.creds.GetUsername() != "" && helmPassword != "" {
 		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -317,9 +316,13 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	if c.creds.Username != "" || c.creds.Password != "" {
+	helmPassword, err := c.creds.GetPassword()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if c.creds.GetUsername() != "" || helmPassword != "" {
 		// only basic supported
-		req.SetBasicAuth(c.creds.Username, c.creds.Password)
+		req.SetBasicAuth(c.creds.GetUsername(), helmPassword)
 	}
 
 	tlsConf, err := newTLSConfig(c.creds)
@@ -346,12 +349,12 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
+	tlsConfig := &tls.Config{InsecureSkipVerify: creds.GetInsecureSkipVerify()}
 
-	if creds.CAPath != "" {
-		caData, err := os.ReadFile(creds.CAPath)
+	if creds.GetCAPath() != "" {
+		caData, err := os.ReadFile(creds.GetCAPath())
 		if err != nil {
-			return nil, fmt.Errorf("error reading CA file %s: %w", creds.CAPath, err)
+			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caData)
@@ -359,14 +362,14 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	}
 
 	// If a client cert & key is provided then configure TLS config accordingly.
-	if len(creds.CertData) > 0 && len(creds.KeyData) > 0 {
-		cert, err := tls.X509KeyPair(creds.CertData, creds.KeyData)
+	if len(creds.GetCertData()) > 0 && len(creds.GetKeyData()) > 0 {
+		cert, err := tls.X509KeyPair(creds.GetCertData(), creds.GetKeyData())
 		if err != nil {
 			return nil, fmt.Errorf("error creating X509 key pair: %w", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	tlsConfig.BuildNameToCertificate()
 
 	return tlsConfig, nil
@@ -447,13 +450,18 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}}
 
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
+
+		helmPassword, err := c.creds.GetPassword()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
+		}
 		credential := auth.StaticCredential(repoHost, auth.Credential{
-			Username: c.creds.Username,
-			Password: c.creds.Password,
+			Username: c.creds.GetUsername(),
+			Password: helmPassword,
 		})
 
 		// Try to fallback to the environment config, but we shouldn't error if the file is not set
-		if c.creds.Username == "" && c.creds.Password == "" {
+		if c.creds.GetUsername() == "" && helmPassword == "" {
 			store, _ := credentials.NewStoreFromDocker(credentials.StoreOptions{})
 			if store != nil {
 				credential = credentials.Credential(store)

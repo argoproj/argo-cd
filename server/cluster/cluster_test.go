@@ -707,11 +707,12 @@ func TestListCluster(t *testing.T) {
 			t.Parallel()
 
 			got, err := s.List(context.Background(), tt.q)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "Server.List()")
+			} else {
+				require.NoError(t, err)
+				assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 			}
-			assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 		})
 	}
 }
