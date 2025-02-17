@@ -1,4 +1,4 @@
-- when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed'] and !time.Parse(app.status.health.lastTransitionTime).Before(time.Parse(app.status.operationState.finishedAt))
+- when: app.status.operationState != nil and app.status.operationState.phase in ['Error', 'Failed']
   description: Application syncing has failed
   send: [app-sync-failed]
   oncePer: app.status.operationState?.syncResult?.revision
