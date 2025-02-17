@@ -41,22 +41,53 @@ func TestNormalCommandWithPlugin(t *testing.T) {
 	assert.Equal(t, "argocd: v99.99.99+unknown\n", output)
 }
 
-// TestPluginSuccessfulExecution verifies that a plugin found in the PATH executes successfully
-func TestPluginSuccessfulExecution(t *testing.T) {
+// TestPluginExecution verifies that a plugin found in the PATH executes successfully following the correct naming conventions
+func TestPluginExecution(t *testing.T) {
 	setupPluginPath(t)
 
 	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	args := []string{"argocd", "foo"}
-	cmd.SetArgs(args[1:])
 
-	err := cmd.Execute()
-	require.Error(t, err)
+	tests := []struct {
+		name              string
+		args              []string
+		expectedPluginErr string
+	}{
+		{
+			name:              "'argocd-foo' binary exists in the PATH",
+			args:              []string{"argocd", "foo"},
+			expectedPluginErr: "",
+		},
+		{
+			name:              "'my-plugin' binary exists in the PATH",
+			args:              []string{"argocd", "my-plugin"},
+			expectedPluginErr: "unknown command \"my-plugin\" for \"argocd\"",
+		},
+		{
+			name:              "'argocd_my-plugin' binary exists in the PATH",
+			args:              []string{"argocd", "my-plugin"},
+			expectedPluginErr: "unknown command \"my-plugin\" for \"argocd\"",
+		},
+	}
 
-	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
-	require.NoError(t, pluginErr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd.SetArgs(tt.args[1:])
+
+			err := cmd.Execute()
+			require.Error(t, err)
+
+			// since the command is not a valid argocd command, check for plugin execution
+			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+			if tt.expectedPluginErr == "" {
+				require.NoError(t, pluginErr)
+			} else {
+				require.EqualError(t, pluginErr, tt.expectedPluginErr)
+			}
+		})
+	}
 }
 
 // TestNormalCommandError checks for an error when executing a normal ArgoCD command with invalid flags
