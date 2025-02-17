@@ -338,4 +338,7 @@ replace (
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.31.0
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.31.0
 	k8s.io/sample-controller => k8s.io/sample-controller v0.31.0
+
+	// https://coder.com/blog/websocket
+	nhooyr.io/websocket => github.com/coder/websocket v1.8.7
 )
