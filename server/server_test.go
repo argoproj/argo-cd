@@ -1406,8 +1406,8 @@ func TestIsMainJsBundle(t *testing.T) {
 		testCaseCopy := testCase
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			testUrl, _ := url.Parse(testCaseCopy.url)
-			isMainJsBundle := isMainJsBundle(testUrl)
+			testURL, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testURL)
 			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
 		})
 	}

@@ -325,10 +325,10 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
-	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
+	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -632,7 +632,7 @@ func Test_getWebUrlRegex(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			regexp, err := getWebUrlRegex(testCopy.webURL)
+			regexp, err := getWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
 			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})

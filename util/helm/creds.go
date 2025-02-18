@@ -77,7 +77,7 @@ func (creds HelmCreds) GetInsecureSkipVerify() bool {
 var _ Creds = AzureWorkloadIdentityCreds{}
 
 type AzureWorkloadIdentityCreds struct {
-	repoUrl            string
+	repoURL            string
 	CAPath             string
 	CertData           []byte
 	KeyData            []byte
@@ -109,9 +109,9 @@ func (creds AzureWorkloadIdentityCreds) GetInsecureSkipVerify() bool {
 	return creds.InsecureSkipVerify
 }
 
-func NewAzureWorkloadIdentityCreds(repoUrl string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
+func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool, tokenProvider workloadidentity.TokenProvider) AzureWorkloadIdentityCreds {
 	return AzureWorkloadIdentityCreds{
-		repoUrl:            repoUrl,
+		repoURL:            repoURL,
 		CAPath:             caPath,
 		CertData:           certData,
 		KeyData:            keyData,
@@ -121,7 +121,7 @@ func NewAzureWorkloadIdentityCreds(repoUrl string, caPath string, certData []byt
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
-	registryHost := strings.Split(creds.repoUrl, "/")[0]
+	registryHost := strings.Split(creds.repoURL, "/")[0]
 
 	// Compute hash as key for refresh token in the cache
 	key, err := argoutils.GenerateCacheKey("accesstoken-%s", registryHost)
@@ -161,9 +161,9 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 
-	parsedUrl, _ := url.Parse(realm)
-	parsedUrl.Path = "/oauth2/exchange"
-	refreshTokenUrl := parsedUrl.String()
+	parsedURL, _ := url.Parse(realm)
+	parsedURL.Path = "/oauth2/exchange"
+	refreshTokenURL := parsedURL.String()
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -179,7 +179,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 	formValues.Add("service", service)
 	formValues.Add("access_token", armAccessToken)
 
-	resp, err := client.PostForm(refreshTokenUrl, formValues)
+	resp, err := client.PostForm(refreshTokenURL, formValues)
 	if err != nil {
 		return "", fmt.Errorf("unable to connect to registry '%w'", err)
 	}
@@ -209,7 +209,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(tokenParams
 }
 
 func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureContainerRegistry string) (map[string]string, error) {
-	requestUrl := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
+	requestURL := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -220,7 +220,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(azureCon
 		},
 	}
 
-	req, err := http.NewRequest(http.MethodGet, requestUrl, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		return nil, err
 	}
