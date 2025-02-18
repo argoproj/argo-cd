@@ -2654,7 +2654,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath, enableNewGitFileGlobbing); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
@@ -2688,7 +2688,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
+	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, enableNewGitFileGlobbing, res)
 	if err != nil {
 		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}

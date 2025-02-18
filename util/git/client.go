@@ -421,10 +421,16 @@ func (m *nativeGitClient) Fetch(revision string) error {
 func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
-		err := os.Chdir(m.root)
+		cwd := m.root
+		err := os.Chdir(cwd)
 		if err != nil {
 			return nil, err
 		}
+		cwd, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+
 		all_files, err := doublestar.FilepathGlob(path)
 		if err != nil {
 			return nil, err
@@ -439,7 +445,7 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			if err != nil {
 				return nil, err
 			}
-			if strings.HasPrefix(absPath, m.root) {
+			if strings.HasPrefix(absPath, cwd) {
 				files = append(files, file)
 			} else {
 				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
