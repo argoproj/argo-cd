@@ -3,9 +3,9 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	scheme "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -21,31 +21,32 @@ type ApplicationSetsGetter interface {
 
 // ApplicationSetInterface has methods to work with ApplicationSet resources.
 type ApplicationSetInterface interface {
-	Create(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.CreateOptions) (*v1alpha1.ApplicationSet, error)
-	Update(ctx context.Context, applicationSet *v1alpha1.ApplicationSet, opts v1.UpdateOptions) (*v1alpha1.ApplicationSet, error)
+	Create(ctx context.Context, applicationSet *applicationv1alpha1.ApplicationSet, opts v1.CreateOptions) (*applicationv1alpha1.ApplicationSet, error)
+	Update(ctx context.Context, applicationSet *applicationv1alpha1.ApplicationSet, opts v1.UpdateOptions) (*applicationv1alpha1.ApplicationSet, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.ApplicationSet, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ApplicationSetList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*applicationv1alpha1.ApplicationSet, error)
+	List(ctx context.Context, opts v1.ListOptions) (*applicationv1alpha1.ApplicationSetList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.ApplicationSet, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *applicationv1alpha1.ApplicationSet, err error)
 	ApplicationSetExpansion
 }
 
 // applicationSets implements ApplicationSetInterface
 type applicationSets struct {
-	*gentype.ClientWithList[*v1alpha1.ApplicationSet, *v1alpha1.ApplicationSetList]
+	*gentype.ClientWithList[*applicationv1alpha1.ApplicationSet, *applicationv1alpha1.ApplicationSetList]
 }
 
 // newApplicationSets returns a ApplicationSets
 func newApplicationSets(c *ArgoprojV1alpha1Client, namespace string) *applicationSets {
 	return &applicationSets{
-		gentype.NewClientWithList[*v1alpha1.ApplicationSet, *v1alpha1.ApplicationSetList](
+		gentype.NewClientWithList[*applicationv1alpha1.ApplicationSet, *applicationv1alpha1.ApplicationSetList](
 			"applicationsets",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.ApplicationSet { return &v1alpha1.ApplicationSet{} },
-			func() *v1alpha1.ApplicationSetList { return &v1alpha1.ApplicationSetList{} }),
+			func() *applicationv1alpha1.ApplicationSet { return &applicationv1alpha1.ApplicationSet{} },
+			func() *applicationv1alpha1.ApplicationSetList { return &applicationv1alpha1.ApplicationSetList{} },
+		),
 	}
 }
