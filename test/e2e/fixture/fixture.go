@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	defaultApiServer        = "localhost:8080"
+	defaultAPIServer        = "localhost:8080"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -180,7 +180,7 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -1303,7 +1303,7 @@ func RecordTestRun(t *testing.T) {
 	}
 }
 
-func GetApiServerAddress() string {
+func GetApiServerAddress() string { //nolint:revive //FIXME(var-naming)
 	return apiServerAddress
 }
 

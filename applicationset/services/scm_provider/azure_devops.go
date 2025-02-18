@@ -107,7 +107,7 @@ func (g *AzureDevOpsProvider) RepoHasPath(ctx context.Context, repo *Repository,
 	}
 
 	var repoId string
-	if uuid, isUuid := repo.RepositoryId.(uuid.UUID); isUuid { // most likely an UUID, but do type-safe check anyway. Do %v fallback if not expected type.
+	if uuid, isUUID := repo.RepositoryId.(uuid.UUID); isUUID { // most likely an UUID, but do type-safe check anyway. Do %v fallback if not expected type.
 		repoId = uuid.String()
 	} else {
 		repoId = fmt.Sprintf("%v", repo.RepositoryId)

@@ -179,7 +179,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			dexTlsConfig := &dex.DexTLSConfig{
+			dexTLSConfig := &dex.DexTLSConfig{
 				DisableTLS:       dexServerPlaintext,
 				StrictValidation: dexServerStrictTLS,
 			}
@@ -191,14 +191,14 @@ func NewCommand() *cobra.Command {
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.RootCAs = pool
+				dexTLSConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.Certificate = cert.Raw
+				dexTLSConfig.Certificate = cert.Raw
 			}
 
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
@@ -229,7 +229,7 @@ func NewCommand() *cobra.Command {
 				AppClientset:            appClientSet,
 				RepoClientset:           repoclientset,
 				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTlsConfig,
+				DexTLSConfig:            dexTLSConfig,
 				DisableAuth:             disableAuth,
 				ContentTypes:            contentTypesList,
 				EnableGZip:              enableGZip,
