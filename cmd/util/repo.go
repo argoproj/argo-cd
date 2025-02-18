@@ -10,12 +10,12 @@ import (
 type RepoOptions struct {
 	Repo                           appsv1.Repository
 	Upsert                         bool
-	SshPrivateKeyPath              string
+	SshPrivateKeyPath              string //nolint:revive //FIXME(var-naming)
 	InsecureOCIForceHttp           bool
 	InsecureIgnoreHostKey          bool
 	InsecureSkipServerVerification bool
-	TlsClientCertPath              string
-	TlsClientCertKeyPath           string
+	TlsClientCertPath              string //nolint:revive //FIXME(var-naming)
+	TlsClientCertKeyPath           string //nolint:revive //FIXME(var-naming)
 	EnableLfs                      bool
 	EnableOci                      bool
 	GithubAppId                    int64
@@ -25,7 +25,7 @@ type RepoOptions struct {
 	Proxy                          string
 	NoProxy                        string
 	GCPServiceAccountKeyPath       string
-	ForceHttpBasicAuth             bool
+	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
 	UseAzureWorkloadIdentity       bool
 }
 

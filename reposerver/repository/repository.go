@@ -1022,9 +1022,9 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 		return nil, fmt.Errorf("error retrieving helm dependency repos: %w", err)
 	}
 	reposByName := make(map[string]*v1alpha1.Repository)
-	reposByUrl := make(map[string]*v1alpha1.Repository)
+	reposByURL := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
-		reposByUrl[repo.Repo] = repo
+		reposByURL[repo.Repo] = repo
 		if repo.Name != "" {
 			reposByName[repo.Name] = repo
 		}
@@ -1033,7 +1033,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	repos := make([]helm.HelmRepository, 0)
 	for _, dep := range dependencies {
 		// find matching repo credentials by URL or name
-		repo, ok := reposByUrl[dep.Repo]
+		repo, ok := reposByURL[dep.Repo]
 		if !ok && dep.Name != "" {
 			repo, ok = reposByName[dep.Name]
 		}
@@ -1735,7 +1735,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
 				continue
 			}
-			vm, err := makeJsonnetVm(appPath, repoRoot, directory.Jsonnet, env)
+			vm, err := makeJsonnetVM(appPath, repoRoot, directory.Jsonnet, env)
 			if err != nil {
 				return nil, err
 			}
@@ -1758,7 +1758,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				objs = append(objs, &jsonObj)
 			}
 		} else {
-			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
+			err := getObjsFromYAMLOrJSON(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
 			if err != nil {
 				return nil, err
 			}
@@ -1767,8 +1767,8 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 	return objs, nil
 }
 
-// getObjsFromYAMLOrJson unmarshals the given yaml or json file and appends it to the given list of objects.
-func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
+// getObjsFromYAMLOrJSON unmarshals the given yaml or json file and appends it to the given list of objects.
+func getObjsFromYAMLOrJSON(logCtx *log.Entry, manifestPath string, filename string, objs *[]*unstructured.Unstructured) error {
 	reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
@@ -1970,7 +1970,7 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 	return potentiallyValidManifests, nil
 }
 
-func makeJsonnetVm(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
+func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.ApplicationSourceJsonnet, env *v1alpha1.Env) (*jsonnet.VM, error) {
 	vm := jsonnet.MakeVM()
 	for i, j := range sourceJsonnet.TLAs {
 		sourceJsonnet.TLAs[i].Value = env.Envsubst(j.Value)

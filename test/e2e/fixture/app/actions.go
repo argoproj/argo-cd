@@ -339,7 +339,7 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
-func (a *Actions) PatchAppHttp(patch string) *Actions {
+func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(var-naming)
 	a.context.t.Helper()
 	var application Application
 	patchType := "merge"

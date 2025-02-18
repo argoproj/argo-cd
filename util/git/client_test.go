@@ -579,7 +579,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		// make origin git repository
 		tempDir, err := _createEmptyGitRepo()
 		require.NoError(t, err)
-		originGitRepoUrl := "file://" + tempDir
+		originGitRepoURL := "file://" + tempDir
 		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
@@ -592,7 +592,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		tempDir, err = os.MkdirTemp("", "")
 		require.NoError(t, err)
 
-		client, err := NewClientExt(originGitRepoUrl, tempDir, NopCreds{}, true, false, "", "")
+		client, err := NewClientExt(originGitRepoURL, tempDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 
 		err = client.Init()

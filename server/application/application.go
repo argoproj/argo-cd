@@ -2285,12 +2285,12 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 
 	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
 
-	repoUrl := app.Spec.GetSource().RepoURL
+	repoURL := app.Spec.GetSource().RepoURL
 	if app.Spec.HasMultipleSources() {
-		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
+		repoURL = app.Spec.Sources[sourceIndex].RepoURL
 	}
 
-	repo, err := s.db.GetRepository(ctx, repoUrl, app.Spec.Project)
+	repo, err := s.db.GetRepository(ctx, repoURL, app.Spec.Project)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
