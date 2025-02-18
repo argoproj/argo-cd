@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -10,40 +9,25 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
-	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v3/util"
-	"github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/crypto"
-	"github.com/argoproj/argo-cd/v3/util/dex"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/util/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v2/util"
+	"github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/crypto"
+	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/test"
 )
-
-func setupAzureIdentity(t *testing.T) {
-	t.Helper()
-
-	tempDir := t.TempDir()
-	tokenFilePath := filepath.Join(tempDir, "token.txt")
-	tempFile, err := os.Create(tokenFilePath)
-	require.NoError(t, err)
-	_, err = tempFile.Write([]byte("serviceAccountToken"))
-	require.NoError(t, err)
-	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
-}
 
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
@@ -95,7 +79,7 @@ func TestIDTokenClaims(t *testing.T) {
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
 	require.NoError(t, err)
 
-	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}
@@ -153,7 +137,9 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		app.HandleLogin(w, req)
 
-		assert.Contains(t, w.Body.String(), "certificate signed by unknown authority")
+		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
+			t.Fatal("did not receive expected certificate verification failure error")
+		}
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
@@ -181,6 +167,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -205,108 +192,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 
-	t.Run("OIDC auth", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			OIDCTLSInsecureSkipVerify: true,
-		}
-		oidcConfig := settings.OIDCConfig{
-			Name:         "Test",
-			Issuer:       oidcTestServer.URL,
-			ClientID:     "xxx",
-			ClientSecret: "yyy",
-		}
-		oidcConfigRaw, err := yaml.Marshal(oidcConfig)
-		require.NoError(t, err)
-		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
-		w := httptest.NewRecorder()
-		app.HandleLogin(w, req)
-
-		assert.Equal(t, http.StatusSeeOther, w.Code)
-		location, err := url.Parse(w.Header().Get("Location"))
-		require.NoError(t, err)
-		values, err := url.ParseQuery(location.RawQuery)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"openid", "profile", "email", "groups"}, strings.Split(values.Get("scope"), " "))
-		assert.Equal(t, "xxx", values.Get("client_id"))
-		assert.Equal(t, "code", values.Get("response_type"))
-	})
-
-	t.Run("OIDC auth with custom scopes", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			OIDCTLSInsecureSkipVerify: true,
-		}
-		oidcConfig := settings.OIDCConfig{
-			Name:            "Test",
-			Issuer:          oidcTestServer.URL,
-			ClientID:        "xxx",
-			ClientSecret:    "yyy",
-			RequestedScopes: []string{"oidc"},
-		}
-		oidcConfigRaw, err := yaml.Marshal(oidcConfig)
-		require.NoError(t, err)
-		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
-		w := httptest.NewRecorder()
-		app.HandleLogin(w, req)
-
-		assert.Equal(t, http.StatusSeeOther, w.Code)
-		location, err := url.Parse(w.Header().Get("Location"))
-		require.NoError(t, err)
-		values, err := url.ParseQuery(location.RawQuery)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"oidc"}, strings.Split(values.Get("scope"), " "))
-		assert.Equal(t, "xxx", values.Get("client_id"))
-		assert.Equal(t, "code", values.Get("response_type"))
-	})
-
-	t.Run("Dex auth", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL: dexTestServer.URL,
-		}
-		dexConfig := map[string]any{
-			"connectors": []map[string]any{
-				{
-					"type": "github",
-					"name": "GitHub",
-					"config": map[string]any{
-						"clientId":     "aabbccddeeff00112233",
-						"clientSecret": "aabbccddeeff00112233",
-					},
-				},
-			},
-		}
-		dexConfigRaw, err := yaml.Marshal(dexConfig)
-		require.NoError(t, err)
-		cdSettings.DexConfig = string(dexConfigRaw)
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
-		w := httptest.NewRecorder()
-		app.HandleLogin(w, req)
-
-		assert.Equal(t, http.StatusSeeOther, w.Code)
-		location, err := url.Parse(w.Header().Get("Location"))
-		require.NoError(t, err)
-		values, err := url.ParseQuery(location.RawQuery)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"openid", "profile", "email", "groups", common.DexFederatedScope}, strings.Split(values.Get("scope"), " "))
-		assert.Equal(t, common.ArgoCDClientAppID, values.Get("client_id"))
-		assert.Equal(t, "code", values.Get("response_type"))
-	})
-
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
 			URL:                       "https://argocd.example.com",
@@ -328,6 +213,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -422,6 +308,7 @@ clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
+
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
 	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
@@ -506,6 +393,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
+
 		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
@@ -523,144 +411,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
-
-		app.HandleCallback(w, req)
-
-		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
-		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
-	})
-}
-
-func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
-	app := azureApp{mtx: &sync.RWMutex{}}
-
-	setupAzureIdentity(t)
-
-	t.Run("before the method call assertion should be empty.", func(t *testing.T) {
-		assert.Equal(t, "", app.assertion)
-	})
-
-	t.Run("Fetch the token value from the file", func(t *testing.T) {
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		require.NoError(t, err)
-		assert.Equal(t, "serviceAccountToken", app.assertion)
-	})
-
-	t.Run("Workload Identity Not enabled.", func(t *testing.T) {
-		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
-	})
-
-	t.Run("Workload Identity invalid file", func(t *testing.T) {
-		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", filepath.Join(t.TempDir(), "invalid.txt"))
-		_, err := app.getFederatedServiceAccountToken(context.Background())
-		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
-	})
-
-	t.Run("Concurrent access to the function", func(t *testing.T) {
-		currentExpiryTime := app.expires
-
-		var wg sync.WaitGroup
-		numGoroutines := 10
-		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
-			go func() {
-				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
-				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.assertion)
-			}()
-		}
-		wg.Wait()
-
-		// Event with multiple concurrent calls the expiry time should not change untile it passes.
-		assert.Equal(t, currentExpiryTime, app.expires)
-	})
-
-	t.Run("Concurrent access to the function when the current token expires", func(t *testing.T) {
-		var wg sync.WaitGroup
-		currentExpiryTime := app.expires
-		app.expires = time.Now()
-		numGoroutines := 10
-		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
-			go func() {
-				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
-				require.NoError(t, err)
-				assert.Equal(t, "serviceAccountToken", app.assertion)
-			}()
-		}
-		wg.Wait()
-
-		assert.NotEqual(t, currentExpiryTime, app.expires)
-	})
-}
-
-func TestClientAppWithAzureWorkloadIdentity_HandleCallback(t *testing.T) {
-	tokenRequestAssertions := func(r *http.Request) {
-		err := r.ParseForm()
-		require.NoError(t, err)
-
-		formData := r.Form
-		clientAssertion := formData.Get("client_assertion")
-		clientAssertionType := formData.Get("client_assertion_type")
-		assert.Equal(t, "serviceAccountToken", clientAssertion)
-		assert.Equal(t, "urn:ietf:params:oauth:client-assertion-type:jwt-bearer", clientAssertionType)
-	}
-
-	oidcTestServer := test.GetAzureOIDCTestServer(t, tokenRequestAssertions)
-	t.Cleanup(oidcTestServer.Close)
-
-	dexTestServer := test.GetDexTestServer(t)
-	t.Cleanup(dexTestServer.Close)
-	signature, err := util.MakeSignature(32)
-	require.NoError(t, err)
-
-	setupAzureIdentity(t)
-
-	t.Run("oidc certificate checking during oidc callback should toggle on config", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL:             "https://argocd.example.com",
-			ServerSignature: signature,
-			OIDCConfigRAW: fmt.Sprintf(`
-name: Test
-issuer: %s
-clientID: xxx
-azure:
-  useWorkloadIdentity: true
-skipAudienceCheckWhenTokenHasNoAudience: true
-requestedScopes: ["oidc"]`, oidcTestServer.URL),
-		}
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", nil)
-		req.Form = url.Values{
-			"code":  {"abc"},
-			"state": {"123"},
-		}
-		w := httptest.NewRecorder()
-
-		app.HandleCallback(w, req)
-
-		if !strings.Contains(w.Body.String(), "certificate signed by unknown authority") && !strings.Contains(w.Body.String(), "certificate is not trusted") {
-			t.Fatal("did not receive expected certificate verification failure error")
-		}
-
-		cdSettings.OIDCTLSInsecureSkipVerify = true
-
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		w = httptest.NewRecorder()
-
-		key, err := cdSettings.GetServerEncryptionKey()
-		require.NoError(t, err)
-		encrypted, _ := crypto.Encrypt([]byte("123"), key)
-		req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 
 		app.HandleCallback(w, req)
 
@@ -844,6 +594,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
+
 	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
@@ -857,7 +608,7 @@ func TestGetUserInfo(t *testing.T) {
 	tests := []struct {
 		name                  string
 		userInfoPath          string
-		expectedOutput        any
+		expectedOutput        interface{}
 		expectError           bool
 		expectUnauthenticated bool
 		expectedCacheItems    []struct { // items to check in cache after function call
@@ -893,7 +644,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -927,7 +678,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 			},
 			cache: cache.NewInMemoryCache(24 * time.Hour),
@@ -961,9 +712,9 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
-			  notevenJsongarbage
+			  notevenJsongarbage	
 				`
 				_, err := w.Write([]byte(userInfoBytes))
 				if err != nil {
@@ -1003,7 +754,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]
@@ -1021,7 +772,7 @@ func TestGetUserInfo(t *testing.T) {
 		{
 			name:                  "call UserInfo with valid accessToken in cache",
 			userInfoPath:          "/user-info",
-			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:engineers"}},
+			expectedOutput:        jwt.MapClaims{"groups": []interface{}{"githubOrg:engineers"}},
 			expectError:           false,
 			expectUnauthenticated: false,
 			expectedCacheItems: []struct {
@@ -1038,7 +789,7 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
 				{
 					"groups":["githubOrg:engineers"]

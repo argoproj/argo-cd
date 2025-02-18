@@ -8,7 +8,7 @@ import (
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type BitbucketService struct {
@@ -64,7 +64,7 @@ func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Confi
 }
 
 func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
-	paged := map[string]any{
+	paged := map[string]interface{}{
 		"limit": 100,
 	}
 

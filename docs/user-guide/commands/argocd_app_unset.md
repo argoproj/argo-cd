@@ -20,9 +20,6 @@ argocd app unset APPNAME parameters [flags]
   # Unset kustomize override suffix for source at position 1 under spec.sources of app my-app. source-position starts at 1.
   argocd app unset my-app --source-position 1 --namesuffix
 
-  # Unset kustomize override suffix for source named "test" under spec.sources of app my-app.
-  argocd app unset my-app --source-name test --namesuffix
-
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM
 ```
@@ -32,7 +29,6 @@ argocd app unset APPNAME parameters [flags]
 ```
   -N, --app-namespace string            Unset application parameters in namespace
   -h, --help                            help for unset
-      --ignore-missing-components       Unset the kustomize ignore-missing-components option (revert to false)
       --ignore-missing-value-files      Unset the helm ignore-missing-value-files option (revert to false)
       --kustomize-image stringArray     Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)
       --kustomize-namespace             Kustomize namespace
@@ -53,7 +49,7 @@ argocd app unset APPNAME parameters [flags]
 
 ```
       --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -65,12 +61,11 @@ argocd app unset APPNAME parameters [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

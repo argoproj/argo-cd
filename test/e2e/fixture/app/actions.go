@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strconv"
-
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
+	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -114,7 +111,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -171,7 +168,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -226,13 +223,8 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
 	args = append([]string{
 		"app", "create", a.context.AppQualifiedName(),
+		"--repo", fixture.RepoURL(a.context.repoURLType),
 	}, args...)
-
-	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.hydrateToBranch != "" {
-		args = append(args, "--dry-source-repo", fixture.RepoURL(a.context.repoURLType))
-	} else {
-		args = append(args, "--repo", fixture.RepoURL(a.context.repoURLType))
-	}
 
 	if a.context.destName != "" && a.context.isDestServerInferred && !slices.Contains(args, "--dest-server") {
 		args = append(args, "--dest-name", a.context.destName)
@@ -241,26 +233,6 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	}
 	if a.context.path != "" {
 		args = append(args, "--path", a.context.path)
-	}
-
-	if a.context.drySourceRevision != "" {
-		args = append(args, "--dry-source-revision", a.context.drySourceRevision)
-	}
-
-	if a.context.drySourcePath != "" {
-		args = append(args, "--dry-source-path", a.context.drySourcePath)
-	}
-
-	if a.context.syncSourceBranch != "" {
-		args = append(args, "--sync-source-branch", a.context.syncSourceBranch)
-	}
-
-	if a.context.syncSourcePath != "" {
-		args = append(args, "--sync-source-path", a.context.syncSourcePath)
-	}
-
-	if a.context.hydrateToBranch != "" {
-		args = append(args, "--hydrate-to-branch", a.context.hydrateToBranch)
 	}
 
 	if a.context.chart != "" {
@@ -298,12 +270,6 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
-	if a.context.helmSkipSchemaValidation {
-		args = append(args, "--helm-skip-schema-validation")
-	}
-	if a.context.helmSkipTests {
-		args = append(args, "--helm-skip-tests")
-	}
 	return args
 }
 
@@ -314,7 +280,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
-	values := map[string]any{
+	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
@@ -377,7 +343,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -417,14 +383,6 @@ func (a *Actions) Sync(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) ConfirmDeletion() *Actions {
-	a.context.t.Helper()
-
-	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
-
-	return a
-}
-
 func (a *Actions) TerminateOp() *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "terminate-op", a.context.AppQualifiedName())
@@ -457,13 +415,13 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", "--selector="+selector, "--yes")
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
 	return a
 }
 
 func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", "--selector="+selector, "--yes", "--wait")
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
 	return a
 }
 
@@ -473,13 +431,13 @@ func (a *Actions) Wait(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
+	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
 	a.runCli(args...)
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
+	fixture.SetParamInSettingConfigMap(key, value)
 	return a
 }
 
@@ -508,30 +466,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	fixture.SetTrackingMethod(trackingMethod)
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	fixture.SetInstallationID(installationID)
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
-	return a
-}
-
-func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("true"))
-	if serviceAccountName == "" || policyRules == nil {
-		return a
-	}
-	errors.CheckError(fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
-	return a
-}
-
-func (a *Actions) WithImpersonationDisabled() *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("false"))
+	fixture.SetTrackingLabel(trackingLabel)
 	return a
 }
