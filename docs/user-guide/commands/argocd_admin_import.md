@@ -28,14 +28,12 @@ argocd admin import SOURCE [flags]
       --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                    If present, the namespace scope for this CLI request
-      --override-on-conflict                Override the resource on conflict when updating resources
       --password string                     Password for basic authentication to the API server
       --prompts-enabled                     Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                    If provided, this URL will be used to connect via proxy
       --prune                               Prune secrets, applications and projects which do not appear in the backup
       --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                       The address and port of the Kubernetes API server
-      --skip-resources-with-label string    Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
       --stop-operation                      Stop any existing operations
       --tls-server-name string              If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                        Bearer token for authentication to the API server
@@ -60,7 +58,7 @@ argocd admin import SOURCE [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

@@ -31,7 +31,7 @@ func TestPlugin(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	client, err := NewPluginService("plugin-test", ts.URL, token, 0)
+	client, err := NewPluginService(context.Background(), "plugin-test", ts.URL, token, 0)
 	require.NoError(t, err)
 
 	data, err := client.List(context.Background(), nil)

@@ -7,19 +7,19 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v2/common"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appsfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	appinformers "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appsfake "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	appinformers "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
@@ -41,10 +41,10 @@ func TestClusterSecretUpdater(t *testing.T) {
 	}{
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
-		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, fmt.Errorf("sync failed"), v1alpha1.ConnectionStatusFailed},
 	}
 
-	emptyArgoCDConfigMap := &corev1.ConfigMap{
+	emptyArgoCDConfigMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
 			Namespace: fakeNamespace,
@@ -54,7 +54,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		},
 		Data: map[string]string{},
 	}
-	argoCDSecret := &corev1.Secret{
+	argoCDSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
 			Namespace: fakeNamespace,
@@ -102,7 +102,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 }
 
 func TestUpdateClusterLabels(t *testing.T) {
-	shouldNotBeInvoked := func(_ context.Context, _ *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+	shouldNotBeInvoked := func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
 		require.NoError(t, shouldNotHappen)
 		return nil, shouldNotHappen
@@ -160,7 +160,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, nil
 			},
@@ -176,7 +176,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Server: "kubernetes.svc.local",
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
-			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
 				return nil, errors.New("some error happened while saving")
 			},

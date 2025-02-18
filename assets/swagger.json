@@ -3771,12 +3771,6 @@
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
             "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to use azure workload identity for authentication.",
-            "name": "useAzureWorkloadIdentity",
-            "in": "query"
           }
         ],
         "responses": {
@@ -4602,12 +4596,6 @@
             "type": "boolean",
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
-            "in": "query"
-          },
-          {
-            "type": "boolean",
-            "description": "Whether to use azure workload identity for authentication.",
-            "name": "useAzureWorkloadIdentity",
             "in": "query"
           }
         ],
@@ -6916,8 +6904,8 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
-          "type": "boolean"
+          "type": "boolean",
+          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
         },
         "generators": {
           "type": "array",
@@ -7274,10 +7262,6 @@
         "forceCommonLabels": {
           "type": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
-        },
-        "ignoreMissingComponents": {
-          "type": "boolean",
-          "title": "IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file"
         },
         "images": {
           "type": "array",
@@ -8956,10 +8940,6 @@
           "type": "string",
           "title": "URL is the URL to which these credentials match"
         },
-        "useAzureWorkloadIdentity": {
-          "type": "boolean",
-          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
-        },
         "username": {
           "type": "string",
           "title": "Username for authenticating at the repo server"
@@ -9073,10 +9053,6 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
-        },
-        "useAzureWorkloadIdentity": {
-          "type": "boolean",
-          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
         "username": {
           "type": "string",
@@ -10101,10 +10077,6 @@
       "type": "object",
       "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
       "properties": {
-        "andOperator": {
-          "type": "boolean",
-          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
-        },
         "applications": {
           "type": "array",
           "title": "Applications contains a list of applications that the window will apply to",

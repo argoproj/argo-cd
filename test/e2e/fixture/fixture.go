@@ -3,7 +3,7 @@ package fixture
 import (
 	"bufio"
 	"context"
-	stderrors "errors"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -14,29 +14,27 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/rand"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -220,10 +218,11 @@ func init() {
 	}
 	f, err := os.Open(rf)
 	if err != nil {
-		if stderrors.Is(err, os.ErrNotExist) {
+		if goerrors.Is(err, os.ErrNotExist) {
 			return
+		} else {
+			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
-		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -343,7 +342,7 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
-		return GetEnvWithDefault(EnvRepoURLDefault, "file://"+repoDirectory())
+		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
 }
 
@@ -357,7 +356,7 @@ func DeploymentNamespace() string {
 
 // creates a secret for the current test, this currently can only create a single secret
 func CreateSecret(username, password string) string {
-	secretName := "argocd-e2e-" + name
+	secretName := fmt.Sprintf("argocd-e2e-%s", name)
 	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
 		"--from-literal=username="+username,
 		"--from-literal=password="+password,
@@ -392,7 +391,7 @@ func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
 
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) error {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, metav1.GetOptions{})
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -405,7 +404,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		return err
 	}
 	if !configMapsEquivalent(cm, oldCm) {
-		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, metav1.UpdateOptions{})
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -416,7 +415,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
-			cm.Data[strings.ToLower(string(k))+".enable"] = strconv.FormatBool(v)
+			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
 		}
 		return nil
 	})
@@ -463,57 +462,6 @@ func SetTrackingLabel(trackingLabel string) error {
 	})
 }
 
-func SetImpersonationEnabled(impersonationEnabledFlag string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
-		return nil
-	})
-}
-
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
-	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Rules: policyRules,
-	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: DeploymentNamespace(),
-			},
-		},
-	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -557,7 +505,7 @@ func getResourceOverrideSplitKey(key string, customizeType string) string {
 func SetAccounts(accounts map[string][]string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range accounts {
-			cm.Data["accounts."+k] = strings.Join(v, ",")
+			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
 		return nil
 	})
@@ -594,13 +542,35 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
+func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepos(repos ...settings.RepositoryCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
 	return err
 }
 
@@ -651,57 +621,57 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	})
 
 	start := time.Now()
-	policy := metav1.DeletePropagationBackground
+	policy := v1.DeletePropagationBackground
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete appprojects --field-selector metadata.name!=default
 			return AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{FieldSelector: "metadata.name!=default"})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{FieldSelector: "metadata.name!=default"})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
 		},
 		func() error {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
 	})
 
@@ -710,7 +680,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
-				metav1.ListOptions{
+				v1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
 					FieldSelector: "status.phase=Active",
 				},
@@ -729,7 +699,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -758,7 +728,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
 				context.Background(),
-				metav1.ListOptions{
+				v1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
 				},
 			)
@@ -776,7 +746,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -798,7 +768,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -857,7 +827,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -868,19 +838,19 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				context.Background(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: v1.ObjectMeta{
 						Name: "gpg",
 					},
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+						ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},
-				metav1.CreateOptions{},
+				v1.CreateOptions{},
 			)
 			return err
 		},
@@ -917,7 +887,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
 			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-			//nolint:errcheck
+			// nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
@@ -992,7 +962,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			postFix := "-" + strings.ToLower(randString)
 			id = t.Name() + postFix
 			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
@@ -1117,7 +1087,7 @@ func AddSignedFile(path, contents string) {
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
@@ -1128,7 +1098,7 @@ func AddSignedTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
@@ -1145,7 +1115,7 @@ func AddTag(name string) {
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values any) (string, error) {
+func Declarative(filename string, values interface{}) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
@@ -1250,8 +1220,9 @@ func RestartAPIServer() {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
+	} else {
+		return base + "/local"
 	}
-	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.
@@ -1298,7 +1269,7 @@ func RecordTestRun(t *testing.T) {
 			t.Fatalf("could not close record file %s: %v", rf, err)
 		}
 	}()
-	if _, err := f.WriteString(t.Name() + "\n"); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
 }

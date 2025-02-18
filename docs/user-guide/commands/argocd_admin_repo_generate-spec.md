@@ -59,7 +59,6 @@ argocd admin repo generate-spec REPOURL [flags]
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git" or "helm" (default "git")
-      --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
 ```
 
@@ -79,7 +78,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding

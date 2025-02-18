@@ -7,16 +7,14 @@ import (
 	"slices"
 	"strconv"
 
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
+	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 // this implements the "when" part of given/when/then
@@ -114,7 +112,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -171,7 +169,7 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
@@ -314,7 +312,7 @@ func (a *Actions) Declarative(filename string) *Actions {
 
 func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Actions {
 	a.context.t.Helper()
-	values := map[string]any{
+	values := map[string]interface{}{
 		"ArgoCDNamespace":     fixture.TestNamespace(),
 		"DeploymentNamespace": fixture.DeploymentNamespace(),
 		"Name":                a.context.AppName(),
@@ -457,13 +455,13 @@ func (a *Actions) Delete(cascade bool) *Actions {
 
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", "--selector="+selector, "--yes")
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
 	return a
 }
 
 func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
 	a.context.t.Helper()
-	a.runCli("app", "delete", "--selector="+selector, "--yes", "--wait")
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
 	return a
 }
 
@@ -519,19 +517,5 @@ func (a *Actions) SetInstallationID(installationID string) *Actions {
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
 	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
-	return a
-}
-
-func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("true"))
-	if serviceAccountName == "" || policyRules == nil {
-		return a
-	}
-	errors.CheckError(fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
-	return a
-}
-
-func (a *Actions) WithImpersonationDisabled() *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("false"))
 	return a
 }

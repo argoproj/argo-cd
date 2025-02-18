@@ -72,7 +72,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      "failed to get secret default/" + RedisInitialCredentials,
+			expectedErr:      fmt.Sprintf("failed to get secret default/%s", RedisInitialCredentials),
 			secret:           nil,
 		},
 		{
@@ -96,8 +96,9 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {
-				_, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{})
-				require.NoErrorf(t, err, "Failed to create secret")
+				if _, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{}); err != nil {
+					t.Fatalf("Failed to create secret: %v", err)
+				}
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
 			if tc.expectedErr != "" {

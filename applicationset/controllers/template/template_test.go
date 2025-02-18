@@ -1,7 +1,7 @@
 package template
 
 import (
-	"errors"
+	"fmt"
 	"maps"
 	"testing"
 
@@ -13,12 +13,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	genmock "github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	rendmock "github.com/argoproj/argo-cd/v3/applicationset/utils/mocks"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	genmock "github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	rendmock "github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestGenerateApplications(t *testing.T) {
@@ -31,7 +31,7 @@ func TestGenerateApplications(t *testing.T) {
 
 	for _, c := range []struct {
 		name                string
-		params              []map[string]any
+		params              []map[string]interface{}
 		template            v1alpha1.ApplicationSetTemplate
 		generateParamsError error
 		rendererError       error
@@ -40,7 +40,7 @@ func TestGenerateApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate two applications",
-			params: []map[string]any{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -53,13 +53,13 @@ func TestGenerateApplications(t *testing.T) {
 		},
 		{
 			name:                "Handles error from the generator",
-			generateParamsError: errors.New("error"),
+			generateParamsError: fmt.Errorf("error"),
 			expectErr:           true,
 			expectedReason:      v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
 		},
 		{
 			name:   "Handles error from the render",
-			params: []map[string]any{{"name": "app1"}, {"name": "app2"}},
+			params: []map[string]interface{}{{"name": "app1"}, {"name": "app2"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -68,7 +68,7 @@ func TestGenerateApplications(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSpec{},
 			},
-			rendererError:  errors.New("error"),
+			rendererError:  fmt.Errorf("error"),
 			expectErr:      true,
 			expectedReason: v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
 		},
@@ -153,7 +153,7 @@ func TestGenerateApplications(t *testing.T) {
 func TestMergeTemplateApplications(t *testing.T) {
 	for _, c := range []struct {
 		name             string
-		params           []map[string]any
+		params           []map[string]interface{}
 		template         v1alpha1.ApplicationSetTemplate
 		overrideTemplate v1alpha1.ApplicationSetTemplate
 		expectedMerged   v1alpha1.ApplicationSetTemplate
@@ -161,7 +161,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 	}{
 		{
 			name:   "Generate app",
-			params: []map[string]any{{"name": "app1"}},
+			params: []map[string]interface{}{{"name": "app1"}},
 			template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
 					Name:      "name",
@@ -245,13 +245,13 @@ func TestMergeTemplateApplications(t *testing.T) {
 func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 	for _, cases := range []struct {
 		name        string
-		params      []map[string]any
+		params      []map[string]interface{}
 		template    v1alpha1.ApplicationSetTemplate
 		expectedApp []v1alpha1.Application
 	}{
 		{
 			name: "Generate an application from a go template application set manifest using a pull request generator",
-			params: []map[string]any{
+			params: []map[string]interface{}{
 				{
 					"number":                                "1",
 					"title":                                 "title1",
