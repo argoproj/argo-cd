@@ -300,7 +300,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := getWebUrlRegex(webURL)
+		repoRegexp, err := getWebURLRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -329,9 +329,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 }
 
-// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// getWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
 // webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
-func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+func getWebURLRegex(webURL string) (*regexp.Regexp, error) {
 	urlObj, err := url.Parse(webURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)

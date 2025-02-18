@@ -545,7 +545,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			serverUrl := args[0]
+			serverURL := args[0]
 			output := args[1]
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -554,7 +554,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 			kubeclientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 
-			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
+			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverURL)
 			errors.CheckError(err)
 			rawConfig, err := cluster.RawRestConfig()
 			errors.CheckError(err)

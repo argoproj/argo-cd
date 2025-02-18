@@ -606,10 +606,9 @@ func (i KustomizeImage) delim() string {
 // Match returns true if the image name matches (i.e. up to the first delimiter)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
 	delim := j.delim()
-	if !strings.Contains(string(j), delim) {
-		return false
-	}
-	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
+	imageName, _, _ := strings.Cut(string(i), delim)
+	otherImageName, _, _ := strings.Cut(string(j), delim)
+	return imageName == otherImageName
 }
 
 // KustomizeImages is a list of Kustomize images
@@ -928,7 +927,7 @@ type ApplicationSourcePluginParameter struct {
 	// Name is the name identifying a parameter.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
 	// String_ is the value of a string type parameter.
-	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"`
+	String_ *string `json:"string,omitempty" protobuf:"bytes,5,opt,name=string"` //nolint:revive //FIXME(var-naming)
 	// Map is the value of a map type parameter.
 	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
 	// Array is the value of an array type parameter.
@@ -2136,7 +2135,7 @@ func (c *ClusterInfo) GetKubeVersion() string {
 	return c.ServerVersion
 }
 
-func (c *ClusterInfo) GetApiVersions() []string {
+func (c *ClusterInfo) GetApiVersions() []string { //nolint:revive //FIXME(var-naming)
 	return c.APIVersions
 }
 
@@ -2212,7 +2211,7 @@ type ClusterConfig struct {
 	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
-	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"`
+	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3340,7 +3339,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // ParseProxyUrl returns a parsed url and verifies that schema is correct
-func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
+func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(var-naming)
 	u, err := url.Parse(proxyUrl)
 	if err != nil {
 		return nil, err
