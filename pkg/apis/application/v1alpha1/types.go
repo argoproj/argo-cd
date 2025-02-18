@@ -606,10 +606,9 @@ func (i KustomizeImage) delim() string {
 // Match returns true if the image name matches (i.e. up to the first delimiter)
 func (i KustomizeImage) Match(j KustomizeImage) bool {
 	delim := j.delim()
-	if !strings.Contains(string(j), delim) {
-		return false
-	}
-	return strings.HasPrefix(string(i), strings.Split(string(j), delim)[0])
+	imageName, _, _ := strings.Cut(string(i), delim)
+	otherImageName, _, _ := strings.Cut(string(j), delim)
+	return imageName == otherImageName
 }
 
 // KustomizeImages is a list of Kustomize images
