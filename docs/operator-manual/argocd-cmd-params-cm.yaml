@@ -38,6 +38,11 @@ data:
   # Feature state: Beta
   application.namespaces: ns1, ns2, ns3
 
+  # Namespaced scope installed controller (available only for argocd notifications only)
+  # can watch multiple namespaces, if value is true (default "false")
+  # This flag works with presence of flag application.namespaces
+  namespacedmode.multinamespace.enabled: "false"
+
   # Set the logging timestamp format. The default is "" which means "2006-01-02T15:04:05Z07:00" (RFC3339).
   # See https://pkg.go.dev/time#pkg-constants for more options.
   # This option is used for all components.
