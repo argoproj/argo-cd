@@ -300,7 +300,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := GetWebUrlRegex(webURL)
+		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -329,9 +329,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 }
 
-// GetWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
-// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
-func GetWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+// GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
+// the given webURL. webURL is expected to be a URL from an SCM webhook payload pointing to the web
+// page for the repo.
+func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
 	// 1. Optional: protocol (`http`, `https`, or `ssh`) followed by `://`
 	// 2. Optional: username followed by `@`
 	// 3. Optional: `ssh` or `altssh` subdomain
@@ -340,20 +341,21 @@ func GetWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 	// 6. Required: `:` or `/`
 	// 7. Required: path parsed from `webURL`
 	// 8. Optional: `.git` extension
-	return getUrlRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
+	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
 }
 
-// GetApiUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given apiURL.
-func GetApiUrlRegex(apiURL string) (*regexp.Regexp, error) {
+// GetAPIURLRegex compiles a regex that will match any targetRevision referring to the same repo as
+// the given apiURL.
+func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
 	// 1. Optional: protocol (`http` or `https`) followed by `://`
 	// 2. Optional: username followed by `@`
 	// 3. Required: hostname parsed from `webURL`
 	// 4. Optional: `:` followed by port number
 	// 5. Optional: `/`
-	return getUrlRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
+	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
 }
 
-func getUrlRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
+func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
 	urlObj, err := url.Parse(originalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL '%s'", originalURL)

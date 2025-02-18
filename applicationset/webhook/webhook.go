@@ -217,7 +217,7 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 	}
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
-	repoRegexp, err := webhook.GetWebUrlRegex(webURL)
+	repoRegexp, err := webhook.GetWebURLRegex(webURL)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
 		return nil
@@ -239,7 +239,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 		}
 
 		apiURL := payload.Repository.URL
-		apiRegexp, err := webhook.GetApiUrlRegex(apiURL)
+		apiRegexp, err := webhook.GetAPIURLRegex(apiURL)
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
 			return nil

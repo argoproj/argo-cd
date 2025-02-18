@@ -325,10 +325,10 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
-	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
+	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -603,7 +603,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	}
 }
 
-func Test_GetWebUrlRegex(t *testing.T) {
+func Test_GetWebURLRegex(t *testing.T) {
 	tests := []struct {
 		shouldMatch bool
 		webURL      string
@@ -641,19 +641,19 @@ func Test_GetWebUrlRegex(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			regexp, err := GetWebUrlRegex(testCopy.webURL)
+			regexp, err := GetWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
 			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})
 	}
 
 	t.Run("bad URL should error", func(t *testing.T) {
-		_, err := GetWebUrlRegex("%%")
+		_, err := GetWebURLRegex("%%")
 		require.Error(t, err)
 	})
 }
 
-func Test_GetApiUrlRegex(t *testing.T) {
+func Test_GetAPIURLRegex(t *testing.T) {
 	tests := []struct {
 		shouldMatch bool
 		apiURL      string
@@ -676,14 +676,14 @@ func Test_GetApiUrlRegex(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			regexp, err := GetApiUrlRegex(testCopy.apiURL)
+			regexp, err := GetAPIURLRegex(testCopy.apiURL)
 			require.NoError(t, err)
 			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})
 	}
 
 	t.Run("bad URL should error", func(t *testing.T) {
-		_, err := GetApiUrlRegex("%%")
+		_, err := GetAPIURLRegex("%%")
 		require.Error(t, err)
 	})
 }
