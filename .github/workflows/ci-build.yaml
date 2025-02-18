@@ -174,7 +174,7 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: test-results
           path: test-results
@@ -238,7 +238,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: race-results
           path: test-results/
@@ -516,13 +516,13 @@ jobs:
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
