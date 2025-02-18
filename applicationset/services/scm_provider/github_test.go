@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/aburan28/httpcache"
+	"github.com/aburan28/httpcache/lrucache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -275,7 +275,7 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	cache := httpcache.Cache{}
+	cache := lrucache.NewLRUCache(1000)
 
 	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false, cache)
 	repo := &Repository{
@@ -297,9 +297,9 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	cache := httpcache.Cache{}
+	cache := lrucache.NewLRUCache(1000)
 
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false, cache)
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false, cache)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",

@@ -12,39 +12,42 @@ import (
 )
 
 // Client builds a github client for the given app authentication.
-func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache) (*github.Client, error) {
-	var httpClient *http.Client
-	var err error
-	var client *github.Client
+// this should return the following clients given inputs
+// 1. url empty and cache nil
+// 2. url empty and cache not nil
+// 3. url not empty and cache nil
+// 4. url not empty and cache not nil
 
+func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache) (*github.Client, error) {
+	var (
+		rt  http.RoundTripper
+		err error
+	)
+	httpClient := &http.Client{}
+	// if cache is not nil, create a new http client with cache transport
 	if cache != nil {
-		tr := httpcache.NewTransport(cache)
-		at, err := ghinstallation.NewAppsTransport(tr, g.Id, []byte(g.PrivateKey))
+		httpClient = &http.Client{Transport: &httpcache.Transport{Cache: cache}}
+		rt, err = ghinstallation.New(httpClient.Transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github app transport: %w", err)
 		}
-
-		httpClient = &http.Client{
-			Transport: at,
-		}
 	} else {
-		rt, err := ghinstallation.New(http.DefaultTransport, g.Id, g.InstallationId, []byte(g.PrivateKey))
+		rt, err = ghinstallation.New(http.DefaultTransport, g.Id, g.InstallationId, []byte(g.PrivateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github app install: %w", err)
 		}
-		httpClient = &http.Client{
-			Transport: rt,
-		}
-
 	}
-
+	// set httpClient to use Transport from above. If cache used it will use the cache transport else it will use default transport
+	httpClient.Transport = rt
+	// Create the GitHub client.
 	if url == "" {
-		client = github.NewClient(httpClient)
-	} else {
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create github client: %w", err)
-		}
+		return github.NewClient(httpClient), nil
 	}
+
+	client, err := github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github client: %w", err)
+	}
+
 	return client, nil
 }
