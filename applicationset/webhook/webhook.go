@@ -2,8 +2,10 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
+	"k8s.io/apimachinery/pkg/labels"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -121,7 +123,8 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 func (h *WebhookHandler) HandleEvent(payload any) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
-	if gitGenInfo == nil && prGenInfo == nil {
+	labelsSelector := getLabelsSelector(payload)
+	if gitGenInfo == nil && prGenInfo == nil && labelsSelector == nil {
 		return
 	}
 
@@ -138,7 +141,7 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
-				shouldRefreshPluginGenerator(gen.Plugin) ||
+				shouldRefreshLabelsSelector(&appSet, labelsSelector) ||
 				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
@@ -167,6 +170,8 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	case r.Header.Get("X-Custom-Event") != "":
+		payload, err = parseCustomPayload(r)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -362,10 +367,6 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 	return true
-}
-
-func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
-	return gen != nil
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
@@ -583,7 +584,6 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			// Check all interpolated child generators
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
-				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
 				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
 				return true
@@ -594,7 +594,6 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// First child generator didn't return any params, just check the second child generator
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
-		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
 		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
 		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
 }
@@ -643,6 +642,39 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	}
 
 	return false
+}
+
+type CustomPayload struct {
+	LabelsSelectorQuery string `json:"labelsSelector"`
+}
+
+func parseCustomPayload(r *http.Request) (CustomPayload, error) {
+	var p CustomPayload
+	err := json.NewDecoder(r.Body).Decode(&p)
+	return p, err
+}
+
+func getLabelsSelector(payload interface{}) labels.Selector {
+	switch payload := payload.(type) {
+	case CustomPayload:
+		if payload.LabelsSelectorQuery != "" {
+			ls, err := labels.Parse(payload.LabelsSelectorQuery)
+			if err != nil {
+				log.Errorf("Failed to parse labels selector query '%s' : %v", payload.LabelsSelectorQuery, err)
+			} else {
+				return ls
+			}
+		}
+	}
+	return nil
+}
+
+func shouldRefreshLabelsSelector(appSet *v1alpha1.ApplicationSet, labelSelector labels.Selector) bool {
+	if labelSelector == nil {
+		return false
+	}
+
+	return labelSelector.Matches(labels.Set(appSet.Labels))
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
