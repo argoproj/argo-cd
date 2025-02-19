@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
@@ -204,6 +205,108 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
 	})
 
+	t.Run("OIDC auth", func(t *testing.T) {
+		cdSettings := &settings.ArgoCDSettings{
+			URL:                       "https://argocd.example.com",
+			OIDCTLSInsecureSkipVerify: true,
+		}
+		oidcConfig := settings.OIDCConfig{
+			Name:         "Test",
+			Issuer:       oidcTestServer.URL,
+			ClientID:     "xxx",
+			ClientSecret: "yyy",
+		}
+		oidcConfigRaw, err := yaml.Marshal(oidcConfig)
+		require.NoError(t, err)
+		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
+
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		w := httptest.NewRecorder()
+		app.HandleLogin(w, req)
+
+		assert.Equal(t, http.StatusSeeOther, w.Code)
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		values, err := url.ParseQuery(location.RawQuery)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"openid", "profile", "email", "groups"}, strings.Split(values.Get("scope"), " "))
+		assert.Equal(t, "xxx", values.Get("client_id"))
+		assert.Equal(t, "code", values.Get("response_type"))
+	})
+
+	t.Run("OIDC auth with custom scopes", func(t *testing.T) {
+		cdSettings := &settings.ArgoCDSettings{
+			URL:                       "https://argocd.example.com",
+			OIDCTLSInsecureSkipVerify: true,
+		}
+		oidcConfig := settings.OIDCConfig{
+			Name:            "Test",
+			Issuer:          oidcTestServer.URL,
+			ClientID:        "xxx",
+			ClientSecret:    "yyy",
+			RequestedScopes: []string{"oidc"},
+		}
+		oidcConfigRaw, err := yaml.Marshal(oidcConfig)
+		require.NoError(t, err)
+		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
+
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		w := httptest.NewRecorder()
+		app.HandleLogin(w, req)
+
+		assert.Equal(t, http.StatusSeeOther, w.Code)
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		values, err := url.ParseQuery(location.RawQuery)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"oidc"}, strings.Split(values.Get("scope"), " "))
+		assert.Equal(t, "xxx", values.Get("client_id"))
+		assert.Equal(t, "code", values.Get("response_type"))
+	})
+
+	t.Run("Dex auth", func(t *testing.T) {
+		cdSettings := &settings.ArgoCDSettings{
+			URL: dexTestServer.URL,
+		}
+		dexConfig := map[string]any{
+			"connectors": []map[string]any{
+				{
+					"type": "github",
+					"name": "GitHub",
+					"config": map[string]any{
+						"clientId":     "aabbccddeeff00112233",
+						"clientSecret": "aabbccddeeff00112233",
+					},
+				},
+			},
+		}
+		dexConfigRaw, err := yaml.Marshal(dexConfig)
+		require.NoError(t, err)
+		cdSettings.DexConfig = string(dexConfigRaw)
+
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+		w := httptest.NewRecorder()
+		app.HandleLogin(w, req)
+
+		assert.Equal(t, http.StatusSeeOther, w.Code)
+		location, err := url.Parse(w.Header().Get("Location"))
+		require.NoError(t, err)
+		values, err := url.ParseQuery(location.RawQuery)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"openid", "profile", "email", "groups", common.DexFederatedScope}, strings.Split(values.Get("scope"), " "))
+		assert.Equal(t, common.ArgoCDClientAppID, values.Get("client_id"))
+		assert.Equal(t, "code", values.Get("response_type"))
+	})
+
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
 			URL:                       "https://argocd.example.com",
@@ -330,10 +433,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleLogin(w, req)
 
-	redirectUrl, err := w.Result().Location()
+	redirectURL, err := w.Result().Location()
 	require.NoError(t, err)
 
-	state := redirectUrl.Query()["state"]
+	state := redirectURL.Query()["state"]
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
 	for _, cookie := range w.Result().Cookies() {

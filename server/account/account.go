@@ -148,7 +148,7 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	return &account.CanIResponse{Value: "no"}, nil
 }
 
-func toApiAccount(name string, a settings.Account) *account.Account {
+func toAPIAccount(name string, a settings.Account) *account.Account {
 	var capabilities []string
 	for _, c := range a.Capabilities {
 		capabilities = append(capabilities, string(c))
@@ -190,7 +190,7 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 	}
 	for name, a := range accounts {
 		if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, name); err == nil {
-			resp.Items = append(resp.Items, toApiAccount(name, a))
+			resp.Items = append(resp.Items, toAPIAccount(name, a))
 		}
 	}
 	sort.Slice(resp.Items, func(i, j int) bool {
@@ -208,7 +208,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}
-	return toApiAccount(r.Name, *a), nil
+	return toAPIAccount(r.Name, *a), nil
 }
 
 // CreateToken creates a token

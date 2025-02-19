@@ -188,16 +188,16 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(_ *Application) {
-			expectedApiVersion := fixture.GetApiResources()
-			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
-			sort.Strings(expectedApiVersionSlice)
+			expectedAPIVersion := fixture.GetApiResources()
+			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
+			sort.Strings(expectedAPIVersionSlice)
 
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
+			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 
@@ -332,16 +332,16 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(_ *Application) {
-			expectedApiVersion := fixture.GetApiResources()
-			expectedApiVersionSlice := strings.Split(expectedApiVersion, ",")
-			sort.Strings(expectedApiVersionSlice)
+			expectedAPIVersion := fixture.GetApiResources()
+			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
+			sort.Strings(expectedAPIVersionSlice)
 
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
 			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedApiVersionSlice, outputSlice)
+			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 
