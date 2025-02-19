@@ -112,7 +112,7 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
@@ -140,8 +140,8 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	}
 
 	if settings.DexConfig != "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
