@@ -47,6 +47,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -250,9 +251,15 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 		if !s.isNamespaceEnabled(namespaceOrDefault) {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
-		return s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
+		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
 		})
+		if err != nil {
+			return nil, err
+		}
+		// Objects returned by the lister must be treated as read-only.
+		// To allow us to modify the app later, make a copy
+		return app.DeepCopy(), nil
 	})
 }
 
@@ -369,6 +376,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
+	// Objects returned from listers have to be treated as read-only
+	// Take a deep copy so we can edit it below
+	existing = existing.DeepCopy()
 
 	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
@@ -806,7 +816,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 					annotations = make(map[string]string)
 				}
 				if _, ok := annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-					return &event.Application, nil
+					return event.Application.DeepCopy(), nil
 				}
 			}
 		}
@@ -1212,6 +1222,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if err != nil {
 			return fmt.Errorf("error listing apps with selector: %w", err)
 		}
+		apps = util.SliceCopy(apps)
 		sort.Slice(apps, func(i, j int) bool {
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
