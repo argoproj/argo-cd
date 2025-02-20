@@ -172,7 +172,12 @@ func (s *Service) Init() error {
 		closer := s.gitRepoInitializer(fullPath)
 		if repo, err := gogit.PlainOpen(fullPath); err == nil {
 			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
+				keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(remotes[0].Config().URLs[0]), "project": ""})
+				if err != nil {
+					return fmt.Errorf("json.Marshal: error while creating cache key from existing folder on repository.Init(): %w", err)
+				}
+
+				s.gitRepoPaths.Add(string(keyData), fullPath)
 			}
 		}
 		io.Close(closer)
