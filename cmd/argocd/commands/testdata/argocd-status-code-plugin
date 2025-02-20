@@ -1,0 +1,16 @@
+#!/bin/bash
+
+case "$1" in
+  "--flag1")
+    echo "Flag1 detected: $2"
+    exit 0
+    ;;
+  "--flag3")
+    echo "Unknown argument: --flag3" >&2
+    exit 1
+    ;;
+  *)
+    echo "Plugin not found or invalid command" >&2
+    exit 127
+    ;;
+esac

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "I can't be executed since I don't have executable permissions"
