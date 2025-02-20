@@ -188,8 +188,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(stderrors.New("Must specify --name for repos of type 'helm'"))
 			}
 
-			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHttp {
-				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHttp
+			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHTTP {
+				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
@@ -244,7 +244,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
-	command.Flags().BoolVar(&repoOpts.InsecureOCIForceHttp, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
+	command.Flags().BoolVar(&repoOpts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 	cmdutil.AddRepoFlags(command, &repoOpts)
 	return command
 }

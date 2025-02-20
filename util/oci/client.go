@@ -78,7 +78,7 @@ type Creds struct {
 	CertData           []byte
 	KeyData            []byte
 	InsecureSkipVerify bool
-	InsecureHttpOnly   bool
+	InsecureHTTPOnly   bool
 }
 
 type ClientOpts func(c *nativeOCIClient)
@@ -111,14 +111,14 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, layerMediaTypes, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
 
-	repo.PlainHTTP = creds.InsecureHttpOnly
+	repo.PlainHTTP = creds.InsecureHTTPOnly
 
 	var tlsConf *tls.Config
 	if !repo.PlainHTTP {
@@ -130,7 +130,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 
 	client := &http.Client{
 		Transport: &http.Transport{
-			Proxy:             proxy.GetCallback(proxyUrl, noProxy),
+			Proxy:             proxy.GetCallback(proxyURL, noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		},

@@ -54,7 +54,7 @@ type RepoCreds struct {
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,25,opt,name=insecureOCIForceHttp"`
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,25,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 }
 
 // Repository is a repository holding application configurations
@@ -109,7 +109,7 @@ type Repository struct {
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,25,opt,name=insecureOCIForceHttp"`
+	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,25,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -271,7 +271,7 @@ func (repo *Repository) GetOCICreds() oci.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
-		InsecureHttpOnly:   repo.InsecureOCIForceHttp,
+		InsecureHTTPOnly:   repo.InsecureOCIForceHttp,
 	}
 }
 

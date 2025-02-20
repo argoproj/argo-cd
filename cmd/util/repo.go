@@ -11,7 +11,7 @@ type RepoOptions struct {
 	Repo                           appsv1.Repository
 	Upsert                         bool
 	SshPrivateKeyPath              string //nolint:revive //FIXME(var-naming)
-	InsecureOCIForceHttp           bool
+	InsecureOCIForceHTTP           bool
 	InsecureIgnoreHostKey          bool
 	InsecureSkipServerVerification bool
 	TlsClientCertPath              string //nolint:revive //FIXME(var-naming)

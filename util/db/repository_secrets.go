@@ -342,11 +342,11 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.EnableOCI = enableOCI
 
-	insecureOCIForceHttp, err := boolOrFalse(secret, "insecureOCIForceHttp")
+	insecureOCIForceHTTP, err := boolOrFalse(secret, "insecureOCIForceHttp")
 	if err != nil {
 		return repository, err
 	}
-	repository.InsecureOCIForceHttp = insecureOCIForceHttp
+	repository.InsecureOCIForceHttp = insecureOCIForceHTTP
 
 	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
@@ -428,11 +428,11 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.EnableOCI = enableOCI
 
-	insecureOCIForceHttp, err := boolOrFalse(secret, "insecureOCIForceHttp")
+	insecureOCIForceHTTP, err := boolOrFalse(secret, "insecureOCIForceHttp")
 	if err != nil {
 		return repository, err
 	}
-	repository.InsecureOCIForceHttp = insecureOCIForceHttp
+	repository.InsecureOCIForceHttp = insecureOCIForceHTTP
 
 	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
