@@ -128,7 +128,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
         // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i')));
-    }, [filter]);
+    }, [filter, matchCase]);
 
     if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {containerName}</div>;
