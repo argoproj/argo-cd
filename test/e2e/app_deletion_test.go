@@ -1,7 +1,12 @@
 package e2e
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -9,6 +14,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
@@ -82,4 +88,81 @@ func TestDeletingAppByLabelWait(t *testing.T) {
 		Then().
 		// delete is successful
 		Expect(DoesNotExistNow())
+}
+
+func TestDeletingAppWithImpersonation(t *testing.T) {
+	projectCtx := project.Given(t)
+	appCtx := Given(t)
+
+	projectCtx.
+		Name("impersonation-test").
+		SourceNamespaces([]string{"*"}).
+		SourceRepositories([]string{"*"}).
+		Destination("*,*").
+		DestinationServiceAccounts([]string{fmt.Sprintf("%s,%s,%s", KubernetesInternalAPIServerAddr, "*", "default-sa")}).
+		When().
+		Create().
+		Then().
+		Expect()
+
+	appCtx.
+		Project("impersonation-test").
+		Path(guestbookPath).
+		When().
+		CreateApp("--label=foo=bar").
+		WithImpersonationEnabled("default-sa", []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			},
+		}).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteBySelectorWithWait("foo=bar").
+		Then().
+		Expect(DoesNotExist())
+}
+
+func TestDeletingAppWithImpersonationMissingDeletePermission(t *testing.T) {
+	projectName := "impersonation-missing-delete-permission"
+	serviceAccountName := "default-sa"
+
+	projectCtx := project.Given(t)
+	appCtx := Given(t)
+
+	projectCtx.
+		Name(projectName).
+		SourceNamespaces([]string{"*"}).
+		SourceRepositories([]string{"*"}).
+		Destination("*,*").
+		DestinationServiceAccounts([]string{fmt.Sprintf("%s,%s,%s", KubernetesInternalAPIServerAddr, "*", serviceAccountName)}).
+		When().
+		Create().
+		Then().
+		Expect()
+
+	appCtx.
+		Project(projectName).
+		Path(guestbookPath).
+		When().
+		CreateApp("--label=foo=bar").
+		WithImpersonationEnabled(serviceAccountName, []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"get", "list", "watch", "create", "update", "patch"},
+			},
+		}).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Delete(false).
+		Then().
+		Expect(DoesNotExist()).
+		ExpectConsistently(DoesNotExist(), WaitDuration, TimeoutDuration).
+		ExpectConsistently(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "guestbook-ui") }), WaitDuration, TimeoutDuration)
 }

@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/client-go/rest"
+
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -1244,6 +1246,24 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			propagationPolicy = metav1.DeletePropagationBackground
 		}
 		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
+
+		impersonationEnabled, err := ctrl.settingsMgr.IsImpersonationEnabled()
+		if err != nil {
+			logCtx.Errorf("could not get impersonation feature flag: %v", err)
+			return err
+		}
+		if impersonationEnabled {
+			serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
+			if err != nil {
+				logCtx.Errorf("could not get service account for impersonation: %v", err)
+				return err
+			}
+			logCtx = logCtx.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+			// set the impersonation headers.
+			config.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
+		}
 
 		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 			obj := filteredObjs[i]
