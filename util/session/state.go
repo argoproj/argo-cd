@@ -81,7 +81,7 @@ func (storage *userStateStorage) loadRevokedTokensSafe() {
 }
 
 func (storage *userStateStorage) loadRevokedTokens() error {
-	var redisRevokedTokens = map[string]bool{}
+	redisRevokedTokens := map[string]bool{}
 	iterator := storage.redis.Scan(context.Background(), 0, revokedTokenPrefix+"*", 10000).Iterator()
 	for iterator.Next(context.Background()) {
 		parts := strings.Split(iterator.Val(), "|")
