@@ -111,7 +111,7 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
@@ -139,8 +139,8 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	}
 
 	if settings.DexConfig != "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
@@ -210,7 +210,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	if err != nil {
 		return nil, "", err
 	}
-	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(token *jwt.Token) (any, error) {
 		// Don't forget to validate the alg is what you expect:
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -265,7 +265,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	if account.PasswordMtime != nil && issuedAt.Before(*account.PasswordMtime) {
-		return nil, "", fmt.Errorf("account password has changed since token issued")
+		return nil, "", errors.New("account password has changed since token issued")
 	}
 
 	newToken := ""
@@ -303,7 +303,7 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 	expiredCount := 0
 	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
-			expiredCount += 1
+			expiredCount++
 			delete(failures, key)
 		}
 	}
@@ -362,7 +362,7 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// On login failure, increase fail count and update last failed timestamp.
 	// On login success, remove the entry from the cache.
 	if failed {
-		attempt.FailCount += 1
+		attempt.FailCount++
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
@@ -536,7 +536,7 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
 		}
 		if argoSettings == nil {
-			return nil, "", fmt.Errorf("settings are not available while verifying the token")
+			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
@@ -573,7 +573,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 		return nil, err
 	}
 	if !settings.IsSSOConfigured() {
-		return nil, fmt.Errorf("SSO is not configured")
+		return nil, errors.New("SSO is not configured")
 	}
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil

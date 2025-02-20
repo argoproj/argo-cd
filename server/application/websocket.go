@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	httputil "github.com/argoproj/argo-cd/v2/util/http"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v2/util/session"
 
 	"github.com/gorilla/websocket"
@@ -26,7 +26,7 @@ const (
 var upgrader = func() websocket.Upgrader {
 	upgrader := websocket.Upgrader{}
 	upgrader.HandshakeTimeout = time.Second * 2
-	upgrader.CheckOrigin = func(r *http.Request) bool {
+	upgrader.CheckOrigin = func(_ *http.Request) bool {
 		return true
 	}
 	return upgrader
@@ -139,7 +139,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		Operation: "stdout",
 		Data:      "Permission denied",
 	})
-	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -147,7 +147,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 
-	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -178,7 +178,7 @@ func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) 
 	return 0, nil
 }
 
-// Read called in a loop from remotecommand as long as the process is running
+// Read called in a loop from remote command as long as the process is running
 func (t *terminalSession) Read(p []byte) (int, error) {
 	code, err := t.performValidationsAndReconnect(p)
 	if err != nil {
@@ -219,7 +219,7 @@ func (t *terminalSession) Ping() error {
 	return err
 }
 
-// Write called from remotecommand whenever there is any output
+// Write called from remote command whenever there is any output
 func (t *terminalSession) Write(p []byte) (int, error) {
 	msg, err := json.Marshal(TerminalMessage{
 		Operation: "stdout",

@@ -3,6 +3,7 @@ package applicationset
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -14,8 +15,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/dynamic"
@@ -33,7 +34,6 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -126,7 +126,7 @@ func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQue
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -159,7 +159,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 			continue
 		}
 
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
+		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)) {
 			newItems = append(newItems, *a)
 		}
 	}
@@ -184,7 +184,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	appset := q.GetApplicationset()
 
 	if appset == nil {
-		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
+		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 
 	projectName, err := s.validateAppSet(appset)
@@ -229,7 +229,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return created, nil
 	}
 
-	if !apierr.IsAlreadyExists(err) {
+	if !apierrors.IsAlreadyExists(err) {
 		return nil, fmt.Errorf("error creating ApplicationSet: %w", err)
 	}
 	// act idempotent if existing spec matches new spec
@@ -252,7 +252,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing ApplicationSet spec is different, use upsert flag to force update")
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 	updated, err := s.updateAppSet(existing, appset, ctx, true)
@@ -288,11 +288,11 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	if appset != nil && appset.Spec.Template.Spec.Project != newAppset.Spec.Template.Spec.Project {
 		// When changing projects, caller must have applicationset create and update privileges in new project
 		// NOTE: the update check was already verified in the caller to this function
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, newAppset.RBACName(s.ns)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionCreate, newAppset.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
 		// They also need 'update' privileges in the old project
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionUpdate, appset.RBACName(s.ns)); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionUpdate, appset.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
 	}
@@ -313,7 +313,7 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 			s.waitSync(res)
 			return res, nil
 		}
-		if !apierr.IsConflict(err) {
+		if !apierrors.IsConflict(err) {
 			return nil, err
 		}
 
@@ -333,7 +333,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionDelete, appset.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionDelete, appset.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -359,7 +359,7 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 	if err != nil {
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
-	if err = s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionGet, a.RBACName(s.ns)); err != nil {
+	if err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -370,7 +370,7 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	appset := q.GetApplicationSet()
 
 	if appset == nil {
-		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
+		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
@@ -429,13 +429,13 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 
 func (s *Server) validateAppSet(appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
-		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
+		return "", errors.New("ApplicationSet cannot be validated for nil value")
 	}
 
 	projectName := appset.Spec.Template.Spec.Project
 
 	if strings.Contains(projectName, "{{") {
-		return "", fmt.Errorf("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
+		return "", errors.New("the Argo CD API does not currently support creating ApplicationSets with templated `project` fields")
 	}
 
 	if err := appsetutils.CheckInvalidGenerators(appset); err != nil {
@@ -446,13 +446,13 @@ func (s *Server) validateAppSet(appset *v1alpha1.ApplicationSet) (string, error)
 }
 
 func (s *Server) checkCreatePermissions(ctx context.Context, appset *v1alpha1.ApplicationSet, projectName string) error {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplicationSets, rbacpolicy.ActionCreate, appset.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionCreate, appset.RBACName(s.ns)); err != nil {
 		return err
 	}
 
 	_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
-		if apierr.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return status.Errorf(codes.InvalidArgument, "ApplicationSet references project %s which does not exist", projectName)
 		}
 		return fmt.Errorf("error getting ApplicationSet's project %q: %w", projectName, err)
@@ -495,7 +495,7 @@ func (s *Server) waitSync(appset *v1alpha1.ApplicationSet) {
 }
 
 func (s *Server) logAppSetEvent(a *v1alpha1.ApplicationSet, ctx context.Context, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
+	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -507,9 +507,8 @@ func (s *Server) logAppSetEvent(a *v1alpha1.ApplicationSet, ctx context.Context,
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 	if appNs == "" {
 		return s.ns
-	} else {
-		return appNs
 	}
+	return appNs
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
