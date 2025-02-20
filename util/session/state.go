@@ -30,10 +30,11 @@ var _ UserStateStorage = &userStateStorage{}
 
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{
-		attempts:       map[string]LoginAttempts{},
-		revokedTokens:  map[string]bool{},
-		resyncDuration: time.Hour,
-		redis:          redis,
+		attempts:            map[string]LoginAttempts{},
+		revokedTokens:       map[string]bool{},
+		recentRevokedTokens: map[string]bool{},
+		resyncDuration:      time.Second * 15,
+		redis:               redis,
 	}
 }
 
