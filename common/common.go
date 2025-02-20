@@ -27,6 +27,8 @@ const (
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
+	// DefaultRepoServerAddr with namespace is the gRPC address of the Argo CD repo server
+	DefaultRepoServerAddrWithNamespace = "argocd-repo-server.%s.svc.cluster.local:8081"
 	// DefaultCommitServerAddr is the gRPC address of the Argo CD commit server
 	DefaultCommitServerAddr = "argocd-commit-server:8086"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
