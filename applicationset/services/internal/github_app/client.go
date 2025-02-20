@@ -11,13 +11,22 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 )
 
+func CachedClient(cache httpcache.Cache) *http.Client {
+	httpClient := http.Client{}
+	httpClient = http.Client{Transport: &httpcache.Transport{Cache: cache}}
+	return &httpClient
+}
+
+func SetupAppAuthTransport() {
+
+}
+
 // Client builds a github client for the given app authentication.
 // this should return the following clients given inputs
 // 1. url empty and cache nil
 // 2. url empty and cache not nil
 // 3. url not empty and cache nil
 // 4. url not empty and cache not nil
-
 func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache) (*github.Client, error) {
 	var (
 		rt  http.RoundTripper
@@ -26,7 +35,8 @@ func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache)
 	httpClient := &http.Client{}
 	// if cache is not nil, create a new http client with cache transport
 	if cache != nil {
-		httpClient = &http.Client{Transport: &httpcache.Transport{Cache: cache}}
+		httpClient = CachedClient(cache)
+
 		rt, err = ghinstallation.New(httpClient.Transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github app transport: %w", err)
@@ -37,6 +47,7 @@ func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache)
 			return nil, fmt.Errorf("failed to create github app install: %w", err)
 		}
 	}
+
 	// set httpClient to use Transport from above. If cache used it will use the cache transport else it will use default transport
 	httpClient.Transport = rt
 	// Create the GitHub client.
@@ -48,6 +59,5 @@ func Client(g github_app_auth.Authentication, url string, cache httpcache.Cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github client: %w", err)
 	}
-
 	return client, nil
 }

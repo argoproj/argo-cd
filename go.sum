@@ -78,6 +78,8 @@ github.com/aburan28/httpcache v0.0.2 h1:ZnTLYeFihqtjLDtoYqWbhYzyd1AOY93L2As/O6JR
 github.com/aburan28/httpcache v0.0.2/go.mod h1:9l7da/RFyyILtLd4HoDzCpk2Dl2F5AEvuHx5APrFd/M=
 github.com/aburan28/httpcache v0.0.4 h1:sj6qw17xrXJlFUccB91sCG1DegsTzitg7xFNT9bdRYY=
 github.com/aburan28/httpcache v0.0.4/go.mod h1:9l7da/RFyyILtLd4HoDzCpk2Dl2F5AEvuHx5APrFd/M=
+github.com/aburan28/httpcache v0.0.5 h1:s9nOz8w8lfRTSUBu0/zL5AF1DhS1xiPGuLuphqmOgn0=
+github.com/aburan28/httpcache v0.0.5/go.mod h1:9l7da/RFyyILtLd4HoDzCpk2Dl2F5AEvuHx5APrFd/M=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
