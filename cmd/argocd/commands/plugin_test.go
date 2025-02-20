@@ -2,7 +2,9 @@ package commands
 
 import (
 	"bytes"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -58,6 +60,11 @@ func TestPluginExecution(t *testing.T) {
 		{
 			name:              "'argocd-foo' binary exists in the PATH",
 			args:              []string{"argocd", "foo"},
+			expectedPluginErr: "",
+		},
+		{
+			name:              "'argocd-demo_plugin' binary exists in the PATH",
+			args:              []string{"argocd", "demo_plugin"},
 			expectedPluginErr: "",
 		},
 		{
@@ -193,4 +200,112 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
 	assert.EqualError(t, pluginErr, "unknown command \"ignore-plugin\" for \"argocd\"")
+}
+
+// TestPluginFlagParsing checks that the flags are parsed correctly by the plugin handler
+func TestPluginFlagParsing(t *testing.T) {
+	setupPluginPath(t)
+
+	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+
+	tests := []struct {
+		name           string
+		args           []string
+		shouldFail     bool
+		expectedErrMsg string
+	}{
+		{
+			name:           "Valid flags",
+			args:           []string{"argocd", "test-plugin", "--flag1", "value1", "--flag2", "value2"},
+			shouldFail:     false,
+			expectedErrMsg: "",
+		},
+		{
+			name:           "Unknown flag",
+			args:           []string{"argocd", "test-plugin", "--flag3", "invalid"},
+			shouldFail:     true,
+			expectedErrMsg: "exit status 1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := NewCommand()
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
+			cmd.SetArgs(tt.args[1:])
+
+			err := cmd.Execute()
+			require.Error(t, err)
+
+			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+
+			if tt.shouldFail {
+				require.Error(t, pluginErr)
+				assert.Equal(t, tt.expectedErrMsg, pluginErr.Error(), "Unexpected error message")
+			} else {
+				require.NoError(t, pluginErr, "Expected no error for valid flags")
+			}
+		})
+	}
+}
+
+// TestPluginStatusCode checks for a correct status code that a plugin binary would generate
+func TestPluginStatusCode(t *testing.T) {
+	setupPluginPath(t)
+
+	pluginHandler := NewDefaultPluginHandler([]string{"argocd"})
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantStatus int
+		throwErr   bool
+	}{
+		{
+			name:       "plugin generates the successful exit code",
+			args:       []string{"argocd", "status-code-plugin", "--flag1", "value1"},
+			wantStatus: 0,
+			throwErr:   false,
+		},
+		{
+			name:       "plugin generates an error status code",
+			args:       []string{"argocd", "status-code-plugin", "--flag3", "value3"},
+			wantStatus: 1,
+			throwErr:   true,
+		},
+		{
+			name:       "plugin generates a status code for an invalid command",
+			args:       []string{"argocd", "status-code-plugin", "invalid"},
+			wantStatus: 127,
+			throwErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := NewCommand()
+			cmd.SilenceErrors = true
+			cmd.SilenceUsage = true
+
+			cmd.SetArgs(tt.args[1:])
+
+			err := cmd.Execute()
+			require.Error(t, err)
+
+			pluginErr := pluginHandler.HandleCommandExecutionError(err, true, tt.args)
+			if !tt.throwErr {
+				require.NoError(t, pluginErr)
+			} else {
+				require.Error(t, pluginErr)
+				var exitErr *exec.ExitError
+				if errors.As(pluginErr, &exitErr) {
+					assert.Equal(t, tt.wantStatus, exitErr.ExitCode(), "unexpected exit code")
+				} else {
+					t.Fatalf("expected an exit error, got: %v", pluginErr)
+				}
+			}
+		})
+	}
 }
