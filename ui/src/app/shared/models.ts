@@ -133,6 +133,7 @@ export type SyncResourceResult = ResourceResult & {
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
+export const AnnotationAppParent = 'argocd.argoproj.io/parent-application';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
 export const AnnotationDefaultView = 'pref.argocd.argoproj.io/default-view';
 export const AnnotationDefaultPodSort = 'pref.argocd.argoproj.io/default-pod-sort';
