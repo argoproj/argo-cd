@@ -5,21 +5,22 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func strToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	errors.CheckError(err)
 	return &unstructured.Unstructured{Object: obj}
@@ -157,7 +158,7 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
-	testIngressWithoutTLS = strToUnstructured(`
+	testIngressWithoutTls = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
@@ -245,40 +246,10 @@ spec:
         - destination:
             host: service
 `)
-
-	testIstioServiceEntry = strToUnstructured(`
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: echo
-spec:
-  exportTo:
-  - '*'
-  hosts:
-  - echo.internal
-  location: MESH_INTERNAL
-  ports:
-  - name: http
-    number: 80
-    protocol: HTTP
-    targetPort: 5678 
-  resolution: DNS
-
-  workloadSelector:
-    labels:
-      app.kubernetes.io/name: echo-2
-`)
 )
 
-// These tests are equivalent to tests in ui/src/app/applications/components/utils.test.tsx. If you update tests here,
-// please make sure to update the equivalent tests in the UI.
 func TestGetPodInfo(t *testing.T) {
-	t.Parallel()
-
-	t.Run("TestGetPodInfo", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -300,22 +271,22 @@ func TestGetPodInfo(t *testing.T) {
           memory: 128Mi
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-		assert.Equal(t, []string{"bar"}, info.Images)
-		assert.Equal(t, &PodInfo{
-			NodeName:         "minikube",
-			ResourceRequests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("128Mi")},
-		}, info.PodInfo)
-		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+	assert.Equal(t, []string{"bar"}, info.Images)
+	assert.Equal(t, &PodInfo{
+		NodeName:         "minikube",
+		ResourceRequests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("128Mi")},
+	}, info.PodInfo)
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
+}
 
-	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
-		pod := strToUnstructured(`
+func TestGetPodWithInitialContainerInfo(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: "v1"
   kind: "Pod"
   metadata: 
@@ -360,19 +331,17 @@ func TestGetPodInfo(t *testing.T) {
     phase: "Running"
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Running"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "1/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "1/1"},
+	}, info.Info)
+}
 
-	t.Run("TestGetPodInfoWithSidecar", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+func TestGetPodInfoWithSidecar(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -417,19 +386,17 @@ func TestGetPodInfo(t *testing.T) {
     phase: Running
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Running"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "2/2"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "2/2"},
+	}, info.Info)
+}
 
-	t.Run("TestGetPodInfoWithInitialContainer", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+func TestGetPodInfoWithInitialContainer(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -475,20 +442,18 @@ func TestGetPodInfo(t *testing.T) {
     startTime: '2024-10-09T08:02:39Z'
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Init:0/1"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/1"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test pod has 2 restartable init containers, the first one running but not started.
-	t.Run("TestGetPodInfoWithRestartableInitContainer", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod has 2 restartable init containers, the first one running but not started.
+func TestGetPodInfoWithRestartableInitContainer(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -531,21 +496,19 @@ func TestGetPodInfo(t *testing.T) {
         status: "False"
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Init:0/2"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/3"},
-			{Name: "Restart Count", Value: "3"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/2"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/3"},
+		{Name: "Restart Count", Value: "3"},
+	}, info.Info)
+}
 
-	// Test pod has 2 restartable init containers, the first one started and the second one running but not started.
-	t.Run("TestGetPodInfoWithPartiallyStartedInitContainers", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod has 2 restartable init containers, the first one started and the second one running but not started.
+func TestGetPodInfoWithPartiallyStartedInitContainers(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -588,21 +551,19 @@ func TestGetPodInfo(t *testing.T) {
         status: "False"
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Init:1/2"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/3"},
-			{Name: "Restart Count", Value: "3"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:1/2"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/3"},
+		{Name: "Restart Count", Value: "3"},
+	}, info.Info)
+}
 
-	// Test pod has 2 restartable init containers started and 1 container running
-	t.Run("TestGetPodInfoWithStartedInitContainers", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod has 2 restartable init containers started and 1 container running
+func TestGetPodInfoWithStartedInitContainers(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -648,21 +609,19 @@ func TestGetPodInfo(t *testing.T) {
         status: "True"
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Running"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "1/3"},
-			{Name: "Restart Count", Value: "7"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "1/3"},
+		{Name: "Restart Count", Value: "7"},
+	}, info.Info)
+}
 
-	// Test pod has 1 init container restarting and 1 container not running
-	t.Run("TestGetPodInfoWithNormalInitContainer", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod has 1 init container restarting and 1 container not running
+func TestGetPodInfoWithNormalInitContainer(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -690,21 +649,19 @@ func TestGetPodInfo(t *testing.T) {
           waiting: {}
 `)
 
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Init:0/1"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-			{Name: "Restart Count", Value: "3"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/1"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+		{Name: "Restart Count", Value: "3"},
+	}, info.Info)
+}
 
-	// Test pod condition succeed
-	t.Run("TestPodConditionSucceeded", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod condition succeed
+func TestPodConditionSucceeded(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -723,20 +680,18 @@ func TestGetPodInfo(t *testing.T) {
             reason: Completed
             exitCode: 0
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Completed"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Completed"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test pod condition failed
-	t.Run("TestPodConditionFailed", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod condition failed
+func TestPodConditionFailed(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -755,20 +710,18 @@ func TestGetPodInfo(t *testing.T) {
             reason: Error
             exitCode: 1
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Error"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Error"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test pod condition succeed with deletion
-	t.Run("TestPodConditionSucceededWithDeletion", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod condition succeed with deletion
+func TestPodConditionSucceededWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -788,20 +741,18 @@ func TestGetPodInfo(t *testing.T) {
             reason: Completed
             exitCode: 0
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Completed"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Completed"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test pod condition running with deletion
-	t.Run("TestPodConditionRunningWithDeletion", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod condition running with deletion
+func TestPodConditionRunningWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -819,20 +770,18 @@ func TestGetPodInfo(t *testing.T) {
         state:
           running: {}
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Terminating"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Terminating"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test pod condition pending with deletion
-	t.Run("TestPodConditionPendingWithDeletion", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test pod condition pending with deletion
+func TestPodConditionPendingWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -845,20 +794,18 @@ func TestGetPodInfo(t *testing.T) {
   status:
     phase: Pending
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "Terminating"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/1"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Terminating"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
 
-	// Test PodScheduled condition with reason SchedulingGated
-	t.Run("TestPodScheduledWithSchedulingGated", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// Test PodScheduled condition with reason SchedulingGated
+func TestPodScheduledWithSchedulingGated(t *testing.T) {
+	pod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -875,14 +822,13 @@ func TestGetPodInfo(t *testing.T) {
         status: "False"
         reason: SchedulingGated
 `)
-		info := &ResourceInfo{}
-		populateNodeInfo(pod, info, []string{})
-		assert.Equal(t, []v1alpha1.InfoItem{
-			{Name: "Status Reason", Value: "SchedulingGated"},
-			{Name: "Node", Value: "minikube"},
-			{Name: "Containers", Value: "0/2"},
-		}, info.Info)
-	})
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "SchedulingGated"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/2"},
+	}, info.Info)
 }
 
 func TestGetNodeInfo(t *testing.T) {
@@ -906,8 +852,8 @@ status:
 	populateNodeInfo(node, info, []string{})
 	assert.Equal(t, &NodeInfo{
 		Name:       "minikube",
-		Capacity:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("6091320Ki"), corev1.ResourceCPU: resource.MustParse("6")},
-		SystemInfo: corev1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
+		Capacity:   v1.ResourceList{v1.ResourceMemory: resource.MustParse("6091320Ki"), v1.ResourceCPU: resource.MustParse("6")},
+		SystemInfo: v1.NodeSystemInfo{Architecture: "amd64", OperatingSystem: "linux", OSImage: "Ubuntu 20.04 LTS"},
 	}, info.NodeInfo)
 }
 
@@ -917,7 +863,7 @@ func TestGetServiceInfo(t *testing.T) {
 	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
-		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
+		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
 	}, info.NetworkingInfo)
 }
 
@@ -927,7 +873,7 @@ func TestGetLinkAnnotatedServiceInfo(t *testing.T) {
 	assert.Empty(t, info.Info)
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
 		TargetLabels: map[string]string{"app": "guestbook"},
-		Ingress:      []corev1.LoadBalancerIngress{{Hostname: "localhost"}},
+		Ingress:      []v1.LoadBalancerIngress{{Hostname: "localhost"}},
 		ExternalURLs: []string{"http://my-grafana.example.com/pre-generated-link"},
 	}, info.NetworkingInfo)
 }
@@ -955,21 +901,6 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 	})
 }
 
-func TestGetIstioServiceEntryInfo(t *testing.T) {
-	info := &ResourceInfo{}
-	populateNodeInfo(testIstioServiceEntry, info, []string{})
-	assert.Empty(t, info.Info)
-	require.NotNil(t, info.NetworkingInfo)
-	require.NotNil(t, info.NetworkingInfo.TargetRefs)
-	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
-		Kind: kube.PodKind,
-	})
-
-	assert.Equal(t, map[string]string{
-		"app.kubernetes.io/name": "echo-2",
-	}, info.NetworkingInfo.TargetLabels)
-}
-
 func TestGetIngressInfo(t *testing.T) {
 	tests := []struct {
 		Ingress *unstructured.Unstructured
@@ -985,7 +916,7 @@ func TestGetIngressInfo(t *testing.T) {
 			return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 		})
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-			Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+			Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 			TargetRefs: []v1alpha1.ResourceRef{{
 				Namespace: "default",
 				Group:     "",
@@ -1010,7 +941,7 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1034,7 +965,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1052,13 +983,13 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
-	populateNodeInfo(testIngressWithoutTLS, info, []string{})
+	populateNodeInfo(testIngressWithoutTls, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
 	})
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",
@@ -1100,7 +1031,7 @@ func TestGetIngressInfoWithHost(t *testing.T) {
 	populateNodeInfo(ingress, info, []string{})
 
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
-		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Namespace: "default",
 			Group:     "",

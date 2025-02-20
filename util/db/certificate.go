@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -11,9 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	certutil "github.com/argoproj/argo-cd/v3/util/cert"
+	"github.com/argoproj/argo-cd/v2/common"
+	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 )
 
 // A struct representing an entry in the list of SSH known hosts.
@@ -56,7 +55,7 @@ type CertificateListSelector struct {
 //   - For SSH keys, the SHA256 fingerprint of the key as string, prepended by
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
-func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
+func (db *db) ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 	// selector may be given as nil, but we need at least an empty data structure
 	// so we create it if necessary.
 	if selector == nil {
@@ -123,7 +122,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 }
 
 // Get a single certificate from the datastore
-func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
+func (db *db) GetRepoCertificate(ctx context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
 		sshKnownHostsList, err := db.getSSHKnownHostsData()
 		if err != nil {
@@ -151,8 +150,8 @@ func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverNam
 // actually created.
 func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
-		saveSSHData = false
-		saveTLSData = false
+		saveSSHData bool = false
+		saveTLSData bool = false
 	)
 
 	sshKnownHostsList, err := db.getSSHKnownHostsData()
@@ -191,8 +190,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			}
 		}
 
-		switch {
-		case certificate.CertType == "ssh":
+		if certificate.CertType == "ssh" {
 			// Whether we have a new certificate entry
 			newEntry := true
 			// Whether we have upserted an existing certificate entry
@@ -205,15 +203,16 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				if entry.Host == certificate.ServerName && entry.SubType == certificate.CertSubType {
 					if !upsert && entry.Data != string(certificate.CertData) {
 						return nil, fmt.Errorf("Key for '%s' (subtype: '%s') already exist and upsert was not specified.", entry.Host, entry.SubType)
+					} else {
+						// Do not add an entry on upsert, but remember if we actual did an
+						// upsert.
+						newEntry = false
+						if entry.Data != string(certificate.CertData) {
+							entry.Data = string(certificate.CertData)
+							upserted = true
+						}
+						break
 					}
-					// Do not add an entry on upsert, but remember if we actual did an
-					// upsert.
-					newEntry = false
-					if entry.Data != string(certificate.CertData) {
-						entry.Data = string(certificate.CertData)
-						upserted = true
-					}
-					break
 				}
 			}
 
@@ -242,8 +241,8 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				created = append(created, certificate)
 				saveSSHData = true
 			}
-		case certificate.CertType == "https":
-			var tlsCertificate *TLSCertificate
+		} else if certificate.CertType == "https" {
+			var tlsCertificate *TLSCertificate = nil
 			newEntry := true
 			upserted := false
 			pemCreated := make([]string, 0)
@@ -271,7 +270,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 
 			// We should have at least one valid PEM entry
 			if len(pemData) == 0 {
-				return nil, errors.New("No valid PEM data received.")
+				return nil, fmt.Errorf("No valid PEM data received.")
 			}
 
 			// Make sure we have valid X509 certificates in the data
@@ -309,7 +308,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 				}
 				saveTLSData = true
 			}
-		default:
+		} else {
 			// Invalid/unknown certificate type
 			return nil, fmt.Errorf("Unknown certificate type: %s", certificate.CertType)
 		}

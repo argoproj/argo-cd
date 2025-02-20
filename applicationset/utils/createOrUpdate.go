@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -18,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 // CreateOrUpdate overrides "sigs.k8s.io/controller-runtime" function
@@ -115,7 +114,7 @@ func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Applicati
 		logCtx.Errorf("failed to generate patch: %v", err)
 	}
 	// Get the patch as a plain object so it is easier to work with in json logs.
-	var patchObj map[string]any
+	var patchObj map[string]interface{}
 	err = json.Unmarshal(patchBytes, &patchObj)
 	if err != nil {
 		logCtx.Errorf("failed to unmarshal patch: %v", err)
@@ -129,7 +128,7 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 		return fmt.Errorf("error while wrapping using MutateFn: %w", err)
 	}
 	if newKey := client.ObjectKeyFromObject(obj); key != newKey {
-		return stderrors.New("MutateFn cannot mutate object name and/or object namespace")
+		return fmt.Errorf("MutateFn cannot mutate object name and/or object namespace")
 	}
 	return nil
 }
@@ -163,12 +162,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 	if len(result.Lives) != 1 {
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Lives))
 	}
-	foundJSONNormalized, err := json.Marshal(result.Lives[0].Object)
+	foundJsonNormalized, err := json.Marshal(result.Lives[0].Object)
 	if err != nil {
 		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
 	}
 	foundNormalized := &argov1alpha1.Application{}
-	err = json.Unmarshal(foundJSONNormalized, &foundNormalized)
+	err = json.Unmarshal(foundJsonNormalized, &foundNormalized)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal normalized app to json: %w", err)
 	}
@@ -176,12 +175,12 @@ func applyIgnoreDifferences(applicationSetIgnoreDifferences argov1alpha1.Applica
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
 	}
 	foundNormalized.DeepCopyInto(found)
-	generatedJSONNormalized, err := json.Marshal(result.Targets[0].Object)
+	generatedJsonNormalized, err := json.Marshal(result.Targets[0].Object)
 	if err != nil {
 		return fmt.Errorf("failed to marshal normalized app to json: %w", err)
 	}
 	generatedAppNormalized := &argov1alpha1.Application{}
-	err = json.Unmarshal(generatedJSONNormalized, &generatedAppNormalized)
+	err = json.Unmarshal(generatedJsonNormalized, &generatedAppNormalized)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal normalized app json to structured app: %w", err)
 	}

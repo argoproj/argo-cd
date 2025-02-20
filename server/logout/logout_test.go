@@ -3,19 +3,19 @@ package logout
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
-	"strconv"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -87,7 +87,7 @@ func TestConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerConstructLogoutURL(t *testing.T) {
-	kubeClientWithOIDCConfig := fake.NewClientset(
+	kubeClientWithOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -119,7 +119,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoURL := fake.NewClientset(
+	kubeClientWithOIDCConfigButNoURL := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -151,7 +151,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewClientset(
+	kubeClientWithOIDCConfigButNoLogoutURL := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -182,7 +182,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCAndMultipleURLs := fake.NewClientset(
+	kubeClientWithoutOIDCAndMultipleURLs := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -210,7 +210,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			},
 		},
 	)
-	kubeClientWithoutOIDCConfig := fake.NewClientset(
+	kubeClientWithoutOIDCConfig := fake.NewSimpleClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      common.ArgoCDConfigMapName,
@@ -385,7 +385,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			if status := tt.responseRecorder.Code; status != http.StatusSeeOther {
 				if !tt.wantErr {
 					t.Error(tt.responseRecorder.Body.String())
-					t.Error("handler returned wrong status code: " + strconv.Itoa(tt.responseRecorder.Code))
+					t.Error("handler returned wrong status code: " + fmt.Sprintf("%d", tt.responseRecorder.Code))
 				}
 			} else {
 				if tt.wantErr {

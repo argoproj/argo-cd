@@ -3,7 +3,6 @@ package pull_request
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 
@@ -52,7 +51,7 @@ type PullRequestResponse struct {
 
 var _ PullRequestService = (*BitbucketCloudService)(nil)
 
-func parseURL(uri string) (*url.URL, error) {
+func parseUrl(uri string) (*url.URL, error) {
 	if uri == "" {
 		uri = "https://api.bitbucket.org/2.0"
 	}
@@ -65,10 +64,10 @@ func parseURL(uri string) (*url.URL, error) {
 	return url, nil
 }
 
-func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string) (PullRequestService, error) {
-	url, err := parseURL(baseURL)
+func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repositorySlug string) (PullRequestService, error) {
+	url, err := parseUrl(baseUrl)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewBasicAuth(username, password)
@@ -81,10 +80,10 @@ func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repos
 	}, nil
 }
 
-func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
-	url, err := parseURL(baseURL)
+func NewBitbucketCloudServiceBearerToken(baseUrl, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
+	url, err := parseUrl(baseUrl)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewOAuthbearerToken(bearerToken)
@@ -97,9 +96,9 @@ func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repository
 	}, nil
 }
 
-func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceNoAuth(baseUrl, owner, repositorySlug string) (PullRequestService, error) {
 	// There is currently no method to explicitly not require auth
-	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug)
+	return NewBitbucketCloudServiceBearerToken(baseUrl, "", owner, repositorySlug)
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
@@ -113,14 +112,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
 	}
 
-	resp, ok := response.(map[string]any)
+	resp, ok := response.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("unknown type returned from bitbucket pull requests")
+		return nil, fmt.Errorf("unknown type returned from bitbucket pull requests")
 	}
 
-	repoArray, ok := resp["values"].([]any)
+	repoArray, ok := resp["values"].([]interface{})
 	if !ok {
-		return nil, errors.New("unknown type returned from response values")
+		return nil, fmt.Errorf("unknown type returned from response values")
 	}
 
 	jsonStr, err := json.Marshal(repoArray)

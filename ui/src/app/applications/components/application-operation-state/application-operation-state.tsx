@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -16,7 +16,6 @@ interface Props {
     operationState: models.OperationState;
 }
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
-const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -53,8 +52,6 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 };
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
-    const [messageFilters, setMessageFilters] = React.useState([]);
-
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
@@ -64,9 +61,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             title: 'DURATION',
             value: (
                 <Ticker>
-                    {time => (
-                        <Duration durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />
-                    )}
+                    {time => <Duration durationMs={((operationState.finishedAt && moment(operationState.finishedAt)) || time).diff(moment(operationState.startedAt)) / 1000} />}
                 </Ticker>
             )
         }
@@ -169,7 +164,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
     if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
         filtered = combinedHealthSyncResult.filter(r => {
-            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
+            if (filters.length === 0 && healthFilters.length === 0) {
                 return true;
             }
 
@@ -180,15 +175,6 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
             if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
                 pass = false;
-            }
-
-            if (pass && messageFilters.length !== 0) {
-                pass = messageFilters.some(filter => {
-                    if (filter === 'Changed') {
-                        return r.message?.toLowerCase().includes('configured');
-                    }
-                    return r.message?.toLowerCase().includes(filter.toLowerCase());
-                });
             }
 
             return pass;
@@ -215,11 +201,6 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
                         </div>
                     </div>
                     <div className='argo-table-list'>
