@@ -21,6 +21,7 @@ type MetricsServer struct {
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
 	argoVersion              *prometheus.GaugeVec
+	dailyActiveUsersCounter  *prometheus.CounterVec
 }
 
 var (
@@ -61,6 +62,13 @@ var (
 		},
 		[]string{"version"},
 	)
+	dailyActiveUsersCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_daily_active_users",
+			Help: "Number of distinct users in the last 24 hours",
+		},
+		[]string{"type"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
@@ -95,6 +103,7 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
 		argoVersion:              argoVersion,
+		dailyActiveUsersCounter:  dailyActiveUsersCounter,
 	}
 }
 
@@ -113,4 +122,9 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+// IncrementDailyActiveUsers increments the counter for daily active users of a specific type
+func (m *MetricsServer) IncrementDailyActiveUsers(userType string) {
+	m.dailyActiveUsersCounter.WithLabelValues(userType).Inc()
 }
