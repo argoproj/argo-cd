@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	bb "github.com/ktrysmt/go-bitbucket"
+
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -61,6 +63,7 @@ type ArgoCDWebhookHandler struct {
 	bitbucketserver        *bitbucketserver.Webhook
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
+	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
@@ -105,6 +108,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
+		settings:               set,
 		db:                     argoDB,
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
@@ -137,8 +141,8 @@ func ParseRevision(ref string) string {
 }
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
-// the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+// the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
+func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -189,11 +193,31 @@ func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, cha
 		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
-		// TODO: bitbucket includes multiple changes as part of a single event.
-		// We only pick the first but need to consider how to handle multiple
-		for _, change := range payload.Push.Changes {
-			revision = change.New.Name
-			break
+		for _, changes := range payload.Push.Changes {
+			revision = changes.New.Name
+			change.shaBefore = changes.Old.Target.Hash
+			change.shaAfter = changes.New.Target.Hash
+			var repoCreds *v1alpha1.RepoCreds
+			var err error
+			// when webhook.bitbucket.secret is set in argocd-secret, then the payload must be signed and
+			// signature is validated before payload is parsed. Get DiffSet only for authenticated webhooks.
+			if len(a.settings.WebhookBitbucketServerSecret) > 0 {
+				if repoCreds == nil {
+					repoCreds, err = a.db.GetRepositoryCredentials(context.Background(), webURLs[0])
+					if err != nil {
+						log.Warnf("failed to retrieve repository secret access token: %v", err)
+						continue
+					}
+				}
+				workspace := strings.Split(payload.Repository.FullName, "/")[0]
+				spec := change.shaAfter + ".." + change.shaBefore
+				changedFilesPerChange, err := fetchDiffstatFromBitbucket(workspace, payload.Repository.Name, spec, repoCreds)
+				if err != nil {
+					log.Warnf("error fetching diffstat: %v", err)
+					continue
+				}
+				changedFiles = append(changedFiles, changedFilesPerChange...)
+			}
 		}
 		// Not actually sure how to check if the incoming change affected HEAD just by examining the
 		// payload alone. To be safe, we just return true and let the controller check for himself.
@@ -251,7 +275,7 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
-	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -428,6 +452,41 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 
 	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
 	return true
+}
+
+func fetchDiffstatFromBitbucket(workspace, repoSlug, spec string, repoCreds *v1alpha1.RepoCreds) ([]string, error) {
+	// Getting the files changed from diff API:
+	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
+	if repoCreds == nil {
+		return []string{}, fmt.Errorf("unable to retrieve repository credentials for bitbucket workspace %s and reposlug %s", workspace, repoSlug)
+	}
+	c := bb.NewBasicAuth(repoCreds.Username, repoCreds.Password)
+	repoBaseURL, err := url.Parse(repoCreds.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repoURL '%s'", repoCreds.URL)
+	}
+	c.SetApiBaseURL(*repoBaseURL)
+	diffStatResp, err := c.Repositories.Diff.GetDiffStat(&bb.DiffStatOptions{
+		Owner:             workspace,
+		RepoSlug:          repoSlug,
+		Spec:              spec,
+		FromPullRequestID: 0,
+		Whitespace:        false,
+		Renames:           true,
+		Topic:             false,
+		PageNum:           0,
+		Pagelen:           0,
+		MaxDepth:          0,
+		Fields:            nil,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting the diffstat: %w", err)
+	}
+	changedFiles := make([]string, len(diffStatResp.DiffStats))
+	for i, value := range diffStatResp.DiffStats {
+		changedFiles[i] = value.New["path"].(string)
+	}
+	return changedFiles, nil
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
