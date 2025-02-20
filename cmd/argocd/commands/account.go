@@ -16,12 +16,13 @@ import (
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -218,7 +219,7 @@ argocd account can-i create clusters '*'
 
 Actions: %v
 Resources: %v
-`, rbacpolicy.Actions, rbacpolicy.Resources),
+`, rbac.Actions, rbac.Resources),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
