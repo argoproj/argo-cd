@@ -1585,7 +1585,7 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 }
 
 func (s *Server) GetOCIMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.OCIMetadata, error) {
-	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
 	}
