@@ -36,7 +36,7 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 
 	hasInClusterCredentials := false
 	for i, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(&clusterSecret)
+		cluster, err := db.SecretToCluster(clientset, &clusterSecret)
 		if err != nil || cluster == nil {
 			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %w", clusterSecret.Name, err)
 		}

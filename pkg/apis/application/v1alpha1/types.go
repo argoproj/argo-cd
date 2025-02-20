@@ -2134,6 +2134,8 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// NamespaceSelector is a label selector to filter namespaces in the cluster. Cluster level resources will be ignored if namespace selector is not empty.
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty" protobuf:"bytes,14,opt,name=namespaceSelector"`
 }
 
 // Equals returns true if two cluster objects are considered to be equal

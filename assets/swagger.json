@@ -7668,6 +7668,9 @@
           "type": "string",
           "title": "Name of the cluster. If omitted, will use the server address"
         },
+        "namespaceSelector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
         "namespaces": {
           "description": "Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.",
           "type": "array",

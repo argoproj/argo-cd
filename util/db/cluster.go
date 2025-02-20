@@ -17,6 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -72,7 +73,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	inClusterEnabled := settings.InClusterEnabled
 	hasInClusterCredentials := false
 	for _, clusterSecret := range clusterSecrets {
-		cluster, err := SecretToCluster(clusterSecret)
+		cluster, err := SecretToCluster(db.kubeclientset, clusterSecret)
 		if err != nil {
 			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 			continue
@@ -124,7 +125,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 		return nil, err
 	}
 
-	cluster, err := SecretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(db.kubeclientset, clusterSecret)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "could not unmarshal cluster secret %s", clusterSecret.Name)
 	}
@@ -161,7 +162,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		common.LabelValueSecretTypeCluster,
 
 		func(secret *corev1.Secret) {
-			cluster, err := SecretToCluster(secret)
+			cluster, err := SecretToCluster(db.kubeclientset, secret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
 				return
@@ -178,12 +179,12 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 
 		func(oldSecret *corev1.Secret, newSecret *corev1.Secret) {
-			oldCluster, err := SecretToCluster(oldSecret)
+			oldCluster, err := SecretToCluster(db.kubeclientset, oldSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)
 				return
 			}
-			newCluster, err := SecretToCluster(newSecret)
+			newCluster, err := SecretToCluster(db.kubeclientset, newSecret)
 			if err != nil {
 				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
 				return
@@ -243,7 +244,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	}
 
 	if len(res) > 0 {
-		return SecretToCluster(res[0].(*corev1.Secret))
+		return SecretToCluster(db.kubeclientset, res[0].(*corev1.Secret))
 	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		return db.getLocalCluster(), nil
@@ -264,7 +265,7 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 	}
 	var res []*appv1.Cluster
 	for i := range secrets {
-		cluster, err := SecretToCluster(secrets[i].(*corev1.Secret))
+		cluster, err := SecretToCluster(db.kubeclientset, secrets[i].(*corev1.Secret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert secret to cluster: %w", err)
 		}
@@ -326,7 +327,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := SecretToCluster(clusterSecret)
+	cluster, err := SecretToCluster(db.kubeclientset, clusterSecret)
 	if err != nil {
 		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
 		return nil, err
@@ -397,7 +398,7 @@ func clusterToSecret(c *appv1.Cluster, secret *corev1.Secret) error {
 }
 
 // SecretToCluster converts a secret into a Cluster object
-func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
+func SecretToCluster(kubeClient kubernetes.Interface, s *corev1.Secret) (*appv1.Cluster, error) {
 	var config appv1.ClusterConfig
 	if len(s.Data["config"]) > 0 {
 		err := json.Unmarshal(s.Data["config"], &config)
@@ -407,9 +408,36 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	}
 
 	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
-		if ns = strings.TrimSpace(ns); ns != "" {
-			namespaces = append(namespaces, ns)
+	var namespaceSelector *metav1.LabelSelector
+
+	// Mutually exclusive, if namespaceSelector is set, ignore namespaces
+	if len(s.Data["namespaceSelector"]) > 0 {
+		namespaceSelector = &metav1.LabelSelector{}
+		err := json.Unmarshal(s.Data["namespaceSelector"], namespaceSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal namespaceSelector: %w", err)
+		}
+
+		selector, err := metav1.LabelSelectorAsSelector(namespaceSelector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse namespaceSelector: %w", err)
+		}
+
+		nsList, err := kubeClient.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{
+			LabelSelector: selector.String(),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list namespaces: %w", err)
+		}
+
+		for _, ns := range nsList.Items {
+			namespaces = append(namespaces, ns.Name)
+		}
+	} else {
+		for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+			if ns = strings.TrimSpace(ns); ns != "" {
+				namespaces = append(namespaces, ns)
+			}
 		}
 	}
 	var refreshRequestedAt *metav1.Time
@@ -448,6 +476,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		ID:                 string(s.UID),
 		Server:             strings.TrimRight(string(s.Data["server"]), "/"),
 		Name:               string(s.Data["name"]),
+		NamespaceSelector:  namespaceSelector,
 		Namespaces:         namespaces,
 		ClusterResources:   string(s.Data["clusterResources"]) == "true",
 		Config:             config,
