@@ -20,7 +20,8 @@ linters:
     - importas
     - ineffassign
     - misspell
-    - nolintlint
+    # Disabled because of https://github.com/argoproj/argo-cd/issues/21705
+    # - nolintlint
     - perfsprint
     - revive
     - staticcheck
@@ -29,12 +30,12 @@ linters:
     - unparam
     - unused
     - usestdlibvars
-    - whitespace 
+    - whitespace
 linters-settings:
   gocritic:
     disabled-checks:
       - appendAssign
-      - assignOp  # Keep it disabled for readability
+      - assignOp # Keep it disabled for readability
       - exitAfterDefer
       - mapKey
       - typeSwitchVar
@@ -49,13 +50,13 @@ linters-settings:
         - github.com/imdario/mergo:
             recommendations:
               - dario.cat/mergo
-            reason: "`github.com/imdario/mergo` has been renamed."
+            reason: '`github.com/imdario/mergo` has been renamed.'
         - github.com/pkg/errors:
             recommendations:
               - errors
   importas:
     alias:
-      - alias: jwtgo 
+      - alias: jwtgo
         pkg: github.com/golang-jwt/jwt/v5
       - alias: appsv1
         pkg: k8s.io/api/apps/v1
@@ -63,9 +64,11 @@ linters-settings:
         pkg: k8s.io/api/core/v1
       - alias: rbacv1
         pkg: k8s.io/api/rbac/v1
-      - alias: apierrors 
+      - alias: apierrors
         pkg: k8s.io/apimachinery/pkg/api/errors
-      - alias: metav1 
+      - alias: apiextensionsv1
+        pkg: k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
+      - alias: metav1
         pkg: k8s.io/apimachinery/pkg/apis/meta/v1
       - alias: informersv1
         pkg: k8s.io/client-go/informers/core/v1
@@ -92,7 +95,7 @@ linters-settings:
         disabled: true
       - name: context-as-argument
         arguments:
-          - allowTypesBefore: "*testing.T,testing.TB"
+          - allowTypesBefore: '*testing.T,testing.TB'
       - name: context-keys-type
         disabled: true
       - name: dot-imports
@@ -100,7 +103,7 @@ linters-settings:
       - name: duplicated-imports
       - name: early-return
         arguments:
-          - "preserveScope"
+          - 'preserveScope'
       - name: empty-block
         disabled: true
       - name: error-naming
@@ -114,7 +117,7 @@ linters-settings:
       - name: increment-decrement
       - name: indent-error-flow
         arguments:
-          - "preserveScope"
+          - 'preserveScope'
       - name: modifies-parameter
       - name: optimize-operands-order
       - name: range
@@ -124,7 +127,7 @@ linters-settings:
       - name: redundant-import-alias
       - name: superfluous-else
         arguments:
-          - "preserveScope"
+          - 'preserveScope'
       - name: time-equal
       - name: time-naming
         disabled: true
@@ -137,7 +140,11 @@ linters-settings:
       - name: useless-break
       - name: var-declaration
       - name: var-naming
-        disabled: true
+        arguments:
+          - ["ID"]
+          - ["VM"]
+          - - skipPackageNameChecks: true
+              upperCaseConst: true
   testifylint:
     enable-all: true
     disable:

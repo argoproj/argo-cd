@@ -16,16 +16,17 @@ import (
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/labels"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
 	"github.com/argoproj/argo-cd/v3/util/profile"
-
-	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -180,7 +181,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains app controller specific metrics
 		registry,
 		// contains workqueue metrics, process and golang metrics
-		ctrl_metrics.Registry,
+		ctrlmetrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
@@ -197,7 +198,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
 
-	return &MetricsServer{
+	kubectlMetricsServer := kubectl.NewKubectlMetrics()
+	kubectlMetricsServer.RegisterWithClientGo()
+	kubectl.RegisterWithPrometheus(registry)
+
+	metricsServer := &MetricsServer{
 		registry: registry,
 		Server: &http.Server{
 			Addr:    addr,
@@ -219,12 +224,13 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
-	}, nil
+	}
+
+	return metricsServer, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
-	go collector.Run(ctx)
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
+	collector := NewClusterCollector(ctx, source, db.ListClusters, clusterLabels)
 	m.registry.MustRegister(collector)
 }
 
@@ -315,6 +321,7 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 		m.redisRequestHistogram.Reset()
 		m.resourceEventsProcessingHistogram.Reset()
 		m.resourceEventsNumberGauge.Reset()
+		kubectl.ResetAll()
 	})
 	if err != nil {
 		return err
