@@ -1054,10 +1054,11 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				for _, cred := range repositories {
 					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
 					// see https://github.com/argoproj/argo-cd/issues/12436
-					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
+					if _, err := url.Parse("oci://" + dep.Repo); err == nil && (cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) || (cred.Type == "oci" && strings.HasPrefix("oci://"+dep.Repo, cred.Repo))) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
+						repo.EnableOCI = true
 						break
 					}
 				}
@@ -1423,8 +1424,12 @@ func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.Re
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
 	for _, cred := range repoCredentials {
-		url := strings.TrimPrefix(repoURL, ociPrefix)
-		if strings.HasPrefix(url, cred.URL) {
+		if cred.Type != "oci" {
+			if strings.HasPrefix(strings.TrimPrefix(repoURL, ociPrefix), cred.URL) {
+				return cred
+			}
+		} else if strings.HasPrefix(ociPrefix+repoURL, cred.URL) {
+			cred.EnableOCI = true
 			return cred
 		}
 	}
