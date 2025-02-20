@@ -812,6 +812,7 @@ export interface SyncWindow {
     manualSync: boolean;
     timeZone: string;
     andOperator: boolean;
+    description: string;
 }
 
 export interface Project {
