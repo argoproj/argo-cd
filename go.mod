@@ -1,13 +1,14 @@
 module github.com/argoproj/argo-cd/v3
 
 go 1.22.0
+toolchain go1.23.6
 
 require (
 	code.gitea.io/sdk/gitea v0.20.0
 	dario.cat/mergo v1.0.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
-	github.com/Azure/kubelogin v0.1.6
+	github.com/Azure/kubelogin v0.1.7
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
