@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -235,11 +236,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 					Destinations: data.projDest,
 				},
 			}
-			destCluster := &Cluster{
-				Server: data.appDest.Server,
-				Name:   data.appDest.Name,
-			}
-			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
 			assert.Equal(t, data.isPermitted, permitted)
@@ -406,11 +403,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 				Destinations: data.projDest,
 			},
 		}
-		destCluster := &Cluster{
-			Server: data.appDest.Server,
-			Name:   data.appDest.Name,
-		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
 		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
@@ -482,11 +475,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 				Destinations:                    data.projDest,
 			},
 		}
-		destCluster := &Cluster{
-			Server: data.appDest.Server,
-			Name:   data.appDest.Name,
-		}
-		permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
+
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(_ string) ([]*Cluster, error) {
 			return data.clusters, nil
 		})
 		assert.Equal(t, data.isPermitted, permitted)
@@ -500,7 +490,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 			}},
 		},
 	}
-	_, err := proj.IsDestinationPermitted(&Cluster{Server: "https://my-cluster.123.com"}, "default", func(_ string) ([]*Cluster, error) {
+
+	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
 	assert.ErrorContains(t, err, "could not retrieve project clusters")
@@ -1093,6 +1084,32 @@ func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
 	}
 }
 
+func TestAppDestinationEquality(t *testing.T) {
+	left := &ApplicationDestination{
+		Server:    "https://kubernetes.default.svc",
+		Namespace: "default",
+	}
+	right := left.DeepCopy()
+	assert.True(t, left.Equals(*right))
+	right.Namespace = "kube-system"
+	assert.False(t, left.Equals(*right))
+}
+
+func TestAppDestinationEquality_InferredServerURL(t *testing.T) {
+	left := ApplicationDestination{
+		Name:      "in-cluster",
+		Namespace: "default",
+	}
+	right := ApplicationDestination{
+		Name:             "in-cluster",
+		Server:           "https://kubernetes.default.svc",
+		Namespace:        "default",
+		isServerInferred: true,
+	}
+	assert.True(t, left.Equals(right))
+	assert.True(t, right.Equals(left))
+}
+
 func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -1113,7 +1130,9 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := AppProjectSpec{Destinations: tt.destinations}
-			require.Equal(t, tt.want, d.DestinationClusters(), "AppProjectSpec.DestinationClusters()")
+			if got := d.DestinationClusters(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1157,7 +1176,9 @@ func TestRepository_HasCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.HasCredentials(), "Repository.HasCredentials()")
+			if got := tt.repo.HasCredentials(); got != tt.want {
+				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1196,7 +1217,9 @@ func TestRepository_IsInsecure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsInsecure(), "Repository.IsInsecure()")
+			if got := tt.repo.IsInsecure(); got != tt.want {
+				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1235,7 +1258,9 @@ func TestRepository_IsLFSEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, tt.repo.IsLFSEnabled(), "Repository.IsLFSEnabled()")
+			if got := tt.repo.IsLFSEnabled(); got != tt.want {
+				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1351,7 +1376,9 @@ func TestSyncStrategy_Force(t *testing.T) {
 				Apply: tt.fields.Apply,
 				Hook:  tt.fields.Hook,
 			}
-			assert.Equalf(t, tt.want, m.Force(), "SyncStrategy.Force()")
+			if got := m.Force(); got != tt.want {
+				t.Errorf("SyncStrategy.Force() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1374,7 +1401,9 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 			o := &SyncOperation{
 				SyncStrategy: tt.fields.SyncStrategy,
 			}
-			assert.Equalf(t, tt.want, o.IsApplyStrategy(), "SyncOperation.IsApplyStrategy()")
+			if got := o.IsApplyStrategy(); got != tt.want {
+				t.Errorf("SyncOperation.IsApplyStrategy() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
@@ -1406,8 +1435,12 @@ func TestResourceResults_Find(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := tt.r.Find(tt.args.group, tt.args.kind, tt.args.namespace, tt.args.name, tt.args.phase)
-			assert.Equal(t, tt.want, got, "ResourceResults.Find()")
-			assert.Equal(t, tt.want1, got1, "ResourceResults.Find()")
+			if got != tt.want {
+				t.Errorf("ResourceResults.Find() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
+			}
 		})
 	}
 }
@@ -1425,7 +1458,9 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.wantNum, tt.r.PruningRequired(), "ResourceResults.PruningRequired()")
+			if gotNum := tt.r.PruningRequired(); gotNum != tt.wantNum {
+				t.Errorf("ResourceResults.PruningRequired() = %v, want %v", gotNum, tt.wantNum)
+			}
 		})
 	}
 }
@@ -1762,13 +1797,10 @@ func TestKustomizeImage_Match(t *testing.T) {
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
 	assert.False(t, KustomizeImage("foo:1").Match("bar=1"))
-	assert.False(t, KustomizeImage("foobar:2").Match("foo:2"))
-	assert.False(t, KustomizeImage("foobar@2").Match("foo@2"))
 	// matches
 	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
 	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
-	assert.True(t, KustomizeImage("nginx").Match("nginx"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
@@ -2191,24 +2223,23 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		c    []string
 		m    bool
 		t    string
-		o    bool
 		want string
 	}{
-		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", false, ""},
-		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", false, ""},
-		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", false, ""},
+		{"MissingKind", proj, "", "* * * * *", "11", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingSchedule", proj, "allow", "", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"MissingDuration", proj, "allow", "* * * * *", "", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadSchedule", proj, "allow", "* * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"BadDuration", proj, "deny", "* * * * *", "33mm", []string{"app1"}, []string{}, []string{}, false, "error", ""},
+		{"WorkingApplication", proj, "allow", "1 * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "noError", ""},
+		{"WorkingNamespace", proj, "deny", "3 * * * *", "1h", []string{}, []string{}, []string{"cluster"}, false, "noError", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 			case "noError":
-				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t, tt.o))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
@@ -2236,202 +2267,33 @@ func TestSyncWindows_Matches(t *testing.T) {
 	app := newTestApp()
 	t.Run("MatchNamespace", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		proj.Spec.SyncWindows[0].Applications = nil
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Applications = nil
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchClusterName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Applications = nil
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
-	})
-	t.Run("MatchAppNameAndNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-	})
-	t.Run("MatchAppNameAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchNamespaceAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Applications = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchAppNameAndNamespaceAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
 		windows := proj.Spec.SyncWindows.Matches(app)
 		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
-	})
-	t.Run("MatchWildcardAppNameAndNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-	})
-	t.Run("MatchWildcardAppNameAndWildcardClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterN*"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("NoMatch", func(t *testing.T) {
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Nil(t, windows)
-	})
-}
-
-func TestSyncWindows_Matches_AND_Operator(t *testing.T) {
-	proj := newTestProjectWithSyncWindowsAndOperator()
-	app := newTestApp()
-	t.Run("MatchNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		proj.Spec.SyncWindows[0].Applications = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Namespaces = nil
-	})
-	t.Run("MatchCluster", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Applications = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Applications = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-	})
-	t.Run("MatchAppNameAndNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-	})
-	t.Run("MatchAppNameAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchNamespaceAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		proj.Spec.SyncWindows[0].Applications = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchAppNameAndNamespaceAndClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
-	})
-	t.Run("MatchWildcardAppName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-	})
-	t.Run("MatchWildcardAppNameAndNamespace", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
-		proj.Spec.SyncWindows[0].Clusters = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Namespaces = nil
-	})
-	t.Run("MatchWildcardAppNameAndWildcardClusterName", func(t *testing.T) {
-		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
-		proj.Spec.SyncWindows[0].Clusters = []string{"clusterN*"}
-		proj.Spec.SyncWindows[0].Namespaces = nil
-		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Len(t, *windows, 1)
-		proj.Spec.SyncWindows[0].Applications = nil
-		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
 		windows := proj.Spec.SyncWindows.Matches(app)
@@ -3051,41 +2913,35 @@ func (b *projectBuilder) build() *AppProject {
 }
 
 func (b *projectBuilder) withActiveAllowWindow(allowManual bool) *projectBuilder {
-	window := newSyncWindow("allow", "* * * * *", allowManual, false)
-	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
-	return b
-}
-
-func (b *projectBuilder) withActiveAllowWindowAndOperator(allowManual bool, andOperator bool) *projectBuilder {
-	window := newSyncWindow("allow", "* * * * *", allowManual, andOperator)
+	window := newSyncWindow("allow", "* * * * *", allowManual)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
 	return b
 }
 
 func (b *projectBuilder) withInactiveAllowWindow(allowManual bool) *projectBuilder {
-	window := newSyncWindow("allow", inactiveCronSchedule(), allowManual, false)
+	window := newSyncWindow("allow", inactiveCronSchedule(), allowManual)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
 	return b
 }
 
 func (b *projectBuilder) withActiveDenyWindow(allowManual bool) *projectBuilder {
-	window := newSyncWindow("deny", "* * * * *", allowManual, false)
+	window := newSyncWindow("deny", "* * * * *", allowManual)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
 	return b
 }
 
 func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilder {
-	window := newSyncWindow("deny", inactiveCronSchedule(), allowManual, false)
+	window := newSyncWindow("deny", inactiveCronSchedule(), allowManual)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
 	return b
 }
 
 func (b *projectBuilder) withInvalidWindows() *projectBuilder {
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows,
-		newSyncWindow("allow", "* 10 * * 7", false, false),
-		newSyncWindow("deny", "* 10 * * 7", false, false),
-		newSyncWindow("allow", "* 10 * * 7", true, false),
-		newSyncWindow("deny", "* 10 * * 7", true, false),
+		newSyncWindow("allow", "* 10 * * 7", false),
+		newSyncWindow("deny", "* 10 * * 7", false),
+		newSyncWindow("allow", "* 10 * * 7", true),
+		newSyncWindow("deny", "* 10 * * 7", true),
 	)
 	return b
 }
@@ -3095,24 +2951,19 @@ func inactiveCronSchedule() string {
 	return fmt.Sprintf("0 %d * * *", hourPlus10)
 }
 
-func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *SyncWindow {
+func newSyncWindow(kind, schedule string, allowManual bool) *SyncWindow {
 	return &SyncWindow{
-		Kind:           kind,
-		Schedule:       schedule,
-		Duration:       "1h",
-		Applications:   []string{"app1"},
-		Namespaces:     []string{"public"},
-		ManualSync:     allowManual,
-		UseAndOperator: andOperator,
+		Kind:         kind,
+		Schedule:     schedule,
+		Duration:     "1h",
+		Applications: []string{"app1"},
+		Namespaces:   []string{"public"},
+		ManualSync:   allowManual,
 	}
 }
 
 func newTestProjectWithSyncWindows() *AppProject {
 	return newProjectBuilder().withActiveAllowWindow(false).build()
-}
-
-func newTestProjectWithSyncWindowsAndOperator() *AppProject {
-	return newProjectBuilder().withActiveAllowWindowAndOperator(false, true).build()
 }
 
 func newTestApp() *Application {
@@ -3317,7 +3168,7 @@ func TestSetConditions(t *testing.T) {
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
 	t.Helper()
-	assert.Len(t, actual, len(expected))
+	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)
@@ -3949,9 +3800,9 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, environ, 2)
 	assert.Contains(t, environ, "PARAM_VERSION=1.2.3")
-	paramsJSON, err := json.Marshal(params)
+	paramsJson, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }
 
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
@@ -3966,9 +3817,9 @@ func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_0=redis")
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_1=minio")
-	paramsJSON, err := json.Marshal(params)
+	paramsJson, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }
 
 func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
@@ -3988,9 +3839,9 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_TAG=v2.4.0")
-	paramsJSON, err := json.Marshal(params)
+	paramsJson, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }
 
 func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
@@ -4019,9 +3870,9 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	assert.Contains(t, environ, "PARAM_SOME_NAME_1=minio")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_TAG=v2.4.0")
-	paramsJSON, err := json.Marshal(params)
+	paramsJson, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
 }
 
 func getApplicationSpec() *ApplicationSpec {
@@ -4112,6 +3963,7 @@ func TestOptionalArrayEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalArray
+	// nolint:testifylint
 	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
@@ -4155,6 +4007,7 @@ func TestOptionalMapEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalMap
+	// nolint:testifylint
 	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's

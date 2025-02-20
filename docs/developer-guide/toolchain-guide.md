@@ -16,7 +16,7 @@ If you want to submit a PR, please read this document carefully, as it contains 
 
 As is the case with the development process, this document is under constant change. If you notice any error, or if you think this document is out-of-date, or if you think it is missing something: Feel free to submit a PR or submit a bug to our GitHub issue tracker.
 
-If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-cd-contributors` channel!
+If you need guidance with submitting a PR, or have any other questions regarding development of Argo CD, do not hesitate to [join our Slack](https://argoproj.github.io/community/join-slack) and get in touch with us in the `#argo-contributors` channel!
 
 ## Before you start
 
@@ -148,7 +148,9 @@ The following steps are required no matter whether you chose to use a virtualize
 
 ### Clone the Argo CD repository from your personal fork on GitHub
 
-* `git clone https://github.com/YOUR-USERNAME/argo-cd`
+* `mkdir -p ~/go/src/github.com/argoproj`
+* `cd ~/go/src/github.com/argoproj`
+* `git clone https://github.com/yourghuser/argo-cd`
 * `cd argo-cd`
 
 ### Optional: Setup an additional Git remote
@@ -346,7 +348,5 @@ The final step is running the End-to-End testsuite, which makes sure that your K
 
 * First, start the End-to-End server: `make start-e2e-local`. This will spawn a number of processes and services on your system.
 * When all components have started, run `make test-e2e-local` to run the end-to-end tests against your local services.
-
-To run a single test, you can use `TEST_FLAGS="-run TestName" make test-e2e-local`.
 
 For more information about End-to-End tests, refer to the [End-to-End test documentation](test-e2e.md).

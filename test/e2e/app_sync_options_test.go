@@ -6,11 +6,11 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
 // Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true
@@ -48,7 +48,7 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		Sync().
 		Then().
 		Expect(Success("")).
-		Expect(Namespace(namespace, func(_ *Application, ns *corev1.Namespace) {
+		Expect(Namespace(namespace, func(app *Application, ns *v1.Namespace) {
 			assert.NotContains(t, ns.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
 		})).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

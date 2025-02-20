@@ -3,7 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
+	std_errors "errors"
 	"fmt"
 	"io"
 	"os"
@@ -35,30 +35,30 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/controller"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
-	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/reposerver/repository"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	logutils "github.com/argoproj/argo-cd/v3/util/log"
-	"github.com/argoproj/argo-cd/v3/util/manifeststream"
-	"github.com/argoproj/argo-cd/v3/util/templates"
-	"github.com/argoproj/argo-cd/v3/util/text/label"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/controller"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	logutils "github.com/argoproj/argo-cd/v2/util/log"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	"github.com/argoproj/argo-cd/v2/util/templates"
+	"github.com/argoproj/argo-cd/v2/util/text/label"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -188,12 +188,11 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 
 				var action string
-				switch {
-				case existing == nil:
+				if existing == nil {
 					action = "created"
-				case !hasAppChanged(existing, created, upsert):
+				} else if !hasAppChanged(existing, created, upsert) {
 					action = "unchanged"
-				default:
+				} else {
 					action = "updated"
 				}
 
@@ -275,8 +274,8 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 	return true
 }
 
-func parentChildDetails(ctx context.Context, appIf application.ApplicationServiceClient, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
-	mapUIDToNode := make(map[string]argoappv1.ResourceNode)
+func parentChildDetails(appIf application.ApplicationServiceClient, ctx context.Context, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}) {
+	mapUidToNode := make(map[string]argoappv1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 
@@ -284,7 +283,7 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 	errors.CheckError(err)
 
 	for _, node := range resourceTree.Nodes {
-		mapUIDToNode[node.UID] = node
+		mapUidToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
 			_, ok := mapParentToChild[node.ParentRefs[0].UID]
@@ -297,10 +296,10 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 			parentNode[node.UID] = struct{}{}
 		}
 	}
-	return mapUIDToNode, mapParentToChild, parentNode
+	return mapUidToNode, mapParentToChild, parentNode
 }
 
-func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
+func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx context.Context, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
 	aURL := appURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, aURL, windows)
 
@@ -401,25 +400,25 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-position and source-name can be specified."))
 			}
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				pos, ok := sourceNameToPosition[sourceName]
-				if !ok {
+				if pos, ok := sourceNameToPosition[sourceName]; !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
+				} else {
+					sourcePosition = int(pos)
 				}
-				sourcePosition = int(pos)
 			}
 
 			// check for source position if --show-params is set
 			if app.Spec.HasMultipleSources() && showParams {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.CheckError(fmt.Errorf("Source position should be specified and must be greater than 0 for applications with multiple sources"))
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.CheckError(fmt.Errorf("Source position should be less than the number of sources in the application"))
 				}
 			}
 
@@ -435,7 +434,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -443,18 +442,18 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
-				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
-				if len(mapUIDToNode) > 0 {
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+				if len(mapUidToNode) > 0 {
 					fmt.Println()
-					printTreeView(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+					printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
-				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
-				if len(mapUIDToNode) > 0 {
+				printHeader(acdClient, app, ctx, windows, showOperation, showParams, sourcePosition)
+				mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+				if len(mapUidToNode) > 0 {
 					fmt.Println()
-					printTreeViewDetailed(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+					printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -564,7 +563,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				for {
 					msg, err := stream.Recv()
 					if err != nil {
-						if stderrors.Is(err, io.EOF) {
+						if std_errors.Is(err, io.EOF) {
 							return
 						}
 						st, ok := status.FromError(err)
@@ -578,10 +577,11 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						}
 						log.Fatalf("stream read failed: %v", err)
 					}
-					if msg.GetLast() {
+					if !msg.GetLast() {
+						fmt.Println(msg.GetContent())
+					} else {
 						return
 					}
-					fmt.Println(msg.GetContent())
 				} // Done with receive message
 			} // Done with retry
 		},
@@ -670,9 +670,9 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	syncStatusStr := string(app.Status.Sync.Status)
 	switch app.Status.Sync.Status {
 	case argoappv1.SyncStatusCodeSynced:
-		syncStatusStr += " to " + app.Spec.GetSource().TargetRevision
+		syncStatusStr += fmt.Sprintf(" to %s", app.Spec.GetSource().TargetRevision)
 	case argoappv1.SyncStatusCodeOutOfSync:
-		syncStatusStr += " from " + app.Spec.GetSource().TargetRevision
+		syncStatusStr += fmt.Sprintf(" from %s", app.Spec.GetSource().TargetRevision)
 	}
 	if !git.IsCommitSHA(app.Spec.GetSource().TargetRevision) && !git.IsTruncatedCommitSHA(app.Spec.GetSource().TargetRevision) && len(app.Status.Sync.Revision) > 7 {
 		syncStatusStr += fmt.Sprintf(" (%s)", app.Status.Sync.Revision[0:7])
@@ -835,24 +835,24 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			sourceName = appOpts.SourceName
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-position and source-name can be specified."))
 			}
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				pos, ok := sourceNameToPosition[sourceName]
-				if !ok {
+				if pos, ok := sourceNameToPosition[sourceName]; !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
+				} else {
+					sourcePosition = int(pos)
 				}
-				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.CheckError(fmt.Errorf("Source position should be specified and must be greater than 0 for applications with multiple sources"))
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.CheckError(fmt.Errorf("Source position should be less than the number of sources in the application"))
 				}
 			}
 
@@ -887,7 +887,6 @@ type unsetOpts struct {
 	kustomizeNamespace      bool
 	kustomizeImages         []string
 	kustomizeReplicas       []string
-	ignoreMissingComponents bool
 	parameters              []string
 	valuesFiles             []string
 	valuesLiteral           bool
@@ -904,7 +903,6 @@ func (o *unsetOpts) KustomizeIsZero() bool {
 			!o.nameSuffix &&
 			!o.kustomizeVersion &&
 			!o.kustomizeNamespace &&
-			!o.ignoreMissingComponents &&
 			len(o.kustomizeImages) == 0 &&
 			len(o.kustomizeReplicas) == 0
 }
@@ -950,24 +948,24 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			sourceName = appOpts.SourceName
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-position and source-name can be specified."))
 			}
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				pos, ok := sourceNameToPosition[sourceName]
-				if !ok {
+				if pos, ok := sourceNameToPosition[sourceName]; !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
+				} else {
+					sourcePosition = int(pos)
 				}
-				sourcePosition = int(pos)
 			}
 
 			if app.Spec.HasMultipleSources() {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.CheckError(fmt.Errorf("Source position should be specified and must be greater than 0 for applications with multiple sources"))
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.CheckError(fmt.Errorf("Source position should be less than the number of sources in the application"))
 				}
 			}
 
@@ -1010,7 +1008,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.kustomizeNamespace, "kustomize-namespace", false, "Kustomize namespace")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images name (e.g. --kustomize-image node --kustomize-image mysql)")
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas name (e.g. --kustomize-replica my-deployment --kustomize-replica my-statefulset)")
-	command.Flags().BoolVar(&opts.ignoreMissingComponents, "ignore-missing-components", false, "Unset the kustomize ignore-missing-components option (revert to false)")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Unset plugin env variables (e.g --plugin-env name)")
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
@@ -1049,11 +1046,6 @@ func unset(source *argoappv1.ApplicationSource, opts unsetOpts) (updated bool, n
 		if opts.kustomizeNamespace && source.Kustomize.Namespace != "" {
 			updated = true
 			source.Kustomize.Namespace = ""
-		}
-
-		if opts.ignoreMissingComponents && source.Kustomize.IgnoreMissingComponents {
-			source.Kustomize.IgnoreMissingComponents = false
-			updated = true
 		}
 
 		for _, kustomizeImage := range opts.kustomizeImages {
@@ -1253,15 +1245,15 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
-				errors.CheckError(stderrors.New("Only one of source-positions and source-names can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-positions and source-names can be specified."))
 			}
 
 			if len(sourcePositions) > 0 && len(revisions) != len(sourcePositions) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-positions, length of values for both flags should be same."))
+				errors.CheckError(fmt.Errorf("While using --revisions and --source-positions, length of values for both flags should be same."))
 			}
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-names, length of values for both flags should be same."))
+				errors.CheckError(fmt.Errorf("While using --revisions and --source-names, length of values for both flags should be same."))
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -1279,11 +1271,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					pos, ok := sourceNameToPosition[name]
-					if !ok {
+					if pos, ok := sourceNameToPosition[name]; !ok {
 						log.Fatalf("Unknown source name '%s'", name)
+					} else {
+						sourcePositions = append(sourcePositions, pos)
 					}
-					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -1294,8 +1286,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
 			diffOption := &DifferenceOption{}
-			switch {
-			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
+			if app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0 {
 				numOfSources := int64(len(app.Spec.GetSources()))
 				for _, pos := range sourcePositions {
 					if pos <= 0 || pos > numOfSources {
@@ -1315,7 +1306,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.res = res
 				diffOption.revisions = revisions
 				diffOption.sourcePositions = sourcePositions
-			case revision != "":
+			} else if revision != "" {
 				q := application.ApplicationManifestQuery{
 					Name:         &appName,
 					Revision:     &revision,
@@ -1325,7 +1316,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 				diffOption.res = res
 				diffOption.revision = revision
-			case local != "":
+			} else if local != "" {
 				if serverSideGenerate {
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
@@ -1349,7 +1340,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					diffOption.cluster = cluster
 				}
 			}
-			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+			proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
@@ -1391,11 +1382,10 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 	liveObjs, err := cmdutil.LiveObjects(resources.Items)
 	errors.CheckError(err)
 	items := make([]objKeyLiveTarget, 0)
-	switch {
-	case diffOptions.local != "":
+	if diffOptions.local != "" {
 		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
+	} else if diffOptions.revision != "" || len(diffOptions.revisions) > 0 {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.res.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1404,7 +1394,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.serversideRes != nil:
+	} else if diffOptions.serversideRes != nil {
 		var unstructureds []*unstructured.Unstructured
 		for _, mfst := range diffOptions.serversideRes.Manifests {
 			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
@@ -1413,7 +1403,7 @@ func findandPrintDiff(ctx context.Context, app *argoappv1.Application, proj *arg
 		}
 		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
 		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	default:
+	} else {
 		for i := range resources.Items {
 			res := resources.Items[i]
 			live := &unstructured.Unstructured{}
@@ -1625,7 +1615,7 @@ func printApplicationNames(apps []argoappv1.Application) {
 func printApplicationTable(apps []argoappv1.Application, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
-	headers := []any{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
+	headers := []interface{}{"NAME", "CLUSTER", "NAMESPACE", "PROJECT", "STATUS", "HEALTH", "SYNCPOLICY", "CONDITIONS"}
 	if *output == "wide" {
 		fmtStr = "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
 		headers = append(headers, "REPO", "PATH", "TARGET")
@@ -1634,7 +1624,7 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
-		vals := []any{
+		vals := []interface{}{
 			app.QualifiedName(),
 			getServer(&app),
 			app.Spec.Destination.Namespace,
@@ -1674,7 +1664,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
@@ -2043,11 +2033,11 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					pos, ok := sourceNameToPosition[name]
-					if !ok {
+					if pos, ok := sourceNameToPosition[name]; !ok {
 						log.Fatalf("Unknown source name '%s'", name)
+					} else {
+						sourcePositions = append(sourcePositions, pos)
 					}
-					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -2064,7 +2054,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if len(list.Items) == 0 {
 					errMsg := "No matching apps found for filter:"
 					if selector != "" {
-						errMsg += " selector " + selector
+						errMsg += fmt.Sprintf(" selector %s", selector)
 					}
 					if len(projects) != 0 {
 						errMsg += fmt.Sprintf(" projects %v", projects)
@@ -2168,7 +2158,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					errors.CheckError(err)
 					argoio.Close(conn)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 					errors.CheckError(err)
 					diffOption.local = local
@@ -2244,18 +2234,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 					foundDiffs = findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
-					if !foundDiffs {
+					if foundDiffs {
+						if !diffChangesConfirm {
+							yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))
+							if !yesno {
+								os.Exit(0)
+							}
+						}
+					} else {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
 						return
-					}
-					if !diffChangesConfirm {
-						yesno := cli.AskToProceed(fmt.Sprintf("Please review changes to application %s shown above. Do you want to continue the sync process? (y/n): ", appQualifiedName))
-						if !yesno {
-							os.Exit(0)
-						}
 					}
 				}
 				_, err = appIf.Sync(ctx, &syncReq)
@@ -2347,9 +2338,9 @@ func (rs *resourceState) Key() string {
 	return fmt.Sprintf("%s/%s/%s/%s", rs.Group, rs.Kind, rs.Namespace, rs.Name)
 }
 
-func (rs *resourceState) FormatItems() []any {
+func (rs *resourceState) FormatItems() []interface{} {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
-	return []any{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message}
+	return []interface{}{timeStr, rs.Group, rs.Kind, rs.Namespace, rs.Name, rs.Status, rs.Health, rs.Hook, rs.Message}
 }
 
 // Merge merges the new state with any different contents from another resourceState.
@@ -2467,26 +2458,25 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 	}
 	healthCheckPassed := true
 
-	switch {
-	case watch.suspended && watch.health && watch.degraded:
+	if watch.suspended && watch.health && watch.degraded {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended) ||
 			healthStatus == string(health.HealthStatusDegraded)
-	case watch.suspended && watch.degraded:
+	} else if watch.suspended && watch.degraded {
 		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded) ||
 			healthStatus == string(health.HealthStatusSuspended)
-	case watch.degraded && watch.health:
+	} else if watch.degraded && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusDegraded)
 		// below are good
-	case watch.suspended && watch.health:
+	} else if watch.suspended && watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy) ||
 			healthStatus == string(health.HealthStatusSuspended)
-	case watch.suspended:
+	} else if watch.suspended {
 		healthCheckPassed = healthStatus == string(health.HealthStatusSuspended)
-	case watch.health:
+	} else if watch.health {
 		healthCheckPassed = healthStatus == string(health.HealthStatusHealthy)
-	case watch.degraded:
+	} else if watch.degraded {
 		healthCheckPassed = healthStatus == string(health.HealthStatusDegraded)
 	}
 
@@ -2500,14 +2490,14 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 // constructs the necessary data structures to print the app as a tree.
 func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
-	mapUIDToNode, mapParentToChild, parentNode := parentChildDetails(ctx, appIf, appName, appNs)
+	mapUidToNode, mapParentToChild, parentNode := parentChildDetails(appIf, ctx, appName, appNs)
 	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})
 	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	for _, res := range getResourceStates(app, nil) {
 		mapNodeNameToResourceState[res.Kind+"/"+res.Name] = res
 	}
-	return mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState
+	return mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState
 }
 
 const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
@@ -2565,17 +2555,16 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_ = w.Flush()
 			}
 		case "tree":
-			mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
-			if len(mapUIDToNode) > 0 {
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
+			if len(mapUidToNode) > 0 {
 				fmt.Println()
-				printTreeView(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		case "tree=detailed":
-
-			mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
-			if len(mapUIDToNode) > 0 {
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
+			if len(mapUidToNode) > 0 {
 				fmt.Println()
-				printTreeViewDetailed(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
+				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		default:
 			errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -2742,7 +2731,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 }
 
 // Print list of history ID's for an application.
-func printApplicationHistoryIDs(revHistory []argoappv1.RevisionHistory) {
+func printApplicationHistoryIds(revHistory []argoappv1.RevisionHistory) {
 	for _, depInfo := range revHistory {
 		fmt.Println(depInfo.ID)
 	}
@@ -2750,7 +2739,7 @@ func printApplicationHistoryIDs(revHistory []argoappv1.RevisionHistory) {
 
 // Print a history table for an application.
 func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
-	maxAllowedRevisions := 7
+	MAX_ALLOWED_REVISIONS := 7
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	type history struct {
 		id       int64
@@ -2763,8 +2752,8 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 		if depInfo.Sources != nil {
 			for i, sourceInfo := range depInfo.Sources {
 				rev := sourceInfo.TargetRevision
-				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= maxAllowedRevisions {
-					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:maxAllowedRevisions])
+				if len(depInfo.Revisions) == len(depInfo.Sources) && len(depInfo.Revisions[i]) >= MAX_ALLOWED_REVISIONS {
+					rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revisions[i][0:MAX_ALLOWED_REVISIONS])
 				}
 				if _, ok := varHistory[sourceInfo.RepoURL]; !ok {
 					varHistoryKeys = append(varHistoryKeys, sourceInfo.RepoURL)
@@ -2777,8 +2766,8 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 			}
 		} else {
 			rev := depInfo.Source.TargetRevision
-			if len(depInfo.Revision) >= maxAllowedRevisions {
-				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:maxAllowedRevisions])
+			if len(depInfo.Revision) >= MAX_ALLOWED_REVISIONS {
+				rev = fmt.Sprintf("%s (%s)", rev, depInfo.Revision[0:MAX_ALLOWED_REVISIONS])
 			}
 			if _, ok := varHistory[depInfo.Source.RepoURL]; !ok {
 				varHistoryKeys = append(varHistoryKeys, depInfo.Source.RepoURL)
@@ -2830,7 +2819,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			errors.CheckError(err)
 
 			if output == "id" {
-				printApplicationHistoryIDs(app.Status.History)
+				printApplicationHistoryIds(app.Status.History)
 			} else {
 				printApplicationHistoryTable(app.Status.History)
 			}
@@ -2983,15 +2972,15 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
-				errors.CheckError(stderrors.New("Only one of source-positions and source-names can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-positions and source-names can be specified."))
 			}
 
 			if len(sourcePositions) > 0 && len(revisions) != len(sourcePositions) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-positions, length of values for both flags should be same."))
+				errors.CheckError(fmt.Errorf("While using --revisions and --source-positions, length of values for both flags should be same."))
 			}
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-names, length of values for both flags should be same."))
+				errors.CheckError(fmt.Errorf("While using --revisions and --source-names, length of values for both flags should be same."))
 			}
 
 			for _, pos := range sourcePositions {
@@ -3015,11 +3004,11 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				sourceNameToPosition := getSourceNameToPositionMap(app)
 
 				for _, name := range sourceNames {
-					pos, ok := sourceNameToPosition[name]
-					if !ok {
+					if pos, ok := sourceNameToPosition[name]; !ok {
 						log.Fatalf("Unknown source name '%s'", name)
+					} else {
+						sourcePositions = append(sourcePositions, pos)
 					}
-					sourcePositions = append(sourcePositions, pos)
 				}
 			}
 
@@ -3032,8 +3021,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			var unstructureds []*unstructured.Unstructured
 			switch source {
 			case "git":
-				switch {
-				case local != "":
+				if local != "" {
 					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
 					defer argoio.Close(settingsConn)
 					argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
@@ -3044,10 +3032,10 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					//nolint:staticcheck
+					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
+					// nolint:staticcheck
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
-				case len(revisions) > 0 && len(sourcePositions) > 0:
+				} else if len(revisions) > 0 && len(sourcePositions) > 0 {
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
@@ -3063,7 +3051,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
-				case revision != "":
+				} else if revision != "" {
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
@@ -3077,7 +3065,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						errors.CheckError(err)
 						unstructureds = append(unstructureds, obj)
 					}
-				default:
+				} else {
 					targetObjs, err := targetObjects(resources.Items)
 					errors.CheckError(err)
 					unstructureds = targetObjs
@@ -3161,7 +3149,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appData, err = yaml.JSONToYAML(appData)
 			errors.CheckError(err)
 
-			cli.InteractiveEdit(appName+"-*-edit.yaml", appData, func(input []byte) error {
+			cli.InteractiveEdit(fmt.Sprintf("%s-*-edit.yaml", appName), appData, func(input []byte) error {
 				input, err = yaml.YAMLToJSON(input)
 				if err != nil {
 					return fmt.Errorf("error converting YAML to JSON: %w", err)
@@ -3274,7 +3262,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 
 			if c.Flags() == nil {
-				errors.CheckError(stderrors.New("ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add."))
+				errors.CheckError(fmt.Errorf("ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add."))
 			}
 
 			if len(app.Spec.Sources) > 0 {
@@ -3329,7 +3317,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 
 			if sourceName == "" && sourcePosition <= 0 {
-				errors.CheckError(stderrors.New("Value of source-position must be greater than 0"))
+				errors.CheckError(fmt.Errorf("Value of source-position must be greater than 0"))
 			}
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
@@ -3346,24 +3334,24 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			errors.CheckError(err)
 
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.CheckError(fmt.Errorf("Only one of source-position and source-name can be specified."))
 			}
 
 			if sourceName != "" {
 				sourceNameToPosition := getSourceNameToPositionMap(app)
-				pos, ok := sourceNameToPosition[sourceName]
-				if !ok {
+				if pos, ok := sourceNameToPosition[sourceName]; !ok {
 					log.Fatalf("Unknown source name '%s'", sourceName)
+				} else {
+					sourcePosition = int(pos)
 				}
-				sourcePosition = int(pos)
 			}
 
 			if !app.Spec.HasMultipleSources() {
-				errors.CheckError(stderrors.New("Application does not have multiple sources configured"))
+				errors.CheckError(fmt.Errorf("Application does not have multiple sources configured"))
 			}
 
 			if len(app.Spec.GetSources()) == 1 {
-				errors.CheckError(stderrors.New("Cannot remove the only source remaining in the app"))
+				errors.CheckError(fmt.Errorf("Cannot remove the only source remaining in the app"))
 			}
 
 			if len(app.Spec.GetSources()) < sourcePosition {

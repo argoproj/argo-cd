@@ -21,16 +21,6 @@
       "enabled": true
     },
     {
-      "description": "Enable updates from specified github releases",
-      "matchDatasources": [
-        "github-releases"
-      ],
-      "matchPackageNames": [
-        "gotestyourself/gotestsum"
-      ],
-      "enabled": true
-    },
-    {
       "description": "Enable updates from specified docker images",
       "matchDatasources": [
         "docker"

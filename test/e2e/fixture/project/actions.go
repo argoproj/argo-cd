@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -46,21 +46,16 @@ func (a *Actions) AddDestination(cluster string, namespace string) *Actions {
 	return a
 }
 
-func (a *Actions) AddDestinationServiceAccount(cluster string, namespace string) *Actions {
-	a.runCli("proj", "add-destination-service-account", a.context.name, cluster, namespace)
-	return a
-}
-
 func (a *Actions) AddSource(repo string) *Actions {
 	a.runCli("proj", "add-source", a.context.name, repo)
 	return a
 }
 
 func (a *Actions) UpdateProject(updater func(project *v1alpha1.AppProject)) *Actions {
-	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, metav1.GetOptions{})
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.TODO(), a.context.name, v1.GetOptions{})
 	require.NoError(a.context.t, err)
 	updater(proj)
-	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, metav1.UpdateOptions{})
+	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.TODO(), proj, v1.UpdateOptions{})
 	require.NoError(a.context.t, err)
 	return a
 }
@@ -82,18 +77,6 @@ func (a *Actions) prepareCreateArgs(args []string) []string {
 
 	if len(a.context.sourceNamespaces) > 0 {
 		args = append(args, "--source-namespaces", strings.Join(a.context.sourceNamespaces, ","))
-	}
-
-	if len(a.context.repos) > 0 {
-		for _, repo := range a.context.repos {
-			args = append(args, "--src", repo)
-		}
-	}
-
-	if len(a.context.destinationServiceAccounts) != 0 {
-		for _, destinationServiceAccount := range a.context.destinationServiceAccounts {
-			args = append(args, "--dest-service-accounts", destinationServiceAccount)
-		}
 	}
 	return args
 }

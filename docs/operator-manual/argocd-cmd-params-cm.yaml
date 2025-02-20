@@ -28,8 +28,6 @@ data:
   otlp.insecure: "true"
   # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
   otlp.headers: ""
-  # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
-  otlp.attrs: ""
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -37,11 +35,6 @@ data:
   #
   # Feature state: Beta
   application.namespaces: ns1, ns2, ns3
-
-  # Set the logging timestamp format. The default is "" which means "2006-01-02T15:04:05Z07:00" (RFC3339).
-  # See https://pkg.go.dev/time#pkg-constants for more options.
-  # This option is used for all components.
-  log.format.timestamp: ""
 
   ## Controller Properties
   # Repo server RPC call timeout seconds.
@@ -54,8 +47,8 @@ data:
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
-  # Set the logging format. One of: json|text (default "json")
-  controller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  controller.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
@@ -123,8 +116,8 @@ data:
   # Number of webhook requests processed concurrently (default 50)
   server.webhook.parallelism.limit: "50"
 
-  # Set the logging format. One of: json|text (default "json")
-  server.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  server.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   server.log.level: "info"
   # Repo server RPC call timeout seconds. (default 60)
@@ -171,8 +164,8 @@ data:
   reposerver.listen.address: "0.0.0.0"
   # Listen on given address for metrics (default "0.0.0.0")
   reposerver.metrics.listen.address: "0.0.0.0"
-  # Set the logging format. One of: json|text (default "json")
-  reposerver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  reposerver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   reposerver.log.level: "info"
   # Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
@@ -218,15 +211,15 @@ data:
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
   commitserver.listen.address: "0.0.0.0"
-  # Set the logging format. One of: json|text (default "json")
-  commitserver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  commitserver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   commitserver.log.level: "info"
   # Listen on given address for metrics (default "0.0.0.0")
   commitserver.metrics.listen.address: "0.0.0.0"
 
-  # Set the logging format. One of: json|text (default "json")
-  dexserver.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  dexserver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
@@ -252,8 +245,8 @@ data:
   applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
-  # Set the logging format. One of: json|text (default "json")
-  applicationsetcontroller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  applicationsetcontroller.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   applicationsetcontroller.log.level: "info"
   # Enable dry run mode
@@ -283,8 +276,8 @@ data:
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"
-  # Set the logging format. One of: json|text (default "json")
-  notificationscontroller.log.format: "json"
+  # Set the logging format. One of: text|json (default "text")
+  notificationscontroller.log.format: "text"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server

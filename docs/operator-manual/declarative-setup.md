@@ -71,7 +71,6 @@ See [application.yaml](application.yaml) for additional fields. As long as you h
 
 ```yaml
 spec:
-  project: default
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo
@@ -288,10 +287,6 @@ stringData:
 !!! tip
     The Kubernetes documentation has [instructions for creating a secret containing a private key](https://kubernetes.io/docs/concepts/configuration/secret/#use-case-pod-with-ssh-keys).
 
-Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
-
-Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
-
 ### Repository Credentials
 
 If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.
@@ -498,6 +493,43 @@ stringData:
 
 A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
+### Legacy behaviour
+
+In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
+backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
+configuration is deprecated and support for it will be removed in a future version.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+data:
+  repositories: |
+    - url: https://github.com/argoproj/my-private-repository
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+  repository.credentials: |
+    - url: https://github.com/argoproj
+      passwordSecret:
+        name: my-secret
+        key: password
+      usernameSecret:
+        name: my-secret
+        key: username
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+  namespace: argocd
+stringData:
+  password: my-password
+  username: my-username
+```
+
 ## Clusters
 
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
@@ -507,10 +539,10 @@ The secret data must include following fields:
 
 * `name` - cluster name
 * `server` - cluster api server url
-* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
-* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
+* `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Cluster level resources would be ignored if namespace list is not empty.
+* `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is used only if the list of managed namespaces is not empty.
 * `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of the following data structure:
+* `config` - JSON representation of following data structure:
 
 ```yaml
 # Basic authentication settings

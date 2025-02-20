@@ -8,32 +8,32 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/server/deeplinks"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/rbac"
-	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/deeplinks"
+	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
@@ -157,7 +157,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, "created token")
+	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 }
 
@@ -165,7 +165,7 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 	projName := q.GetName()
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
-		log.WithFields(map[string]any{
+		log.WithFields(map[string]interface{}{
 			"project": projName,
 		}).Warnf("unauthorized access to project, error=%v", err.Error())
 		return nil, fmt.Errorf("unauthorized access to project %v", projName)
@@ -241,7 +241,7 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(prj, ctx, argo.EventReasonResourceDeleted, "deleted token")
 
 	return &project.EmptyResponse{}, nil
 }
@@ -260,31 +260,32 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
-	if apierrors.IsAlreadyExists(err) {
+	if apierr.IsAlreadyExists(err) {
 		existing, getErr := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project.Name, metav1.GetOptions{})
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing project details: %v", getErr)
 		}
-		if !q.GetUpsert() {
+		if q.GetUpsert() {
+			if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.GetProject().Name); err != nil {
+				return nil, err
+			}
+			existing.Spec = q.GetProject().Spec
+			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
+		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
 				return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
 			}
 			return existing, nil
 		}
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.GetProject().Name); err != nil {
-			return nil, err
-		}
-		existing.Spec = q.GetProject().Spec
-		res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 	}
 	if err == nil {
-		s.logEvent(ctx, res, argo.EventReasonResourceCreated, "created project")
+		s.logEvent(res, ctx, argo.EventReasonResourceCreated, "created project")
 	}
 	return res, err
 }
 
 // List returns list of projects
-func (s *Server) List(ctx context.Context, _ *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
+func (s *Server) List(ctx context.Context, q *project.ProjectQuery) (*v1alpha1.AppProjectList, error) {
 	list, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).List(ctx, metav1.ListOptions{})
 	if list != nil {
 		newItems := make([]v1alpha1.AppProject, 0)
@@ -304,7 +305,7 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -374,8 +375,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 	}
 
-	for _, repoURL := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoURL); err != nil {
+	for _, repoUrl := range difference(q.Project.Spec.SourceRepos, oldProj.Spec.SourceRepos) {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, repoUrl); err != nil {
 			return nil, err
 		}
 	}
@@ -409,20 +410,13 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 			invalidSrcCount++
 		}
 
-		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
-		if err != nil {
-			if err.Error() != argo.ErrDestinationMissing {
-				return nil, err
-			}
-			invalidDstCount++
-		}
-		dstPermitted, err := oldProj.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
+		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
 		if err != nil {
 			return nil, err
 		}
 
 		if dstPermitted {
-			dstPermitted, err = q.Project.IsDestinationPermitted(destCluster, a.Spec.Destination.Namespace, getProjectClusters)
+			dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
 			if err != nil {
 				return nil, err
 			}
@@ -445,7 +439,7 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, q.Project, metav1.UpdateOptions{})
 	if err == nil {
-		s.logEvent(ctx, res, argo.EventReasonResourceUpdated, "updated project")
+		s.logEvent(res, ctx, argo.EventReasonResourceUpdated, "updated project")
 	}
 	return res, err
 }
@@ -477,12 +471,12 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	}
 	err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Delete(ctx, q.Name, metav1.DeleteOptions{})
 	if err == nil {
-		s.logEvent(ctx, p, argo.EventReasonResourceDeleted, "deleted project")
+		s.logEvent(p, ctx, argo.EventReasonResourceDeleted, "deleted project")
 	}
 	return &project.EmptyResponse{}, err
 }
 
-func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*corev1.EventList, error) {
+func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*v1.EventList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -498,8 +492,8 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*core
 	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
 }
 
-func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {
-	eventInfo := argo.EventInfo{Type: corev1.EventTypeNormal, Reason: reason}
+func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason string, action string) {
+	eventInfo := argo.EventInfo{Type: v1.EventTypeNormal, Reason: reason}
 	user := session.Username(ctx)
 	if user == "" {
 		user = "Unknown user"
@@ -539,25 +533,26 @@ func (s *Server) NormalizeProjs() error {
 	}
 	for _, proj := range projList.Items {
 		for i := 0; i < 3; i++ {
-			if !proj.NormalizeJWTTokens() {
+			if proj.NormalizeJWTTokens() {
+				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
+				if err == nil {
+					log.Infof("Successfully normalized project %s.", proj.Name)
+					break
+				}
+				if !apierr.IsConflict(err) {
+					log.Warnf("Failed normalize project %s", proj.Name)
+					break
+				}
+				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})
+				if err != nil {
+					return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
+				}
+				proj = *projGet
+				if i == 2 {
+					return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
+				}
+			} else {
 				break
-			}
-			_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
-			if err == nil {
-				log.Infof("Successfully normalized project %s.", proj.Name)
-				break
-			}
-			if !apierrors.IsConflict(err) {
-				log.Warnf("Failed normalize project %s", proj.Name)
-				break
-			}
-			projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})
-			if err != nil {
-				return status.Errorf(codes.Internal, "Error retrieving project: %s", err.Error())
-			}
-			proj = *projGet
-			if i == 2 {
-				return status.Errorf(codes.Internal, "Failed normalize project %s", proj.Name)
 			}
 		}
 	}

@@ -37,7 +37,9 @@ func TestUnmarshalLocalFile(t *testing.T) {
 		Field2 int
 	}
 	err = UnmarshalLocalFile(file.Name(), &testStruct)
-	require.NoError(t, err, "Could not unmarshal test data")
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
 
 	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
 		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
@@ -56,7 +58,9 @@ func TestUnmarshal(t *testing.T) {
 		Field2 int
 	}
 	err := Unmarshal([]byte(sentinel), &testStruct)
-	require.NoError(t, err, "Could not unmarshal test data")
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
 
 	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
 		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
@@ -80,7 +84,7 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 		// send back the address so that it can be used
 		c <- listener.Addr().String()
 
-		http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			// return the sentinel text at root URL
 			fmt.Fprint(w, sentinel)
 		})
@@ -97,14 +101,18 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 	t.Logf("Listening at address: %s", address)
 
 	data, err := ReadRemoteFile("http://" + address)
-	assert.Equal(t, string(data), sentinel, "Test data did not match (err = %v)! Expected %q and received %q", err, sentinel, string(data))
+	if string(data) != sentinel {
+		t.Errorf("Test data did not match (err = %v)! Expected %q and received %q", err, sentinel, string(data))
+	}
 
 	var testStruct struct {
 		Field1 string
 		Field2 int
 	}
 	err = UnmarshalRemoteFile("http://"+address, &testStruct)
-	require.NoError(t, err, "Could not unmarshal test data")
+	if err != nil {
+		t.Errorf("Could not unmarshal test data: %s", err)
+	}
 
 	if testStruct.Field1 != field1 || testStruct.Field2 != field2 {
 		t.Errorf("Test data did not match! Expected {%s %d} but got: %v", field1, field2, testStruct)
