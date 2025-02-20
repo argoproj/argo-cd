@@ -64,9 +64,15 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	repos := []*Repository{}
 	for {
 		githubRepos, resp, err := g.client.Repositories.ListByOrg(ctx, g.organization, opt)
+
 		if err != nil {
-			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
+			if _, ok := err.(*github.RateLimitError); ok {
+				return nil, fmt.Errorf("github rate limit exceeded: error listing repos for %s", g.organization)
+			} else {
+				return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
+			}
 		}
+
 		for _, githubRepo := range githubRepos {
 			var url string
 			switch cloneProtocol {
