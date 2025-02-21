@@ -433,10 +433,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleLogin(w, req)
 
-	redirectUrl, err := w.Result().Location()
+	redirectURL, err := w.Result().Location()
 	require.NoError(t, err)
 
-	state := redirectUrl.Query()["state"]
+	state := redirectURL.Query()["state"]
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
 	for _, cookie := range w.Result().Cookies() {

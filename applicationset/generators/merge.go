@@ -122,11 +122,11 @@ func getParamSetsByMergeKey(mergeKeys []string, paramSets []map[string]any) (map
 		for mergeKey := range deDuplicatedMergeKeys {
 			paramSetKey[mergeKey] = paramSet[mergeKey]
 		}
-		paramSetKeyJson, err := json.Marshal(paramSetKey)
+		paramSetKeyJSON, err := json.Marshal(paramSetKey)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling param set key json: %w", err)
 		}
-		paramSetKeyString := string(paramSetKeyJson)
+		paramSetKeyString := string(paramSetKeyJSON)
 		if _, exists := paramSetsByMergeKey[paramSetKeyString]; exists {
 			return nil, fmt.Errorf("%w. Duplicate key was %s", ErrNonUniqueParamSets, paramSetKeyString)
 		}

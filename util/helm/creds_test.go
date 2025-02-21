@@ -56,16 +56,16 @@ func TestGetPasswordShouldReturnTokenFromCacheIfPresent(t *testing.T) {
 }
 
 func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
-	mockUrl := ""
-	serverUrl := func() string {
-		return mockUrl
+	mockServerURL := ""
+	mockedServerURL := func() string {
+		return mockServerURL
 	}
 
 	// Mock the server to return a successful response
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, serverUrl(), serverUrl()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 
 		case "/oauth2/exchange":
@@ -75,7 +75,7 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}))
-	mockUrl = mockServer.URL
+	mockServerURL = mockServer.URL
 	defer mockServer.Close()
 
 	workloadIdentityMock := new(mocks.TokenProvider)
@@ -100,7 +100,7 @@ func TestChallengeAzureContainerRegistry(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	tokenParams, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
+	tokenParams, err := creds.challengeAzureContainerRegistry(creds.repoURL)
 	require.NoError(t, err)
 
 	expectedParams := map[string]string{
@@ -122,7 +122,7 @@ func TestChallengeAzureContainerRegistryNoChallenge(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
+	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "did not issue a challenge")
 }
@@ -140,7 +140,7 @@ func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
+	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
 	assert.ErrorContains(t, err, "does not allow 'Bearer' authentication")
 }
 
@@ -157,7 +157,7 @@ func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
+	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
 	assert.ErrorContains(t, err, "service parameter not found in challenge")
 }
 
@@ -174,7 +174,7 @@ func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
 	workloadIdentityMock := new(mocks.TokenProvider)
 	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
 
-	_, err := creds.challengeAzureContainerRegistry(creds.repoUrl)
+	_, err := creds.challengeAzureContainerRegistry(creds.repoURL)
 	assert.ErrorContains(t, err, "realm parameter not found in challenge")
 }
 

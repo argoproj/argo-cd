@@ -16,6 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
@@ -653,7 +655,7 @@ func appendProxy(registry ProxyRegistry,
 	return nil
 }
 
-// authorize will enforce rbac rules are satified for the given RequestResources.
+// authorize will enforce rbac rules are satisfied for the given RequestResources.
 // The following validations are executed:
 //   - enforce the subject has permission to read application/project provided
 //     in HeaderArgoCDApplicationName and HeaderArgoCDProjectName.
@@ -661,17 +663,17 @@ func appendProxy(registry ProxyRegistry,
 //     extName.
 //   - enforce that the project has permission to access the destination cluster.
 //
-// If all validations are satified it will return the Application resource
+// If all validations are satisfied it will return the Application resource
 func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName string) (*v1alpha1.Application, error) {
 	if m.rbac == nil {
 		return nil, errors.New("rbac enforcer not set in extension manager")
 	}
 	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
-	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %w", err)
 	}
 
-	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceExtensions, rbac.ActionInvoke, extName); err != nil {
 		return nil, fmt.Errorf("unauthorized to invoke extension %q: %w", extName, err)
 	}
 

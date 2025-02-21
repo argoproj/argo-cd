@@ -269,11 +269,11 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// Set up a ManifestsRequest
 		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
 		for i, obj := range objs {
-			objJson, err := json.Marshal(obj)
+			objJSON, err := json.Marshal(obj)
 			if err != nil {
 				return "", "", fmt.Errorf("failed to marshal object: %w", err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJson)}
+			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
 		}
 
 		paths = append(paths, &commitclient.PathDetails{

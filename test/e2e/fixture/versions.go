@@ -36,7 +36,7 @@ func GetVersions() *Versions {
 	return version
 }
 
-func GetApiResources() string {
+func GetApiResources() string { //nolint:revive //FIXME(var-naming)
 	kubectl := kubeutil.NewKubectl()
 	resources := errors.FailOnErr(kubectl.GetAPIResources(KubeConfig, false, cache.NewNoopSettings())).([]kube.APIResourceInfo)
 	return strings.Join(argo.APIResourcesToStrings(resources, true), ",")

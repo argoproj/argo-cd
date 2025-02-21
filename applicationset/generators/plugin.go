@@ -193,8 +193,8 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 		return nil, err
 	}
 
-	baseUrl, ok := cm.Data["baseUrl"]
-	if !ok || baseUrl == "" {
+	baseURL, ok := cm.Data["baseUrl"]
+	if !ok || baseURL == "" {
 		return nil, errors.New("baseUrl not found in ConfigMap")
 	}
 

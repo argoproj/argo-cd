@@ -464,7 +464,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setupHttpProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
@@ -494,7 +494,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				// JSONPointers: []string{"/spec/routes"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
@@ -531,7 +531,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
 		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
@@ -583,7 +583,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
 			},
 		}
-		f := setupHttpProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores)
 		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
 		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}

@@ -55,7 +55,7 @@ type ArgoCDSettings struct {
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
-	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"`
+	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
@@ -90,15 +90,15 @@ type ArgoCDSettings struct {
 	// Specifies token expiration duration
 	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
-	UiCssURL string `json:"uiCssURL,omitempty"`
+	UiCssURL string `json:"uiCssURL,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Content of UI Banner
-	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	UiBannerContent string `json:"uiBannerContent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// URL for UI Banner
-	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	UiBannerURL string `json:"uiBannerURL,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Make Banner permanent and not closeable
-	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
+	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
-	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
+	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -355,7 +355,7 @@ type Repository struct {
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
@@ -389,7 +389,7 @@ type RepositoryCredentials struct {
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
@@ -433,8 +433,8 @@ const (
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
 	statusBadgeEnabledKey = "statusbadge.enabled"
-	// statusBadgeRootUrlKey holds the key for the root badge URL override
-	statusBadgeRootUrlKey = "statusbadge.url"
+	// statusBadgeRootURLKey holds the key for the root badge URL override
+	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -485,16 +485,16 @@ const (
 	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
-	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
-	settingUiCssURLKey = "ui.cssurl"
-	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
-	settingUiBannerContentKey = "ui.bannercontent"
-	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
-	settingUiBannerURLKey = "ui.bannerurl"
-	// settingUiBannerPermanentKey designates the key for whether the banner is permanent and not closeable
-	settingUiBannerPermanentKey = "ui.bannerpermanent"
-	// settingUiBannerPositionKey designates the key for the position of the banner
-	settingUiBannerPositionKey = "ui.bannerposition"
+	// settingUICSSURLKey designates the key for user-defined CSS URL for UI customization
+	settingUICSSURLKey = "ui.cssurl"
+	// settingUIBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUIBannerContentKey = "ui.bannercontent"
+	// settingUIBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUIBannerURLKey = "ui.bannerurl"
+	// settingUIBannerPermanentKey designates the key for whether the banner is permanent and not closeable
+	settingUIBannerPermanentKey = "ui.bannerpermanent"
+	// settingUIBannerPositionKey designates the key for the position of the banner
+	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
 	// globalProjectsKey designates the key for global project settings
@@ -1418,19 +1418,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
-	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
+	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
-	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
-	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
-	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
-	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
+	settings.UiCssURL = argoCDCM.Data[settingUICSSURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
+	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
+	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
-	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
@@ -1443,7 +1443,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
 	}
-	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	settings.UiBannerURL = argoCDCM.Data[settingUIBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
 		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
@@ -1605,17 +1605,17 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			delete(argoCDCM.Data, settingsOIDCConfigKey)
 		}
 		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
 		}
 		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
 		} else {
-			delete(argoCDCM.Data, settingUiBannerContentKey)
+			delete(argoCDCM.Data, settingUIBannerContentKey)
 		}
 		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
 		} else {
-			delete(argoCDCM.Data, settingUiBannerURLKey)
+			delete(argoCDCM.Data, settingUIBannerURLKey)
 		}
 		return nil
 	})

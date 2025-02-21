@@ -376,6 +376,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Vinted](https://vinted.com/)
 1. [Virtuo](https://www.govirtuo.com/)
 1. [VISITS Technologies](https://visits.world/en)
+1. [Viya](https://viya.me)
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [Voyager Digital](https://www.investvoyager.com/)
 1. [VSHN - The DevOps Company](https://vshn.ch/)

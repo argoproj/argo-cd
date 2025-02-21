@@ -101,7 +101,7 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 		return nil, fmt.Errorf("error listing repositories for %s: %w", g.owner, err)
 	}
 	for _, bitBucketRepo := range accountReposResp.Items {
-		cloneUrl, err := findCloneURL(cloneProtocol, &bitBucketRepo)
+		cloneURL, err := findCloneURL(cloneProtocol, &bitBucketRepo)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching clone url for repo %s: %w", bitBucketRepo.Slug, err)
 		}
@@ -109,7 +109,7 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 			Organization: g.owner,
 			Repository:   bitBucketRepo.Slug,
 			Branch:       bitBucketRepo.Mainbranch.Name,
-			URL:          *cloneUrl,
+			URL:          *cloneURL,
 			Labels:       []string{},
 			RepositoryId: bitBucketRepo.Uuid,
 		})

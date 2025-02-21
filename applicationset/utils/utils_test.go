@@ -1331,42 +1331,42 @@ WkBKOclmOV2xlTVuPw==
 		scmRootCAPath           string
 		insecure                bool
 		caCerts                 []byte
-		validateCertInTlsConfig bool
+		validateCertInTLSConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: false,
+			validateCertInTLSConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "Cert passed, Insecure mode set to false",
 			scmRootCAPath:           "",
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 	}
 
@@ -1384,7 +1384,7 @@ WkBKOclmOV2xlTVuPw==
 				assert.True(t, ok)
 			}
 			assert.NotNil(t, tlsConfig)
-			if testCase.validateCertInTlsConfig {
+			if testCase.validateCertInTLSConfig {
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})

@@ -55,7 +55,7 @@ type AppOptions struct {
 	helmSkipTests                   bool
 	helmNamespace                   string
 	helmKubeVersion                 string
-	helmApiVersions                 []string
+	helmApiVersions                 []string //nolint:revive //FIXME(var-naming)
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -81,7 +81,7 @@ type AppOptions struct {
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
 	kustomizeKubeVersion            string
-	kustomizeApiVersions            []string
+	kustomizeApiVersions            []string //nolint:revive //FIXME(var-naming)
 	ignoreMissingComponents         bool
 	pluginEnvs                      []string
 	Validate                        bool
@@ -630,7 +630,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -664,7 +664,7 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+		return constructAppsFromFileURL(fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)

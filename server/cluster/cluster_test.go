@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
@@ -738,7 +737,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/not-exists",
-		}, rbacpolicy.ActionGet)
+		}, rbac.ActionGet)
 
 		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
@@ -764,7 +763,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/ing",
-		}, rbacpolicy.ActionGet)
+		}, rbac.ActionGet)
 
 		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)

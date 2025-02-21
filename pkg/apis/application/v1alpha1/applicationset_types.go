@@ -448,7 +448,7 @@ type SCMProviderGenerator struct {
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (g *SCMProviderGenerator) CustomApiUrl() string {
+func (g *SCMProviderGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
 	switch {
 	case g.Github != nil:
 		return g.Github.API
@@ -615,7 +615,7 @@ type PullRequestGenerator struct {
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
-func (p *PullRequestGenerator) CustomApiUrl() string {
+func (p *PullRequestGenerator) CustomApiUrl() string { //nolint:revive //FIXME(var-naming)
 	if p.Github != nil {
 		return p.Github.API
 	}
