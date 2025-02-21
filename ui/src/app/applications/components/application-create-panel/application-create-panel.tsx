@@ -21,7 +21,8 @@ const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
     {type: 'Directory', field: 'directory'},
-    {type: 'Plugin', field: 'plugin'}
+    {type: 'Plugin', field: 'plugin'},
+    {type: 'OCI', field: 'oci'}
 );
 
 const DEFAULT_APP: Partial<models.Application> = {
@@ -84,9 +85,9 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
-    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
-        if (type === 'git') {
+        if (type === 'git' || type === 'oci') {
             source.path = source.chart;
             delete source.chart;
             source.targetRevision = 'HEAD';
