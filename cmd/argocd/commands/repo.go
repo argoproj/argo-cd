@@ -84,6 +84,15 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+  
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  
+  # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  
+  # Add a private HTTP OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
   # Add a private Git repository on GitHub.com via GitHub App
   argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
@@ -244,7 +253,6 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
-	command.Flags().BoolVar(&repoOpts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 	cmdutil.AddRepoFlags(command, &repoOpts)
 	return command
 }

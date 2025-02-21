@@ -30,7 +30,7 @@ type RepoOptions struct {
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
-	command.Flags().StringVar(&opts.Repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
+	command.Flags().StringVar(&opts.Repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\", \"oci\" or \"helm\"")
 	command.Flags().StringVar(&opts.Repo.Name, "name", "", "name of the repository, mandatory for repositories of type helm")
 	command.Flags().StringVar(&opts.Repo.Project, "project", "", "project of the repository")
 	command.Flags().StringVar(&opts.Repo.Username, "username", "", "username to the repository")
@@ -41,7 +41,7 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().BoolVar(&opts.InsecureIgnoreHostKey, "insecure-ignore-host-key", false, "disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)")
 	command.Flags().BoolVar(&opts.InsecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&opts.EnableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
-	command.Flags().BoolVar(&opts.EnableOci, "enable-oci", false, "enable helm-oci (Helm OCI-Based Repository)")
+	command.Flags().BoolVar(&opts.EnableOci, "enable-oci", false, "enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)")
 	command.Flags().Int64Var(&opts.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
 	command.Flags().Int64Var(&opts.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application")
 	command.Flags().StringVar(&opts.GithubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
@@ -51,4 +51,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
 	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
+	command.Flags().BoolVar(&opts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 }

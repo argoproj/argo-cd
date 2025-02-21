@@ -37,6 +37,15 @@ argocd repo add REPOURL [flags]
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+  
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  
+  # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  
+  # Add a private HTTP OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
   # Add a private Git repository on GitHub.com via GitHub App
   argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
@@ -53,7 +62,7 @@ argocd repo add REPOURL [flags]
 
 ```
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
-      --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
+      --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
       --github-app-enterprise-base-url string   base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3
@@ -72,7 +81,7 @@ argocd repo add REPOURL [flags]
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
-      --type string                             type of the repository, "git" or "helm" (default "git")
+      --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
       --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
