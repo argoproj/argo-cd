@@ -7987,6 +7987,17 @@
         }
       }
     },
+    "v1alpha1ExtraParameterFileItem": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "prefix": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1GitDirectoryGeneratorItem": {
       "type": "object",
       "properties": {
@@ -8013,6 +8024,13 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1GitDirectoryGeneratorItem"
+          }
+        },
+        "extraParameterFiles": {
+          "type": "array",
+          "title": "List of files containing parameters to add on top to the template",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ExtraParameterFileItem"
           }
         },
         "files": {
