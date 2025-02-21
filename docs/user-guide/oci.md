@@ -46,7 +46,7 @@ The key to start using OCI images are the following components in the applicatio
 
 * `repoURL`: Specify the OCI image repository URL using the `oci://` scheme, followed by the registry and image name.
 * `targetRevision`: Use this field to specify the desired image tag or digest.
-* `path` (optional): Use this field to select a relative path from the expanded image.
+* `path`: Use this field to select a relative path from the expanded image. If you don't want to select a subpath, use `.`.
 
 ## Usage Guidelines
 
