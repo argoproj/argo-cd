@@ -9,16 +9,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/assets"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/rbac"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 type actionTraitMap map[string]rbacTrait
@@ -27,89 +27,89 @@ type rbacTrait struct {
 	allowPath bool
 }
 
-// Provide a mapping of short-hand resource names to their RBAC counterparts
-var resourceMap map[string]string = map[string]string{
-	"account":         rbacpolicy.ResourceAccounts,
-	"app":             rbacpolicy.ResourceApplications,
-	"apps":            rbacpolicy.ResourceApplications,
-	"application":     rbacpolicy.ResourceApplications,
-	"applicationsets": rbacpolicy.ResourceApplicationSets,
-	"cert":            rbacpolicy.ResourceCertificates,
-	"certs":           rbacpolicy.ResourceCertificates,
-	"certificate":     rbacpolicy.ResourceCertificates,
-	"cluster":         rbacpolicy.ResourceClusters,
-	"extension":       rbacpolicy.ResourceExtensions,
-	"gpgkey":          rbacpolicy.ResourceGPGKeys,
-	"key":             rbacpolicy.ResourceGPGKeys,
-	"log":             rbacpolicy.ResourceLogs,
-	"logs":            rbacpolicy.ResourceLogs,
-	"exec":            rbacpolicy.ResourceExec,
-	"proj":            rbacpolicy.ResourceProjects,
-	"projs":           rbacpolicy.ResourceProjects,
-	"project":         rbacpolicy.ResourceProjects,
-	"repo":            rbacpolicy.ResourceRepositories,
-	"repos":           rbacpolicy.ResourceRepositories,
-	"repository":      rbacpolicy.ResourceRepositories,
+// Provide a mapping of shorthand resource names to their RBAC counterparts
+var resourceMap = map[string]string{
+	"account":         rbac.ResourceAccounts,
+	"app":             rbac.ResourceApplications,
+	"apps":            rbac.ResourceApplications,
+	"application":     rbac.ResourceApplications,
+	"applicationsets": rbac.ResourceApplicationSets,
+	"cert":            rbac.ResourceCertificates,
+	"certs":           rbac.ResourceCertificates,
+	"certificate":     rbac.ResourceCertificates,
+	"cluster":         rbac.ResourceClusters,
+	"extension":       rbac.ResourceExtensions,
+	"gpgkey":          rbac.ResourceGPGKeys,
+	"key":             rbac.ResourceGPGKeys,
+	"log":             rbac.ResourceLogs,
+	"logs":            rbac.ResourceLogs,
+	"exec":            rbac.ResourceExec,
+	"proj":            rbac.ResourceProjects,
+	"projs":           rbac.ResourceProjects,
+	"project":         rbac.ResourceProjects,
+	"repo":            rbac.ResourceRepositories,
+	"repos":           rbac.ResourceRepositories,
+	"repository":      rbac.ResourceRepositories,
 }
 
 // List of allowed RBAC resources
-var validRBACResourcesActions map[string]actionTraitMap = map[string]actionTraitMap{
-	rbacpolicy.ResourceAccounts:        accountsActions,
-	rbacpolicy.ResourceApplications:    applicationsActions,
-	rbacpolicy.ResourceApplicationSets: defaultCRUDActions,
-	rbacpolicy.ResourceCertificates:    defaultCRDActions,
-	rbacpolicy.ResourceClusters:        defaultCRUDActions,
-	rbacpolicy.ResourceExtensions:      extensionActions,
-	rbacpolicy.ResourceGPGKeys:         defaultCRDActions,
-	rbacpolicy.ResourceLogs:            logsActions,
-	rbacpolicy.ResourceExec:            execActions,
-	rbacpolicy.ResourceProjects:        defaultCRUDActions,
-	rbacpolicy.ResourceRepositories:    defaultCRUDActions,
+var validRBACResourcesActions = map[string]actionTraitMap{
+	rbac.ResourceAccounts:        accountsActions,
+	rbac.ResourceApplications:    applicationsActions,
+	rbac.ResourceApplicationSets: defaultCRUDActions,
+	rbac.ResourceCertificates:    defaultCRDActions,
+	rbac.ResourceClusters:        defaultCRUDActions,
+	rbac.ResourceExtensions:      extensionActions,
+	rbac.ResourceGPGKeys:         defaultCRDActions,
+	rbac.ResourceLogs:            logsActions,
+	rbac.ResourceExec:            execActions,
+	rbac.ResourceProjects:        defaultCRUDActions,
+	rbac.ResourceRepositories:    defaultCRUDActions,
 }
 
 // List of allowed RBAC actions
 var defaultCRUDActions = actionTraitMap{
-	rbacpolicy.ActionCreate: rbacTrait{},
-	rbacpolicy.ActionGet:    rbacTrait{},
-	rbacpolicy.ActionUpdate: rbacTrait{},
-	rbacpolicy.ActionDelete: rbacTrait{},
+	rbac.ActionCreate: rbacTrait{},
+	rbac.ActionGet:    rbacTrait{},
+	rbac.ActionUpdate: rbacTrait{},
+	rbac.ActionDelete: rbacTrait{},
 }
 
 var defaultCRDActions = actionTraitMap{
-	rbacpolicy.ActionCreate: rbacTrait{},
-	rbacpolicy.ActionGet:    rbacTrait{},
-	rbacpolicy.ActionDelete: rbacTrait{},
+	rbac.ActionCreate: rbacTrait{},
+	rbac.ActionGet:    rbacTrait{},
+	rbac.ActionDelete: rbacTrait{},
 }
 
 var applicationsActions = actionTraitMap{
-	rbacpolicy.ActionCreate:   rbacTrait{},
-	rbacpolicy.ActionGet:      rbacTrait{},
-	rbacpolicy.ActionUpdate:   rbacTrait{allowPath: true},
-	rbacpolicy.ActionDelete:   rbacTrait{allowPath: true},
-	rbacpolicy.ActionAction:   rbacTrait{allowPath: true},
-	rbacpolicy.ActionOverride: rbacTrait{},
-	rbacpolicy.ActionSync:     rbacTrait{},
+	rbac.ActionCreate:   rbacTrait{},
+	rbac.ActionGet:      rbacTrait{},
+	rbac.ActionUpdate:   rbacTrait{allowPath: true},
+	rbac.ActionDelete:   rbacTrait{allowPath: true},
+	rbac.ActionAction:   rbacTrait{allowPath: true},
+	rbac.ActionOverride: rbacTrait{},
+	rbac.ActionSync:     rbacTrait{},
 }
 
 var accountsActions = actionTraitMap{
-	rbacpolicy.ActionCreate: rbacTrait{},
-	rbacpolicy.ActionUpdate: rbacTrait{},
+	rbac.ActionCreate: rbacTrait{},
+	rbac.ActionUpdate: rbacTrait{},
 }
 
 var execActions = actionTraitMap{
-	rbacpolicy.ActionCreate: rbacTrait{},
+	rbac.ActionCreate: rbacTrait{},
 }
 
 var logsActions = actionTraitMap{
-	rbacpolicy.ActionGet: rbacTrait{},
+	rbac.ActionGet: rbacTrait{},
 }
 
 var extensionActions = actionTraitMap{
-	rbacpolicy.ActionInvoke: rbacTrait{},
+	rbac.ActionInvoke: rbacTrait{},
 }
 
 // NewRBACCommand is the command for 'rbac'
-func NewRBACCommand() *cobra.Command {
+func NewRBACCommand(cmdCtx commandContext) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rbac",
 		Short: "Validate and test RBAC configuration",
@@ -117,13 +117,13 @@ func NewRBACCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewRBACCanCommand())
+	command.AddCommand(NewRBACCanCommand(cmdCtx))
 	command.AddCommand(NewRBACValidateCommand())
 	return command
 }
 
-// NewRBACCanCommand is the command for 'rbac can-role'
-func NewRBACCanCommand() *cobra.Command {
+// NewRBACCanCommand is the command for 'rbac can'
+func NewRBACCanCommand(cmdCtx commandContext) *cobra.Command {
 	var (
 		policyFile   string
 		defaultRole  string
@@ -175,11 +175,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				subResource = args[3]
 			}
 
-			userPolicy := ""
-			builtinPolicy := ""
-
-			var newDefaultRole string
-
 			namespace, nsOverride, err := clientConfig.Namespace()
 			if err != nil {
 				log.Fatalf("could not create k8s client: %v", err)
@@ -203,6 +198,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			userPolicy, newDefaultRole, matchMode := getPolicy(ctx, policyFile, realClientset, namespace)
 
 			// Use built-in policy as augmentation if requested
+			builtinPolicy := ""
 			if useBuiltin {
 				builtinPolicy = assets.BuiltinPolicyCSV
 			}
@@ -213,18 +209,40 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				defaultRole = newDefaultRole
 			}
 
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
+			// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable
+			// (representing server.rbac.log.enforce.enable env var in argocd-cm)
+			// is defined and has a "true" value
+			// Otherwise, no RBAC enforcement for logs will take place (meaning, 'can' request on a logs resource will result in "yes",
+			// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+			var isLogRbacEnforced func() bool
+			if nsOverride && policyFile == "" {
+				if resolveRBACResourceName(resource) == rbac.ResourceLogs {
+					isLogRbacEnforced = func() bool {
+						if opts, ok := cmdCtx.(*settingsOpts); ok {
+							opts.loadClusterSettings = true
+							opts.clientConfig = clientConfig
+							settingsMgr, err := opts.createSettingsManager(ctx)
+							errors.CheckError(err)
+							logEnforceEnable, err := settingsMgr.GetServerRBACLogEnforceEnable()
+							errors.CheckError(err)
+							return logEnforceEnable
+						}
+						return false
+					}
+				}
+			}
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict, isLogRbacEnforced)
+
 			if res {
 				if !quiet {
 					fmt.Println("Yes")
 				}
 				os.Exit(0)
-			} else {
-				if !quiet {
-					fmt.Println("No")
-				}
-				os.Exit(1)
 			}
+			if !quiet {
+				fmt.Println("No")
+			}
+			os.Exit(1)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -292,13 +310,11 @@ argocd admin settings rbac validate --namespace argocd
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
 					fmt.Printf("Policy is valid.\n")
 					os.Exit(0)
-				} else {
-					fmt.Printf("Policy is invalid: %v\n", err)
-					os.Exit(1)
 				}
-			} else {
-				log.Fatalf("Policy is empty or could not be loaded.")
+				fmt.Printf("Policy is invalid: %v\n", err)
+				os.Exit(1)
 			}
+			log.Fatalf("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -373,7 +389,7 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
 func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namespace string) (*corev1.ConfigMap, error) {
-	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
+	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +398,7 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool, isLogRbacEnforced func() bool) bool {
 	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
@@ -416,15 +432,19 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 		}
 	}
 
-	// Application resources have a special notation - for simplicity's sake,
+	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
 	// the required notation by setting subresource to '*/*'.
-	if realResource == rbacpolicy.ResourceApplications {
+	if rbac.ProjectScoped[realResource] {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}
 	}
-
+	if realResource == rbac.ResourceLogs {
+		if isLogRbacEnforced != nil && !isLogRbacEnforced() {
+			return true
+		}
+	}
 	return enf.Enforce(subject, realResource, action, subResource)
 }
 
@@ -433,9 +453,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 func resolveRBACResourceName(name string) string {
 	if res, ok := resourceMap[name]; ok {
 		return res
-	} else {
-		return name
 	}
+	return name
 }
 
 // validateRBACResourceAction checks whether a given resource is a valid RBAC resource.

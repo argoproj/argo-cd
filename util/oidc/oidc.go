@@ -1,6 +1,7 @@
 package oidc
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -14,26 +15,27 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/settings/oidc"
-	"github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/crypto"
-	"github.com/argoproj/argo-cd/v2/util/dex"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/dex"
 
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
-	"github.com/argoproj/argo-cd/v2/util/rand"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/rand"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-var InvalidRedirectURLError = fmt.Errorf("invalid return URL")
+var InvalidRedirectURLError = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -60,6 +62,8 @@ type ClientApp struct {
 	clientID string
 	// OAuth2 client secret of this application
 	clientSecret string
+	// Use Azure Workload Identity for clientID auth instead of clientSecret
+	useAzureWorkloadIdentity bool
 	// Callback URL for OAuth2 responses (e.g. https://argocd.example.com/auth/callback)
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
@@ -81,6 +85,17 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
+	// properties for azure workload identity.
+	azure azureApp
+}
+
+type azureApp struct {
+	// federated azure token for the service account
+	assertion string
+	// expiry of the token
+	expires time.Time
+	// mutex for parallelism for reading the token
+	mtx *sync.RWMutex
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -92,7 +107,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
+func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -102,14 +117,16 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 		return nil, err
 	}
 	a := ClientApp{
-		clientID:      settings.OAuth2ClientID(),
-		clientSecret:  settings.OAuth2ClientSecret(),
-		redirectURI:   redirectURL,
-		issuerURL:     settings.IssuerURL(),
-		userInfoPath:  settings.UserInfoPath(),
-		baseHRef:      baseHRef,
-		encryptionKey: encryptionKey,
-		clientCache:   cacheClient,
+		clientID:                 settings.OAuth2ClientID(),
+		clientSecret:             settings.OAuth2ClientSecret(),
+		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
+		redirectURI:              redirectURL,
+		issuerURL:                settings.IssuerURL(),
+		userInfoPath:             settings.UserInfoPath(),
+		baseHRef:                 baseHRef,
+		encryptionKey:            encryptionKey,
+		clientCache:              cacheClient,
+		azure:                    azureApp{mtx: &sync.RWMutex{}},
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -131,8 +148,8 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	}
 
 	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTlsConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTlsConfig)
+		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.client.Transport)
 	} else {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
@@ -158,6 +175,7 @@ func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth
 		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
 		redirectURL = a.redirectURI
 	}
+
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
@@ -215,11 +233,11 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if len(parts) == 2 && parts[1] != "" {
 		if !isValidRedirectURL(parts[1],
 			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
-			sanitizedUrl := parts[1]
-			if len(sanitizedUrl) > 100 {
-				sanitizedUrl = sanitizedUrl[:100]
+			sanitizedURL := parts[1]
+			if len(sanitizedURL) > 100 {
+				sanitizedURL = sanitizedURL[:100]
 			}
-			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
 			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
 		redirectURL = parts[1]
@@ -272,9 +290,9 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 		// scheme and host are mandatory to match.
 		if b.Scheme == r.Scheme && b.Host == r.Host {
 			// If path of redirectURL and allowedURL match, redirectURL is allowed
-			//if b.Path == r.Path {
-			//	return true
-			//}
+			// if b.Path == r.Path {
+			//	 return true
+			// }
 			// If path of redirectURL is within allowed URL's path, redirectURL is allowed
 			if strings.HasPrefix(path.Clean(r.Path), b.Path) {
 				return true
@@ -296,10 +314,13 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	scopes := make([]string, 0)
 	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
-		scopes = config.RequestedScopes
+		scopes = GetScopesOrDefault(config.RequestedScopes)
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
+	} else if a.settings.IsDexConfigured() {
+		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
-	oauth2Config, err := a.oauth2Config(r, GetScopesOrDefault(scopes))
+
+	oauth2Config, err := a.oauth2Config(r, scopes)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -336,6 +357,44 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
+// getFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
+// Kubernetes is responsible for updating the file as service account tokens expire.
+// Azure Workload Identity mutation webhook will set the environment variable AZURE_FEDERATED_TOKEN_FILE
+// Content of this file will contain a federated token which can be used in assertion with Microsoft Entra Application.
+func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, error) {
+	file, ok := os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE")
+	if file == "" || !ok {
+		return "", errors.New("AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
+	}
+
+	if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
+		return "", errors.New("AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
+	}
+
+	a.mtx.RLock()
+	if a.expires.Before(time.Now()) {
+		// ensure only one goroutine at a time updates the assertion
+		a.mtx.RUnlock()
+		a.mtx.Lock()
+		defer a.mtx.Unlock()
+		// double check because another goroutine may have acquired the write lock first and done the update
+		if now := time.Now(); a.expires.Before(now) {
+			content, err := os.ReadFile(file)
+			if err != nil {
+				return "", err
+			}
+			a.assertion = string(content)
+			// Kubernetes rotates service account tokens when they reach 80% of their total TTL. The shortest TTL
+			// is 1 hour. That implies the token we just read is valid for at least 12 minutes (20% of 1 hour),
+			// but we add some margin for safety.
+			a.expires = now.Add(10 * time.Minute)
+		}
+	} else {
+		defer a.mtx.RUnlock()
+	}
+	return a.assertion, nil
+}
+
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	oauth2Config, err := a.oauth2Config(r, nil)
@@ -361,12 +420,29 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	ctx := gooidc.ClientContext(r.Context(), a.client)
-	token, err := oauth2Config.Exchange(ctx, code)
+	options := []oauth2.AuthCodeOption{}
+
+	if a.useAzureWorkloadIdentity {
+		clientAssertion, err := a.azure.getFederatedServiceAccountToken(ctx)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		options = []oauth2.AuthCodeOption{
+			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
+		}
+	}
+
+	token, err := oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
 		return
 	}
+
 	idTokenRAW, ok := token.Extra("id_token").(string)
 	if !ok {
 		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
@@ -383,7 +459,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.baseHRef != "" {
 		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
 	}
-	cookiePath := fmt.Sprintf("path=/%s", path)
+	cookiePath := "path=/" + path
 	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
 	if a.secureCookie {
 		flags = append(flags, "Secure")
@@ -564,12 +640,11 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			log.Errorf("decrypting the cached claims failed (sub=%s): %s", sub, err)
 		} else {
 			err = json.Unmarshal(claimsRaw, &claims)
-			if err != nil {
-				log.Errorf("cannot unmarshal cached claims structure: %s", err)
-			} else {
+			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
 				return claims, false, err
 			}
+			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 
@@ -590,7 +665,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	url := issuerURL + userInfoPath
-	request, err := http.NewRequest("GET", url, nil)
+	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err
@@ -643,11 +718,12 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// only use configured expiry if the token lives longer and the expiry is configured
 	// if the token has no expiry, use the expiry of the actual token
 	// otherwise use the expiry of the token
-	if settingExpiry < tokenExpiry && settingExpiry != 0 {
+	switch {
+	case settingExpiry < tokenExpiry && settingExpiry != 0:
 		cacheExpiry = settingExpiry
-	} else if tokenExpiry < 0 {
+	case tokenExpiry < 0:
 		cacheExpiry = getTokenExpiration(actualClaims)
-	} else {
+	default:
 		cacheExpiry = tokenExpiry
 	}
 

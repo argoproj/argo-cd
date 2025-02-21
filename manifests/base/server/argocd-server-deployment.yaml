@@ -232,6 +232,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.headers
                   optional: true
+            - name: ARGOCD_SERVER_OTLP_ATTRS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.attrs
+                  optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:
                 configMapKeyRef:
@@ -291,6 +297,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.scm.providers
+                  optional: true
+            - name: ARGOCD_HYDRATOR_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: hydrator.enabled
                   optional: true
           volumeMounts:
             - name: ssh-known-hosts
@@ -385,3 +397,5 @@ spec:
                   matchLabels:
                     app.kubernetes.io/part-of: argocd
                 topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

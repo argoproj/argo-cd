@@ -10,8 +10,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
 
 type state = string
@@ -116,7 +116,7 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 
 // Pod checks whether a specified condition is true for any of the pods in the namespace
 func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
+	return func(_ *Consequences) (state, string) {
 		pods, err := pods(utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()

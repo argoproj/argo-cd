@@ -14,13 +14,13 @@ import (
 var flags map[string]string
 
 func init() {
-	err := loadFlags()
+	err := LoadFlags()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func loadFlags() error {
+func LoadFlags() error {
 	flags = make(map[string]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
@@ -30,15 +30,16 @@ func loadFlags() error {
 
 	var key string
 	for _, opt := range opts {
-		if strings.HasPrefix(opt, "--") {
+		switch {
+		case strings.HasPrefix(opt, "--"):
 			if key != "" {
 				flags[key] = "true"
 			}
 			key = strings.TrimPrefix(opt, "--")
-		} else if key != "" {
+		case key != "":
 			flags[key] = opt
 			key = ""
-		} else {
+		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}

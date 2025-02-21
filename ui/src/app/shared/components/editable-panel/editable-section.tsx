@@ -4,6 +4,7 @@ import {Form, FormApi} from 'react-form';
 import {ContextApis} from '../../context';
 import {EditablePanelItem} from './editable-panel';
 import {Spinner} from '../spinner';
+import {helpTip} from '../../../applications/components/utils';
 
 export interface EditableSectionProps<T> {
     title?: string | React.ReactNode;
@@ -20,7 +21,9 @@ export interface EditableSectionProps<T> {
     ctx: ContextApis;
     isTopSection?: boolean;
     disabledState?: boolean;
+    disabledDelete?: boolean;
     updateButtons?: (pressed: boolean) => void;
+    deleteSource?: () => void;
 }
 
 interface EditableSectionState {
@@ -57,17 +60,32 @@ export class EditableSection<T = {}> extends React.Component<EditableSectionProp
                             right: this.props.isTopSection ? (this.props.collapsible ? '4.5em' : '3.5em') : this.props.collapsible ? '1.0em' : '0em'
                         }}>
                         {!this.state.isEditing && (
-                            <button
-                                key={'edit_button_' + this.props.uniqueId}
-                                onClick={() => {
-                                    this.setState({isEditing: true});
-                                    this.props.updateButtons(true);
-                                    this.props.onModeSwitch();
-                                }}
-                                disabled={this.props.disabledState}
-                                className='argo-button argo-button--base'>
-                                Edit
-                            </button>
+                            <div className='editable-panel__buttons-relative-button'>
+                                <button
+                                    key={'edit_button_' + this.props.uniqueId}
+                                    onClick={() => {
+                                        this.setState({isEditing: true});
+                                        this.props.updateButtons(true);
+                                        this.props.onModeSwitch();
+                                    }}
+                                    disabled={this.props.disabledState}
+                                    className='argo-button argo-button--base'>
+                                    Edit
+                                </button>{' '}
+                                {this.props.isTopSection && this.props.deleteSource && (
+                                    <button
+                                        key={'delete_button_' + this.props.uniqueId}
+                                        onClick={() => {
+                                            this.props.deleteSource();
+                                        }}
+                                        disabled={this.props.disabledDelete}
+                                        className='argo-button argo-button--base'>
+                                        {helpTip('Delete the source from the sources field')}
+                                        <span style={{marginRight: '8px'}} />
+                                        Delete
+                                    </button>
+                                )}
+                            </div>
                         )}
                         {this.state.isEditing && (
                             <div key={'buttons_' + this.props.uniqueId} className={!this.props.isTopSection ? 'editable-panel__buttons-relative-button' : ''}>

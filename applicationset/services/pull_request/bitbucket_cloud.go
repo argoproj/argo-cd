@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -19,7 +20,7 @@ type BitbucketCloudPullRequest struct {
 	ID     int                             `json:"id"`
 	Title  string                          `json:"title"`
 	Source BitbucketCloudPullRequestSource `json:"source"`
-	Author string                          `json:"author"`
+	Author BitbucketCloudPullRequestAuthor `json:"author"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -35,6 +36,11 @@ type BitbucketCloudPullRequestSourceCommit struct {
 	Hash string `json:"hash"`
 }
 
+// Also have display_name and uuid, but don't plan to use them.
+type BitbucketCloudPullRequestAuthor struct {
+	Nickname string `json:"nickname"`
+}
+
 type PullRequestResponse struct {
 	Page     int32         `json:"page"`
 	Size     int32         `json:"size"`
@@ -46,7 +52,7 @@ type PullRequestResponse struct {
 
 var _ PullRequestService = (*BitbucketCloudService)(nil)
 
-func parseUrl(uri string) (*url.URL, error) {
+func parseURL(uri string) (*url.URL, error) {
 	if uri == "" {
 		uri = "https://api.bitbucket.org/2.0"
 	}
@@ -59,10 +65,10 @@ func parseUrl(uri string) (*url.URL, error) {
 	return url, nil
 }
 
-func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repositorySlug string) (PullRequestService, error) {
-	url, err := parseUrl(baseUrl)
+func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string) (PullRequestService, error) {
+	url, err := parseURL(baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewBasicAuth(username, password)
@@ -75,10 +81,10 @@ func NewBitbucketCloudServiceBasicAuth(baseUrl, username, password, owner, repos
 	}, nil
 }
 
-func NewBitbucketCloudServiceBearerToken(baseUrl, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
-	url, err := parseUrl(baseUrl)
+func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
+	url, err := parseURL(baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseUrl, owner, repositorySlug, err)
+		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
 	}
 
 	bitbucketClient := bitbucket.NewOAuthbearerToken(bearerToken)
@@ -91,9 +97,9 @@ func NewBitbucketCloudServiceBearerToken(baseUrl, bearerToken, owner, repository
 	}, nil
 }
 
-func NewBitbucketCloudServiceNoAuth(baseUrl, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string) (PullRequestService, error) {
 	// There is currently no method to explicitly not require auth
-	return NewBitbucketCloudServiceBearerToken(baseUrl, "", owner, repositorySlug)
+	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug)
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
@@ -107,14 +113,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 		return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.owner, b.repositorySlug, err)
 	}
 
-	resp, ok := response.(map[string]interface{})
+	resp, ok := response.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from bitbucket pull requests")
+		return nil, errors.New("unknown type returned from bitbucket pull requests")
 	}
 
-	repoArray, ok := resp["values"].([]interface{})
+	repoArray, ok := resp["values"].([]any)
 	if !ok {
-		return nil, fmt.Errorf("unknown type returned from response values")
+		return nil, errors.New("unknown type returned from response values")
 	}
 
 	jsonStr, err := json.Marshal(repoArray)
@@ -134,7 +140,7 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			Title:   pull.Title,
 			Branch:  pull.Source.Branch.Name,
 			HeadSHA: pull.Source.Commit.Hash,
-			Author:  pull.Author,
+			Author:  pull.Author.Nickname,
 		})
 	}
 

@@ -14,6 +14,7 @@ import (
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Println(r.RequestURI)
@@ -250,7 +251,7 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", false)
 	require.NoError(t, err)
 	prs, err := host.List(context.Background())
 	require.NoError(t, err)

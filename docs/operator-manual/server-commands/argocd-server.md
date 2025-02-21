@@ -51,13 +51,15 @@ argocd-server [flags]
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
       --enable-gzip                                     Enable GZIP compression (default true)
+      --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
+      --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")
       --insecure                                        Run server without TLS
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
-      --logformat string                                Set the logging format. One of: text|json (default "text")
+      --logformat string                                Set the logging format. One of: json|text (default "json")
       --login-attempts-expiration duration              Cache expiration for failed login attempts (default 24h0m0s)
       --loglevel string                                 Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-address string                          Listen for metrics on given address (default "0.0.0.0")

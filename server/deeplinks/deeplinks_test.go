@@ -8,14 +8,14 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type deepLinkTC struct {
@@ -43,7 +43,7 @@ func TestDeepLinks(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	resourceObj, err := kube.ToUnstructured(&v1.ConfigMap{
+	resourceObj, err := kube.ToUnstructured(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-cm",
 			Namespace: "test-cm",
@@ -171,6 +171,28 @@ func TestDeepLinks(t *testing.T) {
 				Url:   ptr.To("http://example.com/test_cluster&test-repo.git"),
 			}},
 			error: []string{},
+		},
+		{
+			name:        "evaluate template for valid condition",
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			inputLinks: []settings.DeepLink{
+				{
+					Title:     "link",
+					URL:       "http://not-evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
+					Condition: ptr.To(`false`),
+				},
+				{
+					Title:     "link",
+					URL:       "http://evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
+					Condition: ptr.To(`true`),
+				},
+			},
+			outputLinks: []*application.LinkInfo{},
+			error: []string{
+				"failed to evaluate link template 'http://evaluated.com/{{ index \"invalid\" .application.metadata.labels }}' with resource test, error=template: deep-link:1:24: executing \"deep-link\" at <index \"invalid\" .application.metadata.labels>: error calling index: cannot index slice/array with nil",
+			},
 		},
 	}
 
