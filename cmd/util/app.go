@@ -55,7 +55,7 @@ type AppOptions struct {
 	helmSkipTests                   bool
 	helmNamespace                   string
 	helmKubeVersion                 string
-	helmApiVersions                 []string
+	helmApiVersions                 []string //nolint:revive //FIXME(var-naming)
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -81,7 +81,8 @@ type AppOptions struct {
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
 	kustomizeKubeVersion            string
-	kustomizeApiVersions            []string
+	kustomizeApiVersions            []string //nolint:revive //FIXME(var-naming)
+	ignoreMissingComponents         bool
 	pluginEnvs                      []string
 	Validate                        bool
 	directoryExclude                string
@@ -163,6 +164,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.jsonnetLibs, "jsonnet-libs", []string{}, "Additional jsonnet libs (prefixed by repoRoot)")
 	command.Flags().StringArrayVar(&opts.kustomizeImages, "kustomize-image", []string{}, "Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)")
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)")
+	command.Flags().BoolVar(&opts.ignoreMissingComponents, "ignore-missing-components", false, "Ignore locally missing component directories when setting Kustomize components")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
@@ -307,19 +309,20 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 }
 
 type kustomizeOpts struct {
-	namePrefix             string
-	nameSuffix             string
-	images                 []string
-	replicas               []string
-	version                string
-	commonLabels           map[string]string
-	commonAnnotations      map[string]string
-	labelWithoutSelector   bool
-	forceCommonLabels      bool
-	forceCommonAnnotations bool
-	namespace              string
-	kubeVersion            string
-	apiVersions            []string
+	namePrefix              string
+	nameSuffix              string
+	images                  []string
+	replicas                []string
+	version                 string
+	commonLabels            map[string]string
+	commonAnnotations       map[string]string
+	labelWithoutSelector    bool
+	forceCommonLabels       bool
+	forceCommonAnnotations  bool
+	namespace               string
+	kubeVersion             string
+	apiVersions             []string
+	ignoreMissingComponents bool
 }
 
 func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
@@ -358,6 +361,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.forceCommonAnnotations {
 		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
+	}
+	if opts.ignoreMissingComponents {
+		src.Kustomize.IgnoreMissingComponents = opts.ignoreMissingComponents
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
@@ -624,7 +630,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}, nil
 }
 
-func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
+func constructAppsFromFileURL(fileURL, appName string, labels, annotations, args []string, appOpts AppOptions, flags *pflag.FlagSet) ([]*argoappv1.Application, error) {
 	apps := make([]*argoappv1.Application, 0)
 	// read uri
 	err := readAppsFromURI(fileURL, &apps)
@@ -658,7 +664,7 @@ func ConstructApps(fileURL, appName string, labels, annotations, args []string, 
 	if fileURL == "-" {
 		return constructAppsFromStdin()
 	} else if fileURL != "" {
-		return constructAppsFromFileUrl(fileURL, appName, labels, annotations, args, appOpts, flags)
+		return constructAppsFromFileURL(fileURL, appName, labels, annotations, args, appOpts, flags)
 	}
 
 	return constructAppsBaseOnName(appName, labels, annotations, args, appOpts, flags)
@@ -766,6 +772,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonAnnotations: appOpts.kustomizeForceCommonAnnotations})
+		case "ignore-missing-components":
+			setKustomizeOpt(source, kustomizeOpts{ignoreMissingComponents: appOpts.ignoreMissingComponents})
 		case "jsonnet-tla-str":
 			setJsonnetOpt(source, appOpts.jsonnetTlaStr, false)
 		case "jsonnet-tla-code":

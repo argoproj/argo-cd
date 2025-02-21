@@ -240,10 +240,6 @@ func NewImportCommand() *cobra.Command {
 
 			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
-				if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
-					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
-					continue
-				}
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
 				if bakObj.GetNamespace() == "" {
@@ -252,6 +248,13 @@ func NewImportCommand() *cobra.Command {
 				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
 				liveObj, exists := pruneObjects[key]
 				delete(pruneObjects, key)
+
+				// If the resource in backup matches the skip label, do not import it
+				if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
+					fmt.Printf("Skipping %s/%s %s in namespace %s\n", bakObj.GroupVersionKind().Group, bakObj.GroupVersionKind().Kind, bakObj.GetName(), bakObj.GetNamespace())
+					continue
+				}
+
 				var dynClient dynamic.ResourceInterface
 				switch bakObj.GetKind() {
 				case "Secret":
@@ -336,6 +339,12 @@ func NewImportCommand() *cobra.Command {
 
 			// Delete objects not in backup
 			for key, liveObj := range pruneObjects {
+				// If a live resource has a label to skip the import, it should never be pruned
+				if isSkipLabelMatches(&liveObj, skipResourcesWithLabel) {
+					fmt.Printf("Skipping pruning of %s/%s %s in namespace %s\n", key.Group, key.Kind, liveObj.GetName(), liveObj.GetNamespace())
+					continue
+				}
+
 				if prune {
 					var dynClient dynamic.ResourceInterface
 					switch key.Kind {
@@ -497,7 +506,7 @@ func updateTracking(bak, live *unstructured.Unstructured) {
 }
 
 // isSkipLabelMatches return if the resource should be skipped based on the labels
-func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabel string) bool {
+func isSkipLabelMatches(obj *unstructured.Unstructured, skipResourcesWithLabel string) bool {
 	if skipResourcesWithLabel == "" {
 		return false
 	}
@@ -506,7 +515,7 @@ func isSkipLabelMatches(bak *unstructured.Unstructured, skipResourcesWithLabel s
 		return false
 	}
 	key, value := parts[0], parts[1]
-	if val, ok := bak.GetLabels()[key]; ok && val == value {
+	if val, ok := obj.GetLabels()[key]; ok && val == value {
 		return true
 	}
 	return false
