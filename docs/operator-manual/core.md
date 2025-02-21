@@ -80,7 +80,7 @@ namespace with the proper permission in the `Application` and
 
 To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
 flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
-process that handles the CLI and Web UI requests.
+process that handles CLI and Web UI requests.
 
 Example:
 
