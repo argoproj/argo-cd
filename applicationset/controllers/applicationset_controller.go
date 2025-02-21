@@ -164,7 +164,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, err
+		// In order for the controller SDK to respect RequeueAfter, the error must be nil
+		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
 
 	parametersGenerated = true
