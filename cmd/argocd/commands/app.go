@@ -2590,8 +2590,8 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
-	// appUrl is declared here so that it can be used in the printFinalStatus function when the context is cancelled
-	appUrl := appURL(ctx, acdClient, appName)
+	// AppURL is declared here so that it can be used in the printFinalStatus function when the context is cancelled
+	AppURL := appURL(ctx, acdClient, appName)
 
 	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
 	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
@@ -2615,7 +2615,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 		if printSummary {
 			fmt.Println()
-			printAppSummaryTable(app, appUrl, nil)
+			printAppSummaryTable(app, AppURL, nil)
 			fmt.Println()
 			if watch.operation {
 				printOperationResult(app.Status.OperationState)
