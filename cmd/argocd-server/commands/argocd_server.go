@@ -179,7 +179,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			dexTlsConfig := &dex.DexTLSConfig{
+			dexTLSConfig := &dex.DexTLSConfig{
 				DisableTLS:       dexServerPlaintext,
 				StrictValidation: dexServerStrictTLS,
 			}
@@ -191,14 +191,14 @@ func NewCommand() *cobra.Command {
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.RootCAs = pool
+				dexTLSConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.Certificate = cert.Raw
+				dexTLSConfig.Certificate = cert.Raw
 			}
 
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
@@ -229,7 +229,7 @@ func NewCommand() *cobra.Command {
 				AppClientset:            appClientSet,
 				RepoClientset:           repoclientset,
 				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTlsConfig,
+				DexTLSConfig:            dexTLSConfig,
 				DisableAuth:             disableAuth,
 				ContentTypes:            contentTypesList,
 				EnableGZip:              enableGZip,
@@ -295,7 +295,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", env.StringFromEnv("ARGOCD_SERVER_STATIC_ASSETS", "/shared/app"), "Directory path that contains additional static assets")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")

@@ -170,7 +170,7 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -445,7 +445,15 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components: []string{"./components"},
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: false,
+	}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.Error(t, err)
+
+	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: true,
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)

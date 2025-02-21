@@ -16,7 +16,7 @@ var (
 )
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string {
+func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
 	str = matchFirstCap.ReplaceAllString(str, "${1}-${2}")
 	str = matchAllCap.ReplaceAllString(str, "${1}-${2}")
 	str = strings.ToLower(str)
