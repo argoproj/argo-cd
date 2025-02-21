@@ -12,7 +12,6 @@ import (
 	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -49,7 +48,7 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, _ *repocredspkg.
 	}
 	items := make([]appsv1.RepoCreds, 0)
 	for _, url := range urls {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, url) {
+		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, url) {
 			repo, err := s.db.GetRepositoryCredentials(ctx, url)
 			if err != nil {
 				return nil, err
@@ -73,7 +72,7 @@ func (s *Server) ListWriteRepositoryCredentials(ctx context.Context, _ *repocred
 	}
 	items := make([]appsv1.RepoCreds, 0)
 	for _, url := range urls {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionGet, url) {
+		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionGet, url) {
 			repo, err := s.db.GetWriteRepositoryCredentials(ctx, url)
 			if err != nil {
 				return nil, err
@@ -94,7 +93,7 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 	if q.Creds == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionCreate, q.Creds.URL); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionCreate, q.Creds.URL); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +128,7 @@ func (s *Server) CreateWriteRepositoryCredentials(ctx context.Context, q *repocr
 	if q.Creds == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionCreate, q.Creds.URL); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionCreate, q.Creds.URL); err != nil {
 		return nil, err
 	}
 
@@ -164,7 +163,7 @@ func (s *Server) UpdateRepositoryCredentials(ctx context.Context, q *repocredspk
 	if q.Creds == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, q.Creds.URL); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionUpdate, q.Creds.URL); err != nil {
 		return nil, err
 	}
 	_, err := s.db.UpdateRepositoryCredentials(ctx, q.Creds)
@@ -176,7 +175,7 @@ func (s *Server) UpdateWriteRepositoryCredentials(ctx context.Context, q *repocr
 	if q.Creds == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionUpdate, q.Creds.URL); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionUpdate, q.Creds.URL); err != nil {
 		return nil, err
 	}
 	_, err := s.db.UpdateWriteRepositoryCredentials(ctx, q.Creds)
@@ -185,7 +184,7 @@ func (s *Server) UpdateWriteRepositoryCredentials(ctx context.Context, q *repocr
 
 // DeleteRepositoryCredentials removes a credential set from the configuration
 func (s *Server) DeleteRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsDeleteRequest) (*repocredspkg.RepoCredsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionDelete, q.Url); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionDelete, q.Url); err != nil {
 		return nil, err
 	}
 
@@ -195,7 +194,7 @@ func (s *Server) DeleteRepositoryCredentials(ctx context.Context, q *repocredspk
 
 // DeleteWriteRepositoryCredentials removes a credential set from the configuration
 func (s *Server) DeleteWriteRepositoryCredentials(ctx context.Context, q *repocredspkg.RepoCredsDeleteRequest) (*repocredspkg.RepoCredsResponse, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionDelete, q.Url); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionDelete, q.Url); err != nil {
 		return nil, err
 	}
 

@@ -169,7 +169,7 @@ type ClusterOptions struct {
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
 	DisableCompression      bool
-	ProxyUrl                string
+	ProxyUrl                string //nolint:revive //FIXME(var-naming)
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
