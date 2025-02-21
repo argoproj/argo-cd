@@ -25,6 +25,10 @@ type fakeIndexCache struct {
 	data []byte
 }
 
+type fakeTagsList struct {
+	Tags []string `json:"tags"`
+}
+
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
 	f.data = indexData
 	return nil
@@ -170,19 +174,23 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			responseTags := TagsList{}
+			var responseTags fakeTagsList
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags.Tags = []string{"first"}
+				responseTags = fakeTagsList{
+					Tags: []string{"first"},
+				}
 			} else {
-				responseTags.Tags = []string{
-					"second",
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
+				responseTags = fakeTagsList{
+					Tags: []string{
+						"second",
+						"2.8.0",
+						"2.8.0-prerelease",
+						"2.8.0_build",
+						"2.8.0-prerelease_build",
+						"2.8.0-prerelease.1_build.1234",
+					},
 				}
 			}
 			w.WriteHeader(http.StatusOK)
@@ -193,7 +201,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
-		assert.ElementsMatch(t, tags.Tags, []string{
+		assert.ElementsMatch(t, tags, []string{
 			"first",
 			"second",
 			"2.8.0",
@@ -229,7 +237,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := fakeTagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -276,6 +284,104 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 				Username:           username,
 				Password:           password,
+			}, true, "", "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
+}
+
+func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *testing.T) {
+	expectedAuthorization := "Basic MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOmFjY2Vzc1Rva2Vu" // base64(00000000-0000-0000-0000-000000000000:accessToken)
+	mockUrl := ""
+	serverUrl := func() string {
+		return mockUrl
+	}
+
+	workloadIdentityMock := new(mocks.TokenProvider)
+	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		switch r.URL.Path {
+		case "/v2/":
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, serverUrl(), serverUrl()[8:]))
+			w.WriteHeader(http.StatusUnauthorized)
+
+		case "/oauth2/exchange":
+			response := `{"refresh_token":"accessToken"}`
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(response))
+			require.NoError(t, err)
+		default:
+			authorization := r.Header.Get("Authorization")
+
+			if authorization == "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			assert.Equal(t, expectedAuthorization, authorization)
+
+			responseTags := TagsList{
+				Tags: []string{
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}
+	}))
+	mockUrl = server.URL
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: server.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, AzureWorkloadIdentityCreds{
+				repoUrl:            server.URL[8:],
+				InsecureSkipVerify: true,
+				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
 
 			tags, err := client.GetTags("mychart", true)
@@ -405,7 +511,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := fakeTagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -462,7 +568,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
