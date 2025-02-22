@@ -1054,18 +1054,19 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
-				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
 			// we have an existing AppStatus
 			currentAppStatus = applicationSet.Status.ApplicationStatus[idx]
-
-			// upgrade any existing AppStatus that might have been set by an older argo-cd version
-			// note: currentAppStatus.TargetRevisions may be set to empty list earlier during migrations,
-			// to prevent other usage of r.Client.Status().Update to fail before reaching here.
-			if len(currentAppStatus.TargetRevisions) == 0 {
-				currentAppStatus.TargetRevisions = app.Status.GetRevisions()
+			if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
+				currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
 			}
+		}
+		if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
+			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
+			currentAppStatus.Status = "Waiting"
+			currentAppStatus.LastTransitionTime = &now
+			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		appOutdated := false
@@ -1079,25 +1080,15 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
 			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
-			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
 		if currentAppStatus.Status == "Pending" {
-			if operationPhaseString == "Succeeded" {
-				revisions := []string{}
-				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
-					revisions = app.Status.OperationState.SyncResult.Revisions
-				} else if app.Status.OperationState.SyncResult.Revision != "" {
-					revisions = append(revisions, app.Status.OperationState.SyncResult.Revision)
-				}
-
-				if reflect.DeepEqual(currentAppStatus.TargetRevisions, revisions) {
-					logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
-					currentAppStatus.LastTransitionTime = &now
-					currentAppStatus.Status = "Progressing"
-					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-					currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
-				}
+			if !appOutdated && operationPhaseString == "Succeeded" {
+				logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
+				currentAppStatus.LastTransitionTime = &now
+				currentAppStatus.Status = "Progressing"
+				currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
+				currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
