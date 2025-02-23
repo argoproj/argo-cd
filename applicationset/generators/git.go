@@ -11,6 +11,8 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -135,8 +137,38 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 		if err != nil {
 			return nil, err
 		}
-		for filePath, content := range files {
-			allFiles[filePath] = content
+		if requestedPath.FileLabelSelector != nil {
+			for filePath, content := range files {
+				objects := map[string]any{}
+				err := yaml.Unmarshal(content, &objects)
+				if err != nil {
+					log.Printf("unable to parse the file: %v", err)
+					continue
+				}
+				flat, err := flatten.Flatten(objects, "", flatten.DotStyle)
+				if err != nil {
+					log.Printf("error flattening the object: %v", err)
+					continue
+				}
+				labelSet := make(labels.Set)
+				for k, v := range flat {
+					if strVal, ok := v.(string); ok {
+						labelSet[k] = strVal
+					}
+				}
+
+				selector, err := metav1.LabelSelectorAsSelector(requestedPath.FileLabelSelector)
+				if err != nil {
+					return nil, fmt.Errorf("error parsing the label selector: %w", err)
+				}
+				if selector.Matches(labelSet) {
+					allFiles[filePath] = content
+				}
+			}
+		} else {
+			for filePath, content := range files {
+				allFiles[filePath] = content
+			}
 		}
 	}
 
