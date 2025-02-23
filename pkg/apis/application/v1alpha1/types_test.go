@@ -1771,10 +1771,13 @@ func TestKustomizeImage_Match(t *testing.T) {
 	// mismatched delimiter
 	assert.False(t, KustomizeImage("foo=1").Match("bar:1"))
 	assert.False(t, KustomizeImage("foo:1").Match("bar=1"))
+	assert.False(t, KustomizeImage("foobar:2").Match("foo:2"))
+	assert.False(t, KustomizeImage("foobar@2").Match("foo@2"))
 	// matches
 	assert.True(t, KustomizeImage("foo=1").Match("foo=2"))
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
 	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
+	assert.True(t, KustomizeImage("nginx").Match("nginx"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
@@ -3668,6 +3671,8 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
 	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applicationsets, *, some-project/*, allow")
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
@@ -3955,9 +3960,9 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, environ, 2)
 	assert.Contains(t, environ, "PARAM_VERSION=1.2.3")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
@@ -3972,9 +3977,9 @@ func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_0=redis")
 	assert.Contains(t, environ, "PARAM_DEPENDENCIES_1=minio")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
@@ -3994,9 +3999,9 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	assert.Len(t, environ, 3)
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_HELM_PARAMETERS_IMAGE_TAG=v2.4.0")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
@@ -4025,9 +4030,9 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	assert.Contains(t, environ, "PARAM_SOME_NAME_1=minio")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_REPO=quay.io/argoproj/argo-cd")
 	assert.Contains(t, environ, "PARAM_SOME_NAME_IMAGE_TAG=v2.4.0")
-	paramsJson, err := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
 	require.NoError(t, err)
-	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJson))
+	assert.Contains(t, environ, fmt.Sprintf("ARGOCD_APP_PARAMETERS=%s", paramsJSON))
 }
 
 func getApplicationSpec() *ApplicationSpec {

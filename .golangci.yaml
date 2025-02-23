@@ -30,6 +30,7 @@ linters:
     - unparam
     - unused
     - usestdlibvars
+    - usetesting
     - whitespace
 linters-settings:
   gocritic:
@@ -140,10 +141,16 @@ linters-settings:
       - name: useless-break
       - name: var-declaration
       - name: var-naming
-        disabled: true
+        arguments:
+          - ["ID"]
+          - ["VM"]
+          - - skipPackageNameChecks: true
+              upperCaseConst: true
   testifylint:
     enable-all: true
     disable:
       - go-require
+  usetesting:
+    os-mkdir-temp: false
 run:
   timeout: 50m

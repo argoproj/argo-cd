@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 
+	"github.com/argoproj/argo-cd/v3/util/cache"
+
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -65,7 +67,7 @@ func NewCommand() *cobra.Command {
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()
 	errors.CheckError(err)
 	command.PersistentFlags().StringVar(&clientOpts.ConfigPath, "config", config.GetFlag("config", defaultLocalConfigPath), "Path to Argo CD config")
-	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", config.GetFlag("server", ""), "Argo CD server address")
+	command.PersistentFlags().StringVar(&clientOpts.ServerAddr, "server", config.GetFlag("server", env.StringFromEnv(common.EnvServer, "")), "Argo CD server address")
 	command.PersistentFlags().BoolVar(&clientOpts.PlainText, "plaintext", config.GetBoolFlag("plaintext"), "Disable TLS")
 	command.PersistentFlags().BoolVar(&clientOpts.Insecure, "insecure", config.GetBoolFlag("insecure"), "Skip server certificate and domain verification")
 	command.PersistentFlags().StringVar(&clientOpts.CertFile, "server-crt", config.GetFlag("server-crt", ""), "Server certificate file")
@@ -87,6 +89,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.RedisHaProxyName, "redis-haproxy-name", env.StringFromEnv(common.EnvRedisHaProxyName, common.DefaultRedisHaProxyName), fmt.Sprintf("Name of the Redis HA Proxy; set this or the %s environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart", common.EnvRedisHaProxyName))
 	command.PersistentFlags().StringVar(&clientOpts.RedisName, "redis-name", env.StringFromEnv(common.EnvRedisName, common.DefaultRedisName), fmt.Sprintf("Name of the Redis deployment; set this or the %s environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart", common.EnvRedisName))
 	command.PersistentFlags().StringVar(&clientOpts.RepoServerName, "repo-server-name", env.StringFromEnv(common.EnvRepoServerName, common.DefaultRepoServerName), fmt.Sprintf("Name of the Argo CD Repo server; set this or the %s environment variable when the server's name label differs from the default, for example when installing via the Helm chart", common.EnvRepoServerName))
+	command.PersistentFlags().StringVar(&clientOpts.RedisCompression, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionGZip)), "Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none)")
 	command.PersistentFlags().BoolVar(&clientOpts.PromptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
 
 	clientOpts.KubeOverrides = &clientcmd.ConfigOverrides{}

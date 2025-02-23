@@ -536,7 +536,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
+			t.Setenv("XDG_CONFIG_HOME", helmTmp)
 			FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
 				"--username", fixture.GitUsername,
 				"--password", fixture.GitPassword,

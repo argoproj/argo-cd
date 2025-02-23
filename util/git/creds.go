@@ -371,8 +371,8 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			parsedProxyURL.Port()))
 		if parsedProxyURL.User != nil {
 			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
-			if socks5_passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
-				proxyEnv = append(proxyEnv, "SOCKS5_PASSWD="+socks5_passwd)
+			if socks5Passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
+				proxyEnv = append(proxyEnv, "SOCKS5_PASSWD="+socks5Passwd)
 			}
 		}
 	}
@@ -515,13 +515,13 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 // getAppTransport creates a new GitHub transport for the app
 func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error) {
 	// GitHub API url
-	baseUrl := "https://api.github.com"
+	baseURL := "https://api.github.com"
 	if g.baseURL != "" {
-		baseUrl = strings.TrimSuffix(g.baseURL, "/")
+		baseURL = strings.TrimSuffix(g.baseURL, "/")
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
+	c := GetRepoHTTPClient(baseURL, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.NewAppsTransport(c.Transport,
 		g.appID,
 		[]byte(g.privateKey),
@@ -530,7 +530,7 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 		return nil, fmt.Errorf("failed to initialize GitHub installation transport: %w", err)
 	}
 
-	itr.BaseURL = baseUrl
+	itr.BaseURL = baseURL
 
 	return itr, nil
 }
@@ -554,13 +554,13 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	}
 
 	// GitHub API url
-	baseUrl := "https://api.github.com"
+	baseURL := "https://api.github.com"
 	if g.baseURL != "" {
-		baseUrl = strings.TrimSuffix(g.baseURL, "/")
+		baseURL = strings.TrimSuffix(g.baseURL, "/")
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
+	c := GetRepoHTTPClient(baseURL, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
@@ -570,7 +570,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 		return nil, fmt.Errorf("failed to initialize GitHub installation transport: %w", err)
 	}
 
-	itr.BaseURL = baseUrl
+	itr.BaseURL = baseURL
 
 	// Add transport to cache
 	githubAppTokenCache.Set(key, itr, time.Minute*60)

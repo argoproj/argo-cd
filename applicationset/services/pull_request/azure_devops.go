@@ -42,13 +42,13 @@ var (
 )
 
 func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
-	organizationUrl := buildURL(url, organization)
+	organizationURL := buildURL(url, organization)
 
 	var connection *azuredevops.Connection
 	if token == "" {
-		connection = azuredevops.NewAnonymousConnection(organizationUrl)
+		connection = azuredevops.NewAnonymousConnection(organizationURL)
 	} else {
-		connection = azuredevops.NewPatConnection(organizationUrl, token)
+		connection = azuredevops.NewPatConnection(organizationURL, token)
 	}
 
 	return &AzureDevOpsService{

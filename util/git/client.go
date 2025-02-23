@@ -429,12 +429,12 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 		if err != nil {
 			return nil, err
 		}
-		all_files, err := doublestar.FilepathGlob(path)
+		allFiles, err := doublestar.FilepathGlob(path)
 		if err != nil {
 			return nil, err
 		}
 		var files []string
-		for _, file := range all_files {
+		for _, file := range allFiles {
 			link, err := filepath.EvalSymlinks(file)
 			if err != nil {
 				return nil, err
