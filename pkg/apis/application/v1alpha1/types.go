@@ -1629,7 +1629,8 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 // PruningRequired returns a positive integer containing the number of resources that require pruning after an operation has been completed
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == synccommon.ResultCodePruneSkipped {
+		// find all resources that require pruning but ignore resources marked for no pruning using sync-option Prune=false
+		if res.Status == synccommon.ResultCodePruneSkipped && !strings.Contains(res.Message, "no prune") {
 			num++
 		}
 	}
