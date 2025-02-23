@@ -1376,8 +1376,6 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	testCases := []struct {
 		name string
 		app  *v1alpha1.Application
@@ -1448,7 +1446,7 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				delay := time.Duration(0)
 				ctrl.requestAppRefresh(app.Name, CompareWithRecent.Pointer(), &delay)
 
-				ctrl.processAppComparisonTypeQueueItem(ctx)
+				ctrl.processAppComparisonTypeQueueItem()
 				needRefresh, refreshType, compareWith := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)

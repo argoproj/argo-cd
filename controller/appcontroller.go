@@ -931,8 +931,8 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}, time.Second)
 	}
 
-	go wait.UntilWithContext(ctx, func(ctx context.Context) {
-		for ctrl.processAppComparisonTypeQueueItem(ctx) {
+	go wait.UntilWithContext(ctx, func(_ context.Context) {
+		for ctrl.processAppComparisonTypeQueueItem() {
 		}
 	}, time.Second)
 
@@ -1058,7 +1058,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem(ctx context.Cont
 	return
 }
 
-func (ctrl *ApplicationController) processAppComparisonTypeQueueItem(ctx context.Context) (processNext bool) {
+func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processNext bool) {
 	key, shutdown := ctrl.appComparisonTypeRefreshQueue.Get()
 	processNext = true
 
