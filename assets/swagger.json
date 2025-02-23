@@ -8926,7 +8926,7 @@
       "properties": {
         "bearerToken": {
           "type": "string",
-          "title": "BearerToken contains the bearer token used for Git BitBucket auth at the repo server"
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
         },
         "enableOCI": {
           "type": "boolean",
@@ -9021,7 +9021,7 @@
       "properties": {
         "bearerToken": {
           "type": "string",
-          "title": "BearerToken contains the bearer token used for Git BitBucket auth at the repo server"
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"

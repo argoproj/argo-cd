@@ -54,7 +54,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
-  # Add a private Git BitBucket repository via HTTPS using bearer token:
+  # Add a private Git BitBucket Data Center repository via HTTPS using bearer token:
   argocd admin repo generate-spec https://bitbucket.example.com/scm/proj/repo --bearer-token secret-token
 
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
