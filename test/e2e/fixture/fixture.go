@@ -916,14 +916,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
 				return err
 			}
-			os.Setenv("GNUPGHOME", prevGnuPGHome)
+			t.Setenv("GNUPGHOME", prevGnuPGHome)
 
 			// recreate GPG directories
 			if IsLocal() {
