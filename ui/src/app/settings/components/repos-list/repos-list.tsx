@@ -88,6 +88,7 @@ interface NewSSHRepoCredsParams {
 
 interface NewHTTPSRepoCredsParams {
     url: string;
+    type: string;
     username: string;
     password: string;
     bearerToken: string;
@@ -932,7 +933,8 @@ export class ReposList extends React.Component<
     // Connect a new repository or create a repository credentials for HTTPS repositories
     private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
         if (this.credsTemplate) {
-            this.createHTTPSCreds({
+            await this.createHTTPSCreds({
+                type: params.type,
                 url: params.url,
                 username: params.username,
                 password: params.password,
