@@ -54,6 +54,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
+  # Add a private Git BitBucket Data Center repository via HTTPS using bearer token:
+  argocd admin repo generate-spec https://bitbucket.example.com/scm/proj/repo --bearer-token secret-token
+
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
@@ -138,6 +141,13 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
+
 			argoCDCM := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",
@@ -155,7 +165,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
+			_, err = argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
 			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), metav1.GetOptions{})
