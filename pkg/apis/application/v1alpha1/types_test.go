@@ -1423,6 +1423,7 @@ func TestResourceResults_Find(t *testing.T) {
 
 func TestResourceResults_PruningRequired(t *testing.T) {
 	needsPruning := &ResourceResult{Status: common.ResultCodePruneSkipped}
+	pruneSkippedButNoPruneMessage := &ResourceResult{Status: common.ResultCodePruneSkipped, Message: "ignored (no prune)"}
 	tests := []struct {
 		name    string
 		r       ResourceResults
@@ -1431,6 +1432,8 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 		{"TestNil", ResourceResults{}, 0},
 		{"TestOne", ResourceResults{needsPruning}, 1},
 		{"TestTwo", ResourceResults{needsPruning, needsPruning}, 2},
+		{"TestPruneSkippedButNoPruneMessage", ResourceResults{pruneSkippedButNoPruneMessage}, 0},
+		{"TestPruneSkippedButNoPruneMessage_and_OnePrune", ResourceResults{needsPruning, pruneSkippedButNoPruneMessage}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
