@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	JsonFormat = "json"
+	JsonFormat = "json" //nolint:revive //FIXME(var-naming)
 	TextFormat = "text"
 )
 

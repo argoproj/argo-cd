@@ -157,7 +157,7 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
-	testIngressWithoutTls = strToUnstructured(`
+	testIngressWithoutTLS = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
   metadata:
@@ -1052,7 +1052,7 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 
 func TestGetIngressInfoWithoutTls(t *testing.T) {
 	info := &ResourceInfo{}
-	populateNodeInfo(testIngressWithoutTls, info, []string{})
+	populateNodeInfo(testIngressWithoutTLS, info, []string{})
 	assert.Empty(t, info.Info)
 	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
 		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0

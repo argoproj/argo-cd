@@ -119,7 +119,7 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
-	HttpRetryMax         int
+	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
 	KubeOverrides        *clientcmd.ConfigOverrides
 	AppControllerName    string
 	ServerName           string
