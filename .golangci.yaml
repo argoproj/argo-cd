@@ -11,6 +11,7 @@ linters:
   enable:
     - errcheck
     - errorlint
+    - forbidigo
     - gocritic
     - gofumpt
     - goimports
@@ -152,5 +153,11 @@ linters-settings:
       - go-require
   usetesting:
     os-mkdir-temp: false
+  forbidigo:
+    forbid:
+      - p: context\.Background
+        msg: "Tempotary forbidden"
+      - p: context\.TODO
+        msg: "Use context.Background() instead"
 run:
   timeout: 50m
