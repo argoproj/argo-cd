@@ -41,7 +41,7 @@ $(dirname $0)/compare-chksum.sh
 mkdir -p /tmp/protoc-${protoc_version}
 unzip -o $DOWNLOADS/${TARGET_FILE} -d /tmp/protoc-${protoc_version}
 mkdir -p ${DIST_PATH}/protoc-include
-sudo cp /tmp/protoc-${protoc_version}/bin/protoc ${DIST_PATH}/protoc
+sudo install -m 0755 /tmp/protoc-${protoc_version}/bin/protoc ${DIST_PATH}/protoc
 chmod +x ${DIST_PATH}/protoc
 cp -a /tmp/protoc-${protoc_version}/include/* ${DIST_PATH}/protoc-include
 chmod -R +rx ${DIST_PATH}/protoc-include
