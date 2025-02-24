@@ -178,24 +178,24 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 func TestFailOnPrivateRepoCreationWithPasswordAndBearerToken(t *testing.T) {
 	app.Given(t).And(func() {
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
-		_, err := fixture.RunCli("repo", "add", repoUrl, "--password", fixture.GitPassword, "--bearer-token", fixture.GitBearerToken)
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--password", fixture.GitPassword, "--bearer-token", fixture.GitBearerToken)
 		require.ErrorContains(t, err, "only --bearer-token or --password is allowed, not both")
 	})
 }
 
 func TestFailOnCreatePrivateNonHTTPSRepoWithBearerToken(t *testing.T) {
 	app.Given(t).And(func() {
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
-		_, err := fixture.RunCli("repo", "add", repoUrl, "--bearer-token", fixture.GitBearerToken)
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken)
 		require.ErrorContains(t, err, "--bearer-token is only supported for HTTPS repositories")
 	})
 }
 
 func TestFailOnCreatePrivateNonGitRepoWithBearerToken(t *testing.T) {
 	app.Given(t).And(func() {
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeHelm)
-		_, err := fixture.RunCli("repo", "add", repoUrl, "--bearer-token", fixture.GitBearerToken,
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeHelm)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken,
 			"--insecure-skip-server-verification",
 			"--tls-client-cert-path", repos.CertPath,
 			"--tls-client-cert-key-path", repos.CertKeyPath,
