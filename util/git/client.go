@@ -295,6 +295,9 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		return auth, nil
 	case HTTPSCreds:
+		if creds.bearerToken != "" {
+			return &githttp.TokenAuth{Token: creds.bearerToken}, nil
+		}
 		auth := githttp.BasicAuth{Username: creds.username, Password: creds.password}
 		if auth.Username == "" {
 			auth.Username = "x-access-token"
@@ -986,6 +989,8 @@ func (m *nativeGitClient) runCredentialedCmd(args ...string) error {
 	for _, e := range environ {
 		if strings.HasPrefix(e, forceBasicAuthHeaderEnv+"=") {
 			args = append([]string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv}, args...)
+		} else if strings.HasPrefix(e, bearerAuthHeaderEnv+"=") {
+			args = append([]string{"--config-env", "http.extraHeader=" + bearerAuthHeaderEnv}, args...)
 		}
 	}
 
