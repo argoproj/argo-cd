@@ -91,6 +91,8 @@ message RepoAccessQuery {
 	bool forceHttpBasicAuth = 19;
 	// Whether to use azure workload identity for authentication
 	bool useAzureWorkloadIdentity = 20;
+	// Whether https should be disabled for an OCI repo
+	bool insecureOciForceHttp = 21;
 }
 
 message RepoResponse {}

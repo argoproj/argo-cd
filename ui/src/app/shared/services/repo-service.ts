@@ -17,6 +17,7 @@ export interface HTTPSQuery {
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHQuery {
@@ -105,7 +106,8 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -128,7 +130,8 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -151,7 +154,8 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
@@ -174,7 +178,8 @@ export class RepositoriesService {
                 project: q.project,
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
-                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: q.insecureOCIForceHttp
             })
             .then(res => res.body as models.Repository);
     }
