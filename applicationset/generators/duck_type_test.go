@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	resourceApiVersion = "mallard.io/v1"
+	resourceAPIVersion = "mallard.io/v1"
 	resourceKind       = "ducks"
 	resourceName       = "quak"
 )
@@ -79,7 +79,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckType := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -101,7 +101,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckTypeProdOnly := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -120,7 +120,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -137,7 +137,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			Namespace: "namespace",
 		},
 		Data: map[string]string{
-			"apiVersion":    resourceApiVersion,
+			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
 			"statusListKey": "decisions",
 			"matchKey":      "clusterName",
@@ -375,7 +375,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckType := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -397,7 +397,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckTypeProdOnly := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -416,7 +416,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -433,7 +433,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			Namespace: "namespace",
 		},
 		Data: map[string]string{
-			"apiVersion":    resourceApiVersion,
+			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
 			"statusListKey": "decisions",
 			"matchKey":      "clusterName",
