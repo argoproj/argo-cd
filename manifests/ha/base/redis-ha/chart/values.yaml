@@ -23,7 +23,7 @@ redis-ha:
     metrics:
       enabled: true
   image:
-    tag: redis:7.2.7-alpine
+    tag: 7.2.7-alpine
   containerSecurityContext: null
   sentinel:
     bind: '0.0.0.0'
