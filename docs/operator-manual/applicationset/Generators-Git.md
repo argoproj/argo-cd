@@ -242,6 +242,9 @@ spec:
 
 In `values` we can also interpolate all fields set by the git directory generator as mentioned above.
 
+### Provide additional parameter files via `extraParameterFiles` field
+See [Pass additional parameter files via `extraParameterFiles` field](#pass-additional-parameter-files-via-extraparameterfiles-field)
+
 ## Git Generator: Files
 
 The Git file generator is the second subtype of the Git generator. The Git file generator generates parameters using the contents of JSON/YAML files found within a specified repository.
@@ -382,6 +385,65 @@ spec:
     The `values.` prefix is always prepended to values provided via `generators.git.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the git files generator as mentioned above.
+
+### Pass additional parameter files via `extraParameterFiles` field
+
+You may provide an additional list of files containing parameters (yaml or json format) with the `extraParameterFiles` of the git generator.
+Extra parameters added via the `extraParameterFiles` field are added as `extraParams.(field)`.
+
+These files are expected to be resolved in the same git repository as the rest of the generator.
+
+The files provided supports glob format, and you can use any parameter resolved from the files or directories fields to templatize the file path.
+An extra parameter file not found will not trigger an error, and will just be ignored.
+
+A hierarchy occurs in case of collision betweens the parameters, as follows:
+
+* Parameters are merged and overriden file by file, from top to bottom of the list provided
+* When a file provided is a glob pattern, files are sorted by path and overrides occur in the sorted order.
+
+This is designed to be used like the helm values provided inside an Application's helm source, but allowing to templatize the whole Application.
+
+You can additionnaly provide a prefix for the parameters found in the path provided. In that case, the prefix is added as a top structure to the yaml gathered, and the merge between the files continues with this extra information.
+
+In this example, we gather two different files:
+
+* A set of common parameters for all the file generators, using a prefix `myExtraParams`
+* A specific parameter set for the cluster name found inside each generator file
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/argoproj/argo-cd.git
+      revision: HEAD
+      files:
+      - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
+      extraParameterFiles:
+        - path: "mypath/common-parameters/**/*.json"
+          prefix: myExtraParams
+        - path: "myotherpath/specific-params/params-{{.cluster.name}}.yaml"
+  template:
+    metadata:
+      labels:
+        myCustomLabel: {{.extraParams.myExtraParams.customLabel}}
+      name: '{{.cluster.name}}-guestbook-{{.extraParams.environment}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/argoproj/argo-cd.git
+        targetRevision: HEAD
+        path: "{{.values.base_dir}}/apps/guestbook"
+      destination:
+        server: '{{.cluster.address}}'
+        namespace: guestbook
+```
+
 
 ## Webhook Configuration
 
