@@ -486,7 +486,7 @@ jobs:
         run: |
           docker pull ghcr.io/dexidp/dex:v2.41.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.15-alpine
+          docker pull redis:7.4.7-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
