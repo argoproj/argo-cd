@@ -40,7 +40,7 @@ import (
 )
 
 const (
-	defaultApiServer        = "localhost:8080"
+	defaultAPIServer        = "localhost:8080"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -180,7 +180,7 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -916,14 +916,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
 				return err
 			}
-			os.Setenv("GNUPGHOME", prevGnuPGHome)
+			t.Setenv("GNUPGHOME", prevGnuPGHome)
 
 			// recreate GPG directories
 			if IsLocal() {
@@ -1303,7 +1303,7 @@ func RecordTestRun(t *testing.T) {
 	}
 }
 
-func GetApiServerAddress() string {
+func GetApiServerAddress() string { //nolint:revive //FIXME(var-naming)
 	return apiServerAddress
 }
 

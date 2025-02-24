@@ -2034,7 +2034,7 @@ metadata:
 `
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(s))
 	errors.CheckError(err)
