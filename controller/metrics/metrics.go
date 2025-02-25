@@ -266,7 +266,7 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
-	var dryRun = false
+	dryRun := false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
