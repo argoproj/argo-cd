@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -38,7 +40,7 @@ import (
 )
 
 const (
-	defaultApiServer        = "localhost:8080"
+	defaultAPIServer        = "localhost:8080"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -178,7 +180,7 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -461,6 +463,57 @@ func SetTrackingLabel(trackingLabel string) error {
 	})
 }
 
+func SetImpersonationEnabled(impersonationEnabledFlag string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
+		return nil
+	})
+}
+
+func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceAccountName,
+		},
+	}
+	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Rules: policyRules,
+	}
+	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	rolebinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      serviceAccountName,
+				Namespace: DeploymentNamespace(),
+			},
+		},
+	}
+	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -537,28 +590,6 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
-		return nil
-	})
-}
-
-func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["helm.repositories"] = string(yamlBytes)
-		return nil
-	})
-}
-
-func SetRepos(repos ...settings.RepositoryCredentials) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		yamlBytes, err := yaml.Marshal(repos)
-		if err != nil {
-			return err
-		}
-		cm.Data["repositories"] = string(yamlBytes)
 		return nil
 	})
 }
@@ -885,14 +916,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
 				return err
 			}
-			os.Setenv("GNUPGHOME", prevGnuPGHome)
+			t.Setenv("GNUPGHOME", prevGnuPGHome)
 
 			// recreate GPG directories
 			if IsLocal() {
@@ -1272,7 +1303,7 @@ func RecordTestRun(t *testing.T) {
 	}
 }
 
-func GetApiServerAddress() string {
+func GetApiServerAddress() string { //nolint:revive //FIXME(var-naming)
 	return apiServerAddress
 }
 

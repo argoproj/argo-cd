@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,16 +12,12 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
@@ -436,7 +431,23 @@ func TestHelmValuesHiddenDirectory(t *testing.T) {
 
 func TestHelmWithDependencies(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
-	testHelmWithDependencies(t, "helm-with-dependencies", false)
+
+	ctx := Given(t).
+		CustomCACertAdded().
+		// these are slow tests
+		Timeout(30).
+		HelmPassCredentials()
+
+	ctx = ctx.HelmRepoAdded("custom-repo")
+
+	helmVer := ""
+
+	ctx.Path("helm-with-dependencies").
+		When().
+		CreateApp("--helm-version", helmVer).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestHelmWithMultipleDependencies(t *testing.T) {
@@ -494,53 +505,6 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Expect(Error("", expectedErr))
 }
 
-func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
-	testHelmWithDependencies(t, "helm-with-dependencies", true)
-}
-
-func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
-	t.Helper()
-	ctx := Given(t).
-		CustomCACertAdded().
-		// these are slow tests
-		Timeout(30).
-		HelmPassCredentials()
-	if legacyRepo {
-		ctx.And(func() {
-			FailOnErr(fixture.Run("", "kubectl", "create", "secret", "generic", "helm-repo",
-				"-n", fixture.TestNamespace(),
-				"--from-file=certSecret="+repos.CertPath,
-				"--from-file=keySecret="+repos.CertKeyPath,
-				"--from-literal=username="+fixture.GitUsername,
-				"--from-literal=password="+fixture.GitPassword,
-			))
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
-				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
-
-			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
-				URL:            fixture.RepoURL(fixture.RepoURLTypeHelm),
-				Name:           "custom-repo",
-				KeySecret:      &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
-				CertSecret:     &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
-				UsernameSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
-				PasswordSecret: &corev1.SecretKeySelector{LocalObjectReference: corev1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
-			}))
-		})
-	} else {
-		ctx = ctx.HelmRepoAdded("custom-repo")
-	}
-
-	helmVer := ""
-
-	ctx.Path(chartPath).
-		When().
-		CreateApp("--helm-version", helmVer).
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
-
 func TestHelm3CRD(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM")
 	Given(t).
@@ -572,7 +536,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			_ = os.Setenv("XDG_CONFIG_HOME", helmTmp)
+			t.Setenv("XDG_CONFIG_HOME", helmTmp)
 			FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
 				"--username", fixture.GitUsername,
 				"--password", fixture.GitPassword,
