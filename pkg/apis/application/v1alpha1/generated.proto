@@ -1715,6 +1715,9 @@ message RepoCreds {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1798,6 +1801,9 @@ message Repository {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
