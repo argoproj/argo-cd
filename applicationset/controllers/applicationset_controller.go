@@ -155,6 +155,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
 	desiredApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
 	if err != nil {
+		logCtx.Errorf("unable to generate applications: %v", err)
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
@@ -164,7 +165,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, err
+		// In order for the controller SDK to respect RequeueAfter, the error must be nil
+		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
 
 	parametersGenerated = true
@@ -768,7 +770,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 }
 
 // removeFinalizerOnInvalidDestination removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
-func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, app *argov1alpha1.Application, clusterList *argov1alpha1.ClusterList, appLog *log.Entry) error {
+func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, app *argov1alpha1.Application, clusterList []utils.ClusterSpecifier, appLog *log.Entry) error {
 	// Only check if the finalizers need to be removed IF there are finalizers to remove
 	if len(app.Finalizers) == 0 {
 		return nil
@@ -783,7 +785,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 	} else {
 		// Detect if the destination's server field does not match an existing cluster
 		matchingCluster := false
-		for _, cluster := range clusterList.Items {
+		for _, cluster := range clusterList {
 			if destCluster.Server != cluster.Server {
 				continue
 			}
@@ -1052,18 +1054,19 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
-				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
 			// we have an existing AppStatus
 			currentAppStatus = applicationSet.Status.ApplicationStatus[idx]
-
-			// upgrade any existing AppStatus that might have been set by an older argo-cd version
-			// note: currentAppStatus.TargetRevisions may be set to empty list earlier during migrations,
-			// to prevent other usage of r.Client.Status().Update to fail before reaching here.
-			if len(currentAppStatus.TargetRevisions) == 0 {
-				currentAppStatus.TargetRevisions = app.Status.GetRevisions()
+			if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
+				currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
 			}
+		}
+		if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
+			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
+			currentAppStatus.Status = "Waiting"
+			currentAppStatus.LastTransitionTime = &now
+			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		appOutdated := false
@@ -1077,25 +1080,15 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
 			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
-			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
 		if currentAppStatus.Status == "Pending" {
-			if operationPhaseString == "Succeeded" {
-				revisions := []string{}
-				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
-					revisions = app.Status.OperationState.SyncResult.Revisions
-				} else if app.Status.OperationState.SyncResult.Revision != "" {
-					revisions = append(revisions, app.Status.OperationState.SyncResult.Revision)
-				}
-
-				if reflect.DeepEqual(currentAppStatus.TargetRevisions, revisions) {
-					logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
-					currentAppStatus.LastTransitionTime = &now
-					currentAppStatus.Status = "Progressing"
-					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-					currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
-				}
+			if !appOutdated && operationPhaseString == "Succeeded" {
+				logCtx.Infof("Application %v has completed a sync successfully, updating its ApplicationSet status to Progressing", app.Name)
+				currentAppStatus.LastTransitionTime = &now
+				currentAppStatus.Status = "Progressing"
+				currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
+				currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now

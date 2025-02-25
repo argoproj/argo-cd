@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="22 known vulnerabilities found in 105 vulnerable dependency paths.">
+  <meta name="description" content="24 known vulnerabilities found in 107 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 19th 2025, 12:19:55 am (UTC+00:00)</p>
+                <p class="timestamp">February 16th 2025, 12:20:25 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>105 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2384</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>107 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2382</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -480,89 +480,6 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Denial of Service (DoS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--high">
-                    <span class="label__text">high severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/net/html
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                helm.sh/helm/v3@* and golang.org/x/net/html@v0.26.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        helm.sh/helm/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/html@v0.26.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
-        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) through the functions <code>parseDoctype</code>, <code>htmlIntegrationPoint</code>, <code>inBodyIM</code> and <code>inTableIM</code>  due to inefficient usage of the method <code>strings.ToLower</code> combining with the <code>==</code> operator to convert strings to lowercase and then comparing them.</p>
-        <p>An attacker can cause the application to slow down significantly by crafting inputs that are processed non-linearly.</p>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.33.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/net/commit/8e66b04771e35c4e4125e8c60334b34e2423effb">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/70906">GitHub Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-8535262">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2024-56433</h2>
             <div class="card__section">
@@ -728,7 +645,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.39.3-9ubuntu6.1
+                                        util-linux@2.39.3-9ubuntu6.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam0g@1.5.3-5ubuntu5.1
                                         
@@ -967,7 +884,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        util-linux@2.39.3-9ubuntu6.1
+                                        util-linux@2.39.3-9ubuntu6.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam0g@1.5.3-5ubuntu5.1
                                         
@@ -1134,6 +1051,12 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-10963">https://access.redhat.com/security/cve/CVE-2024-10963</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2324291">https://bugzilla.redhat.com/show_bug.cgi?id=2324291</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10232">https://access.redhat.com/errata/RHSA-2024:10232</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10244">https://access.redhat.com/errata/RHSA-2024:10244</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10379">https://access.redhat.com/errata/RHSA-2024:10379</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10518">https://access.redhat.com/errata/RHSA-2024:10518</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10528">https://access.redhat.com/errata/RHSA-2024:10528</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:10852">https://access.redhat.com/errata/RHSA-2024:10852</a></li>
         </ul>
         
               <hr/>
@@ -1144,7 +1067,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2024-26462</h2>
+            <h2 class="card__title">Memory Leak</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -1187,9 +1110,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1202,11 +1125,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1219,9 +1142,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1234,11 +1157,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1251,13 +1174,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1270,9 +1193,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1283,7 +1206,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1296,7 +1219,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1311,7 +1234,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1320,7 +1243,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -1771,6 +1694,144 @@
             </div>
         
         </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Generation of Error Message Containing Sensitive Information</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/argoproj/gitops-engine/pkg/utils/kube
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/argoproj/gitops-engine/pkg/utils/kube@v0.7.1-0.20250207220447-65db274b8d73
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/utils/kube@v0.7.1-0.20250207220447-65db274b8d73
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Generation of Error Message Containing Sensitive Information when syncing invalid Kubernetes Secret resources. An attacker with write access to the repository can expose secret values by committing an invalid Secret to repository and triggering a Sync, which then become visible to any user with read access to Argo CD.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/argoproj/argo-cd/commit/6f5537bdf15ddbaa0f27a1a678632ff0743e4107">GitHub Commit</a></li>
+        <li><a href="https://github.com/argoproj/gitops-engine/commit/7e21b91e9d0f64104c8a661f3f390c5e6d73ddca">GitHub Commit</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2342987">Red Hat Bugzilla Bug</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMARGOPROJGITOPSENGINEPKGUTILSKUBE-8679277">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Generation of Error Message Containing Sensitive Information</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/argoproj/gitops-engine/pkg/diff
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/argoproj/gitops-engine/pkg/diff@v0.7.1-0.20250207220447-65db274b8d73
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/gitops-engine/pkg/diff@v0.7.1-0.20250207220447-65db274b8d73
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Generation of Error Message Containing Sensitive Information when syncing invalid Kubernetes Secret resources. An attacker with write access to the repository can expose secret values by committing an invalid Secret to repository and triggering a Sync, which then become visible to any user with read access to Argo CD.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>A fix was pushed into the <code>master</code> branch but not yet published.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/argoproj/argo-cd/commit/6f5537bdf15ddbaa0f27a1a678632ff0743e4107">GitHub Commit</a></li>
+        <li><a href="https://github.com/argoproj/gitops-engine/commit/7e21b91e9d0f64104c8a661f3f390c5e6d73ddca">GitHub Commit</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2342987">Red Hat Bugzilla Bug</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMARGOPROJGITOPSENGINEPKGDIFF-8679276">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Release of Invalid Pointer or Reference</h2>
             <div class="card__section">
@@ -2041,9 +2102,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3t64@3.0.13-0ubuntu3.4
                                         
@@ -2243,7 +2304,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam-modules@1.5.3-5ubuntu5.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@255.4-1ubuntu8.4
+                                        systemd/libsystemd0@255.4-1ubuntu8.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         libgcrypt20@1.10.3-2build1
                                         
@@ -2322,9 +2383,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2337,11 +2398,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2354,9 +2415,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2369,11 +2430,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2386,13 +2447,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2405,9 +2466,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2418,7 +2479,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2431,7 +2492,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2446,7 +2507,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2455,7 +2516,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2530,9 +2591,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2545,11 +2606,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2562,9 +2623,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2577,11 +2638,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2594,13 +2655,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2613,9 +2674,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2626,7 +2687,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2639,7 +2700,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2654,7 +2715,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2663,7 +2724,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.4
                                         
                                 </span>
         
@@ -2865,7 +2926,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.39-0ubuntu8.3
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.39-0ubuntu8.4
         
                     </li>
                 </ul>
@@ -2880,7 +2941,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.39-0ubuntu8.3
+                                        glibc/libc-bin@2.39-0ubuntu8.4
                                         
                                 </span>
         
@@ -2889,7 +2950,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.39-0ubuntu8.3
+                                        glibc/libc6@2.39-0ubuntu8.4
                                         
                                 </span>
         
@@ -3011,6 +3072,84 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GIT-6723389">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-0167</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.43.0-1ubuntu7.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>When asked to use a <code>.netrc</code> file for credentials <strong>and</strong> to follow HTTP
+        redirects, curl could leak the password used for the first host to the
+        followed-to host under certain circumstances.</p>
+        <p>This flaw only manifests itself if the netrc file has a <code>default</code> entry that
+        omits both login and password. A rare circumstance.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-0167.json">https://curl.se/docs/CVE-2025-0167.json</a></li>
+        <li><a href="https://hackerone.com/reports/2917232">https://hackerone.com/reports/2917232</a></li>
+        <li><a href="https://curl.se/docs/CVE-2025-0167.html">https://curl.se/docs/CVE-2025-0167.html</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-8689015">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

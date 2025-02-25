@@ -911,7 +911,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			_, err := fixture.RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "this-label=does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1974,7 +1974,7 @@ metadata:
 `
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(s))
 	errors.CheckError(err)

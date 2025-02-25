@@ -37,17 +37,18 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
-	issuer := session.Iss(ctx)
-	username := session.Sub(ctx)
-	updatedUsername := username
+	username := session.GetUserIdentifier(ctx)
 
+	updatedUsername := username
 	if q.Name != "" {
 		updatedUsername = q.Name
 	}
+
 	// check for permission is user is trying to change someone else's password
 	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
+	issuer := session.Iss(ctx)
 	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, rbac.ActionUpdate, q.Name); err != nil {
 			return nil, fmt.Errorf("permission denied: %w", err)
 		}
 	}
@@ -118,11 +119,11 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 // CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
-	if !slice.ContainsString(rbacpolicy.Actions, r.Action, nil) {
-		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Actions, r.Action)
+	if !slice.ContainsString(rbac.Actions, r.Action, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Actions, r.Action)
 	}
-	if !slice.ContainsString(rbacpolicy.Resources, r.Resource, nil) {
-		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
+	if !slice.ContainsString(rbac.Resources, r.Resource, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
@@ -132,7 +133,7 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	return &account.CanIResponse{Value: "no"}, nil
 }
 
-func toApiAccount(name string, a settings.Account) *account.Account {
+func toAPIAccount(name string, a settings.Account) *account.Account {
 	var capabilities []string
 	for _, c := range a.Capabilities {
 		capabilities = append(capabilities, string(c))
@@ -153,11 +154,13 @@ func toApiAccount(name string, a settings.Account) *account.Account {
 }
 
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
+	id := session.GetUserIdentifier(ctx)
+
 	// account has always has access to itself
-	if session.Sub(ctx) == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, action, account); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {
 		return fmt.Errorf("permission denied for account %s with action %s: %w", account, action, err)
 	}
 	return nil
@@ -171,8 +174,8 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
 	for name, a := range accounts {
-		if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, name); err == nil {
-			resp.Items = append(resp.Items, toApiAccount(name, a))
+		if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, name); err == nil {
+			resp.Items = append(resp.Items, toAPIAccount(name, a))
 		}
 	}
 	sort.Slice(resp.Items, func(i, j int) bool {
@@ -183,19 +186,19 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 
 // GetAccount returns an account
 func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (*account.Account, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
 	a, err := s.settingsMgr.GetAccount(r.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
 	}
-	return toApiAccount(r.Name, *a), nil
+	return toAPIAccount(r.Name, *a), nil
 }
 
 // CreateToken creates a token
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionUpdate, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
 	}
 
@@ -243,7 +246,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 // DeleteToken deletes a token
 func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest) (*account.EmptyResponse, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionUpdate, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
 	}
 

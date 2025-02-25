@@ -1317,7 +1317,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1334,7 +1334,7 @@ func TestSyncResourceByProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 

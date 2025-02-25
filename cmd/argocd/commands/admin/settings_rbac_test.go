@@ -14,7 +14,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
 	"github.com/argoproj/argo-cd/v3/util/assets"
 )
 
@@ -56,8 +57,8 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test valid resource and action",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionCreate,
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionCreate,
 			},
 			valid: true,
 		},
@@ -71,7 +72,7 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test invalid action",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
+				resource: rbac.ResourceApplications,
 				action:   "invalid",
 			},
 			valid: false,
@@ -79,24 +80,24 @@ func Test_validateRBACResourceAction(t *testing.T) {
 		{
 			name: "Test invalid action for resource",
 			args: args{
-				resource: rbacpolicy.ResourceLogs,
-				action:   rbacpolicy.ActionCreate,
+				resource: rbac.ResourceLogs,
+				action:   rbac.ActionCreate,
 			},
 			valid: false,
 		},
 		{
 			name: "Test valid action with path",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionAction + "/apps/Deployment/restart",
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionAction + "/apps/Deployment/restart",
 			},
 			valid: true,
 		},
 		{
 			name: "Test invalid action with path",
 			args: args{
-				resource: rbacpolicy.ResourceApplications,
-				action:   rbacpolicy.ActionGet + "/apps/Deployment/restart",
+				resource: rbac.ResourceApplications,
+				action:   rbac.ActionGet + "/apps/Deployment/restart",
 			},
 			valid: false,
 		},

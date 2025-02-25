@@ -14,13 +14,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v3/util/errors"
 	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestAddRemovePublicRepo(t *testing.T) {
 	app.Given(t).And(func() {
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
-		_, err := fixture.RunCli("repo", "add", repoUrl)
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL)
 		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
@@ -32,21 +31,21 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		require.NoError(t, err)
 		exists := false
 		for i := range repo.Items {
-			if repo.Items[i].Repo == repoUrl {
+			if repo.Items[i].Repo == repoURL {
 				exists = true
 				break
 			}
 		}
 		assert.True(t, exists)
 
-		_, err = fixture.RunCli("repo", "rm", repoUrl)
+		_, err = fixture.RunCli("repo", "rm", repoURL)
 		require.NoError(t, err)
 
 		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
-			if repo.Items[i].Repo == repoUrl {
+			if repo.Items[i].Repo == repoURL {
 				exists = true
 				break
 			}
@@ -60,10 +59,10 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 		// create repo credentials
 		FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath))
 
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
 
 		// Hack: First we need to create repo with valid credentials
-		FailOnErr(fixture.RunCli("repo", "add", repoUrl, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
+		FailOnErr(fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 
 		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
@@ -72,32 +71,31 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 
 		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: repoUrl,
+				Repo: repoURL,
 			},
 		})
 		require.NoError(t, err)
 
 		// CLI output should indicate that repo has inherited credentials
-		out, err := fixture.RunCli("repo", "get", repoUrl)
+		out, err := fixture.RunCli("repo", "get", repoURL)
 		require.NoError(t, err)
 		assert.Contains(t, out, "inherited")
 
-		_, err = fixture.RunCli("repo", "rm", repoUrl)
+		_, err = fixture.RunCli("repo", "rm", repoURL)
 		require.NoError(t, err)
 	})
 }
 
 func TestUpsertExistingRepo(t *testing.T) {
 	app.Given(t).And(func() {
-		CheckError(fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)}))
-		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
-		_, err := fixture.RunCli("repo", "add", repoUrl)
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL)
 		require.NoError(t, err)
 
-		_, err = fixture.RunCli("repo", "add", repoUrl, "--username", fixture.GitUsername, "--password", fixture.GitPassword)
+		_, err = fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword)
 		require.Error(t, err)
 
-		_, err = fixture.RunCli("repo", "add", repoUrl, "--upsert", "--username", fixture.GitUsername, "--password", fixture.GitPassword)
+		_, err = fixture.RunCli("repo", "add", repoURL, "--upsert", "--username", fixture.GitUsername, "--password", fixture.GitPassword)
 		require.NoError(t, err)
 	})
 }
@@ -175,5 +173,34 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 			}
 		}
 		assert.True(t, exists)
+	})
+}
+
+func TestFailOnPrivateRepoCreationWithPasswordAndBearerToken(t *testing.T) {
+	app.Given(t).And(func() {
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--password", fixture.GitPassword, "--bearer-token", fixture.GitBearerToken)
+		require.ErrorContains(t, err, "only --bearer-token or --password is allowed, not both")
+	})
+}
+
+func TestFailOnCreatePrivateNonHTTPSRepoWithBearerToken(t *testing.T) {
+	app.Given(t).And(func() {
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken)
+		require.ErrorContains(t, err, "--bearer-token is only supported for HTTPS repositories")
+	})
+}
+
+func TestFailOnCreatePrivateNonGitRepoWithBearerToken(t *testing.T) {
+	app.Given(t).And(func() {
+		repoURL := fixture.RepoURL(fixture.RepoURLTypeHelm)
+		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken,
+			"--insecure-skip-server-verification",
+			"--tls-client-cert-path", repos.CertPath,
+			"--tls-client-cert-key-path", repos.CertKeyPath,
+			"--name", "testrepo",
+			"--type", "helm")
+		require.ErrorContains(t, err, "--bearer-token is only supported for Git repositories")
 	})
 }
