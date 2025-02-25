@@ -164,12 +164,12 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 }
 
 func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.ResourceNode, map[string][]string, map[string]struct{}) {
-	mapUidToNode := make(map[string]v1alpha1.ResourceNode)
+	mapUIDToNode := make(map[string]v1alpha1.ResourceNode)
 	mapParentToChild := make(map[string][]string)
 	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
-		mapUidToNode[node.UID] = node
+		mapUIDToNode[node.UID] = node
 
 		if len(node.ParentRefs) > 0 {
 			_, ok := mapParentToChild[node.ParentRefs[0].UID]
@@ -182,7 +182,7 @@ func parentChildInfo(nodes []v1alpha1.ResourceNode) (map[string]v1alpha1.Resourc
 			parentNode[node.UID] = struct{}{}
 		}
 	}
-	return mapUidToNode, mapParentToChild, parentNode
+	return mapUIDToNode, mapParentToChild, parentNode
 }
 
 func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, w *tabwriter.Writer) {
@@ -211,31 +211,32 @@ func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceN
 
 func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.ApplicationTree, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	if output == "tree=detailed" {
+	switch output {
+	case "tree=detailed":
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
-			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
-			printDetailedTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
+			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printDetailedTreeViewAppResourcesNotOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
 
 		if orphaned || listAll {
-			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
-			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
+			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printDetailedTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
-	} else if output == "tree" {
+	case "tree":
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
-			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
-			printTreeViewAppResourcesNotOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
+			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
+			printTreeViewAppResourcesNotOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
 
 		if orphaned || listAll {
-			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
-			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, w)
+			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
+			printTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
-	} else {
+	default:
 		headers := []any{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)

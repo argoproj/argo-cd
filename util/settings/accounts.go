@@ -38,7 +38,7 @@ const (
 	// AccountCapabilityLogin represents capability to create UI session tokens.
 	AccountCapabilityLogin AccountCapability = "login"
 	// AccountCapabilityLogin represents capability to generate API auth tokens.
-	AccountCapabilityApiKey AccountCapability = "apiKey"
+	AccountCapabilityApiKey AccountCapability = "apiKey" //nolint:revive //FIXME(var-naming)
 )
 
 // Token holds the information about the generated auth token.

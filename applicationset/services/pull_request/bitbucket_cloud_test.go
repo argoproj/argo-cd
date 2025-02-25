@@ -54,11 +54,11 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 }
 
 func TestParseUrlEmptyUrl(t *testing.T) {
-	url, err := parseUrl("")
-	bitbucketUrl, _ := url.Parse("https://api.bitbucket.org/2.0")
+	url, err := parseURL("")
+	bitbucketURL, _ := url.Parse("https://api.bitbucket.org/2.0")
 
 	require.NoError(t, err)
-	assert.Equal(t, bitbucketUrl, url)
+	assert.Equal(t, bitbucketURL, url)
 }
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {

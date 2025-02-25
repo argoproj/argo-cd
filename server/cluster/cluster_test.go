@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
@@ -707,11 +706,12 @@ func TestListCluster(t *testing.T) {
 			t.Parallel()
 
 			got, err := s.List(context.Background(), tt.q)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "Server.List()")
+			} else {
+				require.NoError(t, err)
+				assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 			}
-			assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -737,7 +737,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/not-exists",
-		}, rbacpolicy.ActionGet)
+		}, rbac.ActionGet)
 
 		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
@@ -763,7 +763,7 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 		server := NewServer(db, newEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
 		localCluster, err := server.getClusterAndVerifyAccess(context.Background(), &cluster.ClusterQuery{
 			Name: "test/ing",
-		}, rbacpolicy.ActionGet)
+		}, rbac.ActionGet)
 
 		assert.Nil(t, localCluster)
 		assert.ErrorIs(t, err, common.PermissionDeniedAPIError)

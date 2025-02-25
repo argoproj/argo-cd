@@ -152,7 +152,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
 		// Set the lock here so we can reference it later
-		// nolint We need to overwrite here to have access to the lock
+		//nolint:govet // We need to overwrite here to have access to the lock
 		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
@@ -536,12 +536,12 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x = "x"
-		hash2_y = "y"
-		hash3_x = "x"
+		hash1X = "x"
+		hash2Y = "y"
+		hash3X = "x"
 	)
 	info := &ResourceInfo{
-		manifestHash: hash1_x,
+		manifestHash: hash1X,
 		Health: &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "default",
@@ -561,51 +561,51 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash2_y,
+			manifestHash: hash2Y,
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       &health.HealthStatus{},
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       nil,
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
@@ -613,13 +613,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
@@ -628,13 +628,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: "same",
@@ -643,13 +643,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "different",

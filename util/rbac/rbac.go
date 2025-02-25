@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 
@@ -51,6 +52,69 @@ type CasbinEnforcer interface {
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
 	GetGroupingPolicy() ([][]string, error)
+}
+
+const (
+	// please add new items to Resources
+	ResourceClusters          = "clusters"
+	ResourceProjects          = "projects"
+	ResourceApplications      = "applications"
+	ResourceApplicationSets   = "applicationsets"
+	ResourceRepositories      = "repositories"
+	ResourceWriteRepositories = "write-repositories"
+	ResourceCertificates      = "certificates"
+	ResourceAccounts          = "accounts"
+	ResourceGPGKeys           = "gpgkeys"
+	ResourceLogs              = "logs"
+	ResourceExec              = "exec"
+	ResourceExtensions        = "extensions"
+
+	// please add new items to Actions
+	ActionGet      = "get"
+	ActionCreate   = "create"
+	ActionUpdate   = "update"
+	ActionDelete   = "delete"
+	ActionSync     = "sync"
+	ActionOverride = "override"
+	ActionAction   = "action"
+	ActionInvoke   = "invoke"
+)
+
+var (
+	DefaultScopes = []string{"groups"}
+	Resources     = []string{
+		ResourceClusters,
+		ResourceProjects,
+		ResourceApplications,
+		ResourceApplicationSets,
+		ResourceRepositories,
+		ResourceWriteRepositories,
+		ResourceCertificates,
+		ResourceAccounts,
+		ResourceGPGKeys,
+		ResourceLogs,
+		ResourceExec,
+		ResourceExtensions,
+	}
+	Actions = []string{
+		ActionGet,
+		ActionCreate,
+		ActionUpdate,
+		ActionDelete,
+		ActionSync,
+		ActionOverride,
+		ActionAction,
+		ActionInvoke,
+	}
+)
+
+var ProjectScoped = map[string]bool{
+	ResourceApplications:    true,
+	ResourceApplicationSets: true,
+	ResourceLogs:            true,
+	ResourceExec:            true,
+	ResourceClusters:        true,
+	ResourceRepositories:    true,
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -244,6 +308,7 @@ func (e *Enforcer) Enforce(rvals ...any) bool {
 func (e *Enforcer) EnforceErr(rvals ...any) error {
 	if !e.Enforce(rvals...) {
 		errMsg := "permission denied"
+
 		if len(rvals) > 0 {
 			rvalsStrs := make([]string, len(rvals)-1)
 			for i, rval := range rvals[1:] {
@@ -252,16 +317,20 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
 				if err == nil {
-					if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-						rvalsStrs = append(rvalsStrs, "sub: "+sub)
-					}
-					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+					if err == nil {
+						if argoClaims.GetUserIdentifier() != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+argoClaims.GetUserIdentifier())
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
 					}
 				}
 			}
 			errMsg = fmt.Sprintf("%s: %s", errMsg, strings.Join(rvalsStrs, ", "))
 		}
+
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
 	return nil

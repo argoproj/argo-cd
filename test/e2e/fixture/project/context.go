@@ -11,11 +11,12 @@ import (
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout          int
-	name             string
-	destination      string
-	repos            []string
-	sourceNamespaces []string
+	timeout                    int
+	name                       string
+	destination                string
+	destinationServiceAccounts []string
+	repos                      []string
+	sourceNamespaces           []string
 }
 
 func Given(t *testing.T) *Context {
@@ -43,6 +44,11 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Destination(destination string) *Context {
 	c.destination = destination
+	return c
+}
+
+func (c *Context) DestinationServiceAccounts(destinationServiceAccounts []string) *Context {
+	c.destinationServiceAccounts = destinationServiceAccounts
 	return c
 }
 

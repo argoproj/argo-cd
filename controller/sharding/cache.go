@@ -19,6 +19,8 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	GetDistribution() map[string]int
+	GetAppDistribution() map[string]int
+	UpdateShard(shard int) bool
 }
 
 type ClusterSharding struct {
@@ -153,11 +155,12 @@ func (sharding *ClusterSharding) updateDistribution() {
 		}
 
 		existingShard, ok := sharding.Shards[k]
-		if ok && existingShard != shard {
+		switch {
+		case ok && existingShard != shard:
 			log.Infof("Cluster %s has changed shard from %d to %d", k, existingShard, shard)
-		} else if !ok {
+		case !ok:
 			log.Infof("Cluster %s has been assigned to shard %d", k, shard)
-		} else {
+		default:
 			log.Debugf("Cluster %s has not changed shard", k)
 		}
 		sharding.Shards[k] = shard
@@ -242,4 +245,34 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
 	}
+}
+
+// GetAppDistribution should be not be called from a DestributionFunction because
+// it could cause a deadlock when updateDistribution is called.
+func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
+	sharding.lock.RLock()
+	clusters := sharding.Clusters
+	apps := sharding.Apps
+	sharding.lock.RUnlock()
+
+	appDistribution := make(map[string]int, len(clusters))
+
+	for _, a := range apps {
+		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
+			appDistribution[a.Spec.Destination.Server] = 0
+		}
+		appDistribution[a.Spec.Destination.Server]++
+	}
+	return appDistribution
+}
+
+// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	if shard != sharding.Shard {
+		sharding.lock.RLock()
+		sharding.Shard = shard
+		sharding.lock.RUnlock()
+		return true
+	}
+	return false
 }
