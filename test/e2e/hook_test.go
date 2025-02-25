@@ -101,7 +101,7 @@ func TestPreSyncHookFailure(t *testing.T) {
 		Then().
 		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
 		// make sure resource are also printed
-		Expect(Error("pod OutOfSync Missing", "")).
+		Expect(Error("pod  OutOfSync  Missing", "")).
 		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
