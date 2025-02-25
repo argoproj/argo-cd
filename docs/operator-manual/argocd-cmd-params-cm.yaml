@@ -279,6 +279,10 @@ data:
   applicationsetcontroller.requeue.after: "3m"
   # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
   applicationsetcontroller.enable.tokenref.strict.mode: "false"
+  # Comma delimited list of annotations to preserve in generated applications
+  applicationsetcontroller.global.preserved.annotations: "acme.com/annotation1,acme.com/annotation2"
+  # Comma delimited list of labels to preserve in generated applications
+  applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
