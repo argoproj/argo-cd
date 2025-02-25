@@ -3,10 +3,10 @@ package controller
 import (
 	"context"
 	"fmt"
-
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -56,8 +56,14 @@ func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repo
 	return ctrl.db.GetWriteRepository(ctx, repoURL, project)
 }
 
-func (ctrl *ApplicationController) RequestAppRefresh(appName string) {
-	ctrl.requestAppRefresh(appName, CompareWithLatest.Pointer(), nil)
+func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespace string) error {
+	// We request a refresh by setting the annotation instead of by adding it to the refresh queue, because there is no
+	// guarantee that the hydrator is running on the same controller shard as is processing the application.
+	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal)
+	if err != nil {
+		return fmt.Errorf("failed to request app refresh: %w", err)
+	}
+	return nil
 }
 
 func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
