@@ -48,7 +48,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	// assuming user is trying to update someone else if username is different or issuer is not Argo CD
 	issuer := session.Iss(ctx)
 	if updatedUsername != username || issuer != session.SessionManagerClaimsIssuer {
-		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, rbacpolicy.ActionUpdate, q.Name); err != nil {
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, rbac.ActionUpdate, q.Name); err != nil {
 			return nil, fmt.Errorf("permission denied: %w", err)
 		}
 	}
@@ -119,11 +119,11 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 // CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
-	if !slice.ContainsString(rbacpolicy.Actions, r.Action, nil) {
-		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Actions, r.Action)
+	if !slice.ContainsString(rbac.Actions, r.Action, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Actions, r.Action)
 	}
-	if !slice.ContainsString(rbacpolicy.Resources, r.Resource, nil) {
-		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbacpolicy.Resources, r.Resource)
+	if !slice.ContainsString(rbac.Resources, r.Resource, nil) {
+		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
 	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
@@ -175,7 +175,7 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 	if id == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, action, account); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceAccounts, action, account); err != nil {
 		return fmt.Errorf("permission denied for account %s with action %s: %w", account, action, err)
 	}
 	return nil
@@ -189,7 +189,7 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
 	for name, a := range accounts {
-		if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, name); err == nil {
+		if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, name); err == nil {
 			resp.Items = append(resp.Items, toAPIAccount(name, a))
 		}
 	}
@@ -201,7 +201,7 @@ func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest
 
 // GetAccount returns an account
 func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (*account.Account, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionGet, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
 	a, err := s.settingsMgr.GetAccount(r.Name)
@@ -213,7 +213,7 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 
 // CreateToken creates a token
 func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest) (*account.CreateTokenResponse, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionUpdate, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to create token for account %s: %w", r.Name, err)
 	}
 
@@ -261,7 +261,7 @@ func (s *Server) CreateToken(ctx context.Context, r *account.CreateTokenRequest)
 
 // DeleteToken deletes a token
 func (s *Server) DeleteToken(ctx context.Context, r *account.DeleteTokenRequest) (*account.EmptyResponse, error) {
-	if err := s.ensureHasAccountPermission(ctx, rbacpolicy.ActionUpdate, r.Name); err != nil {
+	if err := s.ensureHasAccountPermission(ctx, rbac.ActionUpdate, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to delete account %s: %w", r.Name, err)
 	}
 

@@ -1140,6 +1140,11 @@ func TestRepository_HasCredentials(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "TestHasBearerToken",
+			repo: Repository{BearerToken: "foo"},
+			want: true,
+		},
+		{
 			name: "TestHasSSHPrivateKey",
 			repo: Repository{SSHPrivateKey: "foo"},
 			want: true,
@@ -1249,6 +1254,7 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &Repository{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &Repository{}, Repository{Password: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &Repository{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &Repository{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
@@ -1259,6 +1265,7 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 
 		{"SourceUsername", &Repository{}, &Repository{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &Repository{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourcePassword", &Repository{}, &Repository{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: false}},
 		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: false}},
@@ -1284,6 +1291,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &RepoCreds{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &RepoCreds{}, Repository{Password: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &RepoCreds{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &RepoCreds{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &RepoCreds{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &RepoCreds{}, Repository{Insecure: true}},
@@ -1294,6 +1302,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 
 		{"SourceUsername", &Repository{}, &RepoCreds{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &RepoCreds{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceBearerToken", &Repository{}, &RepoCreds{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
@@ -1414,6 +1423,7 @@ func TestResourceResults_Find(t *testing.T) {
 
 func TestResourceResults_PruningRequired(t *testing.T) {
 	needsPruning := &ResourceResult{Status: common.ResultCodePruneSkipped}
+	pruneSkippedButNoPruneMessage := &ResourceResult{Status: common.ResultCodePruneSkipped, Message: "ignored (no prune)"}
 	tests := []struct {
 		name    string
 		r       ResourceResults
@@ -1422,6 +1432,8 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 		{"TestNil", ResourceResults{}, 0},
 		{"TestOne", ResourceResults{needsPruning}, 1},
 		{"TestTwo", ResourceResults{needsPruning, needsPruning}, 2},
+		{"TestPruneSkippedButNoPruneMessage", ResourceResults{pruneSkippedButNoPruneMessage}, 0},
+		{"TestPruneSkippedButNoPruneMessage_and_OnePrune", ResourceResults{needsPruning, pruneSkippedButNoPruneMessage}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3661,6 +3673,8 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
+	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applicationsets, *, some-project/*, allow")
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	require.NoError(t, err)

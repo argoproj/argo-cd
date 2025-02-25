@@ -52,6 +52,7 @@ argocd repo add REPOURL [flags]
 ### Options
 
 ```
+      --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP

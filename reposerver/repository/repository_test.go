@@ -1419,7 +1419,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService(t, "../..")
 
-	file, err := os.CreateTemp("", "external-secret.txt")
+	file, err := os.CreateTemp(t.TempDir(), "external-secret.txt")
 	require.NoError(t, err)
 	externalSecretPath := file.Name()
 	defer func() { _ = os.RemoveAll(externalSecretPath) }()
