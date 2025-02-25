@@ -2511,6 +2511,50 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 	return closer, err
 }
 
+// fetch is a convenience function to fetch revisions
+// We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
+func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
+	err := fetch(gitClient, targetRevisions)
+	if err != nil {
+		for _, revision := range targetRevisions {
+			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+		}
+	}
+	return err
+}
+
+func fetch(gitClient git.Client, targetRevisions []string) error {
+	revisionPresent := true
+	for _, revision := range targetRevisions {
+		revisionPresent = gitClient.IsRevisionPresent(revision)
+		if !revisionPresent {
+			break
+		}
+	}
+	// Fetching can be skipped if the revision is already present locally.
+	if revisionPresent {
+		return nil
+	}
+	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+	err := gitClient.Fetch("")
+	if err != nil {
+		return err
+	}
+	for _, revision := range targetRevisions {
+		if !gitClient.IsRevisionPresent(revision) {
+			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
+			// for the given revision, try explicitly fetching it.
+			log.Infof("Failed to fetch revision %s: %v", revision, err)
+			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+
+			if err := gitClient.Fetch(revision); err != nil {
+				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+			}
+		}
+	}
+	return nil
+}
+
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
@@ -2854,6 +2898,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer io.Close(closer)
+
+	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+	}
 
 	files, err := gitClient.ChangedFiles(syncedRevision, revision)
 	if err != nil {
