@@ -63,7 +63,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
+		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "dry_run"),
 		nil,
 	)
 
@@ -72,7 +72,7 @@ var (
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase"),
+		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -80,7 +80,7 @@ var (
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
 	)
 
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -239,7 +239,7 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 	if !state.Phase.Completed() {
 		return
 	}
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase), strconv.FormatBool(app.Operation.DryRun())).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -266,14 +266,16 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
+	var dryRun = false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
 		project = app.Spec.GetProject()
+		dryRun = app.Operation.DryRun()
 	}
 	m.k8sRequestCounter.WithLabelValues(
 		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace,
+		verb, resourceKind, resourceNamespace, strconv.FormatBool(dryRun),
 	).Inc()
 }
 
@@ -414,7 +416,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, strconv.FormatBool(app.Operation.DryRun()))
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}
