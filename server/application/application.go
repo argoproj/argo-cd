@@ -2676,14 +2676,10 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 			for _, node := range tree.Nodes {
 				if node.Health != nil {
 					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
-				} else {
-					// if we dont have a health status and the object hasn't been created
-					// set the health status to missing
-					if node.ResourceVersion == "" && node.ResourceRef.UID == "" && node.CreatedAt == nil {
-						healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = &v1alpha1.HealthStatus{
-							Status:  health.HealthStatusMissing,
-							Message: "Resource has not been created",
-						}
+				} else if node.ResourceVersion == "" && node.ResourceRef.UID == "" && node.CreatedAt == nil {
+					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusMissing,
+						Message: "Resource has not been created",
 					}
 				}
 			}
