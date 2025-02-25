@@ -87,7 +87,7 @@ require (
 	golang.org/x/crypto v0.33.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	golang.org/x/net v0.35.0
-	golang.org/x/oauth2 v0.26.0
+	golang.org/x/oauth2 v0.27.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/term v0.29.0
 	golang.org/x/time v0.10.0
@@ -136,7 +136,7 @@ require (
 	github.com/distribution/reference v0.5.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-github/v69 v69.0.0 // indirect
