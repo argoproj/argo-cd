@@ -166,6 +166,10 @@ hydrator will not be able to use a project-scoped push secret and will require a
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
 currently support credential templates. You will need a separate credential for each repository.
 
+### `manifest-generate-paths` Annotation Support
+
+
+
 ## Prerequisites
 
 ### Handle Secrets on the Destination Cluster
