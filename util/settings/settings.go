@@ -513,8 +513,6 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
 	inClusterEnabledKey = "cluster.inClusterEnabled"
-	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
-	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -850,19 +848,6 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 		return common.PasswordPatten, nil
 	}
 	return label, nil
-}
-
-func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return false, err
-	}
-
-	if argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "" {
-		return false, nil
-	}
-
-	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (bool, error) {
@@ -1424,7 +1409,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
-	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
