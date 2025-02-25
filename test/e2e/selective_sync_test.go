@@ -105,6 +105,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, health.HealthStatusHealthy)).
 		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), health.HealthStatusMissing)).
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, SyncStatusCodeSynced)).
 		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), SyncStatusCodeOutOfSync))
 }
 
