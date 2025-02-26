@@ -28,7 +28,7 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
-// represents a Docker image in the format NAME[:TAG].
+// Image represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 type BuildOpts struct {
@@ -72,7 +72,29 @@ type kustomize struct {
 	noProxy string
 }
 
-var _ Kustomize = &kustomize{}
+var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+
+// IsKustomization checks if the given file name matches any known kustomization file names.
+func IsKustomization(path string) bool {
+	for _, kustomization := range KustomizationNames {
+		if path == kustomization {
+			return true
+		}
+	}
+	return false
+}
+
+// LookKustFile looks for any known kustomization file in the path
+func LookKustFile(dir string) string {
+	for _, file := range KustomizationNames {
+		path := filepath.Join(dir, file)
+		if _, err := os.Stat(path); err == nil {
+			return file
+		}
+	}
+
+	return ""
+}
 
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
@@ -256,7 +278,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.Patches) > 0 {
-			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			kustFile := LookKustFile(k.path)
+			// If the kustomization file is not found, return early.
+			// There is no point reading the kustomization path if it doesn't exist.
+			if kustFile == "" {
+				return nil, nil, nil, errors.New("kustomization file not found in the path")
+			}
+			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
@@ -387,17 +415,6 @@ func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *Bui
 
 func isHelmEnabled(buildOptions string) bool {
 	return strings.Contains(buildOptions, "--enable-helm")
-}
-
-var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
 }
 
 // semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
