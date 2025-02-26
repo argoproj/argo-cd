@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -2650,4 +2651,142 @@ func TestSyncTimeout(t *testing.T) {
 			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
 		})
 	}
+}
+
+func TestFinalizeApplicationDeletionWithImpersonate(t *testing.T) {
+	now := metav1.Now()
+	type fixture struct {
+		application *v1alpha1.Application
+		controller  *ApplicationController
+		patched     *bool
+	}
+
+	setup := func(impersonationEnabled bool, destinationNamespace, serviceAccountName string) *fixture {
+		app := newFakeApp()
+		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		project := v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				DestinationServiceAccounts: []v1alpha1.
+					ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             destinationNamespace,
+						DefaultServiceAccount: serviceAccountName,
+					},
+				},
+			},
+		}
+		additionalObjs := make([]runtime.Object, 0)
+		if serviceAccountName != "" {
+			syncServiceAccount := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: test.FakeDestNamespace,
+				},
+			}
+			additionalObjs = append(additionalObjs, syncServiceAccount)
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, &project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled": strconv.FormatBool(impersonationEnabled),
+			},
+			additionalObjs: additionalObjs,
+		}
+		ctrl := newFakeController(&data, nil)
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+
+		return &fixture{
+			application: app,
+			controller:  ctrl,
+			patched:     &patched,
+		}
+	}
+
+	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project no matching service account
+		f := setup(true, test.FakeArgoCDNamespace, "")
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then, app sync should fail with expected error message in operation state
+		require.ErrorContains(t, err, "default service account contains invalid chars ''")
+		require.False(t, *f.patched)
+	})
+
+	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project matching service account that is an empty string
+		f := setup(true, test.FakeArgoCDNamespace, "")
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then, app sync should fail with expected error message in operation state
+		require.ErrorContains(t, err, "default service account contains invalid chars ''")
+		require.False(t, *f.patched)
+	})
+
+	t.Run("sync with impersonation and matching sa", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project matching service account
+		f := setup(true, test.FakeArgoCDNamespace, "test-sa")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then, app sync should fail with expected error message in operation state
+		require.NoError(t, err)
+		require.True(t, *f.patched)
+	})
+
+	t.Run("sync without impersonation", func(t *testing.T) {
+		// given app sync impersonation feature is disabled with an application referring a project matching service account
+		f := setup(false, test.FakeDestNamespace, "")
+
+		// when
+		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+
+		// then, app sync should fail with expected error message in operation state
+		require.NoError(t, err)
+		require.True(t, *f.patched)
+	})
 }
