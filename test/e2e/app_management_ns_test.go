@@ -43,10 +43,10 @@ import (
 )
 
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
-func TestNamespacedGetLogsAllowNoSwitch(_ *testing.T) {
+func TestNamespacedGetLogsAllow(_ *testing.T) {
 }
 
-func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
+func TestNamespacedGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -85,7 +85,6 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
@@ -94,7 +93,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		})
 }
 
-func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
+func TestNamespacedGetLogsAllowNS(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -138,65 +137,6 @@ func TestNamespacedGetLogsAllowSwitchOnNS(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		Then().
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(_ *Application) {
-			out, err := fixture.RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(_ *Application) {
-			out, err := fixture.RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Pod")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(_ *Application) {
-			out, err := fixture.RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Service")
-			require.NoError(t, err)
-			assert.NotContains(t, out, "Hi")
-		})
-}
-
-func TestNamespacedGetLogsAllowSwitchOff(t *testing.T) {
-	fixture.SkipOnEnv(t, "OPENSHIFT")
-
-	accountFixture.Given(t).
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetPermissions([]fixture.ACL{
-			{
-				Resource: "applications",
-				Action:   "create",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "get",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "sync",
-				Scope:    "*",
-			},
-			{
-				Resource: "projects",
-				Action:   "get",
-				Scope:    "*",
-			},
-		}, "app-creator")
-	ctx := GivenWithSameState(t)
-	ctx.SetAppNamespace(fixture.AppNamespace())
-	ctx.
-		Path("guestbook-logs").
-		SetTrackingMethod("annotation").
-		When().
-		CreateApp().
-		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
@@ -2034,7 +1974,7 @@ metadata:
 `
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	errors.CheckError(err)
 	_, err = tmpFile.Write([]byte(s))
 	errors.CheckError(err)

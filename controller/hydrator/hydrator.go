@@ -259,7 +259,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// TODO: enable signature verification
 		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get repo objects: %w", err)
+			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 		}
 
 		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
