@@ -117,42 +117,41 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 }
 
 func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-    if path == "" {
-        return apps
-    }
+	if path == "" {
+		return apps
+	}
 
-    absPath, err := filepath.Abs(path)
-    if err != nil {
-        absPath = path 
-    }
-    absPath = filepath.ToSlash(filepath.Clean(absPath))
-    relPath := filepath.ToSlash(filepath.Clean(path))
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = path
+	}
+	absPath = filepath.ToSlash(filepath.Clean(absPath))
+	relPath := filepath.ToSlash(filepath.Clean(path))
 
-    items := make([]argoappv1.Application, 0)
+	items := make([]argoappv1.Application, 0)
 
-    for _, app := range apps {
-        if app.Spec.Source != nil {
-            appPath := filepath.ToSlash(filepath.Clean(app.Spec.Source.Path))            
-            if appPath == absPath || appPath == relPath { 
-                items = append(items, app)
-                continue
-            }
-        }
+	for _, app := range apps {
+		if app.Spec.Source != nil {
+			appPath := filepath.ToSlash(filepath.Clean(app.Spec.Source.Path))
+			if appPath == absPath || appPath == relPath {
+				items = append(items, app)
+				continue
+			}
+		}
 
-        if app.Spec.Sources != nil {
-            for _, source := range app.Spec.Sources {
-                appPath := filepath.ToSlash(filepath.Clean(source.Path))
-                if appPath == absPath || appPath == relPath {
-                    items = append(items, app)
-                    break
-                }
-            }
-        }
-    }
+		if app.Spec.Sources != nil {
+			for _, source := range app.Spec.Sources {
+				appPath := filepath.ToSlash(filepath.Clean(source.Path))
+				if appPath == absPath || appPath == relPath {
+					items = append(items, app)
+					break
+				}
+			}
+		}
+	}
 
-    return items
+	return items
 }
-
 
 func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
 	fileSet := make(map[string]bool)
