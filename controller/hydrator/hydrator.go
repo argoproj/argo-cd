@@ -259,7 +259,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// TODO: enable signature verification
 		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to get repo objects: %w", err)
+			return "", "", fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 		}
 
 		// This should be the DRY SHA. We set it here so that after processing the first app, all apps are hydrated
@@ -269,11 +269,11 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		// Set up a ManifestsRequest
 		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
 		for i, obj := range objs {
-			objJson, err := json.Marshal(obj)
+			objJSON, err := json.Marshal(obj)
 			if err != nil {
 				return "", "", fmt.Errorf("failed to marshal object: %w", err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJson)}
+			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
 		}
 
 		paths = append(paths, &commitclient.PathDetails{

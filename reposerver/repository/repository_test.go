@@ -1419,7 +1419,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService(t, "../..")
 
-	file, err := os.CreateTemp("", "external-secret.txt")
+	file, err := os.CreateTemp(t.TempDir(), "external-secret.txt")
 	require.NoError(t, err)
 	externalSecretPath := file.Name()
 	defer func() { _ = os.RemoveAll(externalSecretPath) }()
@@ -3071,6 +3071,61 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestFetch(t *testing.T) {
+	revision1 := "0123456789012345678901234567890123456789"
+	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+	gitClient := &gitmocks.Client{}
+	gitClient.On("Init").Return(nil)
+	gitClient.On("IsRevisionPresent", revision1).Once().Return(true)
+	gitClient.On("IsRevisionPresent", revision2).Once().Return(false)
+	gitClient.On("Fetch", "").Return(nil)
+	gitClient.On("IsRevisionPresent", revision1).Once().Return(true)
+	gitClient.On("IsRevisionPresent", revision2).Once().Return(true)
+
+	err := fetch(gitClient, []string{revision1, revision2})
+	require.NoError(t, err)
+}
+
+// TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath := t.TempDir()
+
+	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := os.MkdirTemp(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	// We should initialize repository
+	err = gitClient.Init()
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = fetch(gitClient, []string{"does-not-exist"})
+	require.Error(t, err)
+
+	err = fetch(gitClient, []string{pullSha})
+	require.NoError(t, err)
+}
+
 // runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
@@ -3101,8 +3156,8 @@ func Test_walkHelmValueFilesInPath(t *testing.T) {
 	t.Run("unrelated root", func(t *testing.T) {
 		var files []string
 		root := "./testdata/values-files"
-		unrelated_root := "/different/root/path"
-		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelated_root, &files))
+		unrelatedRoot := "/different/root/path"
+		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelatedRoot, &files))
 		require.Error(t, err)
 	})
 }
@@ -3746,9 +3801,13 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
+				gitClient.On("IsRevisionPresent", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.On("Checkout", "632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything).Once().Return("", nil)
+				// fetch
+				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
+				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3775,9 +3834,13 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
+				gitClient.On("IsRevisionPresent", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
+				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				// fetch
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
+				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3813,9 +3876,12 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("IsRevisionPresent", "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
 				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.On("IsRevisionPresent", "1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.On("Fetch", mock.Anything).Once().Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3990,8 +4056,8 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	repoUrl := "file://" + dir
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	repoURL := "file://" + dir
+	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -3999,7 +4065,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 	assert.NotEmpty(t, refs.Branches[0])
 	var output [][2]string
-	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoURL, common.CacheVersion), &output)
 	require.Error(t, err, "Should be a cache miss")
 	assert.Empty(t, output, "Expected cache to be empty for key")
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
@@ -4019,10 +4085,10 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	repoUrl := "file://" + dir
+	repoURL := "file://" + dir
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4048,8 +4114,8 @@ func TestGetRevisionChartDetails(t *testing.T) {
 	t.Run("Test GetRevisionChartDetails", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
-		repoUrl := "file://" + root
-		err := service.cache.SetRevisionChartDetails(repoUrl, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
+		repoURL := "file://" + root
+		err := service.cache.SetRevisionChartDetails(repoURL, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
 			Description: "test-description",
 			Home:        "test-home",
 			Maintainers: []string{"test-maintainer"},

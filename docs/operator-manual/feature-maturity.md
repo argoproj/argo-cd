@@ -15,7 +15,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 ## Overview
 
 | Feature                                   | Introduced | Status |
-| ----------------------------------------- | ---------- | ------ |
+|-------------------------------------------|------------|--------|
 | [AppSet Progressive Syncs][2]             | v2.6.0     | Alpha  |
 | [Proxy Extensions][3]                     | v2.7.0     | Alpha  |
 | [Skip Application Reconcile][4]           | v2.7.0     | Alpha  |
@@ -25,6 +25,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Server Side Diff][8]                     | v2.10.0    | Beta   |
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
 | [Service Account Impersonation][10]       | v2.13.0    | Alpha  |
+| [Source Hydrator][11]                     | v2.14.0    | Alpha  |
 
 ## Unstable Configurations
 
@@ -83,3 +84,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [8]: ../user-guide/diff-strategies.md#server-side-diff
 [9]: ./high_availability.md#argocd-application-controller
 [10]: app-sync-using-impersonation.md
+[11]: ../user-guide/source-hydrator.md

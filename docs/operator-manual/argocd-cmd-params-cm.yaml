@@ -54,8 +54,8 @@ data:
   controller.status.processors: "20"
   # Number of application operation processors (default 10)
   controller.operation.processors: "10"
-  # Set the logging format. One of: text|json (default "text")
-  controller.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  controller.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
@@ -123,8 +123,8 @@ data:
   # Number of webhook requests processed concurrently (default 50)
   server.webhook.parallelism.limit: "50"
 
-  # Set the logging format. One of: text|json (default "text")
-  server.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  server.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   server.log.level: "info"
   # Repo server RPC call timeout seconds. (default 60)
@@ -171,8 +171,8 @@ data:
   reposerver.listen.address: "0.0.0.0"
   # Listen on given address for metrics (default "0.0.0.0")
   reposerver.metrics.listen.address: "0.0.0.0"
-  # Set the logging format. One of: text|json (default "text")
-  reposerver.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  reposerver.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   reposerver.log.level: "info"
   # Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
@@ -218,15 +218,15 @@ data:
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
   commitserver.listen.address: "0.0.0.0"
-  # Set the logging format. One of: text|json (default "text")
-  commitserver.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  commitserver.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   commitserver.log.level: "info"
   # Listen on given address for metrics (default "0.0.0.0")
   commitserver.metrics.listen.address: "0.0.0.0"
 
-  # Set the logging format. One of: text|json (default "text")
-  dexserver.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  dexserver.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
@@ -252,8 +252,8 @@ data:
   applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
-  # Set the logging format. One of: text|json (default "text")
-  applicationsetcontroller.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  applicationsetcontroller.log.format: "json"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   applicationsetcontroller.log.level: "info"
   # Enable dry run mode
@@ -279,12 +279,16 @@ data:
   applicationsetcontroller.requeue.after: "3m"
   # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
   applicationsetcontroller.enable.tokenref.strict.mode: "false"
+  # Comma delimited list of annotations to preserve in generated applications
+  applicationsetcontroller.global.preserved.annotations: "acme.com/annotation1,acme.com/annotation2"
+  # Comma delimited list of labels to preserve in generated applications
+  applicationsetcontroller.global.preserved.labels: "acme.com/label1,acme.com/label2"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
   notificationscontroller.log.level: "info"
-  # Set the logging format. One of: text|json (default "text")
-  notificationscontroller.log.format: "text"
+  # Set the logging format. One of: json|text (default "json")
+  notificationscontroller.log.format: "json"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server

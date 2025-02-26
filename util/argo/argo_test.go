@@ -260,9 +260,8 @@ func TestContainsSyncResource(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		if out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr); out != table.expected {
-			t.Errorf("Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
-		}
+		out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr)
+		assert.Equal(t, table.expected, out, "Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 	}
 }
 
@@ -1105,7 +1104,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		_, err := GetDestinationCluster(context.Background(), dest, nil)
-		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", err.Error())
+		assert.EqualError(t, err, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443")
 	})
 
 	t.Run("GetClusterServersByName fails", func(t *testing.T) {
@@ -1129,7 +1128,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), "minikube").Return(nil, nil)
 
 		_, err := GetDestinationCluster(context.Background(), dest, db)
-		assert.Equal(t, "there are no clusters with this name: minikube", err.Error())
+		assert.EqualError(t, err, "there are no clusters with this name: minikube")
 	})
 
 	t.Run("Validate too many clusters with the same name", func(t *testing.T) {
@@ -1141,7 +1140,7 @@ func TestGetDestinationCluster(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
 		_, err := GetDestinationCluster(context.Background(), dest, db)
-		assert.Equal(t, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
+		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
 	})
 }
 
@@ -1730,8 +1729,7 @@ func TestAugmentSyncMsg(t *testing.T) {
 			tt.res.Message = tt.msg
 			msg, err := AugmentSyncMsg(tt.res, tt.mockFn)
 			if tt.errMsg != "" {
-				require.Error(t, err)
-				assert.Equal(t, tt.errMsg, err.Error())
+				assert.EqualError(t, err, tt.errMsg)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedMessage, msg)
@@ -1841,7 +1839,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
-			assert.Equal(t, len(tt.expectedEventLabels), len(eventLabels))
+			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]
 				assert.True(t, found)
