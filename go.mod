@@ -300,6 +300,8 @@ replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
+	gituh.com/argoproj/gitops-enine => github.com/sivchari/gitops-engine v0.0.0-20250206105031-12542643e8fb
+
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
 
