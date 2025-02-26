@@ -169,9 +169,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
-	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+	var serverVersion string
+	var apiResources []kubeutil.APIResourceInfo
+	if sendRuntimeState {
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		}
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -224,8 +228,6 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 		if !sendRuntimeState {
 			appNamespace = ""
-			apiVersions = nil
-			serverVersion = ""
 		}
 
 		if !source.IsHelm() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
