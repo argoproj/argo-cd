@@ -19,12 +19,6 @@ spec:
     automated: {}
 ```
 
-## Temporarily toggling auto-sync for applications managed by ApplicationSets
-
-For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
-Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
-
-
 ## Automatic Pruning
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects

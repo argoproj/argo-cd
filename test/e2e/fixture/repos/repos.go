@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 var (
@@ -35,7 +35,7 @@ func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
@@ -43,9 +43,6 @@ func AddHTTPSRepo(insecure bool, credentials bool, project string, repoURLType f
 	}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
-	}
-	if project != "" {
-		args = append(args, "--project", project)
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
@@ -163,7 +160,7 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 	errors.CheckError(err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
+	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
 	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -175,6 +172,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmOCIRegistryURL,
+		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
 	))
 }

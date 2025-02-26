@@ -13,7 +13,7 @@ import (
 // directory traversal attacks by ensuring the path is within the root directory. The path is constructed as if the
 // given root is the root of the filesystem. So anything traversing outside the root is simply removed from the path.
 func SecureMkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
-	err := securejoin.MkdirAll(root, unsafePath, mode)
+	err := securejoin.MkdirAll(root, unsafePath, os.FileMode(int(mode)))
 	if err != nil {
 		return "", fmt.Errorf("failed to make directory: %w", err)
 	}

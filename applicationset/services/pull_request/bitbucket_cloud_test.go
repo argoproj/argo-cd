@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -54,11 +54,11 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 }
 
 func TestParseUrlEmptyUrl(t *testing.T) {
-	url, err := parseURL("")
-	bitbucketURL, _ := url.Parse("https://api.bitbucket.org/2.0")
+	url, err := parseUrl("")
+	bitbucketUrl, _ := url.Parse("https://api.bitbucket.org/2.0")
 
 	require.NoError(t, err)
-	assert.Equal(t, bitbucketURL, url)
+	assert.Equal(t, bitbucketUrl, url)
 }
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
@@ -241,7 +241,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 }
 
 func TestListResponseErrorCloud(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()

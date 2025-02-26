@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 // Clientset represents commit server api clients
@@ -34,7 +34,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	// TODO: switch to grpc.NewClient.
-	//nolint:staticcheck
+	// nolint:staticcheck
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to commit service with address %s", address)

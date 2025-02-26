@@ -194,5 +194,5 @@ Examples of non-deterministic hydration:
 Argo CD should be the only thing pushing hydrated manifests to the hydrated branches. To prevent other tools or users
 from pushing to the hydrated branches, enable branch protection in your SCM.
 
-It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
+It is best practice to prefix the hydrated branches with a common prefix, such as `environment/`. This makes it easier
 to configure branch protection rules on the destination repository.

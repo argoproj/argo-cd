@@ -12,11 +12,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
-	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v2/common"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -80,24 +80,20 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
-	if creds.GetUsername() != "" {
-		args = append(args, "--username", creds.GetUsername())
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
 	}
 
-	helmPassword, err := creds.GetPassword()
-	if err != nil {
-		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
-	}
-	if helmPassword != "" {
-		args = append(args, "--password", helmPassword)
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
 	}
 
-	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
 	}
 
-	if len(creds.GetCertData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetCertData())
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
@@ -105,8 +101,8 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--cert-file", filePath)
 	}
 
-	if len(creds.GetKeyData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetKeyData())
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
@@ -114,7 +110,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--key-file", filePath)
 	}
 
-	if creds.GetInsecureSkipVerify() {
+	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure")
 	}
 	out, _, err := c.run(args...)
@@ -124,7 +120,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
@@ -143,32 +139,28 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args := []string{"repo", "add"}
 
-	if opts.GetUsername() != "" {
-		args = append(args, "--username", opts.GetUsername())
+	if opts.Username != "" {
+		args = append(args, "--username", opts.Username)
 	}
 
-	helmPassword, err := opts.GetPassword()
-	if err != nil {
-		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
-	}
-	if helmPassword != "" {
-		args = append(args, "--password", helmPassword)
+	if opts.Password != "" {
+		args = append(args, "--password", opts.Password)
 	}
 
-	if opts.GetCAPath() != "" {
-		args = append(args, "--ca-file", opts.GetCAPath())
+	if opts.CAPath != "" {
+		args = append(args, "--ca-file", opts.CAPath)
 	}
 
-	if opts.GetInsecureSkipVerify() {
+	if opts.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
-	if len(opts.GetCertData()) > 0 {
+	if len(opts.CertData) > 0 {
 		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
 		}
-		_, err = certFile.Write(opts.GetCertData())
+		_, err = certFile.Write(opts.CertData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data: %w", err)
 		}
@@ -176,12 +168,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--cert-file", certFile.Name())
 	}
 
-	if len(opts.GetKeyData()) > 0 {
+	if len(opts.KeyData) > 0 {
 		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temporary key file: %w", err)
 		}
-		_, err = keyFile.Write(opts.GetKeyData())
+		_, err = keyFile.Write(opts.KeyData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data: %w", err)
 		}
@@ -230,36 +222,31 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if version != "" {
 		args = append(args, "--version", version)
 	}
-	if creds.GetUsername() != "" {
-		args = append(args, "--username", creds.GetUsername())
+	if creds.Username != "" {
+		args = append(args, "--username", creds.Username)
 	}
-
-	helmPassword, err := creds.GetPassword()
-	if err != nil {
-		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
+	if creds.Password != "" {
+		args = append(args, "--password", creds.Password)
 	}
-	if helmPassword != "" {
-		args = append(args, "--password", helmPassword)
-	}
-	if creds.GetInsecureSkipVerify() {
+	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
 	args = append(args, "--repo", repo, chartName)
 
-	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
 	}
-	if len(creds.GetCertData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetCertData())
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
 	}
-	if len(creds.GetKeyData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetKeyData())
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
@@ -284,12 +271,12 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		"--destination",
 		destination,
 	}
-	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+	if creds.CAPath != "" {
+		args = append(args, "--ca-file", creds.CAPath)
 	}
 
-	if len(creds.GetCertData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetCertData())
+	if len(creds.CertData) > 0 {
+		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
@@ -297,8 +284,8 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		args = append(args, "--cert-file", filePath)
 	}
 
-	if len(creds.GetKeyData()) > 0 {
-		filePath, closer, err := writeToTmp(creds.GetKeyData())
+	if len(creds.KeyData) > 0 {
+		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
 			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
@@ -306,7 +293,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		args = append(args, "--key-file", filePath)
 	}
 
-	if creds.GetInsecureSkipVerify() {
+	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 	out, _, err := c.run(args...)
@@ -449,10 +436,11 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if !os.IsNotExist(err) {
+		if os.IsNotExist(err) {
+			exists = false
+		} else {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
-		exists = false
 	}
 	return func() {
 		if !exists {
