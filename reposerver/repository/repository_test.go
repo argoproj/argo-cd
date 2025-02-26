@@ -676,8 +676,13 @@ func TestInvalidManifestsInDir(t *testing.T) {
 
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
 
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer func() { log.SetOutput(log.StandardLogger().Out) }()
+
 	_, err := service.GenerateManifest(t.Context(), &q)
-	require.Error(t, err)
+	assert.Contains(t, buf.String(), `file contains 'apiVersion:', 'kind:', and 'metadata:', but is not a valid manifest`, "Manifest generation should issue warning")
+	require.NoError(t, err)
 }
 
 func TestInvalidMetadata(t *testing.T) {
@@ -2809,11 +2814,15 @@ func Test_findManifests(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	t.Run("invalid manifest throws an error", func(t *testing.T) {
+	t.Run("invalid manifest logs a warning", func(t *testing.T) {
 		require.DirExists(t, "./testdata/invalid-manifests")
+		var buf bytes.Buffer
+		log.SetOutput(&buf)
+		defer func() { log.SetOutput(log.StandardLogger().Out) }()
 		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests", "./testdata/invalid-manifests", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Contains(t, buf.String(), `file contains 'apiVersion:', 'kind:', and 'metadata:', but is not a valid manifest`, "Manifest generation should issue warning")
 		assert.Empty(t, manifests)
-		require.Error(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
