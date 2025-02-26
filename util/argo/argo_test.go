@@ -687,7 +687,6 @@ func TestFilterByPath(t *testing.T) {
 		assert.Len(t, res, 1)
 		assert.Equal(t, "example/apps/multi/source2", res[0].Spec.Sources[1].Path)
 	})
-
 }
 
 func TestFilterByFiles(t *testing.T) {
