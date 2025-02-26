@@ -15,7 +15,6 @@ redis-ha:
       enabled: false
     image:
       tag: 2.6.17-alpine
-    containerSecurityContext: null
     timeout:
       server: 6m
       client: 6m
@@ -24,7 +23,6 @@ redis-ha:
       enabled: true
   image:
     tag: 7.0.15-alpine
-  containerSecurityContext: null
   sentinel:
     bind: '0.0.0.0'
     lifecycle:
