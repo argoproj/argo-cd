@@ -84,8 +84,8 @@ func IsKustomization(path string) bool {
 	return false
 }
 
-// LookKustFile looks for any known kustomization file in the path
-func LookKustFile(dir string) string {
+// findKustomizeFile looks for any known kustomization file in the path
+func findKustomizeFile(dir string) string {
 	for _, file := range KustomizationNames {
 		path := filepath.Join(dir, file)
 		if _, err := os.Stat(path); err == nil {
@@ -278,7 +278,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.Patches) > 0 {
-			kustFile := LookKustFile(k.path)
+			kustFile := findKustomizeFile(k.path)
 			// If the kustomization file is not found, return early.
 			// There is no point reading the kustomization path if it doesn't exist.
 			if kustFile == "" {
