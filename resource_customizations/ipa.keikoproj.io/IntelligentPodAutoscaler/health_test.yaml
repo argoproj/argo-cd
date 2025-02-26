@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "Unable to fetch recommendation"
+  inputPath: testdata/ipa-degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Recommendation provided"
+  inputPath: testdata/ipa-healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for recommendation to be generated"
+  inputPath: testdata/ipa-progressing.yaml
