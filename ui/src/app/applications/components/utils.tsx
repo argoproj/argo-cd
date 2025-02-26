@@ -1547,34 +1547,42 @@ export function formatCreationTimestamp(creationTimestamp: string) {
     );
 }
 
+/*
+ * formatStatefulSetChange reformats a single line describing changes to immutable fields in a StatefulSet.
+ * It extracts the field name and its "from" and "to" values for better readability.
+ */
+function formatStatefulSetChange(line: string): string {
+    if (line.startsWith('-')) {
+        // Remove leading "- " from the line and split into field and changes
+        const [field, changes] = line.substring(2).split(':');
+        if (changes) {
+            // Split "from: X to: Y" into separate lines with aligned values
+            const [from, to] = changes.split('to:').map(s => s.trim());
+            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+        }
+    }
+    return line;
+}
+
 export function formatOperationMessage(message: string): string {
     if (!message) {
         return message;
     }
 
-    const cleanMessage = message;
-
     // Format immutable fields error message
-    if (cleanMessage.includes('attempting to change immutable fields:')) {
-        const [header, ...details] = cleanMessage.split('\n');
+    if (message.includes('attempting to change immutable fields:')) {
+        const [header, ...details] = message.split('\n');
         const formattedDetails = details
+            // Remove empty lines
             .filter(line => line.trim())
-            .map(line => {
-                if (line.startsWith('-')) {
-                    const [field, changes] = line.substring(2).split(':');
-                    if (changes) {
-                        const [from, to] = changes.split('to:').map(s => s.trim());
-                        return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
-                    }
-                }
-                return line;
-            })
+            // Use helper function
+            .map(formatStatefulSetChange)
             .join('\n');
 
         return `${header}\n${formattedDetails}`;
     }
 
-    return cleanMessage;
+    return message;
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);
