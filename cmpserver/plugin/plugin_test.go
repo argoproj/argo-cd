@@ -18,11 +18,11 @@ import (
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/cmp"
-	"github.com/argoproj/argo-cd/v3/util/tgzstream"
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/tgzstream"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -806,11 +806,11 @@ func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
 }
 
-func (m *MockParametersAnnouncementStream) SendMsg(any) error {
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
 	return nil
 }
 

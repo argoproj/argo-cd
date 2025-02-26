@@ -16,9 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 )
 
 func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
@@ -520,7 +520,7 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
+		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)
@@ -551,7 +551,7 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
-		"-d", v1alpha1.KubernetesInternalAPIServerAddr+",*",
+		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
 	require.NoError(t, err)

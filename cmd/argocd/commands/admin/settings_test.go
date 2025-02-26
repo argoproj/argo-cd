@@ -3,17 +3,18 @@ package admin
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	utils "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	utils "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -44,7 +45,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewClientset(&corev1.ConfigMap{
+	clientset := fake.NewClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -53,7 +54,7 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 			},
 		},
 		Data: data,
-	}, &corev1.Secret{
+	}, &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDSecretName,
@@ -269,7 +270,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 
 	require.NoError(t, err)
 	for k := range validatorsByGroup {
-		assert.Contains(t, out, "✅ "+k)
+		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
 	}
 }
 

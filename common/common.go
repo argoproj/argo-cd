@@ -2,18 +2,18 @@ package common
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -354,20 +354,20 @@ const (
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
-	gnuPgHome := os.Getenv(EnvGnuPGHome)
-	if gnuPgHome == "" {
+	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
 		return DefaultGnuPgHomePath
+	} else {
+		return gnuPgHome
 	}
-	return gnuPgHome
 }
 
 // GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
 func GetPluginSockFilePath() string {
-	pluginSockFilePath := os.Getenv(EnvPluginSockFilePath)
-	if pluginSockFilePath == "" {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
 		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
 	}
-	return pluginSockFilePath
 }
 
 // GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
@@ -455,7 +455,7 @@ SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it ex
 We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, metav1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, v1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
 	}

@@ -11,15 +11,15 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v3/util/tls"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v2/util/tls"
 
-	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
+	notificationscontroller "github.com/argoproj/argo-cd/v2/notification_controller/controller"
 
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -66,7 +66,7 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
@@ -129,8 +129,8 @@ func NewCommand() *cobra.Command {
 			}
 			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
 				pool, err := tls.LoadX509CertPool(
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
-					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
+					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
 				)
 				if err != nil {
 					return fmt.Errorf("failed to load repo-server certificate pool: %w", err)

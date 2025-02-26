@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -10,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/test/fixture/log"
-	"github.com/argoproj/argo-cd/v3/test/fixture/path"
-	"github.com/argoproj/argo-cd/v3/test/fixture/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/test/fixture/log"
+	"github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v2/test/fixture/test"
 )
 
 func TestIsCommitSHA(t *testing.T) {
@@ -326,7 +327,7 @@ func TestLFSClient(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
-	fileHandle, err := os.Open(tempDir + "/test3.yaml")
+	fileHandle, err := os.Open(fmt.Sprintf("%s/test3.yaml", tempDir))
 	require.NoError(t, err)
 	if err == nil {
 		defer func() {

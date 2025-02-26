@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	generator "github.com/argoproj/argo-cd/v3/hack/gen-resources/generators"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	generator "github.com/argoproj/argo-cd/v2/hack/gen-resources/generators"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/hack/gen-resources/util"
-	"github.com/argoproj/argo-cd/v3/util/cli"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"
+	"github.com/argoproj/argo-cd/v2/util/cli"
 )
 
 const (
@@ -53,7 +53,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		Use:   "generate [-f file]",
 		Short: "Generate entities",
 		Long:  "Generate entities",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			log.Printf("Retrieve configuration from %s", file)
 			err := util.Parse(opts, file)
 			if err != nil {
@@ -97,7 +97,7 @@ func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
 		Use:   "clean",
 		Short: "Clean entities",
 		Long:  "Clean entities",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, args []string) {
 			argoClientSet := util.ConnectToK8sArgoClientSet()
 			clientSet := util.ConnectToK8sClientSet()
 			settingsMgr := settings.NewSettingsManager(context.TODO(), clientSet, opts.Namespace)

@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -19,7 +18,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 const (
@@ -28,14 +27,12 @@ const (
 )
 
 var testClaims = ServiceAccountClaims{
-	"kube-system",
-	"argocd-manager-token-tj79r",
-	"argocd-manager",
-	"91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
-	jwt.RegisteredClaims{
-		Subject: "system:serviceaccount:kube-system:argocd-manager",
-		Issuer:  "kubernetes/serviceaccount",
-	},
+	Sub:                "system:serviceaccount:kube-system:argocd-manager",
+	Iss:                "kubernetes/serviceaccount",
+	Namespace:          "kube-system",
+	SecretName:         "argocd-manager-token-tj79r",
+	ServiceAccountName: "argocd-manager",
+	ServiceAccountUID:  "91dd37cf-8d92-11e9-a091-d65f2ae7fa8d",
 }
 
 func newServiceAccount() *corev1.ServiceAccount {
@@ -191,7 +188,7 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset.AddReactor("*", "secrets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	kubeclientset.AddReactor("*", "secrets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, generatedSecret, nil
 	})
 
@@ -224,7 +221,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
 	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
-	assert.True(t, apierrors.IsNotFound(err))
+	assert.True(t, apierr.IsNotFound(err))
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {

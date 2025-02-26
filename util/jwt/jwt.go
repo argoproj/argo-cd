@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jwtgo "github.com/golang-jwt/jwt/v5"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims
@@ -56,7 +56,7 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 		}
 
 		switch val := scopeIf.(type) {
-		case []any:
+		case []interface{}:
 			for _, groupIf := range val {
 				group, ok := groupIf.(string)
 				if ok {
@@ -107,7 +107,7 @@ func ExpirationTime(m jwtgo.MapClaims) (time.Time, error) {
 	return time.Unix(exp, 0), err
 }
 
-func Claims(in any) jwtgo.Claims {
+func Claims(in interface{}) jwtgo.Claims {
 	claims, ok := in.(jwtgo.Claims)
 	if ok {
 		return claims

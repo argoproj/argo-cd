@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -30,30 +30,30 @@ import (
 	"google.golang.org/grpc/status"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
-	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
-	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
-	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
-	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
-	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
-	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
-	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
-	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	http_util "github.com/argoproj/argo-cd/v3/util/http"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/kube"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
-	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
-	tls_util "github.com/argoproj/argo-cd/v3/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
+	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
+	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
+	notificationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	http_util "github.com/argoproj/argo-cd/v2/util/http"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/localconfig"
+	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
+	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 const (
@@ -125,6 +125,7 @@ type ClientOptions struct {
 	ServerName           string
 	RedisHaProxyName     string
 	RedisName            string
+	RedisCompression     string
 	RepoServerName       string
 	PromptsEnabled       bool
 }
@@ -402,8 +403,7 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 	if err != nil {
 		return err
 	}
-	validator := jwt.NewValidator()
-	if validator.Validate(claims) == nil {
+	if claims.Valid() == nil {
 		// token is still valid
 		return nil
 	}
@@ -559,7 +559,7 @@ func (c *client) tlsConfig() (*tls.Config, error) {
 	if len(c.CertPEMData) > 0 {
 		cp := tls_util.BestEffortSystemCertPool()
 		if !cp.AppendCertsFromPEM(c.CertPEMData) {
-			return nil, errors.New("credentials: failed to append certificates")
+			return nil, fmt.Errorf("credentials: failed to append certificates")
 		}
 		tlsConfig.RootCAs = cp
 	}

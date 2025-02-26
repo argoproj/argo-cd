@@ -8,14 +8,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
-	"github.com/argoproj/argo-cd/v3/cmpserver"
-	"github.com/argoproj/argo-cd/v3/cmpserver/plugin"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
+	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	"github.com/argoproj/argo-cd/v2/cmpserver"
+	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	traceutil "github.com/argoproj/argo-cd/v2/util/trace"
 )
 
 const (
@@ -36,7 +36,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()

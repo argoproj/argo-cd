@@ -12,11 +12,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	executil "github.com/argoproj/argo-cd/v3/util/exec"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
-	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
-	"github.com/argoproj/argo-cd/v3/util/proxy"
+	"github.com/argoproj/argo-cd/v2/common"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
@@ -120,7 +120,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, _ Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
@@ -436,10 +436,11 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 	exists := true
 	lockPath := path.Join(chartPath, "Chart.lock")
 	if _, err := os.Stat(lockPath); err != nil {
-		if !os.IsNotExist(err) {
+		if os.IsNotExist(err) {
+			exists = false
+		} else {
 			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
-		exists = false
 	}
 	return func() {
 		if !exists {

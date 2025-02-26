@@ -7,12 +7,12 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
+	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
 
 func createBoolPtr(x bool) *bool {
