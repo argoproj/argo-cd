@@ -60,10 +60,10 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string) {
 	ctrl.requestAppRefresh(appName, CompareWithLatest.Pointer(), nil)
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistAppHydratorStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(ctx, orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key hydrator.HydrationQueueKey) {

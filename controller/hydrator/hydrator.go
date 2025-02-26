@@ -29,7 +29,7 @@ type Dependencies interface {
 	GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error)
 	RequestAppRefresh(appName string)
 	// TODO: only allow access to the hydrator status
-	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+	PersistAppHydratorStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)
 }
 
@@ -47,7 +47,7 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 	}
 }
 
-func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
+func (h *Hydrator) ProcessAppHydrateQueueItem(ctx context.Context, origApp *appv1.Application) {
 	origApp = origApp.DeepCopy()
 	app := origApp.DeepCopy()
 
@@ -73,7 +73,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		Phase:          appv1.HydrateOperationPhaseHydrating,
 		SourceHydrator: *app.Spec.SourceHydrator,
 	}
-	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+	h.dependencies.PersistAppHydratorStatus(ctx, origApp, &app.Status.SourceHydrator)
 	origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 
@@ -107,7 +107,7 @@ type uniqueHydrationDestination struct {
 	destinationPath      string
 }
 
-func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (processNext bool) {
+func (h *Hydrator) ProcessHydrationQueueItem(ctx context.Context, hydrationKey HydrationQueueKey) (processNext bool) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
 		"sourceTargetRevision": hydrationKey.SourceTargetRevision,
@@ -129,7 +129,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			// We may or may not have gotten far enough in the hydration process to get a non-empty SHA, but set it just
 			// in case we did.
 			app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
-			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+			h.dependencies.PersistAppHydratorStatus(ctx, origApp, &app.Status.SourceHydrator)
 			logCtx = logCtx.WithField("app", app.QualifiedName())
 			logCtx.Errorf("Failed to hydrate app: %v", err)
 		}
@@ -154,7 +154,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
-		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+		h.dependencies.PersistAppHydratorStatus(ctx, origApp, &app.Status.SourceHydrator)
 		// Request a refresh since we pushed a new commit.
 		h.dependencies.RequestAppRefresh(app.QualifiedName())
 	}
