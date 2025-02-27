@@ -208,23 +208,22 @@ export class ReposList extends React.Component<
                     url: !sshValues.url && 'Repository URL is required'
                 };
             case ConnectionMethod.HTTPS:
-                const httpsValues = params as NewHTTPSRepoParams;
+                const validURLValues = params as NewHTTPSRepoParams;
                 return {
                     url:
-                        (!httpsValues.url && 'Repository URL is required') ||
-                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && 'Not a valid HTTPS URL'),
-                    name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
-                    username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
-                    password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
-                    bearerToken:
-                        (httpsValues.password && httpsValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
-                        (httpsValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories'),
-                    tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
+                        (!validURLValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && 'Not a valid HTTP/HTTPS URL'),
+                    name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
+                    username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
+                    password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
+                    tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
-                    url: (!githubAppValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(githubAppValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!githubAppValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
                     githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
@@ -232,7 +231,8 @@ export class ReposList extends React.Component<
             case ConnectionMethod.GOOGLECLOUD:
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
-                    url: (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
                 };
         }
@@ -355,7 +355,14 @@ export class ReposList extends React.Component<
                                                     <div className='columns small-4'>
                                                         <Tooltip content={repo.repo}>
                                                             <span>
-                                                                <Repo url={repo.repo} />
+                                                                <a
+                                                                    href={repo.repo}
+                                                                    target='_blank'
+                                                                    rel='noopener noreferrer'
+                                                                    style={{cursor: 'pointer', color: '#007bff', textDecoration: 'underline'}}
+                                                                    onClick={e => e.stopPropagation()}>
+                                                                    {repo.repo}
+                                                                </a>
                                                             </span>
                                                         </Tooltip>
                                                     </div>
@@ -860,9 +867,9 @@ export class ReposList extends React.Component<
         this.setState({displayEditPanel: true});
     }
 
-    // Whether url is a https url (simple version)
-    private isHTTPSUrl(url: string) {
-        if (url.match(/^https:\/\/.*$/gi)) {
+    // Whether url is a http or https url
+    private isHTTPOrHTTPSUrl(url: string) {
+        if (url.match(/^https?:\/\/.*$/gi)) {
             return true;
         } else {
             return false;
@@ -875,7 +882,7 @@ export class ReposList extends React.Component<
 
     // only connections of git type which is not via GitHub App are updatable
     private isRepoUpdatable(repo: models.Repository) {
-        return this.isHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
+        return this.isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
     }
 
     // Forces a reload of configured repositories, circumventing the cache
