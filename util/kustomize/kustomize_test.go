@@ -18,14 +18,13 @@ import (
 )
 
 const (
-	kustomization1  = "kustomization_yaml"
-	kustomization2a = "kustomization_yml"
-	kustomization2b = "Kustomization"
-	kustomization3  = "force_common"
-	kustomization4  = "custom_version"
-	kustomization5  = "kustomization_yaml_patches"
-	kustomization6  = "kustomization_yaml_components"
-	kustomization7  = "label_without_selector"
+	kustomization1 = "kustomization_yaml"
+	kustomization3 = "force_common"
+	kustomization4 = "custom_version"
+	kustomization5 = "kustomization_yaml_patches"
+	kustomization6 = "kustomization_yaml_components"
+	kustomization7 = "label_without_selector"
+	kustomization8 = "kustomization_yaml_patches_empty"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -65,7 +64,7 @@ func TestKustomizeBuild(t *testing.T) {
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
 				Name:  "nginx-deployment",
-				Count: intstr.FromInt(2),
+				Count: intstr.FromInt32(2),
 			},
 			{
 				Name:  "web",
@@ -518,4 +517,29 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 	require.NoError(t, err)
 	assert.Equal(t, "test", name)
+}
+
+func TestFailKustomizeBuildPatches(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization8)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Patches: []v1alpha1.KustomizePatch{
+			{
+				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 443 },  { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
+				Target: &v1alpha1.KustomizeSelector{
+					KustomizeResId: v1alpha1.KustomizeResId{
+						KustomizeGvk: v1alpha1.KustomizeGvk{
+							Kind: "Deployment",
+						},
+						Name: "nginx-deployment",
+					},
+				},
+			},
+		},
+	}
+
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.EqualError(t, err, "kustomization file not found in the path")
 }

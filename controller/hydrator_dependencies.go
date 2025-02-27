@@ -30,17 +30,26 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	sources := []appv1.ApplicationSource{source}
-	revisions := []string{revision}
+func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	drySources := []appv1.ApplicationSource{drySource}
+	dryRevisions := []string{revision}
 
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
+	app := origApp.DeepCopy()
+	// Remove the manifest generate path annotation, because the feature will misbehave for apps using source hydrator.
+	// Setting this annotation causes GetRepoObjs to compare the dry source commit to the most recent synced commit. The
+	// problem is that the most recent synced commit is likely on the hydrated branch, not the dry branch. The
+	// comparison will throw an error and break hydration.
+	//
+	// The long-term solution will probably be to persist the synced _dry_ revision and use that for the comparison.
+	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
+
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, appLabelKey, revisions, true, true, false, project, false, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
