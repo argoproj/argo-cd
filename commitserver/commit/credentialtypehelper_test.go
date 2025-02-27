@@ -3,7 +3,9 @@ package commit
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestRepository_GetCredentialType(t *testing.T) {
@@ -54,9 +56,7 @@ func TestRepository_GetCredentialType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getCredentialType(tt.repo); got != tt.want {
-				t.Errorf("Repository.GetCredentialType() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, getCredentialType(tt.repo), "Repository.GetCredentialType()")
 		})
 	}
 }

@@ -149,6 +149,12 @@ branch to the `syncSource` branch.
 
 ## Limitations
 
+### Signature Verification
+
+The source hydrator **does not currently support signature verification of the DRY sources it hydrates/commits**. It
+also does not sign the commits it pushes to git, so if signature verification is enabled, the commits will fail
+verification when Argo CD attempts to sync the hydrated manifests.
+
 ### Project-Scoped Push Secrets
 
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any
@@ -188,5 +194,5 @@ Examples of non-deterministic hydration:
 Argo CD should be the only thing pushing hydrated manifests to the hydrated branches. To prevent other tools or users
 from pushing to the hydrated branches, enable branch protection in your SCM.
 
-It is best practice to prefix the hydrated branches with a common prefix, such as `environment/`. This makes it easier
+It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.

@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -36,8 +36,8 @@ triggers:
 `
 	err := ApplyLegacyConfig(&cfg,
 		context,
-		&v1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
-		&v1.Secret{Data: map[string][]byte{}},
+		&corev1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
+		&corev1.Secret{Data: map[string][]byte{}},
 	)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"my-trigger1"}, cfg.DefaultTriggers)
@@ -82,8 +82,8 @@ slack:
   token: my-token
 `
 	err := ApplyLegacyConfig(&cfg, context,
-		&v1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
-		&v1.Secret{Data: map[string][]byte{"notifiers.yaml": []byte(notifiersYAML)}},
+		&corev1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
+		&corev1.Secret{Data: map[string][]byte{"notifiers.yaml": []byte(notifiersYAML)}},
 	)
 
 	require.NoError(t, err)

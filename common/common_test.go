@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -29,7 +28,7 @@ func Test_GRPCKeepAliveMinNotSet(t *testing.T) {
 // Test valid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 	numSeconds := 15
-	os.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
+	t.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := time.Duration(numSeconds) * time.Second
@@ -42,7 +41,7 @@ func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 // Test invalid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIncorrectlySet(t *testing.T) {
 	numSeconds := 15
-	os.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
+	t.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := defaultGRPCKeepAliveEnforcementMinimum
@@ -72,7 +71,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("failed to get secret default/%s", RedisInitialCredentials),
+			expectedErr:      "failed to get secret default/" + RedisInitialCredentials,
 			secret:           nil,
 		},
 		{
@@ -96,9 +95,8 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {
-				if _, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{}); err != nil {
-					t.Fatalf("Failed to create secret: %v", err)
-				}
+				_, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{})
+				require.NoErrorf(t, err, "Failed to create secret")
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
 			if tc.expectedErr != "" {

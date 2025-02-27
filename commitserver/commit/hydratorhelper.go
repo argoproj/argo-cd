@@ -11,13 +11,13 @@ import (
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apiclient.PathDetails) error {
+func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apiclient.PathDetails) error { //nolint:revive //FIXME(var-naming)
 	// Write the top-level readme.
 	err := writeMetadata(rootPath, hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl})
 	if err != nil {
@@ -64,13 +64,13 @@ func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apic
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
 func writeMetadata(dirPath string, metadata hydratorMetadataFile) error {
-	hydratorMetadataJson, err := json.MarshalIndent(metadata, "", "  ")
+	hydratorMetadataJSON, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 	}
 	// No need to use SecureJoin here, as the path is already sanitized.
 	hydratorMetadataPath := path.Join(dirPath, "hydrator.metadata")
-	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
+	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJSON, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write hydrator metadata: %w", err)
 	}

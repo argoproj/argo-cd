@@ -51,7 +51,7 @@ In these cases, "kubectl apply" gives better results.
 Either with a "kubectl patch" or "kubectl apply", the state of the synchronization is reported in the "operationState" field in the application object.
 
 ```bash
-$ kubectl get -n <namespace> get app <app-name> -o yaml
+$ kubectl get -n <namespace> app <app-name> -o yaml
 ...
 status:
   operationState:

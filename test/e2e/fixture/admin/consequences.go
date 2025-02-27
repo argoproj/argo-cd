@@ -1,7 +1,7 @@
 package admin
 
 import (
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin/utils"
 )
 
 // this implements the "then" part of given/when/then

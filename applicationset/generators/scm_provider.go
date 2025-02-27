@@ -11,11 +11,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
-	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/common"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*SCMProviderGenerator)(nil)
@@ -116,7 +116,7 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, g
 	return NewErrDisallowedSCMProvider(url, allowedScmProviders)
 }
 
-func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -138,15 +138,16 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 
 	ctx := context.Background()
 	var provider scm_provider.SCMProviderService
-	if g.overrideProvider != nil {
+	switch {
+	case g.overrideProvider != nil:
 		provider = g.overrideProvider
-	} else if providerConfig.Github != nil {
+	case providerConfig.Github != nil:
 		var err error
 		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
-	} else if providerConfig.Gitlab != nil {
+	case providerConfig.Gitlab != nil:
 		providerConfig := providerConfig.Gitlab
 		var caCerts []byte
 		var scmError error
@@ -160,20 +161,20 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
+		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
-	} else if providerConfig.Gitea != nil {
+	case providerConfig.Gitea != nil:
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
 		}
-		provider, err = scm_provider.NewGiteaProvider(ctx, providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure)
+		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
-	} else if providerConfig.BitbucketServer != nil {
+	case providerConfig.BitbucketServer != nil:
 		providerConfig := providerConfig.BitbucketServer
 		var caCerts []byte
 		var scmError error
@@ -183,50 +184,51 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		if providerConfig.BearerToken != nil {
+		switch {
+		case providerConfig.BearerToken != nil:
 			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
 			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
-		} else if providerConfig.BasicAuth != nil {
+		case providerConfig.BasicAuth != nil:
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
 			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
-		} else {
+		default:
 			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		}
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
 		}
-	} else if providerConfig.AzureDevOps != nil {
+	case providerConfig.AzureDevOps != nil:
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
 		}
-		provider, err = scm_provider.NewAzureDevOpsProvider(ctx, token, providerConfig.AzureDevOps.Organization, providerConfig.AzureDevOps.API, providerConfig.AzureDevOps.TeamProject, providerConfig.AzureDevOps.AllBranches)
+		provider, err = scm_provider.NewAzureDevOpsProvider(token, providerConfig.AzureDevOps.Organization, providerConfig.AzureDevOps.API, providerConfig.AzureDevOps.TeamProject, providerConfig.AzureDevOps.AllBranches)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
-	} else if providerConfig.Bitbucket != nil {
+	case providerConfig.Bitbucket != nil:
 		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
 		}
-		provider, err = scm_provider.NewBitBucketCloudProvider(ctx, providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
+		provider, err = scm_provider.NewBitBucketCloudProvider(providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
 		}
-	} else if providerConfig.AWSCodeCommit != nil {
+	case providerConfig.AWSCodeCommit != nil:
 		var awsErr error
 		provider, awsErr = scm_provider.NewAWSCodeCommitProvider(ctx, providerConfig.AWSCodeCommit.TagFilters, providerConfig.AWSCodeCommit.Role, providerConfig.AWSCodeCommit.Region, providerConfig.AWSCodeCommit.AllBranches)
 		if awsErr != nil {
 			return nil, fmt.Errorf("error initializing AWS codecommit service: %w", awsErr)
 		}
-	} else {
-		return nil, fmt.Errorf("no SCM provider implementation configured")
+	default:
+		return nil, errors.New("no SCM provider implementation configured")
 	}
 
 	// Find all the available repos.
@@ -234,7 +236,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
-	paramsArray := make([]map[string]interface{}, 0, len(repos))
+	paramsArray := make([]map[string]any, 0, len(repos))
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, repo := range repos {
@@ -248,7 +250,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			shortSHALength7 = len(repo.SHA)
 		}
 
-		params := map[string]interface{}{
+		params := map[string]any{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
 			"url":              repo.URL,
@@ -289,5 +291,5 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
-	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches)
+	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches)
 }

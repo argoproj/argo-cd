@@ -9,10 +9,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/argoproj/argo-cd/v2/util/askpass"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/util/askpass"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
@@ -25,7 +25,7 @@ func NewCommand() *cobra.Command {
 		Use:               cliName,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			if len(os.Args) != 2 {

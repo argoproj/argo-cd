@@ -271,6 +271,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -542,6 +544,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -943,6 +947,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -1214,6 +1220,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -1614,6 +1622,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -1885,6 +1895,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -2265,6 +2277,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -2536,6 +2550,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -2941,6 +2957,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -3212,6 +3230,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -3613,6 +3633,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -3884,6 +3906,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -4284,6 +4308,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -4555,6 +4581,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -4935,6 +4963,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -5206,6 +5236,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -5594,6 +5626,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -5865,6 +5899,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -6472,6 +6508,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -6743,6 +6781,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -7345,6 +7385,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -7616,6 +7658,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -8013,6 +8057,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -8284,6 +8330,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -8691,6 +8739,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -8962,6 +9012,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -9363,6 +9415,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -9634,6 +9688,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10034,6 +10090,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -10305,6 +10363,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -10685,6 +10745,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -10956,6 +11018,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -11344,6 +11408,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -11615,6 +11681,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -12222,6 +12290,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -12493,6 +12563,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -13095,6 +13167,8 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
+                                                  ignoreMissingComponents:
+                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
@@ -13366,6 +13440,8 @@ spec:
                                                     forceCommonAnnotations:
                                                       type: boolean
                                                     forceCommonLabels:
+                                                      type: boolean
+                                                    ignoreMissingComponents:
                                                       type: boolean
                                                     images:
                                                       items:
@@ -13767,6 +13843,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -14038,6 +14116,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -14425,6 +14505,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -14696,6 +14778,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -15303,6 +15387,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -15574,6 +15660,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -16176,6 +16264,8 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
+                                        ignoreMissingComponents:
+                                          type: boolean
                                         images:
                                           items:
                                             type: string
@@ -16447,6 +16537,8 @@ spec:
                                           forceCommonAnnotations:
                                             type: boolean
                                           forceCommonLabels:
+                                            type: boolean
+                                          ignoreMissingComponents:
                                             type: boolean
                                           images:
                                             items:
@@ -16919,6 +17011,8 @@ spec:
                                 type: boolean
                               forceCommonLabels:
                                 type: boolean
+                              ignoreMissingComponents:
+                                type: boolean
                               images:
                                 items:
                                   type: string
@@ -17190,6 +17284,8 @@ spec:
                                 forceCommonAnnotations:
                                   type: boolean
                                 forceCommonLabels:
+                                  type: boolean
+                                ignoreMissingComponents:
                                   type: boolean
                                 images:
                                   items:

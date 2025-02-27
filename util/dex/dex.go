@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	stderrors "errors"
 	"io"
 	"net/http"
 	"net/http/httputil"
@@ -15,8 +15,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func decorateDirector(director func(req *http.Request), target *url.URL) func(req *http.Request) {
@@ -45,9 +45,9 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	return &tls.Config{
 		InsecureSkipVerify: false,
 		RootCAs:            tlsConfig.RootCAs,
-		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
-				return fmt.Errorf("dex server certificate does not match")
+				return stderrors.New("dex server certificate does not match")
 			}
 			return nil
 		},
@@ -88,7 +88,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 			}).Errorf("received error from dex: %s", string(b))
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
-			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
+			resp.Header.Set("Location", path.Join(baseHRef, "login")+"?has_sso_error=true")
 			resp.StatusCode = http.StatusSeeOther
 			resp.Body = io.NopCloser(bytes.NewReader(make([]byte, 0)))
 			return nil
@@ -129,11 +129,9 @@ func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, e
 func DexServerAddressWithProtocol(orig string, tlsConfig *DexTLSConfig) string {
 	if strings.Contains(orig, "://") {
 		return orig
-	} else {
-		if tlsConfig == nil || tlsConfig.DisableTLS {
-			return "http://" + orig
-		} else {
-			return "https://" + orig
-		}
 	}
+	if tlsConfig == nil || tlsConfig.DisableTLS {
+		return "http://" + orig
+	}
+	return "https://" + orig
 }

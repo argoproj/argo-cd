@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestBitbucketHasRepo(t *testing.T) {
@@ -87,7 +87,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewBitBucketCloudProvider(context.Background(), c.owner, "user", "password", false)
+			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", false)
 			repo := &Repository{
 				Organization: c.owner,
 				Repository:   c.repo,
@@ -487,7 +487,7 @@ func TestBitbucketListRepos(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewBitBucketCloudProvider(context.Background(), c.owner, "user", "password", c.allBranches)
+			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", c.allBranches)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)

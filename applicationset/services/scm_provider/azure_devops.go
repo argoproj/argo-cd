@@ -57,9 +57,9 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
+func NewAzureDevOpsProvider(accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
-		return nil, fmt.Errorf("no access token provided")
+		return nil, errors.New("no access token provided")
 	}
 
 	devOpsURL, err := getValidDevOpsURL(url, org)
@@ -72,7 +72,7 @@ func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string,
 	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }
 
-func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *AzureDevOpsProvider) ListRepos(ctx context.Context, _ string) ([]*Repository, error) {
 	gitClient, err := g.clientFactory.GetClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)
@@ -107,7 +107,7 @@ func (g *AzureDevOpsProvider) RepoHasPath(ctx context.Context, repo *Repository,
 	}
 
 	var repoId string
-	if uuid, isUuid := repo.RepositoryId.(uuid.UUID); isUuid { // most likely an UUID, but do type-safe check anyway. Do %v fallback if not expected type.
+	if uuid, isUUID := repo.RepositoryId.(uuid.UUID); isUUID { // most likely an UUID, but do type-safe check anyway. Do %v fallback if not expected type.
 		repoId = uuid.String()
 	} else {
 		repoId = fmt.Sprintf("%v", repo.RepositoryId)

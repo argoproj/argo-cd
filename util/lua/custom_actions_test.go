@@ -15,9 +15,9 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type testNormalizer struct{}
@@ -26,9 +26,8 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	switch un.GetKind() {
-	case "Job":
-		err := unstructured.SetNestedField(un.Object, map[string]interface{}{"name": "not sure why this works"}, "metadata")
+	if un.GetKind() == "Job" {
+		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
 		if err != nil {
 			return fmt.Errorf("failed to normalize Job: %w", err)
 		}
@@ -104,7 +103,7 @@ type IndividualActionTest struct {
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
-	err := filepath.Walk("../../resource_customizations", func(path string, f os.FileInfo, err error) error {
+	err := filepath.Walk("../../resource_customizations", func(path string, _ os.FileInfo, err error) error {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
@@ -117,7 +116,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		require.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
-			testName := fmt.Sprintf("discovery/%s", test.InputPath)
+			testName := "discovery/" + test.InputPath
 			t.Run(testName, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
@@ -166,9 +165,8 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
 						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
-						} else {
-							return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 						}
+						return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
 					})
 
 					assert.NotNil(t, expectedObj)
@@ -215,21 +213,19 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
 		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
-		objList := make([]map[string]interface{}, 5)
+		objList := make([]map[string]any, 5)
 		err = yaml.Unmarshal(yamlBytes, &objList)
 		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
-			unstructuredObj, ok := obj["unstructuredObj"].(map[string]interface{})
-			if !ok {
-				t.Error("Wrong type of unstructuredObj")
-			}
+			unstructuredObj, ok := obj["unstructuredObj"].(map[string]any)
+			assert.True(t, ok, "Wrong type of unstructuredObj")
 			unstructuredList.Items[i] = unstructured.Unstructured{Object: unstructuredObj}
 		}
 	} else {
 		// The string represents an old-style action object output, which is a k8s unstructured resource
-		obj := make(map[string]interface{})
+		obj := make(map[string]any)
 		err = yaml.Unmarshal(yamlBytes, &obj)
 		errors.CheckError(err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)
@@ -239,7 +235,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 }
 
 func findFirstMatchingItem(items []unstructured.Unstructured, f func(unstructured.Unstructured) bool) *unstructured.Unstructured {
-	var matching *unstructured.Unstructured = nil
+	var matching *unstructured.Unstructured
 	for _, item := range items {
 		if f(item) {
 			matching = &item

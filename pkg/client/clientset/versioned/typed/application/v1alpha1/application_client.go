@@ -5,8 +5,8 @@ package v1alpha1
 import (
 	"net/http"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

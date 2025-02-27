@@ -1,22 +1,22 @@
 package admin
 
 import (
-	"fmt"
+	stderrors "errors"
 	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -53,6 +53,9 @@ func NewGenRepoSpecCommand() *cobra.Command {
 
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
+
+  # Add a private Git BitBucket Data Center repository via HTTPS using bearer token:
+  argocd admin repo generate-spec https://bitbucket.example.com/scm/proj/repo --bearer-token secret-token
 
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
@@ -92,7 +95,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -100,7 +103,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (repoOpts.TlsClientCertPath != "" && repoOpts.TlsClientCertKeyPath == "") || (repoOpts.TlsClientCertPath == "" && repoOpts.TlsClientCertKeyPath != "") {
-				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -114,7 +117,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -126,9 +129,10 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.Insecure = repoOpts.InsecureSkipServerVerification
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
+			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.CheckError(fmt.Errorf("must specify --name for repos of type 'helm'"))
+				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))
 			}
 
 			// If the user set a username, but didn't supply password via --password,
@@ -137,12 +141,19 @@ func NewGenRepoSpecCommand() *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
-			argoCDCM := &apiv1.ConfigMap{
-				TypeMeta: v1.TypeMeta{
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
+
+			argoCDCM := &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
 					Kind:       "ConfigMap",
 					APIVersion: "v1",
 				},
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      common.ArgoCDConfigMapName,
 					Namespace: ArgoCDNamespace,
 					Labels: map[string]string{
@@ -154,10 +165,10 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, ArgoCDNamespace)
 			argoDB := db.NewDB(ArgoCDNamespace, settingsMgr, kubeClientset)
 
-			_, err := argoDB.CreateRepository(ctx, &repoOpts.Repo)
+			_, err = argoDB.CreateRepository(ctx, &repoOpts.Repo)
 			errors.CheckError(err)
 
-			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(ArgoCDNamespace).Get(ctx, db.RepoURLToSecretName(repoSecretPrefix, repoOpts.Repo.Repo, repoOpts.Repo.Project), metav1.GetOptions{})
 			errors.CheckError(err)
 
 			errors.CheckError(PrintResources(outputFormat, os.Stdout, secret))

@@ -135,7 +135,7 @@ stringData:
   and the controller is overwhelmed by the number of events. The default value is `false`, which means that the controller
   processes events one by one.
 
-* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing events in a batch.
+* `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing events in a batch.
   The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 

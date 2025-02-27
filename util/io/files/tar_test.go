@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestTgz(t *testing.T) {
@@ -113,10 +113,7 @@ func TestUntgz(t *testing.T) {
 	}
 	deleteTmpDir := func(t *testing.T, dirname string) {
 		t.Helper()
-		err := os.RemoveAll(dirname)
-		if err != nil {
-			t.Errorf("error removing tmpDir: %s", err)
-		}
+		assert.NoError(t, os.RemoveAll(dirname), "error removing tmpDir")
 	}
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()

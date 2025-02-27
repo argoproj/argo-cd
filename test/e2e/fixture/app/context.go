@@ -4,15 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Context implements the "given" part of given/when/then
@@ -98,17 +98,15 @@ func (c *Context) AppName() string {
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
-	} else {
-		return c.AppName()
 	}
+	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
-	} else {
-		return fixture.TestNamespace()
 	}
+	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
@@ -138,12 +136,12 @@ func (c *Context) CustomSSHKnownHostsAdded() *Context {
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(false, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(true, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
@@ -159,7 +157,7 @@ func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
 	fixture.CreateSubmoduleRepos("https")
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	repos.AddHTTPSRepo(false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 

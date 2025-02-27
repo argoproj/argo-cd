@@ -45,7 +45,7 @@ func (c *twoLevelClient) Set(item *Item) error {
 
 // Get returns cache value from in-memory cache if it present. Otherwise loads it from external cache and persists
 // in memory to avoid future requests to external cache.
-func (c *twoLevelClient) Get(key string, obj interface{}) error {
+func (c *twoLevelClient) Get(key string, obj any) error {
 	err := c.inMemoryCache.Get(key, obj)
 	if err == nil {
 		return nil

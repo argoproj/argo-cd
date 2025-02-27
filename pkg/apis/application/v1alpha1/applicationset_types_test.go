@@ -165,7 +165,7 @@ func TestApplicationSetSetConditions(t *testing.T) {
 
 func assertAppSetConditions(t *testing.T, expected []ApplicationSetCondition, actual []ApplicationSetCondition) {
 	t.Helper()
-	assert.Equal(t, len(expected), len(actual))
+	assert.Len(t, actual, len(expected))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
 		assert.Equal(t, expected[i].Message, actual[i].Message)

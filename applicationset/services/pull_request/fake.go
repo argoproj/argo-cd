@@ -18,6 +18,6 @@ func NewFakeService(_ context.Context, listPullReuests []*PullRequest, listError
 	}, nil
 }
 
-func (g *FakeService) List(ctx context.Context) ([]*PullRequest, error) {
+func (g *FakeService) List(_ context.Context) ([]*PullRequest, error) {
 	return g.listPullReuests, g.listError
 }

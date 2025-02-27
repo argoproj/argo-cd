@@ -4,8 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 )
 
 // Context implements the "given" part of given/when/then
@@ -52,5 +54,10 @@ func (c *Context) Path(path string) *Context {
 
 func (c *Context) GPGPublicKeyAdded() *Context {
 	gpgkeys.AddGPGPublicKey()
+	return c
+}
+
+func (c *Context) HTTPSInsecureRepoURLAdded(project string) *Context {
+	repos.AddHTTPSRepo(true, true, project, fixture.RepoURLTypeHTTPS)
 	return c
 }

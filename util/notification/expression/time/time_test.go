@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/antonmedv/expr"
+	"github.com/expr-lang/expr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func Test_NewExprs_Now(t *testing.T) {
 	vm, err := expr.Compile("time.Now().Truncate(time.Hour).Format(time.RFC3339)")
 	require.NoError(t, err)
 
-	val, err := expr.Run(vm, map[string]interface{}{"time": NewExprs()})
+	val, err := expr.Run(vm, map[string]any{"time": NewExprs()})
 	require.NoError(t, err)
 
 	assert.Equal(t, "2022-09-26T11:00:00Z", val)
