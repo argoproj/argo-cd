@@ -60,7 +60,7 @@ func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repo
 func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespace string) error {
 	// We request a refresh by setting the annotation instead of by adding it to the refresh queue, because there is no
 	// guarantee that the hydrator is running on the same controller shard as is processing the application.
-	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal)
+	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
 	if err != nil {
 		return fmt.Errorf("failed to request app refresh: %w", err)
 	}
