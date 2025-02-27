@@ -72,7 +72,7 @@ type Client interface {
 	Checkout(revision string, submoduleEnabled bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
-	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
+	LsFiles(path string) ([]string, error)
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
@@ -421,19 +421,37 @@ func (m *nativeGitClient) Fetch(revision string) error {
 }
 
 // LsFiles lists the local working tree, including only files that are under source control
-func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error) {
-	if enableNewGitFileGlobbing {
-		// This is the new way with safer globbing
-		err := os.Chdir(m.root)
+func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
+	// This is the new way with safer globbing
+	err := os.Chdir(m.root)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check if the path is absolute and outside the repository
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	
+	// If the path is absolute and outside the repository, return empty result
+	if filepath.IsAbs(path) && !strings.HasPrefix(absPath, m.root) {
+		return nil, nil
+	}
+	
+	allFiles, err := doublestar.FilepathGlob(path)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, file := range allFiles {
+		// If it's a symlink, resolve it
+		fileInfo, err := os.Lstat(file)
 		if err != nil {
 			return nil, err
 		}
-		allFiles, err := doublestar.FilepathGlob(path)
-		if err != nil {
-			return nil, err
-		}
-		var files []string
-		for _, file := range allFiles {
+		
+		if fileInfo.Mode()&os.ModeSymlink != 0 {
 			link, err := filepath.EvalSymlinks(file)
 			if err != nil {
 				return nil, err
@@ -447,17 +465,12 @@ func (m *nativeGitClient) LsFiles(path string, enableNewGitFileGlobbing bool) ([
 			} else {
 				log.Warnf("Absolute path for %s is outside of repository, removing it", file)
 			}
+		} else {
+			// Not a symlink, just add it to the result
+			files = append(files, file)
 		}
-		return files, nil
 	}
-	// This is the old and default way
-	out, err := m.runCmd("ls-files", "--full-name", "-z", "--", path)
-	if err != nil {
-		return nil, err
-	}
-	// remove last element, which is blank regardless of whether we're using nullbyte or newline
-	ss := strings.Split(out, "\000")
-	return ss[:len(ss)-1], nil
+	return files, nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -507,8 +520,8 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		}
 	}
 	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
+	// The double "f" in the arguments is not a typo: the first "f" tells
+	// `git clean` to delete untracked files and directories, and the second "f"
 	// tells it to clean untracked nested Git repositories (for example a
 	// submodule which has since been removed).
 	if out, err := m.runCmd("clean", "-ffdx"); err != nil {

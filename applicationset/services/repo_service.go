@@ -13,7 +13,6 @@ import (
 type argoCDService struct {
 	getRepository                   func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
 	submoduleEnabled                bool
-	newFileGlobbingEnabled          bool
 	getGitFilesFromRepoServer       func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
 	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
@@ -26,11 +25,10 @@ type Repos interface {
 	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
 }
 
-func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {
+func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset) Repos {
 	return &argoCDService{
 		getRepository:          db.GetRepository,
 		submoduleEnabled:       submoduleEnabled,
-		newFileGlobbingEnabled: newFileGlobbingEnabled,
 		getGitFilesFromRepoServer: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 			closer, client, err := repoClientset.NewRepoServerClient()
 			if err != nil {
@@ -57,13 +55,12 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
-		Repo:                      repo,
-		SubmoduleEnabled:          a.submoduleEnabled,
-		Revision:                  revision,
-		Path:                      pattern,
-		NewGitFileGlobbingEnabled: a.newFileGlobbingEnabled,
-		NoRevisionCache:           noRevisionCache,
-		VerifyCommit:              verifyCommit,
+		Repo:             repo,
+		SubmoduleEnabled: a.submoduleEnabled,
+		Revision:         revision,
+		Path:             pattern,
+		NoRevisionCache:  noRevisionCache,
+		VerifyCommit:     verifyCommit,
 	}
 	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {

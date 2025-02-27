@@ -90,10 +90,9 @@ func NewCommand() *cobra.Command {
 		hydratorEnabled          bool
 
 		// ApplicationSet
-		enableNewGitFileGlobbing bool
-		scmRootCAPath            string
-		allowedScmProviders      []string
 		enableScmProviders       bool
+		allowedScmProviders      []string
+		scmRootCAPath            string
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
@@ -249,10 +248,9 @@ func NewCommand() *cobra.Command {
 
 			appsetOpts := server.ApplicationSetOpts{
 				GitSubmoduleEnabled:      gitSubmoduleEnabled,
-				EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
+				EnableScmProviders:       enableScmProviders,
 				ScmRootCAPath:            scmRootCAPath,
 				AllowedScmProviders:      allowedScmProviders,
-				EnableScmProviders:       enableScmProviders,
 			}
 
 			stats.RegisterStackDumper()
@@ -329,7 +327,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
-	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{

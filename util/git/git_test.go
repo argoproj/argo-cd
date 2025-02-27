@@ -483,21 +483,15 @@ func TestLsFiles(t *testing.T) {
 	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
 	require.NoError(t, err)
 
-	// Old and default globbing
-	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
-	lsResult, err := client.LsFiles("*.yaml", false)
-	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
-
-	// New and safer globbing, do not return symlinks resolving outside of the repo
-	expectedResult = []string{"a.yaml"}
-	lsResult, err = client.LsFiles("*.yaml", true)
+	// New and safer globbing (default), do not return symlinks resolving outside of the repo
+	expectedResult := []string{"a.yaml"}
+	lsResult, err := client.LsFiles("*.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, expectedResult, lsResult)
 
 	// New globbing, do not return files outside of the repo
 	var nilResult []string
-	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
+	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, nilResult, lsResult)
 }
