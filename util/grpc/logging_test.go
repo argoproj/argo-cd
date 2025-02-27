@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 )
 
 func Test_JSONLogging(t *testing.T) {
@@ -26,10 +26,10 @@ func Test_JSONLogging(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(_ context.Context, _ any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return nil, nil
 	}
-	decider := func(_ context.Context, _ string, _ any) bool {
+	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
 		return true
 	}
 	interceptor := PayloadUnaryServerInterceptor(entry, false, decider)
@@ -47,10 +47,10 @@ func Test_logRequest(t *testing.T) {
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
-	handler := func(_ context.Context, _ any) (any, error) {
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return nil, nil
 	}
-	decider := func(_ context.Context, _ string, _ any) bool {
+	decider := func(ctx context.Context, fullMethodName string, servingObject interface{}) bool {
 		return true
 	}
 

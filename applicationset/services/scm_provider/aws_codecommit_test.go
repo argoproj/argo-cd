@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/aws_codecommit/mocks"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/aws_codecommit/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type awsCodeCommitTestRepository struct {
@@ -23,7 +23,7 @@ type awsCodeCommitTestRepository struct {
 	arn                      string
 	accountId                string
 	defaultBranch            string
-	expectedCloneURL         string
+	expectedCloneUrl         string
 	getRepositoryError       error
 	getRepositoryNilMetadata bool
 	valid                    bool
@@ -49,7 +49,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneURL: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneUrl: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 			},
@@ -74,7 +74,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneURL: "https://git-codecommit-fips.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneUrl: "https://git-codecommit-fips.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 			},
@@ -96,7 +96,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					id:               "8235624d-d248-4df9-a983-2558b01dbe83",
 					arn:              "arn:aws:codecommit:us-east-1:111111111111:repo1",
 					defaultBranch:    "main",
-					expectedCloneURL: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
+					expectedCloneUrl: "ssh://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1",
 					valid:            true,
 				},
 				{
@@ -226,7 +226,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 					assert.Equal(t, originRepo.name, repo.Repository)
 					assert.Equal(t, originRepo.id, repo.RepositoryId)
 					assert.Equal(t, originRepo.defaultBranch, repo.Branch)
-					assert.Equal(t, originRepo.expectedCloneURL, repo.URL)
+					assert.Equal(t, originRepo.expectedCloneUrl, repo.URL)
 					assert.Empty(t, repo.SHA, "SHA is always empty")
 				}
 			}
@@ -382,7 +382,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 	id := "1a64adc4-2fb5-4abd-afe7-127984ba83c0"
 	defaultBranch := "main"
 	organization := "111111111111"
-	cloneURL := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1"
+	cloneUrl := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/repo1"
 
 	testCases := []struct {
 		name               string
@@ -445,7 +445,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 			actual, err := provider.GetBranches(ctx, &Repository{
 				Organization: organization,
 				Repository:   name,
-				URL:          cloneURL,
+				URL:          cloneUrl,
 				RepositoryId: id,
 			})
 			if testCase.expectOverallError {
@@ -454,7 +454,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 				assertCopiedProperties := func(repo *Repository) {
 					assert.Equal(t, id, repo.RepositoryId)
 					assert.Equal(t, name, repo.Repository)
-					assert.Equal(t, cloneURL, repo.URL)
+					assert.Equal(t, cloneUrl, repo.URL)
 					assert.Equal(t, organization, repo.Organization)
 					assert.Empty(t, repo.SHA)
 				}

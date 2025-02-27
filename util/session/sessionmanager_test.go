@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -24,17 +24,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/password"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-	utiltest "github.com/argoproj/argo-cd/v3/util/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/password"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	utiltest "github.com/argoproj/argo-cd/v2/util/test"
 )
 
 func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister {
@@ -92,18 +90,19 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", 0, "123")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	claims, newToken, err := mgr.Parse(token)
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	if subject != "admin" {
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
+	}
 }
 
 func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
@@ -114,7 +113,9 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()-1), "123")
-	require.NoError(t, err)
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	// verify new token is generated is login token is expiring soon
 	_, newToken, err := mgr.Parse(token)
@@ -124,14 +125,9 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	// verify that new token is valid and for the same user
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
-
-	mapClaims, err := jwtutil.MapClaims(claims)
-	require.NoError(t, err)
-
-	argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-	require.NoError(t, err)
-
-	assert.Equal(t, "admin", argoClaims.Subject)
+	mapClaims := *(claims.(*jwt.MapClaims))
+	subject := mapClaims["sub"].(string)
+	assert.Equal(t, "admin", subject)
 }
 
 func TestSessionManager_AdminToken_Revoked(t *testing.T) {
@@ -150,7 +146,8 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 	require.NoError(t, err)
 
 	_, _, err = mgr.Parse(token)
-	assert.EqualError(t, err, "token is revoked, please re-login")
+	require.Error(t, err)
+	assert.Equal(t, "token is revoked, please re-login", err.Error())
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
@@ -158,7 +155,9 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin:login", 0, "abc")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	_, _, err = mgr.Parse(token)
 	assert.ErrorContains(t, err, "account admin is disabled")
@@ -169,7 +168,9 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin", 0, "abc")
-	require.NoError(t, err, "Could not create token")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
 
 	_, _, err = mgr.Parse(token)
 	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
@@ -196,16 +197,8 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		jwtToken, err := mgr.Create("proj:default:test", 100, "abc")
 		require.NoError(t, err)
 
-		claims, _, err := mgr.Parse(jwtToken)
+		_, _, err = mgr.Parse(jwtToken)
 		require.NoError(t, err)
-
-		mapClaims, err := jwtutil.MapClaims(claims)
-		require.NoError(t, err)
-
-		argoClaims, err := claimsutil.MapClaimsToArgoClaims(mapClaims)
-		require.NoError(t, err)
-
-		assert.Equal(t, "proj:default:test", argoClaims.Subject)
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -227,12 +220,20 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 	})
 }
 
+type claimsMock struct {
+	err error
+}
+
+func (cm *claimsMock) Valid() error {
+	return cm.err
+}
+
 type tokenVerifierMock struct {
-	claims jwt.Claims
+	claims *claimsMock
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -245,7 +246,7 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, _ *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
@@ -257,7 +258,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		name                 string
 		authDisabled         bool
 		cookieHeader         bool
-		verifiedClaims       *jwt.RegisteredClaims
+		verifiedClaims       *claimsMock
 		verifyTokenErr       error
 		expectedStatusCode   int
 		expectedResponseBody *string
@@ -268,7 +269,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
@@ -286,7 +287,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
 			cookieHeader:         false,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
 			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
@@ -295,7 +296,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
 			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
@@ -345,36 +346,29 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var (
-	loggedOutContext = context.Background()
-	//nolint:staticcheck
-	loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
-	//nolint:staticcheck
-	loggedInContextFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "not-foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]any{"user_id": "foo"}})
-)
+var loggedOutContext = context.Background()
+
+// nolint:staticcheck
+var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
-	assert.Equal(t, "qux", Iss(loggedInContextFederated))
 }
 
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
-	assert.True(t, LoggedIn(loggedInContextFederated))
 }
 
 func TestUsername(t *testing.T) {
 	assert.Empty(t, Username(loggedOutContext))
 	assert.Equal(t, "bar", Username(loggedInContext))
-	assert.Equal(t, "bar", Username(loggedInContextFederated))
 }
 
-func TestGetUserIdentifier(t *testing.T) {
-	assert.Empty(t, GetUserIdentifier(loggedOutContext))
-	assert.Equal(t, "foo", GetUserIdentifier(loggedInContext))
-	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextFederated))
+func TestSub(t *testing.T) {
+	assert.Empty(t, Sub(loggedOutContext))
+	assert.Equal(t, "foo", Sub(loggedInContext))
 }
 
 func TestGroups(t *testing.T) {
@@ -695,7 +689,7 @@ rootCA: |
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)
@@ -765,7 +759,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
-		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.Issuer = fmt.Sprintf("%s/api/dex", dexTestServer.URL)
 		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
 		require.NoError(t, err)

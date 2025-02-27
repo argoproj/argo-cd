@@ -7,12 +7,12 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
+	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
 
 func createBoolPtr(x bool) *bool {
@@ -61,20 +61,20 @@ func (m *AzureClientFactoryMock) GetClient(ctx context.Context) (git.Client, err
 func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
-	prID := 123
-	prTitle := "feat(123)"
-	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	pr_id := 123
+	pr_title := "feat(123)"
+	pr_head_sha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
 	ctx := context.Background()
 	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{
 		{
-			PullRequestId: createIntPtr(prID),
-			Title:         createStringPtr(prTitle),
+			PullRequestId: createIntPtr(pr_id),
+			Title:         createStringPtr(pr_title),
 			SourceRefName: createStringPtr("refs/heads/feature-branch"),
 			TargetRefName: createStringPtr("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(prHeadSha),
+				CommitId: createStringPtr(pr_head_sha),
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
@@ -108,9 +108,9 @@ func TestListPullRequest(t *testing.T) {
 	assert.Len(t, list, 1)
 	assert.Equal(t, "feature-branch", list[0].Branch)
 	assert.Equal(t, "main", list[0].TargetBranch)
-	assert.Equal(t, prHeadSha, list[0].HeadSHA)
+	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
 	assert.Equal(t, "feat(123)", list[0].Title)
-	assert.Equal(t, prID, list[0].Number)
+	assert.Equal(t, pr_id, list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 

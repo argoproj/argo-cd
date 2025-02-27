@@ -13,18 +13,19 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 const (
-	kustomization1 = "kustomization_yaml"
-	kustomization3 = "force_common"
-	kustomization4 = "custom_version"
-	kustomization5 = "kustomization_yaml_patches"
-	kustomization6 = "kustomization_yaml_components"
-	kustomization7 = "label_without_selector"
-	kustomization8 = "kustomization_yaml_patches_empty"
+	kustomization1  = "kustomization_yaml"
+	kustomization2a = "kustomization_yml"
+	kustomization2b = "Kustomization"
+	kustomization3  = "force_common"
+	kustomization4  = "custom_version"
+	kustomization5  = "kustomization_yaml_patches"
+	kustomization6  = "kustomization_yaml_components"
+	kustomization7  = "label_without_selector"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -64,7 +65,7 @@ func TestKustomizeBuild(t *testing.T) {
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
 				Name:  "nginx-deployment",
-				Count: intstr.FromInt32(2),
+				Count: intstr.FromInt(2),
 			},
 			{
 				Name:  "web",
@@ -118,7 +119,8 @@ func TestKustomizeBuild(t *testing.T) {
 	}
 
 	for _, image := range images {
-		if image == "nginx" {
+		switch image {
+		case "nginx":
 			assert.Equal(t, "1.15.5", image)
 		}
 	}
@@ -169,7 +171,7 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version()
+	ver, err := Version(false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -444,15 +446,7 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
-		IgnoreMissingComponents: false,
-	}
-	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
-	require.Error(t, err)
-
-	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
-		IgnoreMissingComponents: true,
+		Components: []string{"./components"},
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
@@ -495,14 +489,14 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 
 	ports, found, err := unstructured.NestedSlice(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"ports",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 
 	port, found, err := unstructured.NestedInt64(
-		ports[0].(map[string]any),
+		ports[0].(map[string]interface{}),
 		"containerPort",
 	)
 
@@ -511,35 +505,10 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.Equal(t, int64(443), port)
 
 	name, found, err := unstructured.NestedString(
-		containers[0].(map[string]any),
+		containers[0].(map[string]interface{}),
 		"name",
 	)
 	assert.True(t, found)
 	require.NoError(t, err)
 	assert.Equal(t, "test", name)
-}
-
-func TestFailKustomizeBuildPatches(t *testing.T) {
-	appPath, err := testDataDir(t, kustomization8)
-	require.NoError(t, err)
-	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
-
-	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Patches: []v1alpha1.KustomizePatch{
-			{
-				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 443 },  { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
-				Target: &v1alpha1.KustomizeSelector{
-					KustomizeResId: v1alpha1.KustomizeResId{
-						KustomizeGvk: v1alpha1.KustomizeGvk{
-							Kind: "Deployment",
-						},
-						Name: "nginx-deployment",
-					},
-				},
-			},
-		},
-	}
-
-	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
-	require.EqualError(t, err, "kustomization file not found in the path")
 }
