@@ -27,7 +27,7 @@ type Dependencies interface {
 	GetProcessableApps() (*appv1.ApplicationList, error)
 	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
 	GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error)
-	RequestAppRefresh(appName string)
+	RequestAppRefresh(appName string, appNamespace string) error
 	// TODO: only allow access to the hydrator status
 	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)
@@ -156,7 +156,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 		}
 		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 		// Request a refresh since we pushed a new commit.
-		h.dependencies.RequestAppRefresh(app.QualifiedName())
+		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
+		if err != nil {
+			logCtx.WithField("app", app.QualifiedName()).WithError(err).Error("Failed to request app refresh after hydration")
+		}
 	}
 	return
 }
