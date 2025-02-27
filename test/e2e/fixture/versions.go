@@ -8,9 +8,9 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 )
 
 type Versions struct {
@@ -36,7 +36,7 @@ func GetVersions() *Versions {
 	return version
 }
 
-func GetApiResources() string { //nolint:revive //FIXME(var-naming)
+func GetApiResources() string {
 	kubectl := kubeutil.NewKubectl()
 	resources := errors.FailOnErr(kubectl.GetAPIResources(KubeConfig, false, cache.NewNoopSettings())).([]kube.APIResourceInfo)
 	return strings.Join(argo.APIResourcesToStrings(resources, true), ",")

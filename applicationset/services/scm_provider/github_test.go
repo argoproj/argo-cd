@@ -10,11 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -243,7 +242,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
+			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -273,7 +272,7 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -293,7 +292,7 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",

@@ -12,8 +12,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 
-	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
@@ -38,16 +38,14 @@ func TestNormalize(t *testing.T) {
 		liveReplicas, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "replicas")
 		assert.False(t, ok)
 		require.NoError(t, err)
-		assert.Zero(t, desiredReplicas)
-		assert.Zero(t, liveReplicas)
+		assert.Equal(t, liveReplicas, desiredReplicas)
 		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		require.NoError(t, err)
 		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
 		require.NoError(t, err)
-		assert.Zero(t, desiredRevisionHistory)
-		assert.Zero(t, liveRevisionHistory)
+		assert.Equal(t, liveRevisionHistory, desiredRevisionHistory)
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
 		// given
@@ -158,7 +156,7 @@ func TestNormalize(t *testing.T) {
 func validateNestedFloat64(t *testing.T, expected float64, obj *unstructured.Unstructured, fields ...string) {
 	t.Helper()
 	current := getNestedFloat64(t, obj, fields...)
-	assert.InEpsilon(t, expected, current, 0.0001)
+	assert.Equal(t, expected, current)
 }
 
 func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...string) float64 {
@@ -170,7 +168,7 @@ func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...st
 }
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)

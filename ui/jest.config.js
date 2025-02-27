@@ -4,13 +4,11 @@ module.exports = {
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      isolatedModules: true,
-    }]
-  },
   globals: {
-    'self': {}
+    'self': {},
+    'ts-jest': {
+      isolatedModules: true,
+    },
   },
   moduleNameMapper: {
     // https://github.com/facebook/jest/issues/3094

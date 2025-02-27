@@ -3,7 +3,7 @@ package glob
 import (
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/util/regex"
+	"github.com/argoproj/argo-cd/v2/util/regex"
 )
 
 const (
@@ -20,12 +20,11 @@ const (
 func MatchStringInList(list []string, item string, patternMatch string) bool {
 	for _, ll := range list {
 		// If string is wrapped in "/", assume it is a regular expression.
-		switch {
-		case patternMatch == REGEXP && strings.HasPrefix(ll, "/") && strings.HasSuffix(ll, "/") && regex.Match(ll[1:len(ll)-1], item):
+		if patternMatch == REGEXP && strings.HasPrefix(ll, "/") && strings.HasSuffix(ll, "/") && regex.Match(ll[1:len(ll)-1], item) {
 			return true
-		case (patternMatch == REGEXP || patternMatch == GLOB) && Match(ll, item):
+		} else if (patternMatch == REGEXP || patternMatch == GLOB) && Match(ll, item) {
 			return true
-		case patternMatch == EXACT && item == ll:
+		} else if patternMatch == EXACT && item == ll {
 			return true
 		}
 	}

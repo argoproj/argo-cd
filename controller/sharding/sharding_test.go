@@ -14,16 +14,16 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -226,7 +226,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	// The other implementation was giving almost linear time of 400ms up to 10'000 clusters
 	clusterPointers := []*v1alpha1.Cluster{}
 	for i := 0; i < 2048; i++ {
-		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
+		cluster := createCluster(fmt.Sprintf("cluster-%d", i), fmt.Sprintf("%d", i))
 		clusterPointers = append(clusterPointers, &cluster)
 	}
 	replicasCount := 2
@@ -391,8 +391,12 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	shardForCluster1 := distributionFunction(&cluster1)
 	shardForCluster2 := distributionFunction(&cluster2)
 
-	assert.Equal(t, expectedShardForCluster1, shardForCluster1, "Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
-	assert.Equal(t, expectedShardForCluster2, shardForCluster2, "Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
+	if shardForCluster1 != expectedShardForCluster1 {
+		t.Errorf("Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
+	}
+	if shardForCluster2 != expectedShardForCluster2 {
+		t.Errorf("Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
+	}
 }
 
 func TestInferShard(t *testing.T) {
@@ -493,7 +497,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	expectedMappingCM, err := json.Marshal(expectedMapping)
 	require.NoError(t, err)
 
-	expectedShadingCM := &corev1.ConfigMap{
+	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: "test",
@@ -528,7 +532,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	expectedMappingCM, err := json.Marshal(expectedMapping)
 	require.NoError(t, err)
 
-	expectedShadingCM := &corev1.ConfigMap{
+	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDAppControllerShardConfigMapName,
 			Namespace: "test",
@@ -832,7 +836,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with statefulset",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 			},
 			cleanup:            func() {},
@@ -844,7 +847,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			},
 			cleanup:            func() {},
@@ -856,7 +858,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment and multiple replicas",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 			},
 			cleanup:            func() {},
@@ -868,7 +869,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Statefulset multiple replicas",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "3")
 				osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
 			},
@@ -883,7 +883,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 1 replica",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -896,7 +895,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica - and to high shard",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -909,7 +907,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "1")
 			},
@@ -922,7 +919,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerShard, "3")
 			},
 			cleanup:            func() {},
@@ -934,7 +930,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment and multiple replicas will read from configmap",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -947,14 +942,13 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Dynamic sharding but missing deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "missing-deployment")
 			},
 			cleanup:            func() {},
 			useDynamicSharding: true,
 			expectedShard:      0,
 			expectedReplicas:   1,
-			expectedErr:        errors.New("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
+			expectedErr:        fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
 		},
 	}
 
@@ -971,7 +965,11 @@ func TestGetClusterSharding(t *testing.T) {
 			}
 
 			if tc.expectedErr != nil {
-				assert.EqualError(t, err, tc.expectedErr.Error())
+				if err != nil {
+					assert.Equal(t, tc.expectedErr.Error(), err.Error())
+				} else {
+					t.Errorf("Expected error %v but got nil", tc.expectedErr)
+				}
 			} else {
 				require.NoError(t, err)
 			}
@@ -980,37 +978,35 @@ func TestGetClusterSharding(t *testing.T) {
 }
 
 func TestAppAwareCache(t *testing.T) {
-	_, _, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
+	_, db, cluster1, cluster2, cluster3, cluster4, cluster5 := createTestClusters()
 	_, app1, app2, app3, app4, app5 := createTestApps()
 
-	clusterList := getClusterPointers([]v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5})
-	appList := getAppPointers([]v1alpha1.Application{app1, app2, app3, app4, app5})
+	clusterSharding := NewClusterSharding(db, 0, 1, "legacy")
 
-	getClusters := func() []*v1alpha1.Cluster { return clusterList }
-	getApps := func() []*v1alpha1.Application { return appList }
+	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}}
+	appList := &v1alpha1.ApplicationList{Items: []v1alpha1.Application{app1, app2, app3, app4, app5}}
+	clusterSharding.Init(clusterList, appList)
 
-	appDistribution := getAppDistribution(getClusters, getApps)
+	appDistribution := clusterSharding.GetAppDistribution()
 
-	assert.Equal(t, int64(2), appDistribution["cluster1"])
-	assert.Equal(t, int64(2), appDistribution["cluster2"])
-	assert.Equal(t, int64(1), appDistribution["cluster3"])
+	assert.Equal(t, 2, appDistribution["cluster1"])
+	assert.Equal(t, 2, appDistribution["cluster2"])
+	assert.Equal(t, 1, appDistribution["cluster3"])
 
 	app6 := createApp("app6", "cluster4")
-	appList = append(appList, &app6)
+	clusterSharding.AddApp(&app6)
 
 	app1Update := createApp("app1", "cluster2")
-	// replace app 1
-	appList[0] = &app1Update
+	clusterSharding.UpdateApp(&app1Update)
 
-	// Remove app 3
-	appList = append(appList[:2], appList[3:]...)
+	clusterSharding.DeleteApp(&app3)
 
-	appDistribution = getAppDistribution(getClusters, getApps)
+	appDistribution = clusterSharding.GetAppDistribution()
 
-	assert.Equal(t, int64(1), appDistribution["cluster1"])
-	assert.Equal(t, int64(2), appDistribution["cluster2"])
-	assert.Equal(t, int64(1), appDistribution["cluster3"])
-	assert.Equal(t, int64(1), appDistribution["cluster4"])
+	assert.Equal(t, 1, appDistribution["cluster1"])
+	assert.Equal(t, 2, appDistribution["cluster2"])
+	assert.Equal(t, 1, appDistribution["cluster3"])
+	assert.Equal(t, 1, appDistribution["cluster4"])
 }
 
 func createTestApps() (appAccessor, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application, v1alpha1.Application) {

@@ -8,8 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
 
 func Test_applyIgnoreDifferences(t *testing.T) {
@@ -229,7 +229,7 @@ spec:
 			require.NoError(t, err)
 			yamlExpected, err := yaml.Marshal(tc.expectedApp)
 			require.NoError(t, err)
-			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
+			assert.Equal(t, string(yamlExpected), string(yamlFound))
 		})
 	}
 }
