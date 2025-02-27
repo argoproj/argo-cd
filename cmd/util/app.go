@@ -311,20 +311,20 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 }
 
 type kustomizeOpts struct {
-	namePrefix             string
-	nameSuffix             string
-	images                 []string
-	replicas               []string
-	version                string
-	commonLabels           map[string]string
-	commonAnnotations      map[string]string
-	labelWithoutSelector   bool
-	labelIncludeTemplates  bool
-	forceCommonLabels      bool
-	forceCommonAnnotations bool
-	namespace              string
-	kubeVersion            string
-	apiVersions            []string
+	namePrefix              string
+	nameSuffix              string
+	images                  []string
+	replicas                []string
+	version                 string
+	commonLabels            map[string]string
+	commonAnnotations       map[string]string
+	labelWithoutSelector    bool
+	labelIncludeTemplates   bool
+	forceCommonLabels       bool
+	forceCommonAnnotations  bool
+	namespace               string
+	kubeVersion             string
+	apiVersions             []string
 	ignoreMissingComponents bool
 }
 

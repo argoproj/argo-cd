@@ -4334,12 +4334,12 @@ images:
 					Images: v1alpha1.KustomizeImages{
 						"image=override",
 					},
-					KubeVersion:          "5.6.7",
-					LabelWithoutSelector: true,
+					KubeVersion:           "5.6.7",
+					LabelWithoutSelector:  true,
 					LabelIncludeTemplates: true,
-					NamePrefix:           "test-prefix",
-					NameSuffix:           "test-suffix",
-					Namespace:            "override-namespace",
+					NamePrefix:            "test-prefix",
+					NameSuffix:            "test-suffix",
+					Namespace:             "override-namespace",
 					Replicas: v1alpha1.KustomizeReplicas{
 						{
 							Name:  "guestbook-ui",
