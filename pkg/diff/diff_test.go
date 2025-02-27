@@ -972,6 +972,64 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
 		assert.NotEmpty(t, predictedSVC.Labels["event"])
 	})
+
+	t.Run("will include nested fields like ports and env", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentNestedLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentNestedConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentNestedPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Check ports
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Ports, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Ports, 1)
+		assert.Equal(t, int32(80), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+		assert.Equal(t, int32(443), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+
+		// Check env
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Env, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Env, 1)
+		assert.Equal(t, "ENV_VAR1", predictedDeploy.Spec.Template.Spec.Containers[0].Env[0].Name)
+		assert.Equal(t, "ENV_VAR2", predictedDeploy.Spec.Template.Spec.Containers[0].Env[1].Name)
+	})
+
+	t.Run("will add an extra container using kubectl apply and include mutation webhook", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentApplyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentApplyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentApplyPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Check ports are shown in diff and ensure mutation webhook is not shown
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Ports, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Ports, 1)
+		assert.Equal(t, int32(80), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+		assert.Equal(t, int32(40), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
 }
 
 func createSecret(data map[string]string) *unstructured.Unstructured {

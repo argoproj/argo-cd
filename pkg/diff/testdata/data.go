@@ -50,4 +50,22 @@ var (
 
 	//go:embed ssd-service-predicted-live.json
 	ServicePredictedLiveJSONSSD string
+
+	//go:embed ssd-deploy-nested-config.yaml
+	DeploymentNestedConfigYAMLSSD string
+
+	//go:embed ssd-deploy-nested-live.yaml
+	DeploymentNestedLiveYAMLSSD string
+
+	//go:embed ssd-deploy-nested-predicted-live.json
+	DeploymentNestedPredictedLiveJSONSSD string
+
+	//go:embed ssd-deploy-with-manual-apply-config.yaml
+	DeploymentApplyConfigYAMLSSD string
+
+	//go:embed ssd-deploy-with-manual-apply-live.yaml
+	DeploymentApplyLiveYAMLSSD string
+
+	//go:embed ssd-deploy-with-manual-apply-predicted-live.json
+	DeploymentApplyPredictedLiveJSONSSD string
 )

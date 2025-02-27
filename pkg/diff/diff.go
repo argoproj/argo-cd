@@ -193,13 +193,13 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
-// removeWebhookMutation will compare the predictedLive with live to identify
-// changes done by mutation webhooks. Webhook mutations are identified by finding
-// changes in predictedLive fields not associated with any manager in the
-// managedFields. All fields under this condition will be reverted with their state
-// from live. If the given predictedLive does not have the managedFields, an error
-// will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, _ string) (*unstructured.Unstructured, error) {
+// removeWebhookMutation will compare the predictedLive with live to identify changes done by mutation webhooks.
+// Webhook mutations are removed from predictedLive by removing all fields which are not managed by the given 'manager'.
+// At this step, we will only have the fields that are managed by the given 'manager'.
+// It is then merged with the live state and re-assigned to predictedLive. This means that any
+// fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
+// If the given predictedLive does not have the managedFields, an error will be returned.
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
@@ -220,57 +220,42 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
 	}
 
-	// Compare the predicted live with the live resource
-	comparison, err := typedLive.Compare(typedPredictedLive)
-	if err != nil {
-		return nil, fmt.Errorf("error comparing predicted resource to live resource: %w", err)
-	}
+	// Initialize an empty fieldpath.Set to aggregate managed fields for the specified manager
+	managerFieldsSet := &fieldpath.Set{}
 
-	// Loop over all existing managers in predicted live resource to identify
-	// fields mutated (in predicted live) not owned by any manager.
+	// Iterate over all ManagedFields entries in predictedLive
 	for _, mfEntry := range plManagedFields {
-		mfs := &fieldpath.Set{}
-		err := mfs.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
+		managedFieldsSet := &fieldpath.Set{}
+		err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
 		if err != nil {
 			return nil, fmt.Errorf("error building managedFields set: %w", err)
 		}
-		if comparison.Added != nil && !comparison.Added.Empty() {
-			// exclude the added fields owned by this manager from the comparison
-			comparison.Added = comparison.Added.Difference(mfs)
-		}
-		if comparison.Modified != nil && !comparison.Modified.Empty() {
-			// exclude the modified fields owned by this manager from the comparison
-			comparison.Modified = comparison.Modified.Difference(mfs)
-		}
-		if comparison.Removed != nil && !comparison.Removed.Empty() {
-			// exclude the removed fields owned by this manager from the comparison
-			comparison.Removed = comparison.Removed.Difference(mfs)
-		}
-	}
-	// At this point, comparison holds all mutations that aren't owned by any
-	// of the existing managers.
-
-	if comparison.Added != nil && !comparison.Added.Empty() {
-		// remove added fields that aren't owned by any manager
-		typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Added)
-	}
-
-	if comparison.Modified != nil && !comparison.Modified.Empty() {
-		liveModValues := typedLive.ExtractItems(comparison.Modified, typed.WithAppendKeyFields())
-		// revert modified fields not owned by any manager
-		typedPredictedLive, err = typedPredictedLive.Merge(liveModValues)
-		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook modified fields in predicted live resource: %w", err)
+		if mfEntry.Manager == manager {
+			// Union the fields with the aggregated set
+			managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
 		}
 	}
 
-	if comparison.Removed != nil && !comparison.Removed.Empty() {
-		liveRmValues := typedLive.ExtractItems(comparison.Removed, typed.WithAppendKeyFields())
-		// revert removed fields not owned by any manager
-		typedPredictedLive, err = typedPredictedLive.Merge(liveRmValues)
-		if err != nil {
-			return nil, fmt.Errorf("error reverting webhook removed fields in predicted live resource: %w", err)
-		}
+	if managerFieldsSet.Empty() {
+		return nil, fmt.Errorf("no managed fields found for manager: %s", manager)
+	}
+
+	predictedLiveFieldSet, err := typedPredictedLive.ToFieldSet()
+	if err != nil {
+		return nil, fmt.Errorf("error converting predicted live state to FieldSet: %w", err)
+	}
+
+	// Remove fields from predicted live that are not managed by the provided manager
+	nonArgoFieldsSet := predictedLiveFieldSet.Difference(managerFieldsSet)
+
+	// In case any of the removed fields cause schema violations, we will keep those fields
+	nonArgoFieldsSet = safelyRemoveFieldsSet(typedPredictedLive, nonArgoFieldsSet)
+	typedPredictedLive = typedPredictedLive.RemoveItems(nonArgoFieldsSet)
+
+	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
+	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
+	if err != nil {
+		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
 
 	plu := typedPredictedLive.AsValue().Unstructured()
@@ -279,6 +264,31 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
 	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+// safelyRemoveFieldSet will validate if removing the fieldsToRemove set from predictedLive maintains
+// a valid schema. If removing a field in fieldsToRemove is invalid and breaks the schema, it is not safe
+// to remove and will be skipped from removal from predictedLive.
+func safelyRemoveFieldsSet(predictedLive *typed.TypedValue, fieldsToRemove *fieldpath.Set) *fieldpath.Set {
+	// In some cases, we cannot remove fields due to violation of the predicted live schema. In such cases we validate the removal
+	// of each field and only include it if the removal is valid.
+	testPredictedLive := predictedLive.RemoveItems(fieldsToRemove)
+	err := testPredictedLive.Validate()
+	if err != nil {
+		adjustedFieldsToRemove := fieldpath.NewSet()
+		fieldsToRemove.Iterate(func(p fieldpath.Path) {
+			singleFieldSet := fieldpath.NewSet(p)
+			testSingleRemoval := predictedLive.RemoveItems(singleFieldSet)
+			// Check if removing this single field maintains a valid schema
+			if testSingleRemoval.Validate() == nil {
+				// If valid, add this field to the adjusted set to remove
+				adjustedFieldsToRemove.Insert(p)
+			}
+		})
+		return adjustedFieldsToRemove
+	}
+	// If no violations, return the original set to remove
+	return fieldsToRemove
 }
 
 func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error) {
