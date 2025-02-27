@@ -136,7 +136,7 @@ spec:
   ...
   roles:
   - name: custom-project-role
-    description: The "custom-project-role" will be applied to the `some-users` group.
+    description: The "custom-project-role" will be applied to the `some-user` group.
     groups:
     - some-user
     policies:
