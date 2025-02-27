@@ -1409,6 +1409,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			// retrying operation. remove previous failure time in app since it is used as a trigger
 			// that previous failed and operation should be retried
 			state.FinishedAt = nil
+			// reset the operation state to running
+			state.StartedAt = metav1.Now()
 			ctrl.setOperationState(app, state)
 			// Get rid of sync results and null out previous operation completion time
 			state.SyncResult = nil
