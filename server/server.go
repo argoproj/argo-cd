@@ -1440,9 +1440,6 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		} else {
 			if isMainJsBundle(r.URL) {
 				cacheControl := "public, max-age=31536000, immutable"
-				if !fileRequest {
-					cacheControl = "no-cache"
-				}
 				w.Header().Set("Cache-Control", cacheControl)
 			}
 			http.FileServer(server.staticAssets).ServeHTTP(w, r)
