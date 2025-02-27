@@ -1,8 +1,6 @@
 module github.com/argoproj/argo-cd/v3
 
-go 1.23.5
-
-toolchain go1.23.6
+go 1.23.6
 
 require (
 	code.gitea.io/sdk/gitea v0.20.0
