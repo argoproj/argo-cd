@@ -465,6 +465,13 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
+type HydrateType string
+
+const (
+	// HydrateTypeNormal is a normal hydration
+	HydrateTypeNormal HydrateType = "normal"
+)
+
 type RefTarget struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
@@ -3112,13 +3119,6 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	}
 	return refreshType, true
 }
-
-type HydrateType string
-
-const (
-	// HydrateTypeNormal is a normal hydration
-	HydrateTypeNormal HydrateType = "normal"
-)
 
 // IsHydrateRequested returns whether hydration has been requested for an application
 func (app *Application) IsHydrateRequested() bool {
