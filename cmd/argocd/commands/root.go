@@ -3,8 +3,6 @@ package commands
 import (
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/util/cache"
-
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -13,6 +11,7 @@ import (
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/config"
 	"github.com/argoproj/argo-cd/v2/util/env"

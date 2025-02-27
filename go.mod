@@ -10,7 +10,6 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/antonmedv/expr v1.15.1
-	github.com/argoproj/argo-cd/v3 v3.0.0-20250218162052-944f9f7b68b9
 	github.com/argoproj/gitops-engine v0.7.1-0.20250207220447-65db274b8d73
 	github.com/argoproj/notifications-engine v0.4.1-0.20241007194503-2fef5c9049fd
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
@@ -146,6 +145,7 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
