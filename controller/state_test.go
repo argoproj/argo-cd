@@ -958,7 +958,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	// negative limit to 0
 	setRevisionHistoryLimit(-1)
 	addHistory()
-	assert.Len(t, app.Status.History, 0)
+	assert.Empty(t, app.Status.History)
 }
 
 // helper function to read contents of a file to string
