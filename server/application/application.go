@@ -748,7 +748,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	})
 	defer unsubscribe()
 
-	app, err := argoutil.RefreshApp(appIf, appName, refreshType)
+	app, err := argoutil.RefreshApp(appIf, appName, refreshType, true)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
