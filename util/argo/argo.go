@@ -236,7 +236,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		},
 	}
 	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]any)[argoappv1.AnnotationKeyHydrate] = "normal"
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = "normal"
 	}
 
 	var err error
