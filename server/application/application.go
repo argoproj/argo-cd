@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -50,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
@@ -749,7 +748,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 	})
 	defer unsubscribe()
 
-	app, err := argoutil.RefreshApp(appIf, appName, refreshType)
+	app, err := argoutil.RefreshApp(appIf, appName, refreshType, true)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
