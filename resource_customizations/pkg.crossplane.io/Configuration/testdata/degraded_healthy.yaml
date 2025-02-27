@@ -1,0 +1,38 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  creationTimestamp: '2025-01-15T08:38:33Z'
+  generation: 2
+  name: my-config
+  resourceVersion: '71830'
+  uid: 38f22072-b5b0-41c8-b18d-907a397bd439
+  selfLink: /apis/pkg.crossplane.io/v1/configurations/my-config
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-15T09:44:57Z'
+      reason: HealthyPackageRevision
+      status: 'True'
+      type: Healthy
+    - lastTransitionTime: '2025-01-16T13:40:34Z'
+      message: >-
+        cannot unpack package: failed to fetch package digest from remote:
+        failed to fetch package descriptor with a GET request after a previous
+        HEAD request failure: HEAD
+        https://xpkg.upbound.io/v2/crossplane/my-config/manifests/latest1:
+        unexpected status code 404 Not Found (HEAD responses have no body, use
+        GET for details): GET
+        https://xpkg.upbound.io/v2/crossplane/my-config/manifests/latest1:
+        MANIFEST_UNKNOWN: manifest tagged by "latest1" is not found;
+        map[Tag:latest1]
+      reason: UnpackingPackage
+      status: 'False'
+      type: Installed
+  currentIdentifier: crossplane/my-config:latest
+  currentRevision: my-config-74384878d6b9
+spec:
+  ignoreCrossplaneConstraints: false
+  package: crossplane/my-config:latest1
+  packagePullPolicy: Always
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  skipDependencyResolution: true
