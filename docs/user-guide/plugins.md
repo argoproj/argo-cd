@@ -16,9 +16,10 @@ the [cli installation documentation](https://argo-cd.readthedocs.io/en/stable/cl
 
 ## Create `argocd` plugins
 
-A plugin is a standalone executable file, whose name begins with `argocd-`.
-To install a plugin, move its executable file to anywhere on your `PATH` except
-a relative path. `argocd` allows plugins to add custom commands such as
+A plugin is a standalone executable file whose name begins with argocd-.
+To install a plugin, move its executable file to any directory included in your PATH.
+Ensure that the PATH configuration specifies the full absolute path to the executable,
+not a relative path. `argocd` allows plugins to add custom commands such as
 `argocd my-plugin arg1 arg2 --flag1` by executing a `argocd-my-plugin` binary in the PATH.
 
 ## Limitations
