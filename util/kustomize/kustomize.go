@@ -278,7 +278,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// If the kustomization file is not found, return early.
 			// There is no point reading the kustomization path if it doesn't exist.
 			if kustFile == "" {
-				return nil, nil, nil, errors.New("kustomization file not found in the path")
+				return nil, nil, nil, fmt.Errorf("kustomization file not found in the path")
 			}
 			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
