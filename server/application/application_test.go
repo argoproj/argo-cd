@@ -315,6 +315,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
@@ -477,6 +478,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
