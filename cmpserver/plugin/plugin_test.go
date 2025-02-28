@@ -525,9 +525,9 @@ func TestEnviron(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Name: "name1", Value: "value1"},
 			{Name: "name2", Value: "value2"},
-			{Name: "name3", Value: "value3"},
+			{Name: "name3", Value: ""},
 		})
-		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
+		assert.Equal(t, []string{"name1=value1", "name2=value2", "name3="}, env)
 	})
 }
 
