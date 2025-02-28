@@ -26,6 +26,7 @@ import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
+import {MatchCaseToggleButton} from './match-case-toggle-button';
 import Ansi from 'ansi-to-react';
 import {EMPTY} from 'rxjs';
 
@@ -89,6 +90,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
     const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 1000);
+    const [matchCase, setMatchCase] = useState(queryParams.get('matchCase') === 'true');
     const [sinceSeconds, setSinceSeconds] = useState(0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
@@ -112,6 +114,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const setPreviousLogsWithQueryParams = setWithQueryParams('showPreviousLogs', setPreviousLogs);
     const setTailWithQueryParams = setWithQueryParams('tail', setTail);
     const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
+    const setMatchCaseWithQueryParams = setWithQueryParams('matchCase', setMatchCase);
 
     const onToggleViewPodNames = (val: boolean) => {
         setViewPodNamesWithQueryParams(val);
@@ -124,8 +127,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
         // eslint-disable-next-line no-useless-escape
-        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
-    }, [filter]);
+        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i')));
+    }, [filter, matchCase]);
 
     if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {containerName}</div>;
@@ -156,7 +159,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 follow,
                 sinceSeconds,
                 filter,
-                previous
+                previous,
+                matchCase
             })
             .pipe(
                 bufferTime(100),
@@ -174,7 +178,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .subscribe(log => setLogs(previousLogs => previousLogs.concat(log)));
 
         return () => logsSource.unsubscribe();
-    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
+    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous, matchCase]);
 
     const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
         if (event.deltaY < 0) setScrollToBottom(false);
@@ -268,6 +272,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
+                                <MatchCaseToggleButton matchCase={matchCase} setMatchCase={setMatchCaseWithQueryParams} />
                                 <WrapLinesButton prefs={prefs} />
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
