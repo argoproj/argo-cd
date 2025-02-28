@@ -1,0 +1,21 @@
+apiVersion: ipa.keikoproj.io/v1alpha1
+kind: IntelligentPodAutoscaler
+metadata:
+  name: ipa
+  namespace: ipa-ns
+spec:
+  horizontal:
+    mode: auto
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: app
+  vertical:
+    mode: auto
+status:
+  conditions:
+    - lastTransitionTime: '2025-02-25T22:07:33Z'
+      message: Recommendation provided
+      reason: RecommendationProvided
+      status: 'True'
+      type: Ready

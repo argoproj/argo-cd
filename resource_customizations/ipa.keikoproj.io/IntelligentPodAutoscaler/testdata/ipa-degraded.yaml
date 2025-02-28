@@ -1,0 +1,21 @@
+apiVersion: ipa.keikoproj.io/v1alpha1
+kind: IntelligentPodAutoscaler
+metadata:
+  name: ipa
+  namespace: ipa-ns
+spec:
+  horizontal:
+    mode: auto
+  scaleTargetRef:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Rollout
+    name: app
+  vertical:
+    mode: auto
+status:
+  conditions:
+    - lastTransitionTime: '2025-02-26T22:40:40Z'
+      message: Unable to fetch recommendation
+      reason: RecommendationFailed
+      status: 'False'
+      type: Ready
