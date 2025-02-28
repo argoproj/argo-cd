@@ -60,7 +60,8 @@ argocd app add-source APPNAME [flags]
       --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
       --kustomize-kube-version string              kube-version to use when running helm template. If not set, use the kube version from the destination cluster. Only applicable when Helm is enabled for Kustomize builds
-      --kustomize-label-without-selector           Do not apply common label to selectors or templates
+      --kustomize-label-include-templates          Apply common label to resource templates
+      --kustomize-label-without-selector           Do not apply common label to selectors. Also do not apply label to templates unless --kustomize-label-include-templates is set
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
       --kustomize-version string                   Kustomize version
