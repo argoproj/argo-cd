@@ -9,7 +9,7 @@ Projects provide a logical grouping of applications, which is useful when Argo C
 
 ### The Default Project
 
-Every application belongs to a single project. If unspecified, an application belongs to the `default` project, which is created automatically and by default, permits deployments from any source repo, to any cluster, and all resource Kinds. The default project can be modified, but not deleted. When initially created, it's specification is configured to be the most permissive:
+Every application belongs to a single project. If unspecified, an application belongs to the `default` project, which is created automatically and by default, permits deployments from any source repo, to any cluster, and all resource Kinds. When initially created, it's specification is configured to be the most permissive:
 
 ```yaml
 spec:
@@ -22,6 +22,26 @@ spec:
   - group: '*'
     kind: '*'
 ```
+
+The `default` project can be modified, but not deleted. The project is useful for initial testing, but it is recommended to create dedicated projects with explicit source, destination, and resource permissions.
+
+To remove all permissions from the `default` project, apply the following manifest to the namespace where Argo CD is installed:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+spec:
+  sourceRepos: []
+  sourceNamespaces: []
+  destinations: []
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: '*'
+```
+
+After you modify the `default` project, any application that attempts to use it will be denied until you explicitly move the application to a more permissive project.
 
 ### Creating Projects
 
