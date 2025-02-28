@@ -399,3 +399,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ZipRecuiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
 1. [hetao101](https://www.hetao101.com/)
+1. [X3M ads](https://x3mads.com)
