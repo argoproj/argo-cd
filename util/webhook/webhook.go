@@ -206,13 +206,22 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		if len(a.settings.WebhookBitbucketUUID) > 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			repoCreds, err := a.db.GetRepositoryCredentials(ctx, webURLs[0])
+			repositories, err := a.db.ListRepositories(ctx)
 			if err != nil {
-				log.Warnf("failed to retrieve repository secret access token for URL %s : %v", webURLs[0], err)
+				log.Warnf("error listing repositories for finding matching URL %s: %v", payload.Repository.Links.HTML.Href, err)
+			}
+			var repository *v1alpha1.Repository
+			for _, repo := range repositories {
+				if repo.Repo == payload.Repository.Links.HTML.Href {
+					log.Debugf("found a matching repository for URL %s", payload.Repository.Links.HTML.Href)
+					repository = repo
+					break
+				}
 			}
 			workspace := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			apiURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
 			spec := change.shaAfter + ".." + change.shaBefore
-			diffStatChangedFiles, err := fetchDiffstatFromBitbucket(ctx, webURLs[0], workspace, payload.Repository.Name, spec, repoCreds)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, apiURL, workspace, payload.Repository.Name, spec, repository)
 			if err != nil {
 				log.Warnf("error fetching diffstat: %v", err)
 			}
@@ -454,14 +463,22 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 	return true
 }
 
-func fetchDiffstatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, spec string, repoCreds *v1alpha1.RepoCreds) ([]string, error) {
+func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, spec string, repository *v1alpha1.Repository) ([]string, error) {
 	// Getting the files changed from diff API:
 	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
 	var bbClient *bb.Client
-	if repoCreds == nil {
+	if repository == nil {
+		log.Debug("no bitbucket repository found, initializing no auth client")
 		bbClient = bb.NewOAuthbearerToken("")
+	} else if len(repository.BearerToken) > 0 {
+		log.Debug("repository has bearer token, initializing oauth bearer token client")
+		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
+	} else if repository.Username != "" && repository.Password != "" {
+		log.Debug("repository has user/password, initializing basic auth client")
+		bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
 	} else {
-		bbClient = bb.NewBasicAuth(repoCreds.Username, repoCreds.Password)
+		log.Debug("repository has no creds, initializing no auth client")
+		bbClient = bb.NewOAuthbearerToken("")
 	}
 	// parse and set the target URL of the Bitbucket server in the client
 	repoBaseURL, err := url.Parse(webURL)
@@ -469,20 +486,19 @@ func fetchDiffstatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
 	}
 	bbClient.SetApiBaseURL(*repoBaseURL)
-
 	// invoke the diffstat api call to get the list of changed files between two commit shas
+	log.Debugf("invoking diffstat call with parameters: [URL:%s, Owner:%s, RepoSlug:%s, Spec:%s]", *repoBaseURL, workspace, repoSlug, spec)
 	diffStatResp, err := bbClient.Repositories.Diff.GetDiffStat(&bb.DiffStatOptions{
-		Owner:             workspace,
-		RepoSlug:          repoSlug,
-		Spec:              spec,
-		FromPullRequestID: 0,
-		Whitespace:        false,
-		Renames:           true,
-		Topic:             false,
-		PageNum:           0,
-		Pagelen:           0,
-		MaxDepth:          0,
-		Fields:            nil,
+		Owner:      workspace,
+		RepoSlug:   repoSlug,
+		Spec:       spec,
+		Whitespace: false,
+		Renames:    true,
+		Topic:      false,
+		PageNum:    0,
+		Pagelen:    0,
+		MaxDepth:   0,
+		Fields:     nil,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting the diffstat: %w", err)
@@ -491,6 +507,7 @@ func fetchDiffstatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 	for i, value := range diffStatResp.DiffStats {
 		changedFiles[i] = value.New["path"].(string)
 	}
+	log.Debugf("changed files for spec %s: %v", spec, changedFiles)
 	return changedFiles, nil
 }
 
