@@ -26,22 +26,18 @@ import (
 	"syscall"
 	"time"
 
-	//nolint:staticcheck
-	golang_proto "github.com/golang/protobuf/proto"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v5"
+	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/gorilla/handlers"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
@@ -55,8 +51,11 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -109,7 +108,6 @@ import (
 	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
-
 	"github.com/argoproj/argo-cd/v3/util/env"
 	errorsutil "github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -889,9 +887,13 @@ func (server *ArgoCDServer) useTLS() bool {
 }
 
 func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTreeFn) {
+	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
-		grpc_prometheus.EnableHandlingTimeHistogram()
+		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
 	}
+	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(serverMetrics)
 
 	sOpts := []grpc.ServerOption{
 		// Set the both send and receive the bytes limit to be 100MB
@@ -933,7 +935,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	sOpts = append(sOpts, grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(server.log),
-		grpc_prometheus.StreamServerInterceptor,
+		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
@@ -947,7 +949,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 		bug21955WorkaroundInterceptor,
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(server.log),
-		grpc_prometheus.UnaryServerInterceptor,
+		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, fullMethodName string, _ any) bool {
@@ -974,7 +976,7 @@ func (server *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResour
 	gpgkeypkg.RegisterGPGKeyServiceServer(grpcS, server.serviceSet.GpgkeyService)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcS)
-	grpc_prometheus.Register(grpcS)
+	serverMetrics.InitializeMetrics(grpcS)
 	errorsutil.CheckError(server.serviceSet.ProjectService.NormalizeProjs())
 	return grpcS, server.serviceSet.AppResourceTreeFn
 }
