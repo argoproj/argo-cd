@@ -45,25 +45,25 @@ import (
 )
 
 type Server struct {
-	ns                       string
-	db                       db.ArgoDB
-	enf                      *rbac.Enforcer
-	k8sClient                kubernetes.Interface
-	dynamicClient            dynamic.Interface
-	client                   client.Client
-	repoClientSet            repoapiclient.Clientset
-	appclientset             appclientset.Interface
-	appsetInformer           cache.SharedIndexInformer
-	appsetLister             applisters.ApplicationSetLister
-	projLister               applisters.AppProjectNamespaceLister
-	auditLogger              *argo.AuditLogger
-	settings                 *settings.SettingsManager
-	projectLock              sync.KeyLock
-	enabledNamespaces        []string
-	GitSubmoduleEnabled      bool
-	EnableScmProviders       bool
-	ScmRootCAPath            string
-	AllowedScmProviders      []string
+	ns                  string
+	db                  db.ArgoDB
+	enf                 *rbac.Enforcer
+	k8sClient           kubernetes.Interface
+	dynamicClient       dynamic.Interface
+	client              client.Client
+	repoClientSet       repoapiclient.Clientset
+	appclientset        appclientset.Interface
+	appsetInformer      cache.SharedIndexInformer
+	appsetLister        applisters.ApplicationSetLister
+	projLister          applisters.AppProjectNamespaceLister
+	auditLogger         *argo.AuditLogger
+	settings            *settings.SettingsManager
+	projectLock         sync.KeyLock
+	enabledNamespaces   []string
+	GitSubmoduleEnabled bool
+	EnableScmProviders  bool
+	ScmRootCAPath       string
+	AllowedScmProviders []string
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -89,25 +89,25 @@ func NewServer(
 	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
-		ns:                       namespace,
-		db:                       db,
-		enf:                      enf,
-		dynamicClient:            dynamicClientset,
-		client:                   kubeControllerClientset,
-		k8sClient:                kubeclientset,
-		repoClientSet:            repoClientSet,
-		appclientset:             appclientset,
-		appsetInformer:           appsetInformer,
-		appsetLister:             appsetLister,
-		projLister:               projLister,
-		settings:                 settings,
-		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
-		enabledNamespaces:        enabledNamespaces,
-		GitSubmoduleEnabled:      gitSubmoduleEnabled,
-		EnableScmProviders:       enableScmProviders,
-		ScmRootCAPath:            scmRootCAPath,
-		AllowedScmProviders:      allowedScmProviders,
+		ns:                  namespace,
+		db:                  db,
+		enf:                 enf,
+		dynamicClient:       dynamicClientset,
+		client:              kubeControllerClientset,
+		k8sClient:           kubeclientset,
+		repoClientSet:       repoClientSet,
+		appclientset:        appclientset,
+		appsetInformer:      appsetInformer,
+		appsetLister:        appsetLister,
+		projLister:          projLister,
+		settings:            settings,
+		projectLock:         projectLock,
+		auditLogger:         argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		enabledNamespaces:   enabledNamespaces,
+		GitSubmoduleEnabled: gitSubmoduleEnabled,
+		EnableScmProviders:  enableScmProviders,
+		ScmRootCAPath:       scmRootCAPath,
+		AllowedScmProviders: allowedScmProviders,
 	}
 	return s
 }

@@ -27,8 +27,8 @@ type Repos interface {
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset) Repos {
 	return &argoCDService{
-		getRepository:          db.GetRepository,
-		submoduleEnabled:       submoduleEnabled,
+		getRepository:    db.GetRepository,
+		submoduleEnabled: submoduleEnabled,
 		getGitFilesFromRepoServer: func(ctx context.Context, fileRequest *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 			closer, client, err := repoClientset.NewRepoServerClient()
 			if err != nil {

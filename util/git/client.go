@@ -427,18 +427,18 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Check if the path is absolute and outside the repository
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// If the path is absolute and outside the repository, return empty result
 	if filepath.IsAbs(path) && !strings.HasPrefix(absPath, m.root) {
 		return nil, nil
 	}
-	
+
 	allFiles, err := doublestar.FilepathGlob(path)
 	if err != nil {
 		return nil, err
@@ -450,7 +450,7 @@ func (m *nativeGitClient) LsFiles(path string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if fileInfo.Mode()&os.ModeSymlink != 0 {
 			link, err := filepath.EvalSymlinks(file)
 			if err != nil {

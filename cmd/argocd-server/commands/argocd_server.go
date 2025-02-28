@@ -90,9 +90,9 @@ func NewCommand() *cobra.Command {
 		hydratorEnabled          bool
 
 		// ApplicationSet
-		enableScmProviders       bool
-		allowedScmProviders      []string
-		scmRootCAPath            string
+		enableScmProviders  bool
+		allowedScmProviders []string
+		scmRootCAPath       string
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
@@ -247,10 +247,10 @@ func NewCommand() *cobra.Command {
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
-				GitSubmoduleEnabled:      gitSubmoduleEnabled,
-				EnableScmProviders:       enableScmProviders,
-				ScmRootCAPath:            scmRootCAPath,
-				AllowedScmProviders:      allowedScmProviders,
+				GitSubmoduleEnabled: gitSubmoduleEnabled,
+				EnableScmProviders:  enableScmProviders,
+				ScmRootCAPath:       scmRootCAPath,
+				AllowedScmProviders: allowedScmProviders,
 			}
 
 			stats.RegisterStackDumper()
