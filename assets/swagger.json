@@ -7312,6 +7312,10 @@
           "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
           "type": "string"
         },
+        "labelIncludeTemplates": {
+          "type": "boolean",
+          "title": "LabelIncludeTemplates specifies whether to apply common labels to resource templates or not"
+        },
         "labelWithoutSelector": {
           "type": "boolean",
           "title": "LabelWithoutSelector specifies whether to apply common labels to resource selectors or not"
