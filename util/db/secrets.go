@@ -42,7 +42,7 @@ func (db *db) listSecretsByType(types ...string) ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 

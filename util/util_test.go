@@ -42,7 +42,7 @@ func TestParseRevision(t *testing.T) {
 	}
 }
 
-func TestSecretCopy(t *testing.T) {
+func TestSliceCopy(t *testing.T) {
 	type args struct {
 		secrets []*corev1.Secret
 	}
@@ -72,8 +72,8 @@ func TestSecretCopy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			secretsCopy := util.SecretCopy(tt.args.secrets)
-			assert.Equalf(t, tt.want, secretsCopy, "SecretCopy(%v)", tt.args.secrets)
+			secretsCopy := util.SliceCopy(tt.args.secrets)
+			assert.Equalf(t, tt.want, secretsCopy, "SliceCopy(%v)", tt.args.secrets)
 			for i := range tt.args.secrets {
 				assert.NotSame(t, secretsCopy[i], tt.args.secrets[i])
 			}
