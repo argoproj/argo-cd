@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "Analysis is progressing"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Analysis is degraded"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Analysis is healthy"
+    inputPath: testdata/healthy_pass.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Analysis is healthy with warnings"
+    inputPath: testdata/healthy_warning.yaml

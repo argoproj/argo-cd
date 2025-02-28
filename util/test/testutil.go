@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-jose/go-jose/v3"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,6 +109,7 @@ B3XwyYtAFsaO5r7oEc1Bv6oNSbE+FNJzRdjkWEIhdLVKlepil/w=
 -----END RSA PRIVATE KEY-----`)
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -137,7 +139,8 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +149,8 @@ func GetDexTestServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
-func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *http.Request)) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -191,7 +195,17 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			}
 			out, err := json.Marshal(jwks)
 			require.NoError(t, err)
-			_, err = io.WriteString(w, string(out))
+			_, err = w.Write(out)
+			require.NoError(t, err)
+		case "/token":
+			if tokenRequestPreHandler != nil {
+				tokenRequestPreHandler(r)
+			}
+			response, err := mockTokenEndpointResponse(url)
+			require.NoError(t, err)
+			out, err := json.Marshal(response)
+			require.NoError(t, err)
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -200,11 +214,58 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 }
 
 func GetOIDCTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL)(w, r)
+		oidcMockHandler(t, ts.URL, nil)(w, r)
 	})
 	return ts
+}
+
+func GetAzureOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		// Start with a placeholder. We need the server URL before setting up the real handler.
+	}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
+	})
+	return ts
+}
+
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func mockTokenEndpointResponse(issuer string) (TokenResponse, error) {
+	token, err := generateJWTToken(issuer)
+	return TokenResponse{
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		IDToken:      token,
+		RefreshToken: token,
+	}, err
+}
+
+// Helper function to generate a JWT token
+func generateJWTToken(issuer string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":  "1234567890",
+		"name": "John Doe",
+		"iat":  time.Now().Unix(),
+		"iss":  issuer,
+		"exp":  time.Now().Add(time.Hour).Unix(), // Set the expiration time
+	})
+	tokenString, err := token.SignedString([]byte("secret"))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
 }

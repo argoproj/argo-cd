@@ -127,7 +127,9 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
                                                 if (!cluster.info.connectionState.attemptedAt) {
                                                     return <span>Never (next refresh in few seconds)</span>;
                                                 }
-                                                const secondsBeforeRefresh = Math.round(Math.max(10 - now.diff(moment(cluster.info.connectionState.attemptedAt)) / 1000, 1));
+                                                const secondsBeforeRefresh = Math.round(
+                                                    Math.max(10 - moment(now).diff(moment(cluster.info.connectionState.attemptedAt)) / 1000, 1)
+                                                );
                                                 return (
                                                     <React.Fragment>
                                                         <Timestamp date={cluster.info.connectionState.attemptedAt} /> (next refresh in {secondsBeforeRefresh} seconds)

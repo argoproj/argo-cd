@@ -21,22 +21,22 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
-	"github.com/argoproj/argo-cd/v2/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
-	"github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 
-	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type fakeSettingsSrc struct{}
@@ -49,6 +49,10 @@ func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
 	return "", nil
 }
 
+func (f fakeSettingsSrc) GetInstallationID() (string, error) {
+	return "", nil
+}
+
 type reactorDef struct {
 	verb     string
 	resource string
@@ -56,6 +60,11 @@ type reactorDef struct {
 }
 
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
+}
+
+func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset(objects...)
 	if reactor != nil {
 		defaultReactor := appClientset.ReactionChain[0]
@@ -72,7 +81,7 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{}, maxPayloadSize)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -236,7 +245,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 			},
 		},
 	)
-	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -316,10 +325,10 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
-	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
+	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -370,7 +379,7 @@ func TestGitLabPushEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
@@ -388,7 +397,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
@@ -419,7 +428,7 @@ func TestInvalidEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: error parsing payload"
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()
@@ -509,7 +518,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 			Changes: []bitbucketserver.RepositoryChange{
 				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/" + branchName}},
 			},
-			Repository: bitbucketserver.Repository{Links: map[string]interface{}{"clone": []interface{}{}}},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{}}},
 		}
 	}
 
@@ -522,7 +531,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	tests := []struct {
 		hasChanged     bool
 		targetRevision string
-		hookPayload    interface{}
+		hookPayload    any
 		name           string
 	}{
 		// Edge cases for bitbucket.
@@ -588,14 +597,13 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload)
-			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
-			}
+			got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false)
+			assert.Equal(t, got, testCopy.hasChanged, "sourceRevisionHasChanged()")
 		})
 	}
 }
 
-func Test_getWebUrlRegex(t *testing.T) {
+func Test_GetWebURLRegex(t *testing.T) {
 	tests := []struct {
 		shouldMatch bool
 		webURL      string
@@ -611,24 +619,90 @@ func Test_getWebUrlRegex(t *testing.T) {
 		{false, "https://example.com/org/repo", "https://example.com/org/repo-2", "partial match should not match"},
 		{true, "https://example.com/org/repo", "https://example.com/org/repo.git", "no .git should match with .git"},
 		{true, "https://example.com/org/repo", "git@example.com:org/repo", "git without protocol should match"},
-		{true, "https://example.com/org/repo", "user@example.com:org/repo", "git with non-git username shout match"},
+		{true, "https://example.com/org/repo", "user@example.com:org/repo", "git with non-git username should match"},
 		{true, "https://example.com/org/repo", "ssh://git@example.com/org/repo", "git with protocol should match"},
 		{true, "https://example.com/org/repo", "ssh://git@example.com:22/org/repo", "git with port number should match"},
 		{true, "https://example.com:443/org/repo", "ssh://git@example.com:22/org/repo", "https and ssh w/ different port numbers should match"},
+		{true, "https://example.com:443/org/repo", "ssh://git@ssh.example.com:443/org/repo", "https and ssh w/ ssh subdomain should match"},
+		{true, "https://example.com:443/org/repo", "ssh://git@altssh.example.com:443/org/repo", "https and ssh w/ altssh subdomain should match"},
+		{false, "https://example.com:443/org/repo", "ssh://git@unknown.example.com:443/org/repo", "https and ssh w/ unknown subdomain should not match"},
 		{true, "https://example.com/org/repo", "ssh://user-name@example.com/org/repo", "valid usernames with hyphens in repo should match"},
 		{false, "https://example.com/org/repo", "ssh://-user-name@example.com/org/repo", "invalid usernames with hyphens in repo should not match"},
 		{true, "https://example.com:443/org/repo", "GIT@EXAMPLE.COM:22:ORG/REPO", "matches aren't case-sensitive"},
 		{true, "https://example.com/org/repo%20", "https://example.com/org/repo%20", "escape codes in path are preserved"},
+		{true, "https://user@example.com/org/repo", "http://example.com/org/repo", "https+username should match http"},
+		{true, "https://user@example.com/org/repo", "https://example.com/org/repo", "https+username should match https"},
+		{true, "http://example.com/org/repo", "https://user@example.com/org/repo", "http should match https+username"},
+		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
+		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
 	}
+
 	for _, testCase := range tests {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			regexp, err := getWebUrlRegex(testCopy.webURL)
+			regexp, err := GetWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
-			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
-			}
+			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
 		})
 	}
+
+	t.Run("bad URL should error", func(t *testing.T) {
+		_, err := GetWebURLRegex("%%")
+		require.Error(t, err)
+	})
+}
+
+func Test_GetAPIURLRegex(t *testing.T) {
+	tests := []struct {
+		shouldMatch bool
+		apiURL      string
+		repo        string
+		name        string
+	}{
+		// Ensure input is regex-escaped.
+		{false, "https://an.example.com/", "https://an-example.com/", "dots in domain names should not be treated as wildcards"},
+
+		// Standard cases.
+		{true, "https://example.com/", "https://example.com/", "exact match should match"},
+		{false, "https://example.com/", "ssh://example.com/", "should not match ssh"},
+		{true, "https://user@example.com/", "http://example.com/", "https+username should match http"},
+		{true, "https://user@example.com/", "https://example.com/", "https+username should match https"},
+		{true, "http://example.com/", "https://user@example.com/", "http should match https+username"},
+		{true, "https://example.com/", "https://user@example.com/", "https should match https+username"},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			regexp, err := GetAPIURLRegex(testCopy.apiURL)
+			require.NoError(t, err)
+			assert.Equal(t, regexp.MatchString(testCopy.repo), testCopy.shouldMatch, "sourceRevisionHasChanged()")
+		})
+	}
+
+	t.Run("bad URL should error", func(t *testing.T) {
+		_, err := GetAPIURLRegex("%%")
+		require.Error(t, err)
+	})
+}
+
+func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
+	hook := test.NewGlobal()
+	maxPayloadSize := int64(100)
+	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
 }

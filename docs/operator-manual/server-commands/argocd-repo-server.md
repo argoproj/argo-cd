@@ -24,7 +24,7 @@ argocd-repo-server [flags]
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
       --include-hidden-directories                     Include hidden directories from Git
-      --logformat string                               Set the logging format. One of: text|json (default "text")
+      --logformat string                               Set the logging format. One of: json|text (default "json")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
@@ -35,6 +35,7 @@ argocd-repo-server [flags]
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
+      --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.
       --port int                                       Listen on given port for incoming connections (default 8081)
       --redis string                                   Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.

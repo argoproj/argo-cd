@@ -1,15 +1,17 @@
 package cache
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"io"
 	"strconv"
 	"testing"
 	"time"
 
-	promcm "github.com/prometheus/client_model/go"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/prometheus/client_golang/prometheus"
+	promcm "github.com/prometheus/client_model/go"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -88,8 +90,7 @@ func TestRedisSetCache(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "cache: key is missing")
+		assert.ErrorContains(t, err, "cache: key is missing")
 	})
 }
 
@@ -109,7 +110,14 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
 	require.NoError(t, err)
+
 	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
+
+	// trying to unzip compressed data
+	gzipReader, err := gzip.NewReader(bytes.NewBuffer(compressedData))
+	require.NoError(t, err)
+	_, err = io.ReadAll(gzipReader)
+	require.NoError(t, err)
 
 	var result string
 	require.NoError(t, client.Get("my-key", &result))
@@ -128,8 +136,8 @@ func TestRedisMetrics(t *testing.T) {
 	ms := NewMockMetricsServer()
 	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	faultyRedisClient := redis.NewClient(&redis.Options{Addr: "invalidredishost.invalid:12345"})
-	CollectMetrics(redisClient, ms)
-	CollectMetrics(faultyRedisClient, ms)
+	CollectMetrics(redisClient, ms, nil)
+	CollectMetrics(faultyRedisClient, ms, nil)
 
 	client := NewRedisCache(redisClient, 60*time.Second, RedisCompressionNone)
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)

@@ -37,33 +37,33 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	sort.Strings(files)
 	data, err := os.ReadFile("mkdocs.yml")
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading mkdocs.yml: %w", err)
 	}
 	var un unstructured.Unstructured
 	if e := yaml.Unmarshal(data, &un.Object); e != nil {
 		return e
 	}
-	nav := un.Object["nav"].([]interface{})
+	nav := un.Object["nav"].([]any)
 	rootitem, _ := findNavItem(nav, parent)
 	if rootitem == nil {
-		return fmt.Errorf("Can't find '%s' root item in mkdoc.yml", parent)
+		return fmt.Errorf("can't find '%s' root item in mkdoc.yml", parent)
 	}
-	rootnavitemmap := rootitem.(map[interface{}]interface{})
-	childnav, _ := findNavItem(rootnavitemmap[parent].([]interface{}), child)
+	rootnavitemmap := rootitem.(map[any]any)
+	childnav, _ := findNavItem(rootnavitemmap[parent].([]any), child)
 	if childnav == nil {
-		return fmt.Errorf("Can't find '%s' chile item under '%s' parent item in mkdoc.yml", child, parent)
+		return fmt.Errorf("can't find '%s' chile item under '%s' parent item in mkdoc.yml", child, parent)
 	}
 
-	childnavmap := childnav.(map[interface{}]interface{})
-	childnavitems := childnavmap[child].([]interface{})
+	childnavmap := childnav.(map[any]any)
+	childnavitems := childnavmap[child].([]any)
 
 	childnavitems = removeNavItem(childnavitems, subchild)
-	commands := make(map[string]interface{})
+	commands := make(map[string]any)
 	commands[subchild] = files
 	childnavmap[child] = append(childnavitems, commands)
 	newmkdocs, err := yaml.Marshal(un.Object)
 	if err != nil {
-		return err
+		return fmt.Errorf("error in marshaling final configmap: %w", err)
 	}
 
 	// The marshaller drops custom tags, so re-add this one. Turns out this is much less invasive than trying to handle
@@ -79,9 +79,9 @@ func trimPrefixes(files []string, prefix string) {
 	}
 }
 
-func findNavItem(nav []interface{}, key string) (interface{}, int) {
+func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
-		o, ismap := item.(map[interface{}]interface{})
+		o, ismap := item.(map[any]any)
 		if ismap {
 			if _, ok := o[key]; ok {
 				return o, i
@@ -91,7 +91,7 @@ func findNavItem(nav []interface{}, key string) (interface{}, int) {
 	return nil, -1
 }
 
-func removeNavItem(nav []interface{}, key string) []interface{} {
+func removeNavItem(nav []any, key string) []any {
 	_, i := findNavItem(nav, key)
 	if i != -1 {
 		nav = append(nav[:i], nav[i+1:]...)

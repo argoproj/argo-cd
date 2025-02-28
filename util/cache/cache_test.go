@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
@@ -74,11 +73,9 @@ func TestCacheClient(t *testing.T) {
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
 			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot set nil item")
+			require.ErrorContains(t, err, "cannot set nil item")
 			err = cache.GetItem("foo", nil)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot get item")
+			assert.ErrorContains(t, err, "cannot get item")
 		})
 	}
 }
@@ -88,5 +85,5 @@ func TestGenerateCacheKey(t *testing.T) {
 	client := NewInMemoryCache(60 * time.Second)
 	cache := NewCache(client)
 	testKey := cache.generateFullKey("testkey")
-	assert.Equal(t, fmt.Sprintf("testkey|%s", common.CacheVersion), testKey)
+	assert.Equal(t, "testkey|"+common.CacheVersion, testKey)
 }

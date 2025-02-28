@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,15 +10,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -117,7 +119,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
+					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
 					errors.CheckError(err)
 				}
 			}
@@ -125,7 +127,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (repoOpts.TlsClientCertPath != "" && repoOpts.TlsClientCertKeyPath == "") || (repoOpts.TlsClientCertPath == "" && repoOpts.TlsClientCertKeyPath != "") {
-				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -139,7 +141,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -151,7 +153,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					errors.CheckError(err)
 					repoOpts.Repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
-					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--github-app-private-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -162,7 +164,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					errors.CheckError(err)
 					repoOpts.Repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
 				} else {
-					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -178,10 +180,12 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.GithubAppInstallationId = repoOpts.GithubAppInstallationId
 			repoOpts.Repo.GitHubAppEnterpriseBaseURL = repoOpts.GitHubAppEnterpriseBaseURL
 			repoOpts.Repo.Proxy = repoOpts.Proxy
+			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
+			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
+				errors.CheckError(stderrors.New("Must specify --name for repos of type 'helm'"))
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
@@ -192,6 +196,13 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if repoOpts.Repo.Username != "" && repoOpts.Repo.Password == "" {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
+
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
 
 			// We let the server check access to the repository before adding it. If
 			// it is a private repo, but we cannot access with with the credentials
@@ -206,6 +217,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Name:                       repoOpts.Repo.Name,
 				Username:                   repoOpts.Repo.Username,
 				Password:                   repoOpts.Repo.Password,
+				BearerToken:                repoOpts.Repo.BearerToken,
 				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
 				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
 				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
@@ -219,8 +231,9 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Project:                    repoOpts.Repo.Project,
 				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
 				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
+				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
 			}
-			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
+			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
@@ -253,10 +266,17 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
-				errors.CheckError(err)
-				fmt.Printf("Repository '%s' removed\n", repoURL)
+				canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete repository '%s'? [y/n]", repoURL))
+				if canDelete {
+					_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
+					errors.CheckError(err)
+					fmt.Printf("Repository '%s' removed\n", repoURL)
+				} else {
+					fmt.Printf("The command to delete '%s' was cancelled.\n", repoURL)
+				}
 			}
 		},
 	}
@@ -297,7 +317,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
@@ -308,7 +328,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "hard":
 				forceRefresh = true
 			default:
-				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				err := stderrors.New("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
 			repos, err := repoIf.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
@@ -360,7 +380,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "hard":
 				forceRefresh = true
 			default:
-				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				err := stderrors.New("--refresh must be one of: 'hard'")
 				errors.CheckError(err)
 			}
 			repo, err := repoIf.Get(ctx, &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh, AppProject: project})

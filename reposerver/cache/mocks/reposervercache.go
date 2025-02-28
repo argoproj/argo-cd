@@ -8,8 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	cacheutilmocks "github.com/argoproj/argo-cd/v2/util/cache/mocks"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	cacheutilmocks "github.com/argoproj/argo-cd/v3/util/cache/mocks"
 )
 
 type MockCacheType int
@@ -41,6 +41,7 @@ type CacheCallCounts struct {
 
 // Checks that the cache was called the expected number of times
 func (mockCache *MockRepoCache) AssertCacheCalledTimes(t *testing.T, calls *CacheCallCounts) {
+	t.Helper()
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Get", calls.ExternalGets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Set", calls.ExternalSets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Delete", calls.ExternalDeletes)

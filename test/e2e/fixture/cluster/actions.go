@@ -3,19 +3,18 @@ package cluster
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 
-	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "when" part of given/when/then
@@ -39,7 +38,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
-func (a *Actions) Create(args ...string) *Actions {
+func (a *Actions) Create() *Actions {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
@@ -60,7 +59,7 @@ func (a *Actions) Create(args ...string) *Actions {
 	})
 	if err != nil {
 		if !a.ignoreErrors {
-			log.Fatalf(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))
+			log.Fatalf("Failed to upsert cluster %v", err.Error())
 		}
 		a.lastError = errors.New(err.Error())
 	}
@@ -68,7 +67,7 @@ func (a *Actions) Create(args ...string) *Actions {
 	return a
 }
 
-func (a *Actions) CreateWithRBAC(args ...string) *Actions {
+func (a *Actions) CreateWithRBAC() *Actions {
 	pathOpts := clientcmd.NewDefaultPathOptions()
 	config, err := pathOpts.GetStartingConfig()
 	if err != nil {
