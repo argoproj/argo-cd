@@ -1806,7 +1806,6 @@
       "title": "Controller Telemetry",
       "type": "row"
     },
-
     {
       "collapsed": true,
       "datasource": {
