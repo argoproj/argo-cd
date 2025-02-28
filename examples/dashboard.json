@@ -1508,7 +1508,8 @@
           "fieldConfig": {
             "defaults": {
               "links": [],
-              "unitScale": true
+              "unitScale": true,
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -1805,7 +1806,6 @@
       "title": "Controller Telemetry",
       "type": "row"
     },
-    
     {
       "collapsed": true,
       "datasource": {
@@ -1830,7 +1830,8 @@
           "fieldConfig": {
             "defaults": {
               "links": [],
-              "unitScale": true
+              "unitScale": true,
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -2843,6 +2844,14 @@
           "datasource": {
             "uid": "$datasource"
           },
+          "fieldConfig": {
+            "defaults": {
+              "links": [],
+              "unitScale": true,
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
           "fill": 1,
           "fillGradient": 0,
           "gridPos": {
@@ -3040,7 +3049,8 @@
           },
           "fieldConfig": {
             "defaults": {
-              "unitScale": true
+              "unitScale": true,
+              "unit": "bytes"
             },
             "overrides": []
           },
