@@ -519,6 +519,10 @@ call from the config management sidecar container to the reposerver to retrieve 
 Utilizing `ASKPASS` means that credentials are not proactively shared, but rather only provided when an operation requires
 them.
 
+`ASKPASS` requires a socket to be shared between the config management plugin and the reposerver. To mitigate path traversal
+attacks, it's recommended to use a dedicated volume to share the socket, and mount it in the reposerver and sidecar.
+To change the socket path, you must set the `ARGOCD_ASK_PASS_SOCK` environment variable for both containers.
+
 To allow the plugin to access the reposerver git credentials, you can set `provideGitCreds` to `true` in the plugin spec:
 
 !!! warning
