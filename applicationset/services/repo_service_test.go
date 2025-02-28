@@ -172,6 +172,6 @@ func TestNewArgoCDService(t *testing.T) {
 	testNamespace := "test"
 	clientset := fake.NewClientset()
 	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
-	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
+	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{})
 	assert.NotNil(t, service)
 }
