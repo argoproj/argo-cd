@@ -1,18 +1,23 @@
 package helm
 
 import (
-	"errors"
 	"fmt"
 	"time"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/Masterminds/semver/v3"
 )
 
 type Entry struct {
 	Version string
 	Created time.Time
+}
+
+type Entries []Entry
+
+func (es Entries) Tags() []string {
+	tags := make([]string, len(es))
+	for i, e := range es {
+		tags[i] = e.Version
+	}
+	return tags
 }
 
 type Index struct {
@@ -25,35 +30,4 @@ func (i *Index) GetEntries(chart string) (Entries, error) {
 		return nil, fmt.Errorf("chart '%s' not found in index", chart)
 	}
 	return entries, nil
-}
-
-type Entries []Entry
-
-func (e Entries) MaxVersion(constraints *semver.Constraints) (*semver.Version, error) {
-	versions := semver.Collection{}
-	for _, entry := range e {
-		v, err := semver.NewVersion(entry.Version)
-
-		// Invalid semantic version ignored
-		if errors.Is(err, semver.ErrInvalidSemVer) {
-			log.Debugf("Invalid sementic version: %s", entry.Version)
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("invalid constraint in index: %w", err)
-		}
-		if constraints.Check(v) {
-			versions = append(versions, v)
-		}
-	}
-	if len(versions) == 0 {
-		return nil, errors.New("constraint not found in index")
-	}
-	maxVersion := versions[0]
-	for _, v := range versions {
-		if v.GreaterThan(maxVersion) {
-			maxVersion = v
-		}
-	}
-	return maxVersion, nil
 }
