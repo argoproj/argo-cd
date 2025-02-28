@@ -490,7 +490,7 @@ func TestPatchValuesObject(t *testing.T) {
 		Expect(NoConditions()).
 		And(func(app *Application) {
 			// Check that the patch was a success.
-			assert.Equal(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
+			assert.JSONEq(t, `{"some":{"foo":"bar","new":"field"}}`, string(app.Spec.Source.Helm.ValuesObject.Raw))
 		})
 }
 
