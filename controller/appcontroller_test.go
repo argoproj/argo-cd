@@ -2139,6 +2139,48 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
 }
 
+func TestProcessRequestedAppOperation_Retry(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{},
+	}
+	startedAt := metav1.Time{Time: time.Now().Add(-time.Minute * 5).UTC()}
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.StartedAt = startedAt
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-time.Minute)}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(data, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+
+	unstructuredStartedAt, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "startedAt")
+	resetedStartedAt, err := time.Parse(time.RFC3339, unstructuredStartedAt)
+	require.NoError(t, err)
+
+	assert.True(t, resetedStartedAt.After(startedAt.Time))
+}
+
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
