@@ -4730,6 +4730,7 @@ func init() {
 	proto.RegisterMapType((PluginParameters)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PluginInput.ParametersEntry")
 	proto.RegisterType((*ProjectRole)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ProjectRole")
 	proto.RegisterType((*PullRequestGenerator)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PullRequestGenerator")
+	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PullRequestGenerator.ValuesEntry")
 	proto.RegisterType((*PullRequestGeneratorAzureDevOps)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PullRequestGeneratorAzureDevOps")
 	proto.RegisterType((*PullRequestGeneratorBitbucket)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PullRequestGeneratorBitbucket")
 	proto.RegisterType((*PullRequestGeneratorBitbucketServer)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PullRequestGeneratorBitbucketServer")
@@ -11785,6 +11786,30 @@ func (m *PullRequestGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Values) > 0 {
+		keysForValues := make([]string, 0, len(m.Values))
+		for k := range m.Values {
+			keysForValues = append(keysForValues, string(k))
+		}
+		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
+			v := m.Values[string(keysForValues[iNdEx])]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintGenerated(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(keysForValues[iNdEx])
+			copy(dAtA[i:], keysForValues[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(keysForValues[iNdEx])))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintGenerated(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x52
+		}
+	}
 	if m.AzureDevOps != nil {
 		{
 			size, err := m.AzureDevOps.MarshalToSizedBuffer(dAtA[:i])
@@ -17958,6 +17983,14 @@ func (m *PullRequestGenerator) Size() (n int) {
 		l = m.AzureDevOps.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if len(m.Values) > 0 {
+		for k, v := range m.Values {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovGenerated(uint64(len(k))) + 1 + len(v) + sovGenerated(uint64(len(v)))
+			n += mapEntrySize + 1 + sovGenerated(uint64(mapEntrySize))
+		}
+	}
 	return n
 }
 
@@ -21122,6 +21155,16 @@ func (this *PullRequestGenerator) String() string {
 		repeatedStringForFilters += strings.Replace(strings.Replace(f.String(), "PullRequestGeneratorFilter", "PullRequestGeneratorFilter", 1), `&`, ``, 1) + ","
 	}
 	repeatedStringForFilters += "}"
+	keysForValues := make([]string, 0, len(this.Values))
+	for k := range this.Values {
+		keysForValues = append(keysForValues, k)
+	}
+	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	mapStringForValues := "map[string]string{"
+	for _, k := range keysForValues {
+		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
+	}
+	mapStringForValues += "}"
 	s := strings.Join([]string{`&PullRequestGenerator{`,
 		`Github:` + strings.Replace(this.Github.String(), "PullRequestGeneratorGithub", "PullRequestGeneratorGithub", 1) + `,`,
 		`GitLab:` + strings.Replace(this.GitLab.String(), "PullRequestGeneratorGitLab", "PullRequestGeneratorGitLab", 1) + `,`,
@@ -21132,6 +21175,7 @@ func (this *PullRequestGenerator) String() string {
 		`Template:` + strings.Replace(strings.Replace(this.Template.String(), "ApplicationSetTemplate", "ApplicationSetTemplate", 1), `&`, ``, 1) + `,`,
 		`Bitbucket:` + strings.Replace(this.Bitbucket.String(), "PullRequestGeneratorBitbucket", "PullRequestGeneratorBitbucket", 1) + `,`,
 		`AzureDevOps:` + strings.Replace(this.AzureDevOps.String(), "PullRequestGeneratorAzureDevOps", "PullRequestGeneratorAzureDevOps", 1) + `,`,
+		`Values:` + mapStringForValues + `,`,
 		`}`,
 	}, "")
 	return s
@@ -42229,6 +42273,133 @@ func (m *PullRequestGenerator) Unmarshal(dAtA []byte) error {
 			if err := m.AzureDevOps.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Values", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Values == nil {
+				m.Values = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowGenerated
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowGenerated
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipGenerated(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthGenerated
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Values[mapkey] = mapvalue
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
