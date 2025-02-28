@@ -409,7 +409,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
 			Message: "Successfully generated parameters for all Applications",
 			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+			Status:  "ReconciledSuccessfully",
 		}
 	}
 
