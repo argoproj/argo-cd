@@ -514,12 +514,12 @@ func TestEnviron(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{})
 		assert.Nil(t, env)
 	})
-	t.Run("env vars with empty names or values", func(t *testing.T) {
+	t.Run("env vars with empty names", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Value: "test"},
 			{Name: "test"},
 		})
-		assert.Nil(t, env)
+		assert.Equal(t, []string{"test="}, env)
 	})
 	t.Run("proper env vars", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
