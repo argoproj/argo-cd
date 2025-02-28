@@ -141,21 +141,21 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		}
 	}
 
-	if state.SyncResult != nil {
-		syncRes = state.SyncResult
-		revision = state.SyncResult.Revision
-		revisions = append(revisions, state.SyncResult.Revisions...)
-	} else {
-		syncRes = &v1alpha1.SyncOperationResult{}
-		// status.operationState.syncResult.source. must be set properly since auto-sync relies
-		// on this information to decide if it should sync (if source is different than the last
-		// sync attempt)
-		if isMultiSourceRevision {
-			syncRes.Sources = sources
+	if !syncOp.DryRun {
+		if state.SyncResult != nil {
+			syncRes = state.SyncResult
+			revision = state.SyncResult.Revision
+			revisions = append(revisions, state.SyncResult.Revisions...)
 		} else {
-			syncRes.Source = source
-		}
-		if !syncOp.DryRun {
+			syncRes = &v1alpha1.SyncOperationResult{}
+			// status.operationState.syncResult.source. must be set properly since auto-sync relies
+			// on this information to decide if it should sync (if source is different than the last
+			// sync attempt)
+			if isMultiSourceRevision {
+				syncRes.Sources = sources
+			} else {
+				syncRes.Source = source
+			}
 			state.SyncResult = syncRes
 		}
 	}
