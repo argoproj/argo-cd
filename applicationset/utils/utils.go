@@ -139,11 +139,11 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 			} else if currentType == "Raw.k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1" || currentType == "Raw.k8s.io/apimachinery/pkg/runtime" {
 				var unmarshaled any
 				originalBytes := original.Field(i).Bytes()
-				convertedToJson, err := ConvertYAMLToJSON(string(originalBytes))
+				convertedToJSON, err := ConvertYAMLToJSON(string(originalBytes))
 				if err != nil {
-					return fmt.Errorf("error while converting template to json %q: %w", convertedToJson, err)
+					return fmt.Errorf("error while converting template to json %q: %w", convertedToJSON, err)
 				}
-				err = json.Unmarshal([]byte(convertedToJson), &unmarshaled)
+				err = json.Unmarshal([]byte(convertedToJSON), &unmarshaled)
 				if err != nil {
 					return fmt.Errorf("failed to unmarshal JSON field: %w", err)
 				}
@@ -489,7 +489,7 @@ func SlugifyName(args ...any) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
+func getTLSConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -518,8 +518,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
+func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config { //nolint:revive //FIXME(var-naming)
+	tlsConfig := getTLSConfigWithCACert(scmRootCAPath, caCerts)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true

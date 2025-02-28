@@ -70,8 +70,8 @@ type jqNormalizerPatch struct {
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
-	dataJson := make(map[string]any)
-	err := json.Unmarshal(data, &dataJson)
+	dataJSON := make(map[string]any)
+	err := json.Unmarshal(data, &dataJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
 	defer cancel()
 
-	iter := np.code.RunWithContext(ctx, dataJson)
+	iter := np.code.RunWithContext(ctx, dataJSON)
 	first, ok := iter.Next()
 	if !ok {
 		return nil, errors.New("JQ patch did not return any data")

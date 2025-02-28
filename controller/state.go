@@ -108,6 +108,7 @@ type appStateManager struct {
 	appclientset          appclientset.Interface
 	projInformer          cache.SharedIndexInformer
 	kubectl               kubeutil.Kubectl
+	onKubectlRun          kubeutil.OnKubectlRunFunc
 	repoClientset         apiclient.Clientset
 	liveStateCache        statecache.LiveStateCache
 	cache                 *appstatecache.Cache
@@ -173,9 +174,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(destCluster)
-	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
+	var serverVersion string
+	var apiResources []kubeutil.APIResourceInfo
+	if sendRuntimeState {
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
+		}
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -228,8 +233,6 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 		if !sendRuntimeState {
 			appNamespace = ""
-			apiVersions = nil
-			serverVersion = ""
 		}
 
 		if !source.IsHelm() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
@@ -747,13 +750,13 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		resourceOps, cleanup, err := m.getResourceOperations(destCluster)
+		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
 		if err != nil {
-			log.Errorf("CompareAppState error getting resource operations: %s", err)
+			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		}
 		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(resourceOps))
+		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -1065,6 +1068,7 @@ func NewAppStateManager(
 	repoClientset apiclient.Clientset,
 	namespace string,
 	kubectl kubeutil.Kubectl,
+	onKubectlRun kubeutil.OnKubectlRunFunc,
 	settingsMgr *settings.SettingsManager,
 	liveStateCache statecache.LiveStateCache,
 	projInformer cache.SharedIndexInformer,
@@ -1083,6 +1087,7 @@ func NewAppStateManager(
 		db:                    db,
 		appclientset:          appclientset,
 		kubectl:               kubectl,
+		onKubectlRun:          onKubectlRun,
 		repoClientset:         repoClientset,
 		namespace:             namespace,
 		settingsMgr:           settingsMgr,

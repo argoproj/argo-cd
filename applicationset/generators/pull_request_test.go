@@ -224,7 +224,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 
 		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
 		if c.expectedErr != nil {
-			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
+			require.EqualError(t, gotErr, c.expectedErr.Error())
 		} else {
 			require.NoError(t, gotErr)
 		}

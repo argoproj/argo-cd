@@ -88,6 +88,7 @@ func NewCommand() *cobra.Command {
 		enableProxyExtension     bool
 		webhookParallelism       int
 		hydratorEnabled          bool
+		syncWithReplaceAllowed   bool
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -179,7 +180,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			dexTlsConfig := &dex.DexTLSConfig{
+			dexTLSConfig := &dex.DexTLSConfig{
 				DisableTLS:       dexServerPlaintext,
 				StrictValidation: dexServerStrictTLS,
 			}
@@ -191,14 +192,14 @@ func NewCommand() *cobra.Command {
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.RootCAs = pool
+				dexTLSConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.Certificate = cert.Raw
+				dexTLSConfig.Certificate = cert.Raw
 			}
 
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
@@ -229,7 +230,7 @@ func NewCommand() *cobra.Command {
 				AppClientset:            appClientSet,
 				RepoClientset:           repoclientset,
 				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTlsConfig,
+				DexTLSConfig:            dexTLSConfig,
 				DisableAuth:             disableAuth,
 				ContentTypes:            contentTypesList,
 				EnableGZip:              enableGZip,
@@ -245,6 +246,7 @@ func NewCommand() *cobra.Command {
 				WebhookParallelism:      webhookParallelism,
 				EnableK8sEvent:          enableK8sEvent,
 				HydratorEnabled:         hydratorEnabled,
+				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -295,7 +297,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", env.StringFromEnv("ARGOCD_SERVER_STATIC_ASSETS", "/shared/app"), "Directory path that contains additional static assets")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
@@ -324,6 +326,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

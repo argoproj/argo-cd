@@ -1916,7 +1916,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	}
 
 	res, err := r.Reconcile(context.Background(), req)
-	require.Error(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
 }
 
@@ -4749,6 +4749,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Health: v1alpha1.HealthStatus{
 							Status: health.HealthStatusProgressing,
 						},
+						Sync: v1alpha1.SyncStatus{
+							Revision: "Next",
+						},
 					},
 				},
 			},
@@ -4812,7 +4815,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationRunning,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "Current",
 						},
 					},
 				},
@@ -4877,7 +4881,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "Next",
 						},
 					},
 				},
@@ -4942,7 +4947,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
+							Revision: "Current",
+							Status:   v1alpha1.SyncStatusCodeSynced,
 						},
 					},
 				},
@@ -5182,86 +5188,6 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "does not progresses a pending application with a successful sync triggered by controller with invalid revision to progressing",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSetSpec{
-					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type: "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-							Steps: []v1alpha1.ApplicationSetRolloutStep{
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
-								},
-							},
-						},
-					},
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application: "app1",
-							LastTransitionTime: &metav1.Time{
-								Time: time.Now().Add(time.Duration(-1) * time.Minute),
-							},
-							Message:         "",
-							Status:          "Pending",
-							Step:            "1",
-							TargetRevisions: []string{"Next"},
-						},
-					},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
-					Status: v1alpha1.ApplicationStatus{
-						Health: v1alpha1.HealthStatus{
-							Status: health.HealthStatusDegraded,
-						},
-						OperationState: &v1alpha1.OperationState{
-							Phase: common.OperationSucceeded,
-							StartedAt: metav1.Time{
-								Time: time.Now(),
-							},
-							Operation: v1alpha1.Operation{
-								InitiatedBy: v1alpha1.OperationInitiator{
-									Username:  "applicationset-controller",
-									Automated: true,
-								},
-							},
-							SyncResult: &v1alpha1.SyncOperationResult{
-								Revision: "Previous",
-							},
-						},
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-					},
-				},
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "",
-					Status:          "Pending",
-					Step:            "1",
-					TargetRevisions: []string{"Next"},
-				},
-			},
-		},
-		{
 			name: "removes the appStatus for applications that no longer exist",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -5315,7 +5241,77 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 							Phase: common.OperationSucceeded,
 						},
 						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "Current",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{"Current"},
+				},
+			},
+		},
+		{
+			name: "progresses a pending synced application with an old revision to progressing with the Current one",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:     "app1",
+							Message:         "",
+							Status:          "Pending",
+							Step:            "1",
+							TargetRevisions: []string{"Old"},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &v1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+							SyncResult: &v1alpha1.SyncOperationResult{
+								Revision: "Current",
+							},
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:    v1alpha1.SyncStatusCodeSynced,
+							Revisions: []string{"Current"},
 						},
 					},
 				},

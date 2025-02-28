@@ -36,7 +36,7 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, "")
 	}
 	chs := parentToChildMap[parent.UID]
-	for i, childUid := range chs {
+	for i, childUID := range chs {
 		var p string
 		switch i {
 		case len(chs) - 1:
@@ -44,7 +44,7 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUid], mapNodeNameToResourceState, w)
+		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUID], mapNodeNameToResourceState, w)
 	}
 }
 

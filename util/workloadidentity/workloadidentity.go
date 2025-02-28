@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	EmptyGuid = "00000000-0000-0000-0000-000000000000"
+	EmptyGuid = "00000000-0000-0000-0000-000000000000" //nolint:revive //FIXME(var-naming)
 )
 
 type TokenProvider interface {

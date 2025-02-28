@@ -307,10 +307,10 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 		}
 	}
 
-	expectedApps1 := []v1alpha1.Application{
+	excludedApps := []v1alpha1.Application{
 		generateExpectedApp("kustomize-guestbook", "1"),
 	}
-	expectedApps2 := []v1alpha1.Application{
+	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("helm-guestbook", "2"),
 	}
 
@@ -322,7 +322,6 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 				Name: "merge-generator-nested-merge",
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
-				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
 					Spec: v1alpha1.ApplicationSpec{
@@ -385,7 +384,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2)).
+		}).Then().Expect(ApplicationsExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps)).
 
 		// Update the ApplicationSetTerminalGenerator LabelSelector, and verify the Applications are deleted and created
 		When().
@@ -418,17 +417,9 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 					},
 				},
 			})
-		}).Then().Expect(ApplicationsExist(expectedApps2)).Expect(ApplicationsDoNotExist(expectedApps1)).
-
-		// Set ApplyNestedSelector to false and verify all Applications are created
+		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Update(func(appset *v1alpha1.ApplicationSet) {
-			appset.Spec.ApplyNestedSelectors = false
-		}).Then().Expect(ApplicationsExist(expectedApps1)).Expect(ApplicationsExist(expectedApps2)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps1)).Expect(ApplicationsDoNotExist(expectedApps2))
+		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func toAPIExtensionsJSON(t *testing.T, g any) *apiextensionsv1.JSON {

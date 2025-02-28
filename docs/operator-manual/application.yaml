@@ -119,6 +119,11 @@ spec:
         beep: boop-${ARGOCD_APP_REVISION}
       # Toggle which enables/disables env variables substitution in commonAnnotations
       commonAnnotationsEnvsubst: true
+      # Defines if the common label(s) should be applied to resource selectors. It also excludes common labels from
+      # templates unless `labelIncludeTemplates` is set to true.
+      labelWithoutSelector: false
+      # Defines if the common label(s) should be applied to resource templates.
+      labelIncludeTemplates: false
       forceCommonLabels: false
       forceCommonAnnotations: false
       images:
@@ -130,6 +135,8 @@ spec:
         count: 4
       components:
         - ../component  # relative to the kustomization.yaml (`source.path`).
+      # Ignore locally missing component directories when using Kustomize Components. Defaults to false
+      ignoreMissingComponents: true
       patches:
         - target:
             kind: Deployment

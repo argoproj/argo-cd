@@ -218,22 +218,6 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
-func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
-	_, settingsManager := fixtures(nil)
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.False(t, serverRBACLogEnforceEnable)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
-}
-
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
@@ -800,10 +784,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 			}
 
 			inKeys := settingsManager.GetIncludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+			assert.Len(t, inKeys, len(tt.expectedKeys))
 
 			exKeys := settingsManager.GetExcludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
+			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
 				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
@@ -1894,7 +1878,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Equal(t, len(tt.output), len(keys))
+			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})
 	}

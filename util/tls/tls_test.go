@@ -116,9 +116,7 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 	certChain := decodePem(chain)
 	cert, _ := EncodeX509KeyPairString(certChain)
 
-	if strings.TrimSpace(chain) != strings.TrimSpace(cert) {
-		t.Errorf("Incorrect, got: %s, want: %s", cert, chain)
-	}
+	assert.Equal(t, strings.TrimSpace(chain), strings.TrimSpace(cert))
 }
 
 func TestGetTLSVersionByString(t *testing.T) {

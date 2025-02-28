@@ -43,9 +43,6 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 	// populate cache
 	err = cache.SetRepoConnectionState("my-repo", "some-project", &ConnectionState{Status: "my-project-state"})
 	require.NoError(t, err)
-	// cache miss
-	_, err = cache.GetRepoConnectionState("other-repo", "")
-	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
 	value, err := cache.GetRepoConnectionState("my-repo", "")
 	require.NoError(t, err)

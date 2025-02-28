@@ -5,6 +5,7 @@ export interface HTTPSCreds {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;

@@ -165,9 +165,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	}
 	log.Infof("Number of decisions found: %v", len(clusterDecisions))
 
-	// Read this outside the loop to improve performance
-	argoClusters := clustersFromArgoCD.Items
-
 	if len(clusterDecisions) == 0 {
 		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
 		return nil, nil
@@ -188,7 +185,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 		found := false
 
-		for _, argoCluster := range argoClusters {
+		for _, argoCluster := range clustersFromArgoCD {
 			if argoCluster.Name == strMatchValue {
 				log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
 				params["name"] = argoCluster.Name

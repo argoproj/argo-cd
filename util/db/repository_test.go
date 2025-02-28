@@ -227,63 +227,62 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 
 func TestRepoURLToSecretName(t *testing.T) {
 	tables := []struct {
-		repoUrl    string
+		repoURL    string
 		secretName string
 		project    string
 	}{{
-		repoUrl:    "git://git@github.com:argoproj/ARGO-cd.git",
+		repoURL:    "git://git@github.com:argoproj/ARGO-cd.git",
 		secretName: "repo-83273445",
 		project:    "",
 	}, {
-		repoUrl:    "git://git@github.com:argoproj/ARGO-cd.git",
+		repoURL:    "git://git@github.com:argoproj/ARGO-cd.git",
 		secretName: "repo-2733415816",
 		project:    "foobar",
 	}, {
-		repoUrl:    "https://github.com/argoproj/ARGO-cd",
+		repoURL:    "https://github.com/argoproj/ARGO-cd",
 		secretName: "repo-1890113693",
 		project:    "",
 	}, {
-		repoUrl:    "https://github.com/argoproj/ARGO-cd",
+		repoURL:    "https://github.com/argoproj/ARGO-cd",
 		secretName: "repo-4161185408",
 		project:    "foobar",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd",
+		repoURL:    "https://github.com/argoproj/argo-cd",
 		secretName: "repo-42374749",
 		project:    "",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd",
+		repoURL:    "https://github.com/argoproj/argo-cd",
 		secretName: "repo-1894545728",
 		project:    "foobar",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd.git",
+		repoURL:    "https://github.com/argoproj/argo-cd.git",
 		secretName: "repo-821842295",
 		project:    "",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd.git",
+		repoURL:    "https://github.com/argoproj/argo-cd.git",
 		secretName: "repo-1474166686",
 		project:    "foobar",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo_cd.git",
+		repoURL:    "https://github.com/argoproj/argo_cd.git",
 		secretName: "repo-1049844989",
 		project:    "",
 	}, {
-		repoUrl:    "https://github.com/argoproj/argo_cd.git",
+		repoURL:    "https://github.com/argoproj/argo_cd.git",
 		secretName: "repo-3916272608",
 		project:    "foobar",
 	}, {
-		repoUrl:    "ssh://git@github.com/argoproj/argo-cd.git",
+		repoURL:    "ssh://git@github.com/argoproj/argo-cd.git",
 		secretName: "repo-3569564120",
 		project:    "",
 	}, {
-		repoUrl:    "ssh://git@github.com/argoproj/argo-cd.git",
+		repoURL:    "ssh://git@github.com/argoproj/argo-cd.git",
 		secretName: "repo-754834421",
 		project:    "foobar",
 	}}
 
 	for _, v := range tables {
-		if sn := RepoURLToSecretName(repoSecretPrefix, v.repoUrl, v.project); sn != v.secretName {
-			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v.secretName, v.repoUrl, sn)
-		}
+		sn := RepoURLToSecretName(repoSecretPrefix, v.repoURL, v.project)
+		assert.Equal(t, sn, v.secretName, "Expected secret name %q for repo %q; instead, got %q", v.secretName, v.repoURL, sn)
 	}
 }
 
@@ -296,9 +295,8 @@ func Test_CredsURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := RepoURLToSecretName(credSecretPrefix, k, ""); sn != v {
-			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
-		}
+		sn := RepoURLToSecretName(credSecretPrefix, k, "")
+		assert.Equal(t, sn, v, "Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 	}
 }
 

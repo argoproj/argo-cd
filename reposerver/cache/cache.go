@@ -145,15 +145,15 @@ func listApps(repoURL, revision string) string {
 	return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
 }
 
-func (c *Cache) ListApps(repoUrl, revision string) (map[string]string, error) {
+func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
 	res := make(map[string]string)
-	err := c.cache.GetItem(listApps(repoUrl, revision), &res)
+	err := c.cache.GetItem(listApps(repoURL, revision), &res)
 	return res, err
 }
 
-func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error {
+func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
 	return c.cache.SetItem(
-		listApps(repoUrl, revision),
+		listApps(repoURL, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,

@@ -286,12 +286,10 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 		Expect(Event(EventReasonResourceCreated, "create")).
 		And(func(_ *Application) {
 			_, err := RunCli("app", "get", Name(), "--source-name", sources[1].Name, "--source-position", "1")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Only one of source-position and source-name can be specified.")
+			assert.ErrorContains(t, err, "Only one of source-position and source-name can be specified.")
 		}).
 		And(func(_ *Application) {
 			_, err := RunCli("app", "manifests", Name(), "--revisions", "0.0.2", "--source-names", sources[0].Name, "--revisions", "0.0.2", "--source-positions", "1")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Only one of source-positions and source-names can be specified.")
+			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
 		})
 }

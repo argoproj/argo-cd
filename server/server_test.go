@@ -1406,8 +1406,8 @@ func TestIsMainJsBundle(t *testing.T) {
 		testCaseCopy := testCase
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			testUrl, _ := url.Parse(testCaseCopy.url)
-			isMainJsBundle := isMainJsBundle(testUrl)
+			testURL, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testURL)
 			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
 		})
 	}
@@ -1447,7 +1447,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			filename:                    "main.e4188e5adc97bbfc00c0.js",
 			createFile:                  false,
 			expectedStatus:              404,
-			expectedCacheControlHeaders: []string{"no-cache"},
+			expectedCacheControlHeaders: nil,
 		},
 	}
 

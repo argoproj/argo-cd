@@ -13,12 +13,12 @@ import (
 
 func ConstructApplicationSet(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
 	if fileURL != "" {
-		return constructAppsetFromFileUrl(fileURL)
+		return constructAppsetFromFileURL(fileURL)
 	}
 	return nil, nil
 }
 
-func constructAppsetFromFileUrl(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
+func constructAppsetFromFileURL(fileURL string) ([]*argoprojiov1alpha1.ApplicationSet, error) {
 	appset := make([]*argoprojiov1alpha1.ApplicationSet, 0)
 	// read uri
 	err := readAppsetFromURI(fileURL, &appset)

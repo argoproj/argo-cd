@@ -146,7 +146,7 @@ func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace s
 	return nil
 }
 
-func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix string) (string, error) {
+func (cg *ClusterGenerator) getClusterServerURI(namespace string, releaseSuffix string) (string, error) {
 	pod, err := cg.clientSet.CoreV1().Pods(namespace).Get(context.TODO(), POD_PREFIX+"-"+releaseSuffix+"-0", metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -156,10 +156,10 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
-func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) string {
+func (cg *ClusterGenerator) retrieveClusterURI(namespace, releaseSuffix string) string {
 	for i := 0; i < 10; i++ {
 		log.Print("Attempting to get cluster uri")
-		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
+		uri, err := cg.getClusterServerURI(namespace, releaseSuffix)
 		if err != nil {
 			log.Printf("Failed to get cluster uri due to %s", err.Error())
 			time.Sleep(10 * time.Second)
@@ -203,7 +203,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 
 	log.Print("Get cluster server uri")
 
-	uri := cg.retrieveClusterUri(namespace, releaseSuffix)
+	uri := cg.retrieveClusterURI(namespace, releaseSuffix)
 	log.Printf("Cluster server uri is %s", uri)
 
 	log.Print("Create cluster")

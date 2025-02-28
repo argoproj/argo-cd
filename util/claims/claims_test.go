@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetUserIdentifier(t *testing.T) {
@@ -147,12 +148,11 @@ func TestMapClaimsToArgoClaims(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := MapClaimsToArgoClaims(tt.claims)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MapClaimsToArgoClaims() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MapClaimsToArgoClaims() = %v, want %v", got, tt.want)
+			if tt.wantErr {
+				assert.Error(t, err, "MapClaimsToArgoClaims()")
+			} else {
+				require.NoError(t, err, "MapClaimsToArgoClaims()")
+				assert.Truef(t, reflect.DeepEqual(got, tt.want), "MapClaimsToArgoClaims() = %v, want %v", got, tt.want)
 			}
 		})
 	}

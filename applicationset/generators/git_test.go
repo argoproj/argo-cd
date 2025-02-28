@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
@@ -169,11 +170,12 @@ foo:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GitGenerator.generateParamsFromGitFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, params)
 			}
-			assert.Equal(t, tt.want, params)
 		})
 	}
 }
@@ -198,7 +200,6 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"app_3",
 				"p1/app4",
 			},
-			repoError: nil,
 			expected: []map[string]any{
 				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
 				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
@@ -233,7 +234,6 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/p2/app3",
 				"p1/p2/p3/app4",
 			},
-			repoError: nil,
 			expected: []map[string]any{
 				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
 				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
@@ -321,7 +321,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -622,7 +622,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -986,7 +986,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
@@ -1342,7 +1342,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
@@ -1387,6 +1387,7 @@ cluster:
 func TestGitGenerator_GenerateParams(t *testing.T) {
 	cases := []struct {
 		name               string
+		appProject         v1alpha1.AppProject
 		directories        []v1alpha1.GitDirectoryGeneratorItem
 		pathParamPrefix    string
 		repoApps           []string
@@ -1395,6 +1396,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		values             map[string]string
 		expected           []map[string]any
 		expectedError      error
+		expectedProject    *string
 		appset             v1alpha1.ApplicationSet
 		callGetDirectories bool
 	}{
@@ -1466,21 +1468,102 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
 			expectedError:      errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
+		{
+			name: "Project field is not templated - verify that project is passed through to repo-server as-is",
+			repoApps: []string{
+				"app1",
+			},
+			callGetDirectories: true,
+			appProject: v1alpha1.AppProject{
+				TypeMeta: metav1.TypeMeta{},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "project",
+					Namespace: "argocd",
+				},
+			},
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "set",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedProject: ptr.To("project"),
+			expectedError:   nil,
+		},
+		{
+			name: "Project field is templated - verify that project is passed through to repo-server as empty string",
+			repoApps: []string{
+				"app1",
+			},
+			callGetDirectories: true,
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "set",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "{{.project}}",
+						},
+					},
+				},
+			},
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedProject: ptr.To(""),
+			expectedError:   nil,
+		},
 	}
 	for _, testCase := range cases {
 		argoCDServiceMock := mocks.Repos{}
 
 		if testCase.callGetDirectories {
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+			var project any
+			if testCase.expectedProject != nil {
+				project = *testCase.expectedProject
+			} else {
+				project = mock.Anything
+			}
+
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 		}
-		gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
+		gitGenerator := NewGitGenerator(&argoCDServiceMock, "argocd")
 
 		scheme := runtime.NewScheme()
 		err := v1alpha1.AddToScheme(scheme)
 		require.NoError(t, err)
-		appProject := v1alpha1.AppProject{}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
 
 		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
 

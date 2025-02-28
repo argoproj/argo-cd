@@ -1053,9 +1053,10 @@ func TestPrintApplicationNames(t *testing.T) {
 func Test_unset(t *testing.T) {
 	kustomizeSource := &v1alpha1.ApplicationSource{
 		Kustomize: &v1alpha1.ApplicationSourceKustomize{
-			NamePrefix: "some-prefix",
-			NameSuffix: "some-suffix",
-			Version:    "123",
+			IgnoreMissingComponents: true,
+			NamePrefix:              "some-prefix",
+			NameSuffix:              "some-suffix",
+			Version:                 "123",
 			Images: v1alpha1.KustomizeImages{
 				"old1=new:tag",
 				"old2=new:tag",
@@ -1152,6 +1153,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.True(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	assert.False(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 

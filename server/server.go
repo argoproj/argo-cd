@@ -240,6 +240,7 @@ type ArgoCDServerOpts struct {
 	WebhookParallelism      int
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
+	SyncWithReplaceAllowed  bool
 }
 
 type ApplicationSetOpts struct {
@@ -1023,6 +1024,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.projInformer,
 		a.ApplicationNamespaces,
 		a.EnableK8sEvent,
+		a.SyncWithReplaceAllowed,
 	)
 
 	applicationSetService := applicationset.NewServer(

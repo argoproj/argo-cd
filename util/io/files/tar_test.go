@@ -113,10 +113,7 @@ func TestUntgz(t *testing.T) {
 	}
 	deleteTmpDir := func(t *testing.T, dirname string) {
 		t.Helper()
-		err := os.RemoveAll(dirname)
-		if err != nil {
-			t.Errorf("error removing tmpDir: %s", err)
-		}
+		assert.NoError(t, os.RemoveAll(dirname), "error removing tmpDir")
 	}
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()

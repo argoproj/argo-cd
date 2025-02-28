@@ -291,9 +291,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)
@@ -342,9 +340,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
-	if err != nil {
-		t.Errorf("ServiceAccount %s not found but was expected to be found: %s", ArgoCDManagerServiceAccount, err.Error())
-	}
+	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
 	assert.Len(t, sa.Secrets, 1)

@@ -66,8 +66,8 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
-func getAPIResourceInfo(group, kind string, getApiResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-	apiResources, err := getApiResourceInfo()
+func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+	apiResources, err := getAPIResourceInfo()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -227,15 +227,18 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
-				argoappv1.AnnotationKeyHydrate: "normal",
 			},
 		},
 	}
+	if hydrate {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	}
+
 	var err error
 	patch, err := json.Marshal(metadata)
 	if err != nil {

@@ -41,7 +41,7 @@ type settingsSource interface {
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
-const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
+const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
 
@@ -300,7 +300,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := getWebUrlRegex(webURL)
+		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -311,7 +311,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 							continue
@@ -329,21 +329,44 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 }
 
-// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
-// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
-func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
-	urlObj, err := url.Parse(webURL)
+// GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
+// the given webURL. webURL is expected to be a URL from an SCM webhook payload pointing to the web
+// page for the repo.
+func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
+	// 1. Optional: protocol (`http`, `https`, or `ssh`) followed by `://`
+	// 2. Optional: username followed by `@`
+	// 3. Optional: `ssh` or `altssh` subdomain
+	// 4. Required: hostname parsed from `webURL`
+	// 5. Optional: `:` followed by port number
+	// 6. Required: `:` or `/`
+	// 7. Required: path parsed from `webURL`
+	// 8. Optional: `.git` extension
+	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
+}
+
+// GetAPIURLRegex compiles a regex that will match any targetRevision referring to the same repo as
+// the given apiURL.
+func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
+	// 1. Optional: protocol (`http` or `https`) followed by `://`
+	// 2. Optional: username followed by `@`
+	// 3. Required: hostname parsed from `webURL`
+	// 4. Optional: `:` followed by port number
+	// 5. Optional: `/`
+	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
+}
+
+func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
+	urlObj, err := url.Parse(originalURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
+		return nil, fmt.Errorf("failed to parse URL '%s'", originalURL)
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
-		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
+		return nil, fmt.Errorf("failed to compile regexp for URL '%s'", originalURL)
 	}
 
 	return repoRegexp, nil
