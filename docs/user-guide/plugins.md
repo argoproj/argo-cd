@@ -7,7 +7,8 @@ This guide demonstrates how to write plugins for the
 allowing for new and custom features which are not included in the main distribution
 of `argocd` CLI.
 
-If you are interested to take a look at the proposal, head over to this [enhancement proposal](https://github.com/argoproj/argo-cd/pull/19624).
+If you are interested to take a look at the proposal, head over to this [enhancement proposal](../../docs/proposals/argocd-cli-pluin.md).
+It covers how the plugin mechanism works, its benefits, motivation, and the goals it aims to achieve.
 
 ## Prerequisites
 
