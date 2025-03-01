@@ -467,18 +467,19 @@ func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 	// Getting the files changed from diff API:
 	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
 	var bbClient *bb.Client
+	var bearerToken string
 	if repository == nil {
-		log.Debug("no bitbucket repository found, initializing no auth client")
-		bbClient = bb.NewOAuthbearerToken("")
-	} else if len(repository.BearerToken) > 0 {
-		log.Debug("repository has bearer token, initializing oauth bearer token client")
-		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
-	} else if repository.Username != "" && repository.Password != "" {
+		log.Debugf("no bitbucket repository configured for URL %s, using no auth client", webURL)
+		bearerToken = ""
+	} else {
+		bearerToken = repository.BearerToken
+	}
+	if repository.Username != "" && repository.Password != "" {
 		log.Debug("repository has user/password, initializing basic auth client")
 		bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
 	} else {
-		log.Debug("repository has no creds, initializing no auth client")
-		bbClient = bb.NewOAuthbearerToken("")
+		log.Debug("repository has no creds or a bearer token, initializing token based client")
+		bbClient = bb.NewOAuthbearerToken(bearerToken)
 	}
 	// parse and set the target URL of the Bitbucket server in the client
 	repoBaseURL, err := url.Parse(webURL)
@@ -487,7 +488,7 @@ func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 	}
 	bbClient.SetApiBaseURL(*repoBaseURL)
 	// invoke the diffstat api call to get the list of changed files between two commit shas
-	log.Debugf("invoking diffstat call with parameters: [URL:%s, Owner:%s, RepoSlug:%s, Spec:%s]", *repoBaseURL, workspace, repoSlug, spec)
+	log.Debugf("invoking diffstat call with parameters: [URL:%s, Owner:%s, RepoSlug:%s, Spec:%s]", repoBaseURL.String(), workspace, repoSlug, spec)
 	diffStatResp, err := bbClient.Repositories.Diff.GetDiffStat(&bb.DiffStatOptions{
 		Owner:      workspace,
 		RepoSlug:   repoSlug,
