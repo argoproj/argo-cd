@@ -178,7 +178,7 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
 	errors.CheckError(err2)
 
-	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
+	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))

@@ -33,7 +33,6 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rand"
@@ -147,7 +146,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	CheckError(err)
+	errors.CheckError(err)
 	return restConfig
 }
 
@@ -194,7 +193,7 @@ func init() {
 
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
-	CheckError(err)
+	errors.CheckError(err)
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:          true,
@@ -206,11 +205,11 @@ func init() {
 		RepoServerName:    argoCDRepoServerName,
 		AppControllerName: argoCDAppControllerName,
 	})
-	CheckError(err)
+	errors.CheckError(err)
 
 	plainText = !tlsTestResult.TLS
 
-	CheckError(LoginAs(adminUsername))
+	errors.CheckError(LoginAs(adminUsername))
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -1041,30 +1040,30 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 
 	filename := filepath.Join(repoDirectory(), path)
 	bytes, err := os.ReadFile(filename)
-	CheckError(err)
+	errors.CheckError(err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	CheckError(err)
+	errors.CheckError(err)
 
 	isYaml := strings.HasSuffix(filename, ".yaml")
 	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
-		CheckError(err)
+		errors.CheckError(err)
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
-	CheckError(err)
+	errors.CheckError(err)
 
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
-		CheckError(err)
+		errors.CheckError(err)
 	}
 
-	CheckError(os.WriteFile(filename, bytes, 0o644))
+	errors.CheckError(os.WriteFile(filename, bytes, 0o644))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -1076,7 +1075,7 @@ func Delete(t *testing.T, path string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+	errors.CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
 
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
@@ -1088,7 +1087,7 @@ func Delete(t *testing.T, path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
+	errors.CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(t *testing.T, path, contents string) {
@@ -1109,11 +1108,11 @@ func AddSignedFile(t *testing.T, path, contents string) {
 	WriteFile(path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
-	os.Setenv("GNUPGHOME", prevGnuPGHome)
+	t.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
 		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
@@ -1122,8 +1121,8 @@ func AddSignedFile(t *testing.T, path, contents string) {
 func AddSignedTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
 		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
@@ -1133,8 +1132,8 @@ func AddSignedTag(t *testing.T, name string) {
 func AddTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
 		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
@@ -1144,12 +1143,12 @@ func AddTag(t *testing.T, name string) {
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values any) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
-	CheckError(err)
+	errors.CheckError(err)
 
 	tmpFile, err := os.CreateTemp("", "")
-	CheckError(err)
+	errors.CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
-	CheckError(err)
+	errors.CheckError(err)
 	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
@@ -1176,14 +1175,8 @@ func CreateSubmoduleRepos(t *testing.T, repoType string) {
 	if IsRemote() {
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
 	} else {
-		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
-		CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
+		t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
-		if isAllowProtocolSet {
-			CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldAllowProtocol))
-		} else {
-			CheckError(os.Unsetenv("GIT_ALLOW_PROTOCOL"))
-		}
 	}
 	if repoType == "ssh" {
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
