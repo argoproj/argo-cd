@@ -2103,9 +2103,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
 	}
-	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
-	}
+
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
@@ -2121,8 +2119,18 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
 		return nil, 0
-	} else if alreadyAttempted && selfHeal {
-		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
+	} else if selfHeal {
+		shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app, alreadyAttempted)
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
+		}
+
+		if alreadyAttempted {
+			if !shouldSelfHeal {
+				logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
+				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
+				return nil, 0
+			}
 			op.Sync.SelfHealAttemptsCount++
 			for _, resource := range resources {
 				if resource.Status != appv1.SyncStatusCodeSynced {
@@ -2133,10 +2141,6 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 					})
 				}
 			}
-		} else {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
-			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
-			return nil, 0
 		}
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
@@ -2220,9 +2224,14 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	}
 }
 
-func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {
+func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alreadyAttempted bool) (bool, time.Duration) {
 	if app.Status.OperationState == nil {
 		return true, time.Duration(0)
+	}
+
+	// Reset counter if the prior sync was successful OR if the revision has changed
+	if !alreadyAttempted || app.Status.Sync.Status == appv1.SyncStatusCodeSynced {
+		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
 	}
 
 	var retryAfter time.Duration
