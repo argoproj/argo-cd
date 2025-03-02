@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	. "github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -354,17 +355,6 @@ func RepoBaseURL(urlType RepoURLType) string {
 
 func DeploymentNamespace() string {
 	return deploymentNamespace
-}
-
-// creates a secret for the current test, this currently can only create a single secret
-func CreateSecret(username, password string) string {
-	secretName := "argocd-e2e-" + name
-	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
-		"--from-literal=username="+username,
-		"--from-literal=password="+password,
-		"-n", TestNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "secret", secretName, TestingLabel+"=true", "-n", TestNamespace()))
-	return secretName
 }
 
 // Convenience wrapper for updating argocd-cm
@@ -1045,7 +1035,8 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
-func Patch(path string, jsonPatch string) {
+func Patch(t *testing.T, path string, jsonPatch string) {
+	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
@@ -1074,22 +1065,23 @@ func Patch(path string, jsonPatch string) {
 	}
 
 	CheckError(os.WriteFile(filename, bytes, 0o644))
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func Delete(path string) {
+func Delete(t *testing.T, path string) {
+	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
 	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
 
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
@@ -1099,49 +1091,53 @@ func WriteFile(path, contents string) {
 	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
-func AddFile(path, contents string) {
+func AddFile(t *testing.T, path, contents string) {
+	t.Helper()
 	WriteFile(path, contents)
 
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
 
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func AddSignedFile(path, contents string) {
+func AddSignedFile(t *testing.T, path, contents string) {
+	t.Helper()
 	WriteFile(path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func AddSignedTag(name string) {
+func AddSignedTag(t *testing.T, name string) {
+	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
-func AddTag(name string) {
+func AddTag(t *testing.T, name string) {
+	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
@@ -1158,30 +1154,31 @@ func Declarative(filename string, values any) (string, error) {
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
 
-func CreateSubmoduleRepos(repoType string) {
+func CreateSubmoduleRepos(t *testing.T, repoType string) {
+	t.Helper()
 	// set-up submodule repo
-	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
-	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
-	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	errors.NewHandler(t).FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
+	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
+	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
+	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
 	if IsRemote() {
-		FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
-		FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
+		errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
+		errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
 	}
 
 	// set-up submodule parent repo
-	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
-	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
+	errors.NewHandler(t).FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
 	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
 	} else {
 		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
 		CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
-		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 		if isAllowProtocolSet {
 			CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldAllowProtocol))
 		} else {
@@ -1189,34 +1186,36 @@ func CreateSubmoduleRepos(repoType string) {
 		}
 	}
 	if repoType == "ssh" {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
 
 	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
-		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
 }
 
-func RemoveSubmodule() {
+func RemoveSubmodule(t *testing.T) {
+	t.Helper()
 	log.Info("removing submodule")
 
-	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
-	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
 	if IsRemote() {
-		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
 // until the rollout has completed.
-func RestartRepoServer() {
+func RestartRepoServer(t *testing.T) {
+	t.Helper()
 	if IsRemote() {
 		log.Infof("Waiting for repo server to restart")
 		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
@@ -1224,8 +1223,8 @@ func RestartRepoServer() {
 		if prefix != "" {
 			workload = prefix + "-repo-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 		// wait longer to avoid error on s390x
 		time.Sleep(5 * time.Second)
 	}
@@ -1233,7 +1232,8 @@ func RestartRepoServer() {
 
 // RestartAPIServer performs a restart of the API server deployemt and waits
 // until the rollout has completed.
-func RestartAPIServer() {
+func RestartAPIServer(t *testing.T) {
+	t.Helper()
 	if IsRemote() {
 		log.Infof("Waiting for API server to restart")
 		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
@@ -1241,8 +1241,8 @@ func RestartAPIServer() {
 		if prefix != "" {
 			workload = prefix + "-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 	}
 }
 

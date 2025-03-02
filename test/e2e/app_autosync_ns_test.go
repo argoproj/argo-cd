@@ -38,7 +38,7 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should not be auto-synced if k8s change detected
 		When().
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Then().
@@ -64,7 +64,7 @@ func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once k8s change detected
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
