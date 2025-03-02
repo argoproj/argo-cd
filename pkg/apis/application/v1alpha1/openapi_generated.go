@@ -8478,6 +8478,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"andOperator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

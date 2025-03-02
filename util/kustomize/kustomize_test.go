@@ -18,14 +18,13 @@ import (
 )
 
 const (
-	kustomization1  = "kustomization_yaml"
-	kustomization2a = "kustomization_yml"
-	kustomization2b = "Kustomization"
-	kustomization3  = "force_common"
-	kustomization4  = "custom_version"
-	kustomization5  = "kustomization_yaml_patches"
-	kustomization6  = "kustomization_yaml_components"
-	kustomization7  = "label_without_selector"
+	kustomization1 = "kustomization_yaml"
+	kustomization3 = "force_common"
+	kustomization4 = "custom_version"
+	kustomization5 = "kustomization_yaml_patches"
+	kustomization6 = "kustomization_yaml_components"
+	kustomization7 = "label_without_selector"
+	kustomization8 = "kustomization_yaml_patches_empty"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -65,7 +64,7 @@ func TestKustomizeBuild(t *testing.T) {
 		Replicas: []v1alpha1.KustomizeReplica{
 			{
 				Name:  "nginx-deployment",
-				Count: intstr.FromInt(2),
+				Count: intstr.FromInt32(2),
 			},
 			{
 				Name:  "web",
@@ -385,6 +384,45 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"foo": "bar",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "helm", "foo": "bar"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "foo": "bar"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"managed-by": "argocd",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+				ForceCommonLabels:     true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -445,7 +483,15 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components: []string{"./components"},
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: false,
+	}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.Error(t, err)
+
+	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components", "./missing-components"},
+		IgnoreMissingComponents: true,
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
@@ -510,4 +556,29 @@ func TestKustomizeBuildPatches(t *testing.T) {
 	assert.True(t, found)
 	require.NoError(t, err)
 	assert.Equal(t, "test", name)
+}
+
+func TestFailKustomizeBuildPatches(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization8)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Patches: []v1alpha1.KustomizePatch{
+			{
+				Patch: `[ { "op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 443 },  { "op": "replace", "path": "/spec/template/spec/containers/0/name", "value": "test" }]`,
+				Target: &v1alpha1.KustomizeSelector{
+					KustomizeResId: v1alpha1.KustomizeResId{
+						KustomizeGvk: v1alpha1.KustomizeGvk{
+							Kind: "Deployment",
+						},
+						Name: "nginx-deployment",
+					},
+				},
+			},
+		},
+	}
+
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.EqualError(t, err, "kustomization file not found in the path")
 }

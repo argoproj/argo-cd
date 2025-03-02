@@ -815,7 +815,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+			expectedClaims:        jwt.MapClaims{"iss": "sso"},
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
@@ -870,7 +870,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			useDex:                true,
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.RegisteredClaims{Issuer: "sso"},
+			expectedClaims:        jwt.MapClaims{"iss": "sso"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, expired token, admin claim",
@@ -1406,8 +1406,8 @@ func TestIsMainJsBundle(t *testing.T) {
 		testCaseCopy := testCase
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
-			testUrl, _ := url.Parse(testCaseCopy.url)
-			isMainJsBundle := isMainJsBundle(testUrl)
+			testURL, _ := url.Parse(testCaseCopy.url)
+			isMainJsBundle := isMainJsBundle(testURL)
 			assert.Equal(t, testCaseCopy.isMainJsBundle, isMainJsBundle)
 		})
 	}
@@ -1447,7 +1447,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			filename:                    "main.e4188e5adc97bbfc00c0.js",
 			createFile:                  false,
 			expectedStatus:              404,
-			expectedCacheControlHeaders: []string{"no-cache"},
+			expectedCacheControlHeaders: nil,
 		},
 	}
 

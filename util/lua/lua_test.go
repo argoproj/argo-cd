@@ -39,7 +39,7 @@ metadata:
   resourceVersion: "123"
 `
 
-const ec2AWSCrossplaneObjJson = `
+const ec2AWSCrossplaneObjJSON = `
 apiVersion: ec2.aws.crossplane.io/v1alpha1
 kind: Instance
 metadata:
@@ -91,7 +91,7 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
 	require.NoError(t, err)
@@ -237,7 +237,7 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"*.aws.crossplane.io/*": {
@@ -848,7 +848,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -859,7 +859,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override with non-empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getMultipleWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -868,7 +868,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
