@@ -1480,43 +1480,8 @@
             "in": "body",
             "required": true,
             "schema": {
-              "type": "string"
+              "$ref": "#/definitions/applicationResourceActionRunRequest"
             }
-          },
-          {
-            "type": "string",
-            "name": "namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "resourceName",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "version",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "group",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "kind",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "appNamespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "project",
-            "in": "query"
           }
         ],
         "responses": {
@@ -5021,6 +4986,55 @@
     },
     "applicationOperationTerminateResponse": {
       "type": "object"
+    },
+    "applicationResourceActionParameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationResourceActionRunRequest": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "appNamespace": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "resourceActionParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationResourceActionParameters"
+          }
+        },
+        "resourceName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
     },
     "applicationResourceActionsListResponse": {
       "type": "object",
@@ -9188,6 +9202,9 @@
       "description": "ResourceAction represents an individual action that can be performed on a resource.\nIt includes parameters, an optional disabled flag, an icon for display, and a name for the action.",
       "type": "object",
       "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
         "disabled": {
           "description": "Disabled indicates whether the action is disabled.",
           "type": "boolean"
@@ -9195,6 +9212,9 @@
         "displayName": {
           "description": "DisplayName provides a user-friendly name for the action.",
           "type": "string"
+        },
+        "hasParameters": {
+          "type": "boolean"
         },
         "iconClass": {
           "description": "IconClass specifies the CSS class for the action's icon.",
