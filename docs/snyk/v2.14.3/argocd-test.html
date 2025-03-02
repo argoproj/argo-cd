@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="11 known vulnerabilities found in 115 vulnerable dependency paths.">
+  <meta name="description" content="13 known vulnerabilities found in 60 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 16th 2025, 12:22:28 am (UTC+00:00)</p>
+                <p class="timestamp">March 2nd 2025, 12:22:28 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -468,9 +468,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>11</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>115 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2159</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>13</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>60 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2167</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -664,12 +664,342 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            github.com/go-git/go-git/v5/plumbing
+                            golang.org/x/oauth2/jws
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/go-git/go-git/v5/plumbing@5.12.0
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, golang.org/x/oauth2/google@0.26.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#2fef5c9049fd
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.171.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.26.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to improper parsing of malformed tokens which can lead to memory consumption.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/oauth2/jws</code> to version 0.27.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/oauth2/commit/681b4d8edca1bcfea5bce685d77ea7b82ed3e7b3">GitHub Commit</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/commit/d0bb4610154d45b7dce7d706a8068ea72586d249">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71490">GitHub Issue</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/pull/1308">GitHub PR</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3488">Go Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXOAUTH2JWS-8749594">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and golang.org/x/crypto/ssh@0.33.0
         
                     </li>
                 </ul>
@@ -684,7 +1014,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -693,9 +1023,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        code.gitea.io/sdk/gitea@0.20.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -704,9 +1034,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
+                                        golang.org/x/crypto/ssh/knownhosts@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -715,9 +1045,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -726,566 +1056,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
+                                        code.gitea.io/sdk/gitea@0.20.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/merkletrie/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/merkletrie/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/objfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/cache@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/idxfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/merkletrie/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/object@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/42wim/httpsig@1.2.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1294,313 +1069,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
+                                        code.gitea.io/sdk/gitea@0.20.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/go-fed/httpsig@1.1.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/object@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/object@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/diff@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/objfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/cache@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1609,21 +1082,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1631,22 +1094,12 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
+                                        code.gitea.io/sdk/gitea@0.20.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/revlist@5.12.0
+                                        golang.org/x/crypto/ssh/agent@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/object@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/diff@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1654,22 +1107,12 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/packfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/idxfile@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1677,22 +1120,14 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        github.com/xanzy/ssh-agent@0.3.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
+                                        golang.org/x/crypto/ssh/agent@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1700,24 +1135,14 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/config@5.12.0
+                                        golang.org/x/crypto/ssh/knownhosts@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1726,23 +1151,13 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1750,24 +1165,14 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
+                                        github.com/go-git/go-git/v5@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1775,24 +1180,16 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
+                                        github.com/xanzy/ssh-agent@0.3.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        golang.org/x/crypto/ssh/agent@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1800,26 +1197,16 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        golang.org/x/crypto/ssh/knownhosts@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1827,26 +1214,16 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
+                                        github.com/go-git/go-git/v5@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1855,25 +1232,17 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
+                                        github.com/go-git/go-git/v5@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
+                                        github.com/xanzy/ssh-agent@0.3.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        golang.org/x/crypto/ssh/agent@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1881,28 +1250,18 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/protocol/packp@5.12.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/memory@5.12.0
+                                        github.com/go-git/go-git/v5@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/storer@5.12.0
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/format/index@5.12.0
+                                        github.com/skeema/knownhosts@1.3.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/utils/binary@5.12.0
+                                        golang.org/x/crypto/ssh/knownhosts@0.33.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@5.12.0
+                                        golang.org/x/crypto/ssh@0.33.0
                                         
                                 </span>
         
@@ -1914,21 +1273,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/go-git/go-git/v5/plumbing">github.com/go-git/go-git/v5/plumbing</a> is a highly extensible git implementation library written in pure Go.</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via specially crafted responses from a Git server, which triggers resource exhaustion in clients. </p>
-        <h2 id="workaround">Workaround</h2>
-        <p>In cases where a bump to the latest version of go-git is not possible, we recommend limiting its use to only trustworthy Git servers.</p>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in <code>handshakeTransport</code> in <code>handshake.go</code>. An internal queue gets populated with received packets during the key exchange process, while waiting for the client to send a <code>SSH_MSG_KEXINIT</code>. An attacker can cause the server to become unresponsive to new connections by delaying or withholding this message, or by causing the queue to consume all available memory.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing</code> to version 5.13.0 or higher.</p>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.35.0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/go-git/go-git/commit/62a77b7d343dc1ed08d1d691efa13d81788cbc29">GitHub Commit</a></li>
+        <li><a href="https://go.dev/cl/652135">Git Commit</a></li>
+        <li><a href="https://go.dev/issue/71931">Go Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3487">Vulnerability Advisory</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBING-8602520">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8747056">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2082,7 +1441,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v2@0.0.0, code.gitea.io/sdk/gitea@0.19.0 and others
+                                    github.com/argoproj/argo-cd/v2@0.0.0, code.gitea.io/sdk/gitea@0.20.0 and others
                     </li>
                 </ul>
         
@@ -2096,7 +1455,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.19.0
+                                        code.gitea.io/sdk/gitea@0.20.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-version@1.6.0
                                         
@@ -2531,7 +1890,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/gosimple/slug@1.14.0
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/gosimple/slug@1.15.0
         
                     </li>
                 </ul>
@@ -2546,7 +1905,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@1.14.0
+                                        github.com/gosimple/slug@1.15.0
                                         
                                 </span>
         
@@ -2567,7 +1926,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Arbitrary Argument Injection</h2>
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="label label--medium">
@@ -2586,12 +1945,84 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            github.com/go-git/go-git/v5/plumbing/transport
+                            github.com/go-jose/go-jose/v4
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/coreos/go-oidc/v3/oidc@3.12.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.12.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.0.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-8745975">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/go-jose/go-jose/v3@3.0.3
         
                     </li>
                 </ul>
@@ -2606,266 +2037,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/git@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/git@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/http@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/file@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/server@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport/internal/common@5.12.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing/transport@5.12.0
+                                        github.com/go-jose/go-jose/v3@3.0.3
                                         
                                 </span>
         
@@ -2877,18 +2049,21 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Arbitrary Argument Injection via a malicious URL value, which allows an attacker to set flags on the <code>git-upload-pack</code> command, if the <code>file:</code> protocol is in use.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/transport</code> to version 5.13.0 or higher.</p>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v3</code> to version 3.0.4 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/go-git/go-git/commit/9550dfab10f009362b4921bc7f45996d9ff6ce5e">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGTRANSPORT-8602418">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-8754524">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
