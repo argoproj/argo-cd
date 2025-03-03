@@ -58,7 +58,24 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
-        ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
+        ...(operationState.message
+            ? [
+                  {
+                      title: 'MESSAGE',
+                      value: (
+                          <pre
+                              style={{
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  margin: 0,
+                                  fontFamily: 'inherit'
+                              }}>
+                              {utils.formatOperationMessage(operationState.message)}
+                          </pre>
+                      )
+                  }
+              ]
+            : []),
         {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
         {
             title: 'DURATION',
