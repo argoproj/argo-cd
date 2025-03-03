@@ -18,6 +18,10 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -43,6 +47,7 @@ const (
 	ResponseTypeCode            = "code"
 	UserInfoResponseCachePrefix = "userinfo_response"
 	AccessTokenCachePrefix      = "access_token"
+	OidcTokenCachePrefix        = "oidc_token"
 )
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -87,15 +92,76 @@ type ClientApp struct {
 	clientCache cache.CacheClient
 	// properties for azure workload identity.
 	azure azureApp
+	// preemptive oidcTokenCache refresh threshold
+	refreshTokenThreshold time.Duration
 }
 
 type azureApp struct {
-	// federated azure token for the service account
+	// federated azure oidcTokenCache for the service account
 	assertion string
-	// expiry of the token
+	// expiry of the oidcTokenCache
 	expires time.Time
-	// mutex for parallelism for reading the token
+	// mutex for parallelism for reading the oidcTokenCache
 	mtx *sync.RWMutex
+}
+
+// OidcTokenCache is a serialization wrapper around oauth2 provider configuration needed to generate a TokenSource
+type OidcTokenCache struct {
+	// Redirect URL is needed for oauth2 config initialization
+	RedirectURL string `json:"redirect_url"`
+	// oauth2 Token
+	Token *oauth2.Token `json:"oidcTokenCache"`
+	// TokenExtraIdToken captures value of id_token
+	TokenExtraIdToken string `json:"token_extra_id_token"`
+}
+
+// NewOidcTokenCache initializes the struct from a redirect URL and an existing oidcTokenCache
+func NewOidcTokenCache(redirectURL string, token *oauth2.Token) *OidcTokenCache {
+	var idToken string
+	if token.Extra("id_token") == nil {
+		idToken = ""
+	} else {
+		idToken = token.Extra("id_token").(string)
+	}
+	return &OidcTokenCache{
+		RedirectURL:       redirectURL,
+		Token:             token,
+		TokenExtraIdToken: idToken,
+	}
+}
+
+// GetOidcTokenCacheFromJSON deserializes the json representation of OidcTokenCache.  The Token extra map is updated from
+// the serialization wrapper to propagate the id_token.  This will ensure that the TokenSource always retrieves a usable oidcTokenCache.
+func GetOidcTokenCacheFromJSON(jsonBytes []byte) (*OidcTokenCache, error) {
+	var newToken OidcTokenCache
+	err := json.Unmarshal(jsonBytes, &newToken)
+	if err != nil {
+		return nil, err
+	}
+	if newToken.Token == nil {
+		return nil, errors.New("empty oidcTokenCache")
+	}
+	newToken.Token = newToken.Token.WithExtra(map[string]any{
+		"id_token": newToken.TokenExtraIdToken,
+	})
+	return &newToken, nil
+}
+
+// GetTokenSourceFromCache creates an oauth2 TokenSource from a cached oidc oidcTokenCache.  The TokenSource will be configured
+// with an early expiration based on the refreshTokenThreshold.
+func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache *OidcTokenCache) (oauth2.TokenSource, error) {
+	spanCtx, span := otel.Tracer("auth").Start(ctx, "GetTokenSourceFromCache")
+	defer span.End()
+	if oidcTokenCache == nil {
+		return nil, errors.New("oidcTokenCache is required")
+	}
+	config, err := a.getOauth2ConfigForRedirectURI(oidcTokenCache.RedirectURL)
+	if err != nil {
+		return nil, err
+	}
+	baseTokenSource := config.TokenSource(spanCtx, oidcTokenCache.Token)
+	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(oidcTokenCache.Token, baseTokenSource, a.refreshTokenThreshold)
+	return tokenRefresher, nil
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -127,6 +193,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -136,10 +203,18 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, span := otel.Tracer("util/oidc").Start(ctx, "ClientApp.client")
+			span.SetAttributes(
+				attribute.String("network", network),
+				attribute.String("addr", addr),
+			)
+			defer span.End()
+			return (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial(network, addr)
+		},
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
@@ -165,23 +240,27 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) getRedirectURIForRequest(req *http.Request) string {
+	redirectURI, err := a.settings.RedirectURLForRequest(req)
+	if err != nil {
+		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
+		redirectURI = a.redirectURI
+	}
+	return redirectURI
+}
+
+func (a *ClientApp) getOauth2ConfigForRedirectURI(redirectURI string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
-	}
-	redirectURL, err := a.settings.RedirectURLForRequest(request)
-	if err != nil {
-		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
-		redirectURL = a.redirectURI
 	}
 
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
 		Endpoint:     *endpoint,
-		Scopes:       scopes,
-		RedirectURL:  redirectURL,
+		Scopes:       a.getScopes(),
+		RedirectURL:  redirectURI,
 	}, nil
 }
 
@@ -315,17 +394,13 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	scopes := make([]string, 0)
 	pkceVerifier := ""
 	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
-		scopes = GetScopesOrDefault(config.RequestedScopes)
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
-	} else if a.settings.IsDexConfigured() {
-		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
 
-	oauth2Config, err := a.oauth2Config(r, scopes)
+	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -366,10 +441,10 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-// getFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account token.
+// getFederatedServiceAccountToken returns the specified file's content, which is expected to be Federated Kubernetes service account oidcTokenCache.
 // Kubernetes is responsible for updating the file as service account tokens expire.
 // Azure Workload Identity mutation webhook will set the environment variable AZURE_FEDERATED_TOKEN_FILE
-// Content of this file will contain a federated token which can be used in assertion with Microsoft Entra Application.
+// Content of this file will contain a federated oidcTokenCache which can be used in assertion with Microsoft Entra Application.
 func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, error) {
 	file, ok := os.LookupEnv("AZURE_FEDERATED_TOKEN_FILE")
 	if file == "" || !ok {
@@ -394,7 +469,7 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 			}
 			a.assertion = string(content)
 			// Kubernetes rotates service account tokens when they reach 80% of their total TTL. The shortest TTL
-			// is 1 hour. That implies the token we just read is valid for at least 12 minutes (20% of 1 hour),
+			// is 1 hour. That implies the oidcTokenCache we just read is valid for at least 12 minutes (20% of 1 hour),
 			// but we add some margin for safety.
 			a.expires = now.Add(10 * time.Minute)
 		}
@@ -406,7 +481,9 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(r, nil)
+	ctx, span := otel.Tracer("util/oidc").Start(r.Context(), "ClientApp.HandleCallback")
+	defer span.End()
+	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -430,7 +507,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := gooidc.ClientContext(r.Context(), a.client)
+	ctx = gooidc.ClientContext(ctx, a.client)
 	options := []oauth2.AuthCodeOption{}
 
 	if a.useAzureWorkloadIdentity {
@@ -452,31 +529,25 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("failed to get oidcTokenCache: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// Parse out id oidcTokenCache
 	idTokenRAW, ok := token.Extra("id_token").(string)
 	if !ok {
-		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+		http.Error(w, "no id_token in oidcTokenCache response", http.StatusInternalServerError)
 		return
 	}
 
-	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify token: %s", err)
+		log.Warnf("Failed to verify oidc oidcTokenCache: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
-	path := "/"
-	if a.baseHRef != "" {
-		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
-	}
-	cookiePath := "path=/" + path
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if a.secureCookie {
-		flags = append(flags, "Secure")
-	}
+
+	// Set cache
 	var claims jwt.MapClaims
 	err = idToken.Claims(&claims)
 	if err != nil {
@@ -484,37 +555,37 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// save the accessToken in memory for later use
-	encToken, err := crypto.Encrypt([]byte(token.AccessToken), a.encryptionKey)
+	sub := jwtutil.StringField(claims, "sub")
+	err = a.SetValueInEncryptedCache(ctx, formatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
-		http.Error(w, "failed encrypting token", http.StatusInternalServerError)
-		log.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
+		log.Errorf("cannot cache encrypted accessToken: %v (claims=%s)", err, claimsJSON)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	sub := jwtutil.StringField(claims, "sub")
-	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(sub),
-		Object: encToken,
-		CacheActionOpts: cache.CacheActionOpts{
-			Expiration: getTokenExpiration(claims),
-		},
-	})
+
+	// Cache encrypted raw oidcTokenCache for background refresh
+	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token)
+	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	sid := jwtutil.StringField(claims, "sid")
+	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
-		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+		log.Errorf("cannot cache encrypted oidc oidcTokenCache: %v (claims=%s)", err, claimsJSON)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if idTokenRAW != "" {
-		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+		err = httputil.SetTokenCookie(idTokenRAW, a.baseHRef, a.secureCookie, w)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
-		}
-
-		for _, cookie := range cookies {
-			w.Header().Add("Set-Cookie", cookie)
 		}
 	}
 
@@ -526,6 +597,160 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}
+}
+
+// GetValueFromEncryptedCache is a convenience method for retreiving a value from cache and decrypting it.  If the cache
+// does not contain a value for the given key, a nil value is returned.  Return handling should check for error and then
+// check for nil.
+func (a *ClientApp) GetValueFromEncryptedCache(ctx context.Context, key string) (value []byte, err error) {
+	_, span := otel.Tracer("util/oidc").Start(ctx, "GetEncryptedCache")
+	defer span.End()
+	var encryptedValue []byte
+	span.AddEvent("start cache read")
+	err = a.clientCache.Get(key, &encryptedValue)
+	span.AddEvent("end cache read")
+	if err != nil {
+		if errors.Is(err, cache.ErrCacheMiss) {
+			span.SetAttributes(attribute.Bool("cache_hit", false))
+			// Return nil to signify a cache miss
+			return nil, nil
+		}
+		err = fmt.Errorf("failed to get encrypted value from cache: %w", err)
+		span.RecordError(err)
+		return nil, err
+	}
+	span.SetAttributes(attribute.Bool("cache_hit", true))
+	value, err = crypto.Decrypt(encryptedValue, a.encryptionKey)
+	if err != nil {
+		err = fmt.Errorf("failed to decrypt value from cache: %w", err)
+		span.RecordError(err)
+		return nil, err
+	}
+	return
+}
+
+// SetValueFromEncyrptedCache is a convenience method for encrypting a value and storing it in the cache at a given key.
+// Cache expiration is set based on input.
+func (a *ClientApp) SetValueInEncryptedCache(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	_, span := otel.Tracer("util/oidc").Start(ctx, "SetValueInEncryptedCache")
+	defer span.End()
+	encryptedValue, err := crypto.Encrypt(value, a.encryptionKey)
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+	span.SetAttributes(
+		attribute.String("key", key),
+		attribute.Int("value_length", len(value)),
+	)
+	span.AddEvent("start cache write")
+	err = a.clientCache.Set(&cache.Item{
+		Key:    key,
+		Object: encryptedValue,
+		CacheActionOpts: cache.CacheActionOpts{
+			Expiration: expiration,
+		},
+	})
+	span.AddEvent("end cache write")
+	if err != nil {
+		span.RecordError(err)
+		return err
+	}
+	return nil
+}
+
+func (a *ClientApp) CheckAndGetRefreshToken(ctx context.Context, groupClaims jwt.MapClaims, refreshTokenThreshold time.Duration) (string, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("util/oidc").Start(ctx, "ClientApp.CheckAndRefreshToken")
+	defer span.End()
+	iss := jwtutil.StringField(groupClaims, "iss")
+	sub := jwtutil.StringField(groupClaims, "sub")
+	sid := jwtutil.StringField(groupClaims, "sid")
+	span.SetAttributes(
+		attribute.String("iss", iss),
+		attribute.String("sub", sub),
+		attribute.String("sid", sid))
+	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
+		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
+		if err != nil {
+			log.Errorf("Failed to get token from cache: %v", err)
+			span.RecordError(err)
+			return "", err
+		}
+		if token != nil {
+			idTokenRAW, ok := token.Extra("id_token").(string)
+			if !ok {
+				span.RecordError(err)
+				return "", err
+			}
+			return idTokenRAW, nil
+		}
+	}
+	return "", nil
+}
+
+// GetUpdatedOidcTokenFromCache fetches a oidcTokenCache from cache and refreshes it if under the threshold for expiration.
+// The cached oidcTokenCache will also be updated if it is refreshed.  Returns latest oidcTokenCache or an error if the process fails.
+func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("util/oidc").Start(ctx, "GetUpdatedOidcTokenFromCache")
+	defer span.End()
+
+	ctx = gooidc.ClientContext(ctx, a.client)
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("subject", subject),
+			attribute.String("sessionId", sessionId),
+		)
+	}
+
+	// Get oauth2 config
+	cacheKey := formatOidcTokenCacheKey(subject, sessionId)
+	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(ctx, cacheKey)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+	if oidcTokenCacheJSON == nil {
+		return nil, nil
+	}
+
+	oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
+	if err != nil {
+		err = fmt.Errorf("failed to unmarshal oidc oidcTokenCache refresher: %w", err)
+		span.RecordError(err)
+		return nil, err
+	}
+	tokenSource, err := a.GetTokenSourceFromCache(ctx, oidcTokenCache)
+	if err != nil {
+		err = fmt.Errorf("failed to get oidcTokenCache source from cached oidc oidcTokenCache refresher: %w", err)
+		span.RecordError(err)
+		return nil, err
+	}
+	span.AddEvent("starting tokenSource.Token()")
+	token, err := tokenSource.Token()
+	span.AddEvent("finished tokenSource.Token()")
+	if err != nil {
+		err = fmt.Errorf("failed to refresh oidcTokenCache from source: %w", err)
+		span.RecordError(err)
+		return nil, err
+	}
+	if token.AccessToken != oidcTokenCache.Token.AccessToken {
+		span.AddEvent("updating cache with latest oidcTokenCache")
+		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token)
+		oidcTokenCacheJSON, err = json.Marshal(oidcTokenCache)
+		if err != nil {
+			err = fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
+			span.RecordError(err)
+			return nil, err
+		}
+		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
+		if err != nil {
+			span.RecordError(err)
+			return nil, err
+		}
+	}
+	return token, nil
 }
 
 var implicitFlowTmpl = template.Must(template.New("implicit.html").Parse(`<script>
@@ -641,7 +866,10 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 }
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("util/oidc").Start(ctx, "ClientApp.GetUserInfo")
+	defer span.End()
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
@@ -663,19 +891,12 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	// check if the accessToken for the user is still present
-	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
-	// without an accessToken we can't query the user info endpoint
-	// thus the user needs to reauthenticate for argocd to get a new accessToken
-	if errors.Is(err, cache.ErrCacheMiss) {
-		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
-	} else if err != nil {
+	accessTokenBytes, err := a.GetValueFromEncryptedCache(ctx, formatAccessTokenCacheKey(sub))
+	if err != nil {
 		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
 	}
-
-	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
-	if err != nil {
-		return claims, true, fmt.Errorf("couldn't decrypt accessToken for %s: %w", sub, err)
+	if accessTokenBytes == nil {
+		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	}
 
 	url := issuerURL + userInfoPath
@@ -685,7 +906,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		return claims, false, err
 	}
 
-	bearer := fmt.Sprintf("Bearer %s", accessToken)
+	bearer := "Bearer " + string(accessTokenBytes)
 	request.Header.Set("Authorization", bearer)
 
 	response, err := a.client.Do(request)
@@ -707,7 +928,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	switch header {
 	case "application/jwt":
 		// if body is JWT, first validate it before extracting claims
-		idToken, err := a.provider.Verify(string(rawBody), a.settings)
+		idToken, err := a.provider.Verify(ctx, string(rawBody), a.settings)
 		if err != nil {
 			return claims, false, fmt.Errorf("user info response in jwt format not valid: %w", err)
 		}
@@ -727,16 +948,16 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	// but first let's determine the expiry of the cache
 	var cacheExpiry time.Duration
 	settingExpiry := a.settings.UserInfoCacheExpiration()
-	tokenExpiry := getTokenExpiration(claims)
+	tokenExpiry := GetTokenExpiration(claims)
 
-	// only use configured expiry if the token lives longer and the expiry is configured
-	// if the token has no expiry, use the expiry of the actual token
-	// otherwise use the expiry of the token
+	// only use configured expiry if the oidcTokenCache lives longer and the expiry is configured
+	// if the oidcTokenCache has no expiry, use the expiry of the actual oidcTokenCache
+	// otherwise use the expiry of the oidcTokenCache
 	switch {
 	case settingExpiry < tokenExpiry && settingExpiry != 0:
 		cacheExpiry = settingExpiry
 	case tokenExpiry < 0:
-		cacheExpiry = getTokenExpiration(actualClaims)
+		cacheExpiry = GetTokenExpiration(actualClaims)
 	default:
 		cacheExpiry = tokenExpiry
 	}
@@ -764,13 +985,24 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	return claims, false, nil
 }
 
-// getTokenExpiration returns a time.Duration until the token expires
-func getTokenExpiration(claims jwt.MapClaims) time.Duration {
+// GetTokenExpiration returns a time.Duration until the oidcTokenCache expires
+func GetTokenExpiration(claims jwt.MapClaims) time.Duration {
 	// get duration until token expires
 	exp := jwtutil.Float64Field(claims, "exp")
 	tm := time.Unix(int64(exp), 0)
 	tokenExpiry := time.Until(tm)
 	return tokenExpiry
+}
+
+// getScopes returns scopes based on provider configuration
+func (a *ClientApp) getScopes() []string {
+	scopes := make([]string, 0)
+	if config := a.settings.OIDCConfig(); config != nil {
+		scopes = GetScopesOrDefault(config.RequestedScopes)
+	} else if a.settings.IsDexConfigured() {
+		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
+	}
+	return scopes
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
@@ -781,4 +1013,9 @@ func formatUserInfoResponseCacheKey(sub string) string {
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
 func formatAccessTokenCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
+}
+
+// formatRefreshTokenCacheKey returns the key which is used to store the oidc Token for a session in cache
+func formatOidcTokenCacheKey(sub string, sid string) string {
+	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
 }

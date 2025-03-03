@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/util/settings"
-
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
@@ -102,6 +104,9 @@ func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Contex
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("session").Start(ctx, "session.GetUserInfo")
+	defer span.End()
 	return &session.GetUserInfoResponse{
 		LoggedIn: sessionmgr.LoggedIn(ctx),
 		Username: sessionmgr.Username(ctx),

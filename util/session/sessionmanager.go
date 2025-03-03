@@ -13,6 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -489,7 +492,7 @@ func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool) func(http.Handler) 
 // TokenVerifier defines the contract to invoke token
 // verification logic
 type TokenVerifier interface {
-	VerifyToken(token string) (jwt.Claims, string, error)
+	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
@@ -504,7 +507,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
 				return
 			}
-			claims, _, err := authn.VerifyToken(tokenString)
+			claims, _, err := authn.VerifyToken(r.Context(), tokenString)
 			if err != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
@@ -521,7 +524,10 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
-func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
+func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = otel.Tracer("util/session").Start(ctx, "SessionManager.VerifyToken")
+	defer span.End()
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -549,12 +555,13 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			return nil, "", errors.New("settings are not available while verifying the token")
 		}
 
-		idToken, err := prov.Verify(tokenString, argoSettings)
+		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			log.Warnf("Failed to verify token: %s", err)
+			span.RecordError(err)
+			log.Warnf("Failed to verify session token: %s", err)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.MapClaims{
