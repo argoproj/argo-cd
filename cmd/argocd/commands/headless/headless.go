@@ -172,6 +172,40 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	return nil
 }
 
+// setupRedisOptions creates and configures Redis options based on the client options
+// Returns the Redis options and an optional miniredis instance that should be closed when done
+func setupRedisOptions(ctx context.Context, clientOpts *apiclient.ClientOptions, kubeClientset kubernetes.Interface, namespace string) (*redis.Options, *miniredis.Miniredis, error) {
+	redisOptions := &redis.Options{}
+
+	// Try to fetch and set Redis password from Kubernetes config
+	if err := common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
+		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
+	}
+
+	// If no Redis URL is provided, use in-memory Redis
+	if clientOpts.RedisURL == "" {
+		mr, err := miniredis.Run()
+		if err != nil {
+			return nil, nil, fmt.Errorf("error running miniredis: %w", err)
+		}
+		redisOptions.Addr = mr.Addr()
+		return redisOptions, mr, nil
+	}
+
+	// Parse provided Redis URL
+	opts, err := redis.ParseURL(clientOpts.RedisURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing redis URL: %w", err)
+	}
+
+	// Keep the password that might have been obtained from K8s
+	if redisOptions.Password != "" && opts.Password == "" {
+		opts.Password = redisOptions.Password
+	}
+
+	return opts, nil, nil
+}
+
 // MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
 // server on the fly and changes provided client options to use started API server port.
 //
@@ -261,16 +295,36 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error getting namespace: %w", err)
 	}
 
-	mr, err := miniredis.Run()
+	var appstateCache *appstatecache.Cache
+
+	redisOptions, miniRedis, err := setupRedisOptions(ctx, clientOpts, kubeClientset, namespace)
 	if err != nil {
-		return fmt.Errorf("error running miniredis: %w", err)
-	}
-	redisOptions := &redis.Options{Addr: mr.Addr()}
-	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
-		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
+		return fmt.Errorf("failed to set up Redis options: %w", err)
 	}
 
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: cache.RedisCompressionType(clientOpts.RedisCompression), redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
+	// If using miniredis, make sure to close it when the context is done
+	if miniRedis != nil {
+		go func() {
+			<-ctx.Done()
+			miniRedis.Close()
+		}()
+	}
+
+	// Create the app state cache using the appropriate Redis client
+	if clientOpts.RedisURL == "" {
+		appstateCache = appstatecache.NewCache(cache.NewCache(&forwardCacheClient{
+			namespace:        namespace,
+			context:          ctxStr,
+			compression:      cache.RedisCompressionType(clientOpts.RedisCompression),
+			redisHaProxyName: clientOpts.RedisHaProxyName,
+			redisName:        clientOpts.RedisName,
+			redisPassword:    redisOptions.Password,
+		}), time.Hour)
+	} else {
+		redisClient := redis.NewClient(redisOptions)
+		appstateCache = appstatecache.NewCache(cache.NewCache(cache.NewRedisCache(redisClient, time.Hour, cache.RedisCompressionType(clientOpts.RedisCompression))), time.Hour)
+	}
+
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,
