@@ -1092,7 +1092,7 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 
 // Delete when source field is removed
 async function getSingleSource(app: models.Application) {
-    if (app.spec.source) {
+    if (app.spec.source || app.spec.sourceHydrator) {
         const repoDetail = await services.repos.appDetails(getAppDefaultSource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
             type: 'Directory' as models.AppSourceType,
             path: getAppDefaultSource(app).path
