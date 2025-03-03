@@ -101,6 +101,9 @@ RUN userdel -r ubuntu && \
     mkdir -p /home/user/.cache && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
+    mkdir -p /go/src/github.com/gogo && \
+    mkdir -p /go/src/k8s.io && \
+    chown -R user /go && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     HOME=/home/user git config --global --add safe.directory '*' && \
