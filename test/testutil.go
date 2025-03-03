@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"regexp"
 	"testing"
 	"time"
 
@@ -134,28 +133,4 @@ func CaptureLogEntries(run func()) string {
 	run()
 
 	return output.String()
-}
-
-type LogHook struct {
-	Entries []log.Entry
-}
-
-func (h *LogHook) Levels() []log.Level {
-	return []log.Level{log.WarnLevel}
-}
-
-func (h *LogHook) Fire(entry *log.Entry) error {
-	h.Entries = append(h.Entries, *entry)
-	return nil
-}
-
-func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
-	re := regexp.MustCompile(match)
-	matches := make([]string, 0)
-	for _, entry := range h.Entries {
-		if re.Match([]byte(entry.Message)) {
-			matches = append(matches, entry.Message)
-		}
-	}
-	return matches
 }
