@@ -163,6 +163,9 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Env: Env{{
 					Name:  "FOO",
 					Value: "bar",
+				}, {
+					Name:  "EMPTY",
+					Value: "",
 				}},
 			}
 		}).

@@ -147,6 +147,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Hazelcast](https://hazelcast.com/)
 1. [Healy](https://www.healyworld.net)
 1. [Helio](https://helio.exchange)
+1. [hetao101](https://www.hetao101.com/)
 1. [Hetki](https://hetki.ai)
 1. [hipages](https://hipages.com.au/)
 1. [Hiya](https://hiya.com)
@@ -391,6 +392,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [WooliesX](https://wooliesx.com.au/)
 1. [Woolworths Group](https://www.woolworthsgroup.com.au/)
 1. [WSpot](https://www.wspot.com.br/)
+1. [X3M ads](https://x3mads.com)
 1. [Yieldlab](https://www.yieldlab.de/)
 1. [Youverify](https://youverify.co/)
 1. [Yubo](https://www.yubo.live/)
@@ -398,4 +400,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecuiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [hetao101](https://www.hetao101.com/)
+

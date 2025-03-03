@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,17 +31,26 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
-	sources := []appv1.ApplicationSource{source}
-	revisions := []string{revision}
+func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+	drySources := []appv1.ApplicationSource{drySource}
+	dryRevisions := []string{revision}
 
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
+	app := origApp.DeepCopy()
+	// Remove the manifest generate path annotation, because the feature will misbehave for apps using source hydrator.
+	// Setting this annotation causes GetRepoObjs to compare the dry source commit to the most recent synced commit. The
+	// problem is that the most recent synced commit is likely on the hydrated branch, not the dry branch. The
+	// comparison will throw an error and break hydration.
+	//
+	// The long-term solution will probably be to persist the synced _dry_ revision and use that for the comparison.
+	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
+
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, sources, appLabelKey, revisions, true, true, false, project, false, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
@@ -56,8 +66,17 @@ func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repo
 	return ctrl.db.GetWriteRepository(ctx, repoURL, project)
 }
 
-func (ctrl *ApplicationController) RequestAppRefresh(appName string) {
-	ctrl.requestAppRefresh(appName, CompareWithLatest.Pointer(), nil)
+func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespace string) error {
+	// We request a refresh by setting the annotation instead of by adding it to the refresh queue, because there is no
+	// guarantee that the hydrator is running on the same controller shard as is processing the application.
+
+	// This function is called for each app after a hydrate operation is completed so that the app controller can pick
+	// up the newly-hydrated changes. So we set hydrate=false to avoid a hydrate loop.
+	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
+	if err != nil {
+		return fmt.Errorf("failed to request app refresh: %w", err)
+	}
+	return nil
 }
 
 func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {

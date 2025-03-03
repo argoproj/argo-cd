@@ -2549,44 +2549,84 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 
 	testCases := []struct {
 		attempts         int64
+		expectedAttempts int64
 		finishedAt       *metav1.Time
 		expectedDuration time.Duration
 		shouldSelfHeal   bool
+		alreadyAttempted bool
+		syncStatus       v1alpha1.SyncStatusCode
 	}{{
 		attempts:         0,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 0,
 		shouldSelfHeal:   true,
+		alreadyAttempted: true,
+		expectedAttempts: 0,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         1,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 2 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 1,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         2,
 		finishedAt:       ptr.To(metav1.Now()),
 		expectedDuration: 6 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 2,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         3,
 		finishedAt:       nil,
 		expectedDuration: 18 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 3,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         4,
 		finishedAt:       nil,
 		expectedDuration: 54 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 4,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         5,
 		finishedAt:       nil,
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 5,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
 	}, {
 		attempts:         6,
 		finishedAt:       nil,
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
+		alreadyAttempted: true,
+		expectedAttempts: 6,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
+	}, {
+		attempts:         6,
+		finishedAt:       nil,
+		expectedDuration: 0,
+		shouldSelfHeal:   true,
+		alreadyAttempted: false,
+		expectedAttempts: 0,
+		syncStatus:       v1alpha1.SyncStatusCodeOutOfSync,
+	}, {
+		attempts:         6,
+		finishedAt:       nil,
+		expectedDuration: 0,
+		shouldSelfHeal:   true,
+		alreadyAttempted: true,
+		expectedAttempts: 0,
+		syncStatus:       v1alpha1.SyncStatusCodeSynced,
 	}}
 
 	for i := range testCases {
@@ -2594,8 +2634,10 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 			app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = tc.attempts
 			app.Status.OperationState.FinishedAt = tc.finishedAt
-			ok, duration := ctrl.shouldSelfHeal(app)
+			app.Status.Sync.Status = tc.syncStatus
+			ok, duration := ctrl.shouldSelfHeal(app, tc.alreadyAttempted)
 			require.Equal(t, ok, tc.shouldSelfHeal)
+			require.Equal(t, tc.expectedAttempts, app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}

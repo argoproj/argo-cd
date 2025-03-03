@@ -1035,7 +1035,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			continue
 		}
 
-		// config map key should be of format resource.customizations.<type>.<group-kind>
+		// config map key should be of format resource.customizations.<type>.<group_kind>
 		parts := strings.SplitN(k, ".", 4)
 		if len(parts) < 4 {
 			continue
@@ -1096,7 +1096,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 	return nil
 }
 
-// Convert group-kind format to <group/kind>, allowed key format examples
+// Convert group_kind format to <group/kind>, allowed key format examples
 // resource.customizations.health.cert-manager.io_Certificate
 // resource.customizations.health.Certificate
 func convertToOverrideKey(groupKind string) (string, error) {

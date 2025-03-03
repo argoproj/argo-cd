@@ -41,6 +41,9 @@ argocd app logs APPNAME [flags]
   # Filter logs to show only those containing a specific string
   argocd app logs my-app --filter "error"
   
+  # Filter logs to show only those containing a specific string and match case
+  argocd app logs my-app --filter "error" --match-case
+  
   # Get logs for a specific container within the pods
   argocd app logs my-app -c my-container
   
@@ -57,6 +60,7 @@ argocd app logs APPNAME [flags]
       --group string        Resource group
   -h, --help                help for logs
       --kind string         Resource kind
+  -m, --match-case          Specify if the filter should be case-sensitive
       --name string         Resource name
       --namespace string    Resource namespace
   -p, --previous            Specify if the previously terminated container logs should be returned

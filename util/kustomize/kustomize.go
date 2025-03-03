@@ -230,6 +230,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.LabelWithoutSelector {
 				args = append(args, "--without-selector")
 			}
+			if opts.LabelIncludeTemplates {
+				args = append(args, "--include-templates")
+			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)

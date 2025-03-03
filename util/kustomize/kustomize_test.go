@@ -384,6 +384,45 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"foo": "bar",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "helm", "foo": "bar"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "foo": "bar"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
+		{
+			TestData: kustomization7,
+			KustomizeSource: v1alpha1.ApplicationSourceKustomize{
+				CommonLabels: map[string]string{
+					"managed-by": "argocd",
+				},
+				LabelWithoutSelector:  true,
+				LabelIncludeTemplates: true,
+				ForceCommonLabels:     true,
+			},
+			ExpectedMetadataLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			ExpectedSelectorLabels: map[string]string{"app": "nginx"},
+			ExpectedTemplateLabels: map[string]string{"app": "nginx", "managed-by": "argocd"},
+			Env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ARGOCD_APP_NAME",
+					Value: "argo-cd-tests",
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

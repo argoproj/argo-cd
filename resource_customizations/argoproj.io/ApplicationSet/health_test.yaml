@@ -8,6 +8,6 @@ tests:
       message: "found less than two generators, Merge requires two or more"
     inputPath: testdata/errorApplicationSetWithStatusMessage.yaml
   - healthStatus:
-      status: Healthy
-      message: ""
+      status: Progressing
+      message: "Waiting for the status to be reported"
     inputPath: testdata/noStatusApplicationSet.yaml
