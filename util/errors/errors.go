@@ -2,19 +2,12 @@ package errors
 
 import (
 	"os"
+	"testing"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	// ErrorCommandSpecific is reserved for command specific indications
-	ErrorCommandSpecific = 1
-	// ErrorConnectionFailure is returned on connection failure to API endpoint
-	ErrorConnectionFailure = 11
-	// ErrorAPIResponse is returned on unexpected API response, i.e. authorization failure
-	ErrorAPIResponse = 12
-	// ErrorResourceDoesNotExist is returned when the requested resource does not exist
-	ErrorResourceDoesNotExist = 13
 	// ErrorGeneric is returned for generic error
 	ErrorGeneric = 20
 )
@@ -26,10 +19,22 @@ func CheckError(err error) {
 	}
 }
 
-// FailOnErr panics if there is an error. It returns the first value so you can use it if you cast it:
-// text := FailOrErr(Foo)).(string)
-func FailOnErr(v any, err error) any {
-	CheckError(err)
+type Handler struct {
+	t *testing.T
+}
+
+func NewHandler(t *testing.T) *Handler {
+	t.Helper()
+	return &Handler{t: t}
+}
+
+// FailOnErr fails the test if there is an error. It returns the first value so you can use it if you cast it:
+// text := FailOrErr(Foo).(string)
+func (h *Handler) FailOnErr(v any, err error) any {
+	h.t.Helper()
+	if err != nil {
+		h.t.Fatal(err)
+	}
 	return v
 }
 

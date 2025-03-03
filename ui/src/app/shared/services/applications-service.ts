@@ -260,6 +260,7 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
@@ -458,9 +459,10 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
+        matchCase?: boolean;
         previous?: boolean;
     }): URLSearchParams {
-        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous, matchCase} = query;
         let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
@@ -491,6 +493,9 @@ export class ApplicationsService {
         }
         if (previous) {
             search.set('previous', previous.toString());
+        }
+        if (matchCase) {
+            search.set('matchCase', matchCase.toString());
         }
         // The API requires that this field be set to a non-empty string.
         search.set('sinceSeconds', '0');
