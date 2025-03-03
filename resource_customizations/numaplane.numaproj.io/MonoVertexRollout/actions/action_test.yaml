@@ -5,3 +5,9 @@ actionTests:
 - action: unpause
   inputPath: testdata/MonoVertexRollout/rollout-paused.yaml
   expectedOutputPath: testdata/MonoVertexRollout/rollout-running.yaml
+- action: add-full-promote
+  inputPath: testdata/MonoVertexRollout/rollout-add-full-promote.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-remove-full-promote.yaml
+- action: remove-full-promote
+  inputPath: testdata/MonoVertexRollout/rollout-remove-full-promote.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-add-full-promote.yaml
