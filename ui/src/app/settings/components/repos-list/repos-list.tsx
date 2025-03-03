@@ -216,7 +216,10 @@ export class ReposList extends React.Component<
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
                     password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
-                    tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
+                    tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
+                    bearerToken:
+                        (validURLValues.password && validURLValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
+                        (validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.')
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
