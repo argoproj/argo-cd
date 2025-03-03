@@ -1,0 +1,16 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  creationTimestamp: '2025-01-15T08:38:33Z'
+  generation: 1
+  name: my-config
+  resourceVersion: '37651'
+  uid: 38f22072-b5b0-41c8-b18d-907a397bd439
+  selfLink: /apis/pkg.crossplane.io/v1/configurations/my-config
+spec:
+  ignoreCrossplaneConstraints: false
+  package: crossplane/my-config:latest
+  packagePullPolicy: Always
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  skipDependencyResolution: true
