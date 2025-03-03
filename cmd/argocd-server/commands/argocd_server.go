@@ -98,6 +98,9 @@ func NewCommand() *cobra.Command {
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
+
+		// argocd ui extensions shared path
+		extensionsSharedPath string
 	)
 	command := &cobra.Command{
 		Use:               cliName,
@@ -245,6 +248,7 @@ func NewCommand() *cobra.Command {
 				EnableProxyExtension:    enableProxyExtension,
 				WebhookParallelism:      webhookParallelism,
 				EnableK8sEvent:          enableK8sEvent,
+				ExtensionsSharedPath:    extensionsSharedPath,
 				HydratorEnabled:         hydratorEnabled,
 				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
 			}
@@ -325,6 +329,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
+	command.Flags().StringVar(&extensionsSharedPath, "extensions-shared-path", env.StringFromEnv("ARGOCD_EXTENSIONS_SHARED_PATH", "/tmp/extensions"), "Directory path that contains UI extensions")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
 

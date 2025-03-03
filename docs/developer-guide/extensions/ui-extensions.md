@@ -1,7 +1,7 @@
 # UI Extensions
 
 Argo CD web user interface can be extended with additional UI elements. Extensions should be delivered as a javascript file
-in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory and starts with `extension` prefix ( matches to `^extension(.*)\.js$` regex ).
+in the `argocd-server` Pods that are placed in the `ARGOCD_EXTENSIONS_SHARED_PATH` directory with defaults to `/tmp/extensions` and starts with `extension` prefix ( matches to `^extension(.*)\.js$` regex ).
 
 ```
 /tmp/extensions
