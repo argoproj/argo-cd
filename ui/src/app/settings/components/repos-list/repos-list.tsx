@@ -125,7 +125,7 @@ interface NewGoogleCloudSourceRepoCredsParams {
 
 export enum ConnectionMethod {
     SSH = 'via SSH',
-    HTTPS = 'via HTTPS',
+    HTTPS = 'via HTTP/HTTPS',
     GITHUBAPP = 'via GitHub App',
     GOOGLECLOUD = 'via Google Cloud'
 }
@@ -656,7 +656,7 @@ export class ReposList extends React.Component<
                                             )}
                                             {this.state.method === ConnectionMethod.HTTPS && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING HTTPS</p>
+                                                    <p>CONNECT REPO USING HTTP/HTTPS</p>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
