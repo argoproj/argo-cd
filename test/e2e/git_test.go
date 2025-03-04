@@ -169,7 +169,7 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		}).
 		// Update the Deployment to a different revisionHistoryLimit
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 9}}`), metav1.PatchOptions{}))
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false. It should remain at 9.
@@ -222,7 +222,7 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		}).
 		// Update the Deployment to a different revisionHistoryLimit
 		And(func() {
-			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 9}}`), metav1.PatchOptions{}))
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false

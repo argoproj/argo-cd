@@ -1145,20 +1145,22 @@ func AddTag(t *testing.T, name string) {
 	}
 }
 
-func AddTagWithForce(name string) {
+func AddTagWithForce(t *testing.T, name string) {
+	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
-func AddAnnotatedTag(name string, message string) {
-	FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
+func AddAnnotatedTag(t *testing.T, name string, message string) {
+	t.Helper()
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
 	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
