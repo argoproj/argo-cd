@@ -3,7 +3,7 @@ Here you can find some examples of what you can do with the notifications servic
 ## Getting notified when a sync occurs and understanding how your resources changed
 
 With ArgoCD you can build a notification system that tells you when a sync occurred and what it changed. 
-To get notified via webhook when a sync occurs we can add the following trigger:
+To get notified via webhook when a sync occurs you can add the following trigger:
 
 ```yaml
 apiVersion: v1
@@ -40,7 +40,7 @@ metadata:
     notifications.argoproj.io/subscribe.on-deployed-trigger.on-deployed-webhook: ""
 ```
 
-We can test that this works and see how the response looks by adding any webhook site and syncing our application. We can see that we receive a list of resources, with a message and some properties of them. For example:
+You can test that this works and see how the response looks by adding any webhook site and syncing our application. Here you can see that we receive a list of resources, with a message and some properties of them. For example:
 ```json
 {
   "resources": [
@@ -81,5 +81,10 @@ We can leverage this information to know:
 2. How they changed
 
 To understand what resources changed we can check the message associated with each resource. Those that say that are unchanged were not affected in during the sync operation. With the list of changed resources, we can understand how they changed by looking into the images array.
+
+With this information you can, for example:
+1. Monitor the version of your image being deployed
+2. Be alerted in case of any vulnerability present in a new deployment
+3. Rollback deployments with images that are known to be faulty within your organisation
 
 This helps you build a notification system that allows you to understand the status of your deployments in a more advanced manner.
