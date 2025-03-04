@@ -395,7 +395,6 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	// Fetch predefined Lua scripts
 	discoveryKey := key + "/actions/"
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
-
 	if err != nil {
 		var doesNotExistErr *ScriptDoesNotExistError
 		if errors.As(err, &doesNotExistErr) {
