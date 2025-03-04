@@ -17,9 +17,9 @@ type Generator struct {
 	mock.Mock
 }
 
-// GenerateParams provides a mock function with given fields: appSetGenerator, applicationSetInfo, _a2
-func (_m *Generator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, _a2 client.Client) ([]map[string]interface{}, error) {
-	ret := _m.Called(appSetGenerator, applicationSetInfo, _a2)
+// GenerateParams provides a mock function with given fields: appSetGenerator, applicationSetInfo, params, _a3
+func (_m *Generator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, applicationSetInfo *v1alpha1.ApplicationSet, params map[string]interface{}, _a3 client.Client) ([]map[string]interface{}, error) {
+	ret := _m.Called(appSetGenerator, applicationSetInfo, params, _a3)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GenerateParams")
@@ -27,19 +27,19 @@ func (_m *Generator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGene
 
 	var r0 []map[string]interface{}
 	var r1 error
-	if rf, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) ([]map[string]interface{}, error)); ok {
-		return rf(appSetGenerator, applicationSetInfo, _a2)
+	if rf, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, map[string]interface{}, client.Client) ([]map[string]interface{}, error)); ok {
+		return rf(appSetGenerator, applicationSetInfo, params, _a3)
 	}
-	if rf, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) []map[string]interface{}); ok {
-		r0 = rf(appSetGenerator, applicationSetInfo, _a2)
+	if rf, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, map[string]interface{}, client.Client) []map[string]interface{}); ok {
+		r0 = rf(appSetGenerator, applicationSetInfo, params, _a3)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]map[string]interface{})
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, client.Client) error); ok {
-		r1 = rf(appSetGenerator, applicationSetInfo, _a2)
+	if rf, ok := ret.Get(1).(func(*v1alpha1.ApplicationSetGenerator, *v1alpha1.ApplicationSet, map[string]interface{}, client.Client) error); ok {
+		r1 = rf(appSetGenerator, applicationSetInfo, params, _a3)
 	} else {
 		r1 = ret.Error(1)
 	}
