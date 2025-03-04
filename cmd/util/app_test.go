@@ -206,6 +206,47 @@ func Test_setPluginOptEnvs(t *testing.T) {
 	})
 }
 
+func Test_setPluginOptParams(t *testing.T) {
+	t.Run("PluginParamsString", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		expectedString := "bar"
+		setPluginOptParams(&src, []string{"FOO=bar"}, "string")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", String_: &expectedString}, src.Plugin.Parameters[0])
+
+		expectedString = "baz"
+		setPluginOptParams(&src, []string{"BAR=baz"}, "string")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "BAR", String_: &expectedString}, src.Plugin.Parameters[1])
+
+		expectedString = "baz"
+		setPluginOptParams(&src, []string{"FOO=baz"}, "string")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", String_: &expectedString}, src.Plugin.Parameters[0])
+	})
+
+	t.Run("PluginParamsMap", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setPluginOptParams(&src, []string{"FOO=key1=value1,key2=value2"}, "map")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", OptionalMap: &v1alpha1.OptionalMap{Map: map[string]string{"key1": "value1", "key2": "value2"}}}, src.Plugin.Parameters[0])
+
+		setPluginOptParams(&src, []string{"BAR=keyA=valueA"}, "map")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "BAR", OptionalMap: &v1alpha1.OptionalMap{Map: map[string]string{"keyA": "valueA"}}}, src.Plugin.Parameters[1])
+
+		setPluginOptParams(&src, []string{"FOO=key1=newValue"}, "map")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", OptionalMap: &v1alpha1.OptionalMap{Map: map[string]string{"key1": "newValue"}}}, src.Plugin.Parameters[0])
+	})
+
+	t.Run("PluginParamsArray", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setPluginOptParams(&src, []string{"FOO=item1,item2,item3"}, "array")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", OptionalArray: &v1alpha1.OptionalArray{Array: []string{"item1", "item2", "item3"}}}, src.Plugin.Parameters[0])
+
+		setPluginOptParams(&src, []string{"BAR=valA,valB"}, "array")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "BAR", OptionalArray: &v1alpha1.OptionalArray{Array: []string{"valA", "valB"}}}, src.Plugin.Parameters[1])
+
+		setPluginOptParams(&src, []string{"FOO=newItem"}, "array")
+		assert.Equal(t, v1alpha1.ApplicationSourcePluginParameter{Name: "FOO", OptionalArray: &v1alpha1.OptionalArray{Array: []string{"newItem"}}}, src.Plugin.Parameters[0])
+	})
+}
+
 type appOptionsFixture struct {
 	spec    *v1alpha1.ApplicationSpec
 	command *cobra.Command

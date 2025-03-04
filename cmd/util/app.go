@@ -83,6 +83,9 @@ type AppOptions struct {
 	kustomizeApiVersions            []string //nolint:revive //FIXME(var-naming)
 	ignoreMissingComponents         bool
 	pluginEnvs                      []string
+	pluginParamsString              []string
+	pluginParamsMap                 []string
+	pluginParamsArray               []string
 	Validate                        bool
 	directoryExclude                string
 	directoryInclude                string
@@ -153,6 +156,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.kustomizeReplicas, "kustomize-replica", []string{}, "Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)")
 	command.Flags().BoolVar(&opts.ignoreMissingComponents, "ignore-missing-components", false, "Ignore locally missing component directories when setting Kustomize components")
 	command.Flags().StringArrayVar(&opts.pluginEnvs, "plugin-env", []string{}, "Additional plugin envs")
+	command.Flags().StringArrayVar(&opts.pluginParamsString, "plugin-param-string", []string{}, "Additional plugin string params (e.g. --plugin-param-string key1=\"val1\")")
+	command.Flags().StringArrayVar(&opts.pluginParamsMap, "plugin-param-map", []string{}, "Additional plugin map params. comma separated (e.g. --plugin-param-map key1=\"image.tag=v1.2.3,image.repo=my-repo\")")
+	command.Flags().StringArrayVar(&opts.pluginParamsArray, "plugin-param-array", []string{}, "Additional plugin array params. comma separated (e.g. --plugin-param-array key1=\"item1,item2,item3\")")
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
@@ -395,6 +401,20 @@ func setPluginOptEnvs(src *argoappv1.ApplicationSource, envs []string) {
 			log.Fatal(err)
 		}
 		src.Plugin.AddEnvEntry(e)
+	}
+}
+
+func setPluginOptParams(src *argoappv1.ApplicationSource, params []string, paramType string) {
+	if src.Plugin == nil {
+		src.Plugin = &argoappv1.ApplicationSourcePlugin{}
+	}
+
+	for _, text := range params {
+		p, err := argoappv1.NewParamEntry(text, paramType)
+		if err != nil {
+			log.Fatal(err)
+		}
+		src.Plugin.AddParamEntry(p, paramType)
 	}
 }
 
@@ -791,6 +811,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setJsonnetOptLibs(source, appOpts.jsonnetLibs)
 		case "plugin-env":
 			setPluginOptEnvs(source, appOpts.pluginEnvs)
+		case "plugin-param-string":
+			setPluginOptParams(source, appOpts.pluginParamsString, "string")
+		case "plugin-param-map":
+			setPluginOptParams(source, appOpts.pluginParamsMap, "map")
+		case "plugin-param-array":
+			setPluginOptParams(source, appOpts.pluginParamsArray, "array")
 		case "ref":
 			source.Ref = appOpts.ref
 		case "source-name":
