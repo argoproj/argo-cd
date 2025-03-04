@@ -187,6 +187,61 @@ func (e Env) Envsubst(s string) string {
 	})
 }
 
+// ParamEntry represents an entry in the application's parameters
+type ParamEntry struct {
+	// Name is the name of the variable, usually expressed in uppercase
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+	// StringValue is the string of the variable
+	StringValue *string `json:"string" protobuf:"bytes,2,opt,name=string"`
+	// Map is the value of a map type parameter.
+	*OptionalMap `json:",omitempty" protobuf:"bytes,3,rep,name=map"`
+	// OptionalArray is the value of an array type parameter.
+	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
+}
+
+// NewParamEntry parses a parameter in format name=string, name=map, name=array and returns an ParamEntry object
+func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
+	parts := strings.SplitN(text, "=", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Expected parameter entry of the form: param=string, param=map, or param=array. Received: %s", text)
+	}
+
+	name := parts[0]
+	value := parts[1]
+
+	switch paramType {
+	case "string":
+		return &ParamEntry{
+			Name:        name,
+			StringValue: &value,
+		}, nil
+	case "map":
+		mapValues := make(map[string]string)
+		keyValues := strings.Split(value, ",")
+
+		for _, kv := range keyValues {
+			kvParts := strings.SplitN(kv, "=", 2)
+			if len(kvParts) != 2 {
+				return nil, fmt.Errorf("Invalid map format: %s", kv)
+			}
+			mapValues[kvParts[0]] = kvParts[1]
+		}
+
+		return &ParamEntry{
+			Name:        name,
+			OptionalMap: &OptionalMap{Map: mapValues},
+		}, nil
+	case "array":
+		arrayValues := strings.Split(value, ",")
+		return &ParamEntry{
+			Name:          name,
+			OptionalArray: &OptionalArray{Array: arrayValues},
+		}, nil
+	default:
+		return nil, fmt.Errorf("Only supports parameters of types: string, array, and map. Received: %s", paramType)
+	}
+}
+
 // ApplicationSource contains all required information about the source of an application
 type ApplicationSource struct {
 	// RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
@@ -1151,6 +1206,49 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 		}
 	}
 	return fmt.Errorf("unable to find env variable with key %q for plugin %q", key, c.Name)
+}
+
+// AddParamEntry merges an ParamEntry into a list of entries. If an entry with the same name already exists,
+// its string/map/array will be overwritten. Otherwise, the entry is appended to the list.
+func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string) {
+	found := false
+	for i, cp := range c.Parameters {
+		if cp.Name == p.Name {
+			found = true
+			switch paramType {
+			case "string":
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
+			case "map":
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap}
+			case "array":
+				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray}
+			}
+			break
+		}
+	}
+
+	if !found {
+		switch paramType {
+		case "string":
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
+		case "map":
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap})
+		case "array":
+			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray})
+		}
+	}
+}
+
+// RemoveParamEntry removes an ParamEntry if present, from a list of entries.
+func (c *ApplicationSourcePlugin) RemoveParamEntry(key string) error {
+	for i, cp := range c.Parameters {
+		if cp.Name == key {
+			c.Parameters[i] = c.Parameters[len(c.Parameters)-1]
+			c.Parameters = c.Parameters[:len(c.Parameters)-1]
+			return nil
+		}
+	}
+	return fmt.Errorf("unable to find parameter variable with key %q for plugin %q", key, c.Name)
 }
 
 // ApplicationDestination holds information about the application's destination
