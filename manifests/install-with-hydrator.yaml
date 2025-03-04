@@ -408,7 +408,7 @@ spec:
                             type: boolean
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
-                              for Kustomize apps
+                              for Kustomize appsa
                             type: string
                           nameSuffix:
                             description: NameSuffix is a suffix appended to resources
@@ -797,7 +797,7 @@ spec:
                               type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
-                                for Kustomize apps
+                                for Kustomize appsa
                               type: string
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
@@ -1296,7 +1296,7 @@ spec:
                         type: boolean
                       namePrefix:
                         description: NamePrefix is a prefix appended to resources
-                          for Kustomize apps
+                          for Kustomize appsa
                         type: string
                       nameSuffix:
                         description: NameSuffix is a suffix appended to resources
@@ -1733,7 +1733,7 @@ spec:
                           type: boolean
                         namePrefix:
                           description: NamePrefix is a prefix appended to resources
-                            for Kustomize apps
+                            for Kustomize appsa
                           type: string
                         nameSuffix:
                           description: NameSuffix is a suffix appended to resources
@@ -2287,7 +2287,7 @@ spec:
                               type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
-                                for Kustomize apps
+                                for Kustomize appsa
                               type: string
                             nameSuffix:
                               description: NameSuffix is a suffix appended to resources
@@ -2680,7 +2680,7 @@ spec:
                                 type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                  for Kustomize appsa
                                 type: string
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
@@ -3223,7 +3223,7 @@ spec:
                                     type: boolean
                                   namePrefix:
                                     description: NamePrefix is a prefix appended to
-                                      resources for Kustomize apps
+                                      resources for Kustomize appsa
                                     type: string
                                   nameSuffix:
                                     description: NameSuffix is a suffix appended to
@@ -3636,7 +3636,7 @@ spec:
                                       type: boolean
                                     namePrefix:
                                       description: NamePrefix is a prefix appended
-                                        to resources for Kustomize apps
+                                        to resources for Kustomize appsa
                                       type: string
                                     nameSuffix:
                                       description: NameSuffix is a suffix appended
@@ -4160,7 +4160,7 @@ spec:
                                 type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                  for Kustomize appsa
                                 type: string
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
@@ -4564,7 +4564,7 @@ spec:
                                   type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
-                                    resources for Kustomize apps
+                                    resources for Kustomize appsa
                                   type: string
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to
@@ -5306,7 +5306,7 @@ spec:
                                 type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                  for Kustomize appsa
                                 type: string
                               nameSuffix:
                                 description: NameSuffix is a suffix appended to resources
@@ -5710,7 +5710,7 @@ spec:
                                   type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
-                                    resources for Kustomize apps
+                                    resources for Kustomize appsa
                                   type: string
                                 nameSuffix:
                                   description: NameSuffix is a suffix appended to

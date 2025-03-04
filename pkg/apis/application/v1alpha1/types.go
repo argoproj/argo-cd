@@ -635,7 +635,7 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix is a prefix appended to resources for Kustomize appsa
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
 	// NameSuffix is a suffix appended to resources for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
@@ -1432,6 +1432,16 @@ type SyncPolicy struct {
 	// If you add a field here, be sure to update IsZero.
 }
 
+// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
+func (s *SyncPolicy) IsAutomatedSyncEnabled() *bool {
+	var isEnabled bool
+
+	if s.Automated != nil && (s.Automated.Enable == nil || *s.Automated.Enable == true) {
+		isEnabled = true
+	}
+	return &isEnabled
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
@@ -1509,16 +1519,6 @@ type SyncPolicyAutomated struct {
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enable *bool `json:"enable,omitempty" protobuf:"bytes,4,opt,name=enable"`
-}
-
-// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
-func (s *SyncPolicyAutomated) IsAutomatedSyncEnabled() *bool {
-	var isEnabled bool
-
-	if s != nil && (s.Enable == nil || *s.Enable == true) {
-		isEnabled = true
-	}
-	return &isEnabled
 }
 
 // SyncStrategy controls the manner in which a sync is performed

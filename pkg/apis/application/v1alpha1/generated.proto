@@ -542,7 +542,7 @@ message ApplicationSourceJsonnet {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for Kustomize apps
+  // NamePrefix is a prefix appended to resources for Kustomize appsa
   optional string namePrefix = 1;
 
   // NameSuffix is a suffix appended to resources for Kustomize apps
