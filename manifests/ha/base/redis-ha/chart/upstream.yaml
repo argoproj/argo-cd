@@ -1100,7 +1100,13 @@ spec:
         args:
         - /readonly/haproxy_init.sh
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: config-volume
           mountPath: /readonly
@@ -1112,7 +1118,13 @@ spec:
         image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: AUTH
           valueFrom:
@@ -1216,7 +1228,14 @@ spec:
         args:
         - /readonly-config/init.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1246,7 +1265,14 @@ spec:
         args:
           - /data/conf/redis.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: AUTH
           valueFrom:
@@ -1302,7 +1328,14 @@ spec:
         args:
           - /data/conf/sentinel.conf
         securityContext: 
-          null
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
         env:
         - name: AUTH
           valueFrom:
@@ -1357,7 +1390,14 @@ spec:
         args:
           - /readonly-config/fix-split-brain.sh
         securityContext: 
-          null        
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
