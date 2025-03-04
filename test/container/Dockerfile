@@ -103,13 +103,15 @@ RUN userdel -r ubuntu && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     HOME=/home/user git config --global --add safe.directory '*' && \
+    mkdir -p /go/src && \
     mkdir -p /go/pkg && \
+    chown -R user:user /go && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
-    mkdir -p /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && \
+    chown -R user:user /tmp/go-build-cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
