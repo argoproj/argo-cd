@@ -3,7 +3,7 @@ actions["pause"] = {["disabled"] = true}
 actions["unpause"] = {["disabled"] = true}
 actions["allow-data-loss"] = {["disabled"] = true}
 actions["disallow-data-loss"] = {["disabled"] = true}
-actions["add-full-promote"] = {["disabled"] = true}
+actions["enable-full-promote"] = {["disabled"] = true}
 actions["remove-full-promote"] = {["disabled"] = true}
 
 -- pause/unpause
@@ -27,7 +27,7 @@ end
 
 -- full-promote
 if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
-  actions["add-full-promote"]["disabled"] = false
+  actions["enable-full-promote"]["disabled"] = false
 end
 if obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/promote"] == "true" then
   actions["remove-full-promote"]["disabled"] = false

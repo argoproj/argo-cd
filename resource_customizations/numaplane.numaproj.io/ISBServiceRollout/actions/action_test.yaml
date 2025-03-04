@@ -1,7 +1,7 @@
 actionTests:
-- action: add-full-promote
-  inputPath: testdata/ISBServiceRollout/rollout-add-full-promote.yaml
+- action: enable-full-promote
+  inputPath: testdata/ISBServiceRollout/rollout-enable-full-promote.yaml
   expectedOutputPath: testdata/ISBServiceRollout/rollout-remove-full-promote.yaml
 - action: remove-full-promote
   inputPath: testdata/ISBServiceRollout/rollout-remove-full-promote.yaml
-  expectedOutputPath: testdata/ISBServiceRollout/rollout-add-full-promote.yaml
+  expectedOutputPath: testdata/ISBServiceRollout/rollout-enable-full-promote.yaml
