@@ -84,13 +84,13 @@ func (a *Actions) AddTag(name string) *Actions {
 
 func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
 	a.context.t.Helper()
-	fixture.AddAnnotatedTag(name, message)
+	fixture.AddAnnotatedTag(a.context.t, name, message)
 	return a
 }
 
 func (a *Actions) AddTagWithForce(name string) *Actions {
 	a.context.t.Helper()
-	fixture.AddTagWithForce(name)
+	fixture.AddTagWithForce(a.context.t, name)
 	return a
 }
 
