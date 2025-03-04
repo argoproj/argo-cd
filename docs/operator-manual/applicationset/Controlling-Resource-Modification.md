@@ -343,15 +343,3 @@ metadata:
 data:
   applicationsetcontroller.log.level: debug
 ```
-
-## Previewing changes
-
-To preview changes that the ApplicationSet controller would make to Applications, you can create the AppSet in dry-run 
-mode. This works whether the AppSet already exists or not.
-
-```shell
-argocd appset create --dry-run ./appset.yaml -o json | jq -r '.status.resources[].name'
-```
-
-The dry-run will populate the returned ApplicationSet's status with the Applications which would be managed with the 
-given config. You can compare to the existing Applications to see what would change.

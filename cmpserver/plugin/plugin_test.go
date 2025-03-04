@@ -6,23 +6,23 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/cmp"
-	"github.com/argoproj/argo-cd/v3/util/tgzstream"
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/tgzstream"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -451,7 +451,8 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Args:    []string{`[`},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.ErrorContains(t, err, "unexpected end of JSON input")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected end of JSON input")
 }
 
 func Test_getParametersAnnouncement_bad_command(t *testing.T) {
@@ -460,7 +461,8 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Args:    []string{"1"},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
 }
 
 func Test_getTempDirMustCleanup(t *testing.T) {
@@ -514,90 +516,19 @@ func TestEnviron(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{})
 		assert.Nil(t, env)
 	})
-	t.Run("env vars with empty names", func(t *testing.T) {
+	t.Run("env vars with empty names or values", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Value: "test"},
 			{Name: "test"},
 		})
-		assert.Equal(t, []string{"test="}, env)
+		assert.Nil(t, env)
 	})
 	t.Run("proper env vars", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Name: "name1", Value: "value1"},
 			{Name: "name2", Value: "value2"},
-			{Name: "name3", Value: ""},
 		})
-		assert.Equal(t, []string{"name1=value1", "name2=value2", "name3="}, env)
-	})
-}
-
-func TestIsDiscoveryConfigured(t *testing.T) {
-	type fixture struct {
-		service *Service
-	}
-	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
-		t.Helper()
-		cic := buildPluginConfig(opts...)
-		s := NewService(*cic)
-		return &fixture{
-			service: s,
-		}
-	}
-	t.Run("discovery is enabled when is configured by FileName", func(t *testing.T) {
-		// given
-		d := Discover{
-			FileName: "kustomization.yaml",
-		}
-		f := setup(t, withDiscover(d))
-
-		// when
-		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
-
-		// then
-		assert.True(t, isDiscoveryConfigured)
-	})
-	t.Run("discovery is enabled when is configured by Glob", func(t *testing.T) {
-		// given
-		d := Discover{
-			Find: Find{
-				Glob: "**/*/plugin.yaml",
-			},
-		}
-		f := setup(t, withDiscover(d))
-
-		// when
-		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
-
-		// then
-		assert.True(t, isDiscoveryConfigured)
-	})
-	t.Run("discovery is enabled when is configured by Command", func(t *testing.T) {
-		// given
-		d := Discover{
-			Find: Find{
-				Command: Command{
-					Command: []string{"echo", "test"},
-				},
-			},
-		}
-		f := setup(t, withDiscover(d))
-
-		// when
-		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
-
-		// then
-		assert.True(t, isDiscoveryConfigured)
-	})
-	t.Run("discovery is disabled when discover is not configured", func(t *testing.T) {
-		// given
-		d := Discover{}
-		f := setup(t, withDiscover(d))
-
-		// when
-		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
-
-		// then
-		assert.False(t, isDiscoveryConfigured)
+		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
 	})
 }
 
@@ -807,11 +738,11 @@ func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
 }
 
-func (m *MockParametersAnnouncementStream) SendMsg(any) error {
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
 	return nil
 }
 
@@ -848,43 +779,29 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	})
 }
 
-func TestService_CheckPluginConfiguration(t *testing.T) {
-	type fixture struct {
-		service *Service
+func Test_getCommandArgsToLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "no spaces",
+			args:     []string{"sh", "-c", "cat"},
+			expected: "sh -c cat",
+		},
+		{
+			name:     "spaces",
+			args:     []string{"sh", "-c", `echo "hello world"`},
+			expected: `sh -c "echo \"hello world\""`,
+		},
 	}
-	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
-		t.Helper()
-		cic := buildPluginConfig(opts...)
-		s := NewService(*cic)
-		return &fixture{
-			service: s,
-		}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+		})
 	}
-	t.Run("discovery is enabled when is configured", func(t *testing.T) {
-		// given
-		d := Discover{
-			FileName: "kustomization.yaml",
-		}
-		f := setup(t, withDiscover(d))
-
-		// when
-		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
-
-		// then
-		require.NoError(t, err)
-		assert.True(t, resp.IsDiscoveryConfigured)
-	})
-
-	t.Run("discovery is disabled when is not configured", func(t *testing.T) {
-		// given
-		d := Discover{}
-		f := setup(t, withDiscover(d))
-
-		// when
-		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
-
-		// then
-		require.NoError(t, err)
-		assert.False(t, resp.IsDiscoveryConfigured)
-	})
 }

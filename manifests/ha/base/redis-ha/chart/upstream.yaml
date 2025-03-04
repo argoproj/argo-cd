@@ -1375,12 +1375,7 @@ spec:
         - mountPath: /health
           name: health
         lifecycle:
-          postStart:
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - sleep 30; redis-cli -p 26379 sentinel reset argocd
+          {}
 
       - name: split-brain-fix
         image: public.ecr.aws/docker/library/redis:7.0.15-alpine

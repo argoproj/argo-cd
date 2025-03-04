@@ -5,7 +5,6 @@ discoveryTests:
       disabled: false
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: abort
       disabled: false
     - name: retry
@@ -16,7 +15,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -29,7 +27,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -42,7 +39,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: false
     - name: abort
@@ -55,7 +51,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -68,7 +63,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -81,7 +75,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -94,7 +87,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort
@@ -107,7 +99,6 @@ discoveryTests:
   result:
     - name: restart
       disabled: false
-      displayName: Restart Pods
     - name: resume
       disabled: true
     - name: abort

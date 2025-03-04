@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // TestSyncOptionsValidateFalse verifies we can disable validation during kubectl apply, using the
@@ -53,11 +53,11 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
-			}))
+			})
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: true}}
@@ -73,8 +73,8 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
-				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
+			errors.FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), v1.PatchOptions{}))
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))

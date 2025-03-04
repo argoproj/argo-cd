@@ -64,7 +64,7 @@ export class ApplicationsService {
         return r.then(res => res.body as models.RevisionMetadata);
     }
 
-    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number | null): Promise<models.ChartDetails> {
+    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.ChartDetails> {
         let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`).query({appNamespace});
         if (sourceIndex !== null) {
             r = r.query({sourceIndex});
@@ -260,7 +260,6 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
-        matchCase?: boolean;
         previous?: boolean;
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
@@ -459,10 +458,9 @@ export class ApplicationsService {
         sinceSeconds?: number;
         untilTime?: string;
         filter?: string;
-        matchCase?: boolean;
         previous?: boolean;
     }): URLSearchParams {
-        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous, matchCase} = query;
+        const {appNamespace, containerName, namespace, podName, resource, tail, sinceSeconds, untilTime, filter, previous} = query;
         let {follow} = query;
         if (follow === undefined || follow === null) {
             follow = true;
@@ -493,9 +491,6 @@ export class ApplicationsService {
         }
         if (previous) {
             search.set('previous', previous.toString());
-        }
-        if (matchCase) {
-            search.set('matchCase', matchCase.toString());
         }
         // The API requires that this field be set to a non-empty string.
         search.set('sinceSeconds', '0');
