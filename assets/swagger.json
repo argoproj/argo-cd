@@ -7333,7 +7333,7 @@
         },
         "namePrefix": {
           "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+          "title": "NamePrefix is a prefix appended to resources for Kustomize appsa"
         },
         "nameSuffix": {
           "type": "string",
