@@ -3,7 +3,6 @@ package git
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -335,7 +334,7 @@ func Test_SemverTags(t *testing.T) {
 func Test_SemverTagsPathPrefix(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
