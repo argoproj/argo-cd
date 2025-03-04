@@ -7,19 +7,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
-	"sigs.k8s.io/yaml"
+	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
+	prometheus "github.com/prometheus/client_golang/prometheus"
+
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -174,7 +178,7 @@ func TestApplicationsetCollector(t *testing.T) {
 	appsetCollector := newAppsetCollector(utils.NewAppsetLister(client), collectedLabels, filter)
 
 	metrics.Registry.MustRegister(appsetCollector)
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
@@ -216,7 +220,7 @@ func TestObserveReconcile(t *testing.T) {
 
 	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	req, err := http.NewRequest("GET", "/metrics", nil)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})

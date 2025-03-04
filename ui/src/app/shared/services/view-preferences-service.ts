@@ -20,13 +20,11 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
-    enableWordWrap?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
     hideFilters: boolean;
-    matchCase: boolean;
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
@@ -124,7 +122,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         },
         darkMode: false,
         followLogs: false,
-        matchCase: false,
         wrapLines: false,
         zoom: 1.0,
         podGroupCount: 15.0,

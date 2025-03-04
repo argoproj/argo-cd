@@ -7,62 +7,62 @@ import (
 	gohttp "net/http"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v3/util/kube"
+	"github.com/argoproj/argo-cd/v2/util/kube"
 
 	"github.com/argoproj/pkg/grpc/http"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
-	//nolint:staticcheck
+	// nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 // appFields is a map of fields that can be selected from an application.
 // The manually maintained list is required because application list response might include thousands of applications
 // and JSON based field handling is too slow.
-var appFields = map[string]func(app *v1alpha1.Application) any{
-	"metadata.name":              func(app *v1alpha1.Application) any { return app.Name },
-	"metadata.namespace":         func(app *v1alpha1.Application) any { return app.Namespace },
-	"metadata.annotations":       func(app *v1alpha1.Application) any { return app.Annotations },
-	"metadata.labels":            func(app *v1alpha1.Application) any { return app.Labels },
-	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
-	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
-	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
-	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
-	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
-	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },
-	"status.operationState.startedAt": func(app *v1alpha1.Application) any {
+var appFields = map[string]func(app *v1alpha1.Application) interface{}{
+	"metadata.name":              func(app *v1alpha1.Application) interface{} { return app.Name },
+	"metadata.namespace":         func(app *v1alpha1.Application) interface{} { return app.Namespace },
+	"metadata.annotations":       func(app *v1alpha1.Application) interface{} { return app.Annotations },
+	"metadata.labels":            func(app *v1alpha1.Application) interface{} { return app.Labels },
+	"metadata.creationTimestamp": func(app *v1alpha1.Application) interface{} { return app.CreationTimestamp },
+	"metadata.deletionTimestamp": func(app *v1alpha1.Application) interface{} { return app.DeletionTimestamp },
+	"spec":                       func(app *v1alpha1.Application) interface{} { return app.Spec },
+	"status.sync.status":         func(app *v1alpha1.Application) interface{} { return app.Status.Sync.Status },
+	"status.health":              func(app *v1alpha1.Application) interface{} { return app.Status.Health },
+	"status.summary":             func(app *v1alpha1.Application) interface{} { return app.Status.Summary },
+	"status.operationState.startedAt": func(app *v1alpha1.Application) interface{} {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.StartedAt
 		}
 		return nil
 	},
-	"status.operationState.finishedAt": func(app *v1alpha1.Application) any {
+	"status.operationState.finishedAt": func(app *v1alpha1.Application) interface{} {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.FinishedAt
 		}
 		return nil
 	},
-	"status.resources": func(app *v1alpha1.Application) any {
+	"status.resources": func(app *v1alpha1.Application) interface{} {
 		if len(app.Status.Resources) > 0 {
 			return app.Status.Resources
 		}
 		return nil
 	},
-	"operation.sync": func(app *v1alpha1.Application) any {
+	"operation.sync": func(app *v1alpha1.Application) interface{} {
 		if app.Operation != nil {
 			return app.Operation.Sync
 		}
 		return nil
 	},
-	"status.operationState.phase": func(app *v1alpha1.Application) any {
+	"status.operationState.phase": func(app *v1alpha1.Application) interface{} {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.Phase
 		}
 		return nil
 	},
-	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
+	"status.operationState.operation.sync": func(app *v1alpha1.Application) interface{} {
 		if app.Status.OperationState != nil {
 			return app.Status.OperationState.SyncResult
 		}
@@ -70,11 +70,11 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	},
 }
 
-func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
+func processApplicationListField(v interface{}, fields map[string]interface{}, exclude bool) (interface{}, error) {
 	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
-		var items []map[string]any
+		var items []map[string]interface{}
 		for _, app := range appList.Items {
-			converted := make(map[string]any)
+			converted := make(map[string]interface{})
 			items = append(items, converted)
 			for field, fn := range appFields {
 				if _, ok := fields["items."+field]; ok == exclude {
@@ -92,9 +92,9 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 						item[subField] = value
 					} else {
 						if _, ok := item[subField]; !ok {
-							item[subField] = make(map[string]any)
+							item[subField] = make(map[string]interface{})
 						}
-						nestedMap, ok := item[subField].(map[string]any)
+						nestedMap, ok := item[subField].(map[string]interface{})
 						if !ok {
 							return nil, fmt.Errorf("field %s is not a map", field)
 						}
@@ -103,7 +103,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 				}
 			}
 		}
-		return map[string]any{
+		return map[string]interface{}{
 			"items":    items,
 			"metadata": appList.ListMeta,
 		}, nil
@@ -116,11 +116,8 @@ func init() {
 		if req.URL.Query().Get("download") == "true" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fileName := "log"
-			namespace := req.URL.Query().Get("namespace")
-			podName := req.URL.Query().Get("podName")
-			container := req.URL.Query().Get("container")
-			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
-				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
+			if container := req.URL.Query().Get("container"); len(container) > 0 && kube.IsValidResourceName(container) {
+				fileName = container
 			}
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
 			for {

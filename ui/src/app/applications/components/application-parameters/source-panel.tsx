@@ -57,7 +57,6 @@ const DEFAULT_APP: Partial<models.Application> = {
             path: '',
             repoURL: '',
             ref: '',
-            name: '',
             targetRevision: 'HEAD'
         },
         sources: [],
@@ -203,11 +202,6 @@ export const SourcePanel = (props: {
                                                             />
                                                         )}
                                                     </div>
-                                                </div>
-                                            </div>
-                                            <div className='row argo-form-row'>
-                                                <div className='columns small-10'>
-                                                    <FormField formApi={api} label='Name' field={'spec.source.name'} component={Text}></FormField>
                                                 </div>
                                             </div>
                                             {(repoType === 'git' && (

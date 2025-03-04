@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/test"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -50,7 +50,7 @@ func TestUserAgent(t *testing.T) {
 	tests := []testData{
 		{
 			// Reject out-of-date user-agent
-			userAgent: common.ArgoCDUserAgentName + "/0.10.0",
+			userAgent: fmt.Sprintf("%s/0.10.0", common.ArgoCDUserAgentName),
 			errorMsg:  "unsatisfied client version constraint",
 		},
 		{
