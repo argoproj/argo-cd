@@ -7,7 +7,7 @@ actionTests:
   expectedOutputPath: testdata/MonoVertexRollout/rollout-running.yaml
 - action: enable-full-promote
   inputPath: testdata/MonoVertexRollout/rollout-enable-full-promote.yaml
-  expectedOutputPath: testdata/MonoVertexRollout/rollout-remove-full-promote.yaml
-- action: remove-full-promote
-  inputPath: testdata/MonoVertexRollout/rollout-remove-full-promote.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-disable-full-promote.yaml
+- action: disable-full-promote
+  inputPath: testdata/MonoVertexRollout/rollout-disable-full-promote.yaml
   expectedOutputPath: testdata/MonoVertexRollout/rollout-enable-full-promote.yaml

@@ -13,7 +13,7 @@ actionTests:
   expectedOutputPath: testdata/PipelineRollout/rollout-disallowing-data-loss.yaml
 - action: enable-full-promote
   inputPath: testdata/PipelineRollout/rollout-enable-full-promote.yaml
-  expectedOutputPath: testdata/PipelineRollout/rollout-remove-full-promote.yaml
-- action: remove-full-promote
-  inputPath: testdata/PipelineRollout/rollout-remove-full-promote.yaml
+  expectedOutputPath: testdata/PipelineRollout/rollout-disable-full-promote.yaml
+- action: disable-full-promote
+  inputPath: testdata/PipelineRollout/rollout-disable-full-promote.yaml
   expectedOutputPath: testdata/PipelineRollout/rollout-enable-full-promote.yaml
