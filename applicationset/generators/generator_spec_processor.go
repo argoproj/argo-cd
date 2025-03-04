@@ -53,7 +53,8 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			continue
 		}
 		var params []map[string]any
-		if len(genParams) != 0 {
+		_, isMatrix := g.(*MatrixGenerator)
+		if len(genParams) != 0 && !isMatrix {
 			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator = &tempInterpolatedGenerator
 			if err != nil {
@@ -65,7 +66,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 		}
-		params, err = g.GenerateParams(interpolatedGenerator, appSet, client)
+		params, err = g.GenerateParams(interpolatedGenerator, appSet, genParams, client)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")

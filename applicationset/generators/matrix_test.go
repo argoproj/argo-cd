@@ -21,6 +21,137 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+func TestMatrixGenerateInterpolatedNested(t *testing.T) {
+	gitGenerator := &v1alpha1.GitGenerator{
+		RepoURL:     "RepoURL",
+		Revision:    "Revision",
+		Directories: []v1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+	}
+
+	testCases := []struct {
+		name           string
+		baseGenerators []v1alpha1.ApplicationSetNestedGenerator
+		expectedErr    error
+		expected       []map[string]any
+	}{
+		{
+			name: "happy flow - interpolate params from inner matrix",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"dummy": "a"}`)}},
+					},
+				},
+				{
+					Matrix: toAPIExtensionsJSON(t, &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								Git: gitGenerator,
+							},
+							{
+								List: &v1alpha1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url", "templated": "test-{{path.basenameNormalized}}"}`)}},
+								},
+							},
+						},
+					}),
+				},
+			},
+			expected: []map[string]any{
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1", "dummy": "a"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2", "dummy": "a"},
+			},
+		},
+		{
+			name: "happy flow - interpolate params from outer matrix in the inner matrix",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"dummy": "a"}`)}},
+					},
+				},
+				{
+					Matrix: toAPIExtensionsJSON(t, &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								Git: gitGenerator,
+							},
+							{
+								List: &v1alpha1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url", "test": "{{dummy}}", "templated": "test-{{path.basenameNormalized}}"}`)}},
+								},
+							},
+						},
+					}),
+				},
+			},
+			expected: []map[string]any{
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1", "dummy": "a", "test": "a"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2", "dummy": "a", "test": "a"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			genMock := &generatorMock{}
+			appSet := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{},
+			}
+
+			gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{
+				Git: gitGenerator,
+			}
+			genMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet, mock.Anything).Return([]map[string]any{
+				{
+					"path":                    "app1",
+					"path.basename":           "app1",
+					"path.basenameNormalized": "app1",
+				},
+				{
+					"path":                    "app2",
+					"path.basename":           "app2",
+					"path.basenameNormalized": "app2",
+				},
+			}, nil)
+
+			genMock.On("GetTemplate", &gitGeneratorSpec).
+				Return(&v1alpha1.ApplicationSetTemplate{})
+
+			matrixGenerator := NewMatrixGenerator(
+				map[string]Generator{
+					"List": &ListGenerator{},
+					"Matrix": NewMatrixGenerator(
+						map[string]Generator{
+							"Git":  genMock,
+							"List": &ListGenerator{},
+						},
+					),
+				},
+			)
+
+			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+				Matrix: &v1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   v1alpha1.ApplicationSetTemplate{},
+				},
+			}, appSet, map[string]any{}, nil)
+
+			if testCaseCopy.expectedErr != nil {
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+		})
+	}
+}
+
 func TestMatrixGenerate(t *testing.T) {
 	gitGenerator := &v1alpha1.GitGenerator{
 		RepoURL:     "RepoURL",
@@ -178,7 +309,7 @@ func TestMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, nil)
+			}, appSet, map[string]any{}, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				require.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -391,7 +522,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, nil)
+			}, appSet, map[string]any{}, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				require.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -677,7 +808,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, nil)
+			}, appSet, map[string]any{}, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				require.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -864,7 +995,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, nil)
+			}, appSet, map[string]any{}, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				require.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -1025,7 +1156,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 					Generators: testCaseCopy.baseGenerators,
 					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet, nil)
+			}, appSet, map[string]any{}, nil)
 
 			if testCaseCopy.expectedErr != nil {
 				require.ErrorIs(t, err, testCaseCopy.expectedErr)
@@ -1047,7 +1178,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGene
 	return args.Get(0).(*v1alpha1.ApplicationSetTemplate)
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, appSet *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, appSet *v1alpha1.ApplicationSet, _ map[string]any, _ client.Client) ([]map[string]any, error) {
 	args := g.Called(appSetGenerator, appSet)
 
 	return args.Get(0).([]map[string]any), args.Error(1)
@@ -1122,7 +1253,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 
 	params, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 		Matrix: matrixGeneratorSpec,
-	}, &v1alpha1.ApplicationSet{}, client)
+	}, &v1alpha1.ApplicationSet{}, map[string]any{}, client)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]any{{
 		"path":                    "some",
