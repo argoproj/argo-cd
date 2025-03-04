@@ -5,7 +5,7 @@ metadata:
   finalizers:
   - numaplane.numaproj.io/numaplane-controller
   labels:
-    numaplane.numaproj.io/promote: false
+    numaplane.numaproj.io/promote: "false"
   generation: 4
   name: test-isbservice-rollout
   namespace: numaplane-system

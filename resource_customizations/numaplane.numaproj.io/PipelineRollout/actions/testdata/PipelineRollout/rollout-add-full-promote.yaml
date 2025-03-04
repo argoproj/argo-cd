@@ -6,7 +6,7 @@ metadata:
   - numaplane.numaproj.io/numaplane-controller
   generation: 3
   labels:
-    numaplane.numaproj.io/promote: false
+    numaplane.numaproj.io/promote: "false"
   name: another-pipeline-rollout
   namespace: numaplane-system
   resourceVersion: "6904"

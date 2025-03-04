@@ -9,7 +9,7 @@ metadata:
   - numaplane.numaproj.io/numaplane-controller
   generation: 3
   labels:
-    numaplane.numaproj.io/promote: false
+    numaplane.numaproj.io/promote: "false"
   name: my-monovertex
   namespace: example-namespace
   resourceVersion: "314047"

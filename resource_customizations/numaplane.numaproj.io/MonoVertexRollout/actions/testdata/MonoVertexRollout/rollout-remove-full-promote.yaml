@@ -8,7 +8,7 @@ metadata:
   finalizers:
   - numaplane.numaproj.io/numaplane-controller
   labels:
-    numaplane.numaproj.io/promote: true
+    numaplane.numaproj.io/promote: "true"
   generation: 3
   name: my-monovertex
   namespace: example-namespace
