@@ -430,3 +430,733 @@ data:
 
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
+
+  resource.customizations.health.numaplane.numaproj.io_PipelineRollout: |
+    -- return true if paused, along with the reason
+    function isPaused(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "PipelinePausingOrPaused" and condition.status == "True" then
+            return true, condition.message
+          end
+        end
+      end
+    end
+
+
+    -- return true if degraded, along with the reason
+    function isDegraded(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+      -- check phase=Failed, healthy condition failed, progressive upgrade failed
+      if obj.status.phase == "Failed" then
+        return true, obj.status.message
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "PipelineFailed" then
+            return true, condition.message
+          elseif condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+            return true, "Progressive upgrade failed"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    function isProgressing(obj)
+      -- if there's no Status at all, we haven't been reconciled
+      if obj.status == nil then
+        return true, "Not yet reconciled"
+      end
+
+      if obj.metadata.generation ~= obj.status.observedGeneration then
+        return true, "Not yet reconciled"
+      end
+
+      -- if we are in the middle of an upgrade
+      if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" or obj.status.phase == "Pending" then
+        -- first check if Progressive Upgrade Failed; in that case, we won't return true (because "Degraded" will take precedence)
+        progressiveUpgradeFailed = false
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+              progressiveUpgradeFailed = true
+            end
+          end
+        end
+
+        if progressiveUpgradeFailed == false then
+          return true, "Update in progress"
+        end
+      end
+
+      -- if the child is Progressing
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "Progressing" then
+            return true, "Child Progressing"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    -- return true if healthy, along with the reason
+    function isHealthy(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "True" then
+            return true, "Healthy"
+          end
+        end
+      end
+    end
+
+    local hs = {}
+
+
+    progressing, reason = isProgressing(obj)
+    if progressing then
+      hs.status = "Progressing"
+      hs.message = reason
+      return hs
+    end
+
+    degraded, reason = isDegraded(obj)
+    if degraded then
+      hs.status = "Degraded"
+      hs.message = reason
+      return hs
+    end
+
+    paused, reason = isPaused(obj)
+    if paused then
+      hs.status = "Suspended"
+      hs.message = reason
+      return hs
+    end
+
+    healthy, reason = isHealthy(obj)
+    if healthy then
+      hs.status = "Healthy"
+      hs.message = reason
+      return hs
+    end
+
+    hs.status = "Unknown"
+    hs.message = "Unknown Pipeline status"
+    return hs
+  resource.customizations.health.numaplane.numaproj.io_ISBServiceRollout: |
+    -- return true if degraded, along with the reason
+    function isDegraded(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+      -- check phase=Failed, healthy condition failed, progressive upgrade failed
+      if obj.status.phase == "Failed" then
+        return true, obj.status.message
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "ISBSvcFailed" then
+            return true, condition.message
+          elseif condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+            return true, "Progressive upgrade failed"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    function isProgressing(obj)
+      -- if there's no Status at all, we haven't been reconciled
+      if obj.status == nil then
+        return true, "Not yet reconciled"
+      end
+
+      if obj.metadata.generation ~= obj.status.observedGeneration then
+        return true, "Not yet reconciled"
+      end
+
+      -- if we are in the middle of an upgrade
+      if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" or obj.status.phase == "Pending" then
+        -- first check if Progressive Upgrade Failed; in that case, we won't return true (because "Degraded" will take precedence)
+        progressiveUpgradeFailed = false
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+              progressiveUpgradeFailed = true
+            end
+          end
+        end
+
+        if progressiveUpgradeFailed == false then
+          return true, "Update in progress"
+        end
+      end
+
+      -- if the child is Progressing
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "Progressing" then
+            return true, "Child Progressing"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    -- return true if healthy, along with the reason
+    function isHealthy(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "True" then
+            return true, "Healthy"
+          end
+        end
+      end
+    end
+
+    local hs = {}
+
+
+    progressing, reason = isProgressing(obj)
+    if progressing then
+      hs.status = "Progressing"
+      hs.message = reason
+      return hs
+    end
+
+    degraded, reason = isDegraded(obj)
+    if degraded then
+      hs.status = "Degraded"
+      hs.message = reason
+      return hs
+    end
+
+    healthy, reason = isHealthy(obj)
+    if healthy then
+      hs.status = "Healthy"
+      hs.message = reason
+      return hs
+    end
+
+    hs.status = "Unknown"
+    hs.message = "Unknown status"
+    return hs
+
+  resource.customizations.health.numaplane.numaproj.io_NumaflowControllerRollout: |
+    -- return true if degraded, along with the reason
+    function isDegraded(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+      -- check phase=Failed, healthy condition failed
+      if obj.status.phase == "Failed" then
+        return true, obj.status.message
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason ~= "Progressing" then
+            return true, condition.message
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    function isProgressing(obj)
+      -- if there's no Status at all, we haven't been reconciled
+      if obj.status == nil then
+        return true, "Not yet reconciled"
+      end
+
+      if obj.metadata.generation ~= obj.status.observedGeneration then
+        return true, "Not yet reconciled"
+      end
+
+      -- if we are in the middle of an upgrade
+      if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" or obj.status.phase == "Pending" then
+        return true, "Update in progress"
+      end
+
+      -- if the child is Progressing
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "Progressing" then
+            return true, "Child Progressing"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    -- return true if healthy, along with the reason
+    function isHealthy(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "True" then
+            return true, "Healthy"
+          end
+        end
+      end
+    end
+
+    local hs = {}
+
+
+    progressing, reason = isProgressing(obj)
+    if progressing then
+      hs.status = "Progressing"
+      hs.message = reason
+      return hs
+    end
+
+    degraded, reason = isDegraded(obj)
+    if degraded then
+      hs.status = "Degraded"
+      hs.message = reason
+      return hs
+    end
+
+    healthy, reason = isHealthy(obj)
+    if healthy then
+      hs.status = "Healthy"
+      hs.message = reason
+      return hs
+    end
+
+    hs.status = "Unknown"
+    hs.message = "Unknown status"
+    return hs
+
+  resource.customizations.health.numaplane.numaproj.io_MonoVertexRollout: |
+    -- return true if paused, along with the reason
+    function isPaused(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "MonoVertexPausingOrPaused" and condition.status == "True" then
+            return true, condition.message
+          end
+        end
+      end
+    end
+
+
+
+    -- return true if degraded, along with the reason
+    function isDegraded(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+      -- check phase=Failed, healthy condition failed, progressive upgrade failed
+      if obj.status.phase == "Failed" then
+        return true, obj.status.message
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "MonoVertexFailed" then
+            return true, condition.message
+          elseif condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+            return true, "Progressive upgrade failed"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    function isProgressing(obj)
+      -- if there's no Status at all, we haven't been reconciled
+      if obj.status == nil then
+        return true, "Not yet reconciled"
+      end
+
+      if obj.metadata.generation ~= obj.status.observedGeneration then
+        return true, "Not yet reconciled"
+      end
+
+      -- if we are in the middle of an upgrade
+      if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" or obj.status.phase == "Pending" then
+        -- first check if Progressive Upgrade Failed; in that case, we won't return true (because "Degraded" will take precedence)
+        progressiveUpgradeFailed = false
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "ProgressiveUpgradeSucceeded" and condition.status == "False" then
+              progressiveUpgradeFailed = true
+            end
+          end
+        end
+
+        if progressiveUpgradeFailed == false then
+          return true, "Update in progress"
+        end
+      end
+
+      -- if the child is Progressing
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "False" and condition.reason == "Progressing" then
+            return true, "Child Progressing"
+          end
+        end
+      end
+
+      return false, ""
+    end
+
+    -- return true if healthy, along with the reason
+    function isHealthy(obj)
+      if obj.status == nil then
+        return false, ""
+      end
+
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "ChildResourcesHealthy" and condition.status == "True" then
+            return true, "Healthy"
+          end
+        end
+      end
+    end
+
+    local hs = {}
+
+
+    progressing, reason = isProgressing(obj)
+    if progressing then
+      hs.status = "Progressing"
+      hs.message = reason
+      return hs
+    end
+
+    degraded, reason = isDegraded(obj)
+    if degraded then
+      hs.status = "Degraded"
+      hs.message = reason
+      return hs
+    end
+
+    paused, reason = isPaused(obj)
+    if paused then
+      hs.status = "Suspended"
+      hs.message = reason
+      return hs
+    end
+
+    healthy, reason = isHealthy(obj)
+    if healthy then
+      hs.status = "Healthy"
+      hs.message = reason
+      return hs
+    end
+
+    hs.status = "Unknown"
+    hs.message = "Unknown MonoVertex status"
+    return hs
+  resource.customizations.actions.numaplane.numaproj.io_PipelineRollout: |
+    discovery.lua: |
+      local actions = {}
+      actions["pause"] = {["disabled"] = true}
+      actions["unpause"] = {["disabled"] = true}
+      actions["allow-data-loss"] = {["disabled"] = true}
+      actions["disallow-data-loss"] = {["disabled"] = true}
+
+      -- pause/unpause
+      local paused = false
+      if obj.spec.pipeline.spec.lifecycle ~= nil and obj.spec.pipeline.spec.lifecycle.desiredPhase ~= nil and obj.spec.pipeline.spec.lifecycle.desiredPhase == "Paused" then
+          paused = true
+      end
+      if paused then
+        actions["unpause"]["disabled"] = false
+      else
+        actions["pause"]["disabled"] = false
+      end
+
+      -- allow-data-loss/disallow-data-loss
+      if obj.status ~= nil and obj.status.upgradeInProgress == "PipelinePauseAndDrain" then
+        actions["allow-data-loss"]["disabled"] = false
+      end
+      if obj.metadata.annotations ~= nil and obj.metadata.annotations["numaplane.numaproj.io/allow-data-loss"] == "true" then
+        actions["disallow-data-loss"]["disabled"] = false
+      end
+
+      return actions
+
+    definitions:
+    - name: pause
+      action.lua: |
+        if obj.spec.pipeline.spec.lifecycle == nil then
+          obj.spec.pipeline.spec.lifecycle = {}
+        end
+        obj.spec.pipeline.spec.lifecycle.desiredPhase = "Paused"
+        return obj
+    - name: unpause
+      action.lua: |
+        obj.spec.pipeline.spec.lifecycle.desiredPhase = "Running"
+        return obj
+    - name: allow-data-loss
+      action.lua: |
+        if obj.metadata.annotations == nil then
+          obj.metadata.annotations = {}
+        end
+        obj.metadata.annotations["numaplane.numaproj.io/allow-data-loss"] = "true"
+        return obj
+    - name: disallow-data-loss
+      action.lua: |
+        if obj.metadata.annotations == nil then
+          obj.metadata.annotations = {}
+        end
+        obj.metadata.annotations["numaplane.numaproj.io/allow-data-loss"] = "false"
+        return obj
+  resource.customizations.actions.numaplane.numaproj.io_MonoVertexRollout: |
+    discovery.lua: |
+      local actions = {}
+      actions["pause"] = {["disabled"] = true}
+      actions["unpause"] = {["disabled"] = true}
+
+      local paused = false
+      if obj.spec.monoVertex.spec.lifecycle ~= nil and obj.spec.monoVertex.spec.lifecycle.desiredPhase ~= nil and obj.spec.monoVertex.spec.lifecycle.desiredPhase == "Paused" then
+          paused = true
+      end
+      if paused then
+        actions["unpause"]["disabled"] = false
+      else
+        actions["pause"]["disabled"] = false
+      end
+      return actions
+    definitions:
+    - name: pause
+      action.lua: |
+        if obj.spec.monoVertex.spec.lifecycle == nil then
+          obj.spec.monoVertex.spec.lifecycle = {}
+        end
+        obj.spec.monoVertex.spec.lifecycle.desiredPhase = "Paused"
+        return obj
+    - name: unpause
+      action.lua: |
+        obj.spec.monoVertex.spec.lifecycle.desiredPhase = "Running"
+        return obj
+
+  resource.customizations.health.numaflow.numaproj.io_Pipeline: |
+    local hs = {}
+    local healthy = {}
+
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.status == "False" then
+            healthy.status = "False"
+          end
+        end
+      end
+
+      if (healthy ~= {} and healthy.status == "False") or obj.status.phase == "Failed" then
+        hs.status = "Degraded"
+        if obj.status.phase == "Failed" then
+          hs.message = obj.status.message
+        else
+          hs.message = "Subresources are unhealthy"
+        end
+        return hs
+      elseif obj.status.phase == "Paused" or obj.status.phase == "Pausing" then
+        hs.status = "Suspended"
+        hs.message = "Pipeline is paused"
+        return hs
+      elseif obj.status.phase == "Running" then
+        hs.status = "Healthy"
+        hs.message = "Pipeline is healthy"
+        return hs
+      end
+    end
+
+    hs.status = "Progressing"
+    hs.message = "Waiting for Pipeline status"
+    return hs
+  resource.customizations.health.numaflow.numaproj.io_Vertex: |
+    local hs = {}
+    local healthy = {}
+
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.status == "False" then
+            healthy.status = "False"
+            healthy.message = condition.message
+          end
+        end
+      end
+
+      if (healthy ~= {} and healthy.status == "False") or obj.status.phase == "Failed" then
+        hs.status = "Degraded"
+        if obj.status.phase == "Failed" then
+          hs.message = obj.status.message
+        else
+          hs.message = healthy.message
+        end
+        return hs
+      elseif obj.status.phase == "Running" then
+        hs.status = "Healthy"
+        hs.message = "Vertex is healthy"
+        return hs
+      end
+    end
+
+    hs.status = "Progressing"
+    hs.message = "Waiting for Vertex status"
+    return hs
+  resource.customizations.health.numaflow.numaproj.io_MonoVertex: |
+    local hs = {}
+    local healthy = {}
+
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.status == "False" then
+            healthy.status = "False"
+          end
+        end
+      end
+
+      if (healthy ~= {} and healthy.status == "False") or obj.status.phase == "Failed" then
+        hs.status = "Degraded"
+        if obj.status.phase == "Failed" then
+          hs.message = obj.status.message
+        else
+          hs.message = "Subresources are unhealthy"
+        end
+        return hs
+      elseif obj.status.phase == "Paused" then
+        hs.status = "Suspended"
+        hs.message = "MonoVertex is paused"
+        return hs
+      elseif obj.status.phase == "Running" then
+        hs.status = "Healthy"
+        hs.message = "MonoVertex is healthy"
+        return hs
+      end
+    end
+
+    hs.status = "Progressing"
+    hs.message = "Waiting for MonoVertex status"
+    return hs
+  resource.customizations.health.numaflow.numaproj.io_InterStepBufferService: |
+    local hs = {}
+    local healthy = {}
+
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.status == "False" then
+            healthy.status = "False"
+            healthy.message = condition.message
+          end
+        end
+      end
+
+      if (healthy ~= {} and healthy.status == "False") or obj.status.phase == "Failed" then
+        hs.status = "Degraded"
+        if obj.status.phase == "Failed" then
+          hs.message = obj.status.message
+        else
+          hs.message = healthy.message
+        end
+        return hs
+      elseif obj.status.phase == "Running" then
+        hs.status = "Healthy"
+        hs.message = "InterStepBufferService is healthy"
+        return hs
+      end
+    end
+
+    hs.status = "Progressing"
+    hs.message = "Waiting for InterStepBufferService status"
+    return hs
+  resource.customizations.actions.numaflow.numaproj.io_Pipeline: |
+    discovery.lua: |
+      local actions = {}
+      actions["pause"] = {["disabled"] = true}
+      actions["unpause"] = {["disabled"] = true}
+
+      local paused = false
+      if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
+          paused = true
+      end
+      if paused then
+        actions["unpause"]["disabled"] = false
+      else
+        actions["pause"]["disabled"] = false
+      end
+      return actions
+    definitions:
+    - name: pause
+      action.lua: |
+        if obj.spec.lifecycle == nil then
+          obj.spec.lifecycle = {}
+        end
+        obj.spec.lifecycle.desiredPhase = "Paused"
+        return obj
+    - name: unpause
+      action.lua: |
+        obj.spec.lifecycle.desiredPhase = "Running"
+        return obj
+  resource.customizations.actions.numaflow.numaproj.io_MonoVertex: |
+    discovery.lua: |
+      local actions = {}
+      actions["pause"] = {["disabled"] = true}
+      actions["unpause"] = {["disabled"] = true}
+
+      local paused = false
+      if obj.spec.lifecycle ~= nil and obj.spec.lifecycle.desiredPhase ~= nil and obj.spec.lifecycle.desiredPhase == "Paused" then
+          paused = true
+      end
+      if paused then
+        actions["unpause"]["disabled"] = false
+      else
+        actions["pause"]["disabled"] = false
+      end
+      return actions
+    definitions:
+    - name: pause
+      action.lua: |
+        if obj.spec.lifecycle == nil then
+          obj.spec.lifecycle = {}
+        end
+        obj.spec.lifecycle.desiredPhase = "Paused"
+        return obj
+    - name: unpause
+      action.lua: |
+        obj.spec.lifecycle.desiredPhase = "Running"
+        return obj
