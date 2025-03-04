@@ -325,7 +325,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Equal(t, "", discoveryLua[0])
+	assert.Empty(t, discoveryLua)
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
