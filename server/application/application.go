@@ -242,7 +242,10 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, project, namespace, name string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		return s.appLister.Applications(namespaceOrDefault).Get(name)
+		app, err := s.appLister.Applications(namespaceOrDefault).Get(name)
+		// Objects returned by the lister must be treated as read-only.
+		// To allow us to modify the app later, make a copy
+		return app.DeepCopy(), err
 	})
 }
 
@@ -283,7 +286,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
 
-	filteredApps := apps
+	filteredApps := util.SliceCopy(apps)
 	// Filter applications by name
 	if q.Name != nil {
 		filteredApps = argo.FilterByNameP(filteredApps, *q.Name)
@@ -888,7 +891,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list, nil
+	return list.DeepCopy(), nil
 }
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
@@ -974,7 +977,7 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 		if err != nil {
 			return nil, fmt.Errorf("error getting application: %w", err)
 		}
-		s.inferResourcesStatusHealth(app)
+		s.inferResourcesStatusHealth(app.DeepCopy())
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
@@ -2321,7 +2324,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
-			s.waitSync(updated)
+			s.waitSync(updated.DeepCopy())
 			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
@@ -2330,7 +2333,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		}
 		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
 		time.Sleep(100 * time.Millisecond)
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application by name: %w", err)
 		}
