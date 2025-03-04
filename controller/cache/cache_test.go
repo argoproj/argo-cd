@@ -731,3 +731,17 @@ func TestShouldHashManifest(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetVersionsInfo_error_redacted(t *testing.T) {
+	c := liveStateCache{}
+	cluster := &appv1.Cluster{
+		Server: "https://localhost:1234",
+		Config: appv1.ClusterConfig{
+			Username: "admin",
+			Password: "password",
+		},
+	}
+	_, _, err := c.GetVersionsInfo(cluster)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "password")
+}
