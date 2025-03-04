@@ -92,6 +92,9 @@ argocd app create APPNAME [flags]
   -p, --parameter stringArray                      set a parameter override (e.g. -p guestbook=image=example/guestbook:latest)
       --path string                                Path in repository to the app directory, ignored if a file is set
       --plugin-env stringArray                     Additional plugin envs
+      --plugin-param-array stringArray             Additional plugin array params. comma separated (e.g. --plugin-param-array key1="item1,item2,item3")
+      --plugin-param-map stringArray               Additional plugin map params. comma separated (e.g. --plugin-param-map key1="image.tag=v1.2.3,image.repo=my-repo")
+      --plugin-param-string stringArray            Additional plugin string params (e.g. --plugin-param-string key1="val1")
       --project string                             Application project name
       --ref string                                 Ref is reference to another source within sources field
       --release-name string                        Helm release-name

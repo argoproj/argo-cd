@@ -3009,6 +3009,34 @@ func (m *OverrideIgnoreDiff) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_OverrideIgnoreDiff proto.InternalMessageInfo
 
+func (m *ParamEntry) Reset()      { *m = ParamEntry{} }
+func (*ParamEntry) ProtoMessage() {}
+func (*ParamEntry) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{102}
+}
+func (m *ParamEntry) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ParamEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *ParamEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ParamEntry.Merge(m, src)
+}
+func (m *ParamEntry) XXX_Size() int {
+	return m.Size()
+}
+func (m *ParamEntry) XXX_DiscardUnknown() {
+	xxx_messageInfo_ParamEntry.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ParamEntry proto.InternalMessageInfo
+
 func (m *PluginConfigMapRef) Reset()      { *m = PluginConfigMapRef{} }
 func (*PluginConfigMapRef) ProtoMessage() {}
 func (*PluginConfigMapRef) Descriptor() ([]byte, []int) {
@@ -4868,6 +4896,7 @@ func init() {
 	proto.RegisterType((*OrphanedResourceKey)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OrphanedResourceKey")
 	proto.RegisterType((*OrphanedResourcesMonitorSettings)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OrphanedResourcesMonitorSettings")
 	proto.RegisterType((*OverrideIgnoreDiff)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OverrideIgnoreDiff")
+	proto.RegisterType((*ParamEntry)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ParamEntry")
 	proto.RegisterType((*PluginConfigMapRef)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PluginConfigMapRef")
 	proto.RegisterType((*PluginGenerator)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PluginGenerator")
 	proto.RegisterMapType((map[string]string)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.PluginGenerator.ValuesEntry")
@@ -12028,6 +12057,65 @@ func (m *OverrideIgnoreDiff) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *ParamEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ParamEntry) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ParamEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.OptionalArray != nil {
+		{
+			size, err := m.OptionalArray.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.OptionalMap != nil {
+		{
+			size, err := m.OptionalMap.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.StringValue != nil {
+		i -= len(*m.StringValue)
+		copy(dAtA[i:], *m.StringValue)
+		i = encodeVarintGenerated(dAtA, i, uint64(len(*m.StringValue)))
+		i--
+		dAtA[i] = 0x12
+	}
+	i -= len(m.Name)
+	copy(dAtA[i:], m.Name)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Name)))
+	i--
+	dAtA[i] = 0xa
+	return len(dAtA) - i, nil
+}
+
 func (m *PluginConfigMapRef) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -18578,6 +18666,29 @@ func (m *OverrideIgnoreDiff) Size() (n int) {
 	return n
 }
 
+func (m *ParamEntry) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	n += 1 + l + sovGenerated(uint64(l))
+	if m.StringValue != nil {
+		l = len(*m.StringValue)
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if m.OptionalMap != nil {
+		l = m.OptionalMap.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	if m.OptionalArray != nil {
+		l = m.OptionalArray.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
 func (m *PluginConfigMapRef) Size() (n int) {
 	if m == nil {
 		return 0
@@ -21914,6 +22025,19 @@ func (this *OverrideIgnoreDiff) String() string {
 		`JSONPointers:` + fmt.Sprintf("%v", this.JSONPointers) + `,`,
 		`JQPathExpressions:` + fmt.Sprintf("%v", this.JQPathExpressions) + `,`,
 		`ManagedFieldsManagers:` + fmt.Sprintf("%v", this.ManagedFieldsManagers) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ParamEntry) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ParamEntry{`,
+		`Name:` + fmt.Sprintf("%v", this.Name) + `,`,
+		`StringValue:` + valueToStringGenerated(this.StringValue) + `,`,
+		`OptionalMap:` + strings.Replace(this.OptionalMap.String(), "OptionalMap", "OptionalMap", 1) + `,`,
+		`OptionalArray:` + strings.Replace(this.OptionalArray.String(), "OptionalArray", "OptionalArray", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -43303,6 +43427,193 @@ func (m *OverrideIgnoreDiff) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.ManagedFieldsManagers = append(m.ManagedFieldsManagers, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ParamEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ParamEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ParamEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StringValue", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			s := string(dAtA[iNdEx:postIndex])
+			m.StringValue = &s
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OptionalMap", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.OptionalMap == nil {
+				m.OptionalMap = &OptionalMap{}
+			}
+			if err := m.OptionalMap.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field OptionalArray", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.OptionalArray == nil {
+				m.OptionalArray = &OptionalArray{}
+			}
+			if err := m.OptionalArray.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
