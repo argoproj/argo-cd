@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - 'master'
+      - 'release-*'
 jobs:
   test:
     runs-on: ubuntu-latest
