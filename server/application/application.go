@@ -48,7 +48,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
-	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -128,7 +127,7 @@ func NewServer(
 	s := &Server{
 		ns:                     namespace,
 		appclientset:           appclientset,
-		appLister:              appLister,
+		appLister:              &deepCopyApplicationLister{appLister},
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
 		kubeclientset:          kubeclientset,
@@ -243,9 +242,7 @@ func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, 
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
 		app, err := s.appLister.Applications(namespaceOrDefault).Get(name)
-		// Objects returned by the lister must be treated as read-only.
-		// To allow us to modify the app later, make a copy
-		return app.DeepCopy(), err
+		return app, err
 	})
 }
 
@@ -286,7 +283,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
 
-	filteredApps := util.SliceCopy(apps)
+	filteredApps := apps
 	// Filter applications by name
 	if q.Name != nil {
 		filteredApps = argo.FilterByNameP(filteredApps, *q.Name)
@@ -383,9 +380,6 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
-	// Objects returned from listers have to be treated as read-only
-	// Take a deep copy so we can edit it below
-	existing = existing.DeepCopy()
 
 	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
@@ -1229,7 +1223,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if err != nil {
 			return fmt.Errorf("error listing apps with selector: %w", err)
 		}
-		apps = util.SliceCopy(apps)
 		sort.Slice(apps, func(i, j int) bool {
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
