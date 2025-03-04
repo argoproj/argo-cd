@@ -15,8 +15,7 @@ interface Props {
     application: models.Application;
     operationState: models.OperationState;
 }
-const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) =>
-    `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.kind === 'Namespace' ? res.name : res.kind}-${res.name}`;
+const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.namespace || ''}-${res.name}`;
 const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
