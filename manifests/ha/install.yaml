@@ -25197,7 +25197,7 @@ data:
     identify_announce_ip
 
     if [ -z "${ANNOUNCE_IP}" ]; then
-        "Error: Could not resolve the announce ip for this pod."
+        "Error: Could not resolve the announce ip for this pod"
         exit 1
     elif [ "${MASTER}" ]; then
         find_master
@@ -25292,11 +25292,12 @@ data:
         -p 6379 \
         ping
     )
-    if [ "$response" != "PONG" ] && [ "${response:0:7}" != "LOADING" ] ; then
-      echo "$response"
-      exit 1
-    fi
     echo "response=$response"
+    case $response in
+      PONG|LOADING*) ;;
+      *) exit 1 ;;
+    esac
+    exit 0
   redis_readiness.sh: |
     response=$(
       redis-cli \
@@ -25306,10 +25307,33 @@ data:
         ping
     )
     if [ "$response" != "PONG" ] ; then
-      echo "$response"
+      echo "ping=$response"
       exit 1
     fi
-    echo "response=$response"
+
+    response=$(
+      redis-cli \
+        -a "${AUTH}" --no-auth-warning \
+        -h localhost \
+        -p 6379 \
+        role
+    )
+    role=$( echo "$response" | sed "1!d" )
+    if [ "$role" = "master" ]; then
+      echo "role=$role"
+      exit 0
+    elif [ "$role" = "slave" ]; then
+      repl=$( echo "$response" | sed "4!d" )
+      echo "role=$role; repl=$repl"
+      if [ "$repl" = "connected" ]; then
+        exit 0
+      else
+        exit 1
+      fi
+    else
+      echo "role=$role"
+      exit 1
+    fi
   sentinel_liveness.sh: |
     response=$(
       redis-cli \
@@ -26128,6 +26152,7 @@ spec:
               matchLabels:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
+      automountServiceAccountToken: false
       containers:
       - env:
         - name: AUTH
@@ -26135,17 +26160,19 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.9.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8888
+            port: probe
           initialDelaySeconds: 5
           periodSeconds: 3
         name: haproxy
         ports:
+        - containerPort: 8888
+          name: probe
         - containerPort: 6379
           name: redis
         - containerPort: 9101
@@ -26153,7 +26180,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 8888
+            port: probe
           initialDelaySeconds: 5
           periodSeconds: 3
         securityContext:
@@ -26190,7 +26217,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.9.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -27340,7 +27367,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
+        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -27363,7 +27390,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -27405,6 +27432,17 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/redis_readiness.sh
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
         volumeMounts:
         - mountPath: /readonly-config
           name: config
@@ -27423,7 +27461,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -27466,6 +27504,17 @@ spec:
           readOnlyRootFilesystem: true
           seccompProfile:
             type: RuntimeDefault
+        startupProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/sentinel_liveness.sh
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 15
         volumeMounts:
         - mountPath: /data
           name: data
@@ -27487,7 +27536,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -27522,7 +27571,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
