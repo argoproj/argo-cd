@@ -242,11 +242,10 @@ type ArgoCDServerOpts struct {
 }
 
 type ApplicationSetOpts struct {
-	GitSubmoduleEnabled      bool
-	EnableNewGitFileGlobbing bool
-	ScmRootCAPath            string
-	AllowedScmProviders      []string
-	EnableScmProviders       bool
+	GitSubmoduleEnabled bool
+	ScmRootCAPath       string
+	AllowedScmProviders []string
+	EnableScmProviders  bool
 }
 
 // GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
@@ -1045,7 +1044,6 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		projectLock,
 		a.ApplicationNamespaces,
 		a.GitSubmoduleEnabled,
-		a.EnableNewGitFileGlobbing,
 		a.ScmRootCAPath,
 		a.AllowedScmProviders,
 		a.EnableScmProviders,
