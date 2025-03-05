@@ -439,6 +439,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			HookPhase: res.HookPhase,
 			Status:    res.Status,
 			Message:   res.Message,
+			Images:    res.Images,
 		})
 	}
 
