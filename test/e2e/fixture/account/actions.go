@@ -47,7 +47,8 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 }
 
 func (a *Actions) Create() *Actions {
-	errors.CheckError(fixture.SetAccounts(map[string][]string{
+	a.context.t.Helper()
+	errors.NewHandler(a.context.t).CheckForErr(fixture.SetAccounts(map[string][]string{
 		a.context.name: {"login"},
 	}))
 	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
@@ -55,17 +56,20 @@ func (a *Actions) Create() *Actions {
 }
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
-	errors.CheckError(fixture.SetPermissions(permissions, a.context.name, roleName))
+	a.context.t.Helper()
+	errors.NewHandler(a.context.t).CheckForErr(fixture.SetPermissions(permissions, a.context.name, roleName))
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
+	a.context.t.Helper()
+	errors.NewHandler(a.context.t).CheckForErr(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Login() *Actions {
-	errors.CheckError(fixture.LoginAs(a.context.name))
+	a.context.t.Helper()
+	errors.NewHandler(a.context.t).CheckForErr(fixture.LoginAs(a.context.name))
 	return a
 }
 

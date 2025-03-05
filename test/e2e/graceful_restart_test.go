@@ -37,7 +37,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	// Should be healthy.
 	checkHealth(t, true)
 	// Should trigger API server restart.
-	errors.CheckError(fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
+	errors.NewHandler(t).CheckForErr(fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
 
 	// Wait for ~5 seconds
 	for i := 0; i < 50; i++ {
