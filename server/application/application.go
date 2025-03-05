@@ -241,8 +241,7 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, project, namespace, name string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		app, err := s.appLister.Applications(namespaceOrDefault).Get(name)
-		return app, err
+		return s.appLister.Applications(namespaceOrDefault).Get(name)
 	})
 }
 
@@ -261,9 +260,7 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 		if err != nil {
 			return nil, err
 		}
-		// Objects returned by the lister must be treated as read-only.
-		// To allow us to modify the app later, make a copy
-		return app.DeepCopy(), nil
+		return app, nil
 	})
 }
 
@@ -488,7 +485,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		sources := make([]v1alpha1.ApplicationSource, 0)
-		appSpec := a.Spec.DeepCopy()
+		appSpec := a.Spec
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
@@ -971,7 +968,7 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 		if err != nil {
 			return nil, fmt.Errorf("error getting application: %w", err)
 		}
-		s.inferResourcesStatusHealth(app.DeepCopy())
+		s.inferResourcesStatusHealth(app)
 	}
 	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
@@ -2317,7 +2314,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
-			s.waitSync(updated.DeepCopy())
+			s.waitSync(updated)
 			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil
 		}
