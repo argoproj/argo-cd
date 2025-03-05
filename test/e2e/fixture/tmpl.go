@@ -12,6 +12,7 @@ import (
 
 // utility method to template a string using a map
 func Tmpl(t *testing.T, text string, values any) string {
+	t.Helper()
 	parse, err := template.New(text).Parse(text)
 	errors.NewHandler(t).CheckForErr(err)
 	buf := new(bytes.Buffer)

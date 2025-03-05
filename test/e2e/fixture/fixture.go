@@ -584,7 +584,7 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
-func SetProjectSpec(t *testing.T, project string, spec v1alpha1.AppProjectSpec) error {
+func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -843,7 +843,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
-			err := SetProjectSpec(t, "default", v1alpha1.AppProjectSpec{
+			err := SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
@@ -1147,7 +1147,7 @@ func Declarative(t *testing.T, filename string, values any) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	errors.NewHandler(t).CheckForErr(err)
 
-	tmpFile, err := os.CreateTemp("", "")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "")
 	errors.NewHandler(t).CheckForErr(err)
 	_, err = tmpFile.WriteString(Tmpl(t, string(bytes), values))
 	errors.NewHandler(t).CheckForErr(err)
