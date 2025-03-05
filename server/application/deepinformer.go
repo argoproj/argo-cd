@@ -76,7 +76,7 @@ type deepCopyArgoprojV1alpha1Client struct {
 }
 
 func (d *deepCopyArgoprojV1alpha1Client) RESTClient() rest.Interface {
-	return d.RESTClient()
+	return d.ArgoprojV1alpha1Interface.RESTClient()
 }
 
 func (d *deepCopyArgoprojV1alpha1Client) AppProjects(namespace string) argoprojv1alpha1.AppProjectInterface {
