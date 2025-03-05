@@ -105,8 +105,9 @@ func (c *Consequences) When() *Actions {
 }
 
 func (c *Consequences) app() *Application {
+	c.context.t.Helper()
 	app, err := c.get()
-	errors.CheckError(err)
+	errors.NewHandler(c.context.t).CheckForErr(err)
 	return app
 }
 
@@ -115,15 +116,16 @@ func (c *Consequences) get() (*Application, error) {
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
+	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	errors.CheckError(err)
+	errors.NewHandler(c.context.t).CheckForErr(err)
 	defer util.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},
 		AppNamespace: ptr.To(c.context.appNamespace),
 	})
-	errors.CheckError(err)
+	errors.NewHandler(c.context.t).CheckForErr(err)
 	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r

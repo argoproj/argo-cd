@@ -57,7 +57,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 func TestGetRepoWithInheritedCreds(t *testing.T) {
 	app.Given(t).And(func() {
 		// create repo credentials
-		errors.NewHandler(t).FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath))
+		errors.NewHandler(t).FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath(t)))
 
 		repoURL := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
 
@@ -107,8 +107,8 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			"--type", "helm",
 			"--username", fixture.GitUsername,
 			"--password", fixture.GitPassword,
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath)
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
@@ -151,8 +151,8 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 			"--username", fixture.GitUsername,
 			"--password", fixture.GitPassword,
 			"--insecure-skip-server-verification",
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath)
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 
 		require.NoError(t, err)
 
@@ -197,8 +197,8 @@ func TestFailOnCreatePrivateNonGitRepoWithBearerToken(t *testing.T) {
 		repoURL := fixture.RepoURL(fixture.RepoURLTypeHelm)
 		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken,
 			"--insecure-skip-server-verification",
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath,
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t),
 			"--name", "testrepo",
 			"--type", "helm")
 		require.ErrorContains(t, err, "--bearer-token is only supported for Git repositories")

@@ -218,7 +218,8 @@ func (c *Context) SSHCredentialsAdded() *Context {
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	errors.CheckError(fixture.SetProjectSpec(c.project, spec))
+	c.t.Helper()
+	errors.NewHandler(c.t).CheckForErr(fixture.SetProjectSpec(c.t, c.project, spec))
 	return c
 }
 
@@ -330,12 +331,14 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	errors.CheckError(fixture.SetResourceOverrides(overrides))
+	c.t.Helper()
+	errors.NewHandler(c.t).CheckForErr(fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	errors.CheckError(fixture.SetResourceFilter(filter))
+	c.t.Helper()
+	errors.NewHandler(c.t).CheckForErr(fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -404,12 +407,14 @@ func (c *Context) HelmSkipTests() *Context {
 }
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	c.t.Helper()
+	errors.NewHandler(c.t).CheckForErr(fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	c.t.Helper()
+	errors.NewHandler(c.t).CheckForErr(fixture.SetInstallationID(installationID))
 	return c
 }
 

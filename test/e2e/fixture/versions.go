@@ -34,7 +34,7 @@ func GetVersions(t *testing.T) *Versions {
 	t.Helper()
 	output := errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "version", "-o", "json")).(string)
 	version := &Versions{}
-	errors.CheckError(json.Unmarshal([]byte(output), version))
+	errors.NewHandler(t).CheckForErr(json.Unmarshal([]byte(output), version))
 	return version
 }
 

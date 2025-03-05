@@ -41,11 +41,12 @@ func getProjLister(objects ...runtime.Object) v1alpha1.AppProjectNamespaceLister
 	return test.NewFakeProjListerFromInterface(apps.NewSimpleClientset(objects...).ArgoprojV1alpha1().AppProjects("argocd"))
 }
 
-func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCapability) *fake.Clientset {
+func getKubeClient(t *testing.T, pass string, enabled bool, capabilities ...settings.AccountCapability) *fake.Clientset {
+	t.Helper()
 	const defaultSecretKey = "Hello, world!"
 
 	bcrypt, err := password.HashPassword(pass)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	if len(capabilities) == 0 {
 		capabilities = []settings.AccountCapability{settings.AccountCapabilityLogin, settings.AccountCapabilityApiKey}
 	}
@@ -88,7 +89,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", 0, "123")
@@ -110,7 +111,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
 
 	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()-1), "123")
@@ -138,7 +139,7 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 	redisClient, closer := test.NewInMemoryRedis()
 	defer closer()
 
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", true), "argocd")
 	storage := NewUserStateStorage(redisClient)
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
@@ -154,7 +155,7 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", false), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin:login", 0, "abc")
@@ -165,7 +166,7 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true, settings.AccountCapabilityLogin), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", true, settings.AccountCapabilityLogin), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	token, err := mgr.Create("admin", 0, "abc")
@@ -176,7 +177,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "pass", true), "argocd")
 
 	t.Run("Valid Token", func(t *testing.T) {
 		proj := appv1.AppProject{
@@ -422,7 +423,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
+			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, password, !tc.disabled), "argocd")
 
 			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
@@ -492,7 +493,7 @@ func TestCacheValueGetters(t *testing.T) {
 }
 
 func TestLoginRateLimiter(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "password", true), "argocd")
 	storage := NewUserStateStorage(nil)
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
@@ -533,14 +534,14 @@ func TestMaxUsernameLength(t *testing.T) {
 	for i := 0; i < maxUsernameLength+1; i++ {
 		username += "a"
 	}
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}
@@ -556,7 +557,7 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
 	invalidUsers := []string{"invalid1", "invalid2", "invalid3", "invalid4", "invalid5", "invalid6", "invalid7"}

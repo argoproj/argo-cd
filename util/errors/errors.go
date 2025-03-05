@@ -12,13 +12,6 @@ const (
 	ErrorGeneric = 20
 )
 
-// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
-func CheckError(err error) {
-	if err != nil {
-		Fatal(ErrorGeneric, err)
-	}
-}
-
 type Handler struct {
 	t *testing.T
 }
@@ -26,6 +19,14 @@ type Handler struct {
 func NewHandler(t *testing.T) *Handler {
 	t.Helper()
 	return &Handler{t: t}
+}
+
+// CheckForErr fails the test if there is an error.
+func (h *Handler) CheckForErr(err error) {
+	h.t.Helper()
+	if err != nil {
+		h.t.Fatal(err)
+	}
 }
 
 // FailOnErr fails the test if there is an error. It returns the first value so you can use it if you cast it:
@@ -36,6 +37,13 @@ func (h *Handler) FailOnErr(v any, err error) any {
 		h.t.Fatal(err)
 	}
 	return v
+}
+
+// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
+func CheckError(err error) {
+	if err != nil {
+		Fatal(ErrorGeneric, err)
+	}
 }
 
 // Fatal is a wrapper for logrus.Fatal() to exit with custom code

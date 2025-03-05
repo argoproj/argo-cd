@@ -16,7 +16,8 @@ type Actions struct {
 }
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInNotificationsConfigMap(key, value))
+	a.context.t.Helper()
+	errors.NewHandler(a.context.t).CheckForErr(fixture.SetParamInNotificationsConfigMap(key, value))
 	return a
 }
 

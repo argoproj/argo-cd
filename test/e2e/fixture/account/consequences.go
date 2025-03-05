@@ -2,13 +2,13 @@ package project
 
 import (
 	"context"
-	"errors"
+	stderrors "errors"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -47,12 +47,13 @@ func (c *Consequences) get() (*account.Account, error) {
 			return acc, nil
 		}
 	}
-	return nil, errors.New("account not found")
+	return nil, stderrors.New("account not found")
 }
 
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
+	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
-	CheckError(err)
+	errors.NewHandler(c.context.t).CheckForErr(err)
 	defer io.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 }

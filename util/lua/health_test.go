@@ -23,12 +23,13 @@ type IndividualTest struct {
 	HealthStatus health.HealthStatus `yaml:"healthStatus"`
 }
 
-func getObj(path string) *unstructured.Unstructured {
+func getObj(t *testing.T, path string) *unstructured.Unstructured {
+	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	obj := make(map[string]any)
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 
 	return &unstructured.Unstructured{Object: obj}
 }
@@ -38,24 +39,24 @@ func TestLuaHealthScript(t *testing.T) {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		dir := filepath.Dir(path)
 		yamlBytes, err := os.ReadFile(dir + "/health_test.yaml")
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		var resourceTest TestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(test.InputPath, func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}
-				obj := getObj(filepath.Join(dir, test.InputPath))
+				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				script, _, err := vm.GetHealthScript(obj)
-				errors.CheckError(err)
+				errors.NewHandler(t).CheckForErr(err)
 				result, err := vm.ExecuteHealthLua(obj, script)
-				errors.CheckError(err)
+				errors.NewHandler(t).CheckForErr(err)
 				assert.Equal(t, &test.HealthStatus, result)
 			})
 		}

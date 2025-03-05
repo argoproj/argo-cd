@@ -20,7 +20,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			errors.NewHandler(t).CheckForErr(SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.metadata.annotations and obj.metadata.annotations['health'] or 'Degraded' }`,
 				},

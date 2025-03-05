@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
@@ -17,11 +18,10 @@ func (h AddBinDirToPath) Close() {
 }
 
 // add the hack path which has the argocd binary
-func NewBinDirToPath() AddBinDirToPath {
+func NewBinDirToPath(t *testing.T) AddBinDirToPath {
 	originalPath := os.Getenv("PATH")
 	binDir, err := filepath.Abs("../../dist")
-	errors.CheckError(err)
-	err = os.Setenv("PATH", fmt.Sprintf("%s:%s", originalPath, binDir))
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
+	t.Setenv("PATH", fmt.Sprintf("%s:%s", originalPath, binDir))
 	return AddBinDirToPath{originalPath}
 }

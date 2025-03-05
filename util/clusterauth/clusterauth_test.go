@@ -38,21 +38,21 @@ var testClaims = ServiceAccountClaims{
 	},
 }
 
-func newServiceAccount() *corev1.ServiceAccount {
+func newServiceAccount(t *testing.T) *corev1.ServiceAccount {
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	var sa corev1.ServiceAccount
 	err = yaml.Unmarshal(saBytes, &sa)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	return &sa
 }
 
-func newServiceAccountSecret() *corev1.Secret {
+func newServiceAccountSecret(t *testing.T) *corev1.Secret {
 	secretBytes, err := os.ReadFile("./testdata/argocd-manager-sa-token.yaml")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	var secret corev1.Secret
 	err = yaml.Unmarshal(secretBytes, &secret)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	return &secret
 }
 
@@ -175,17 +175,17 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		cs := fake.NewClientset(newServiceAccountSecret())
+		cs := fake.NewClientset(newServiceAccountSecret(t))
 		err := UninstallClusterManagerRBAC(cs)
 		require.NoError(t, err)
 	})
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
-	kubeclientset := fake.NewClientset(newServiceAccountSecret())
+	kubeclientset := fake.NewClientset(newServiceAccountSecret(t))
 	kubeclientset.ReactionChain = nil
 
-	generatedSecret := newServiceAccountSecret()
+	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
 		"token": []byte("fake-token"),
@@ -202,13 +202,13 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 }
 
 func TestRotateServiceAccountSecrets(t *testing.T) {
-	generatedSecret := newServiceAccountSecret()
+	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset := fake.NewClientset(newServiceAccount(), newServiceAccountSecret(), generatedSecret)
+	kubeclientset := fake.NewClientset(newServiceAccount(t), newServiceAccountSecret(t), generatedSecret)
 
 	err := RotateServiceAccountSecrets(kubeclientset, &testClaims, generatedSecret)
 	require.NoError(t, err)
@@ -228,8 +228,8 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {
-	sa := newServiceAccount()
-	tokenSecret := newServiceAccountSecret()
+	sa := newServiceAccount(t)
+	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-manager-dockercfg-d8j66",

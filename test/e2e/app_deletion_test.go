@@ -17,7 +17,7 @@ import (
 func TestDeletingAppStuckInSync(t *testing.T) {
 	Given(t).
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			errors.NewHandler(t).CheckForErr(SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 				},

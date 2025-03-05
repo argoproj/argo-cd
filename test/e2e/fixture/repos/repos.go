@@ -10,14 +10,17 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
-var (
-	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
-	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
-)
+func CertPath(t *testing.T) string {
+	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.crt")
+}
 
-func mustToAbsPath(relativePath string) string {
+func CertKeyPath(t *testing.T) string {
+	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.key")
+}
+
+func mustToAbsPath(t *testing.T, relativePath string) string {
 	res, err := filepath.Abs(relativePath)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	return res
 }
 
@@ -25,7 +28,7 @@ func mustToAbsPath(relativePath string) string {
 func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
 		args = append(args, "--ssh-private-key-path", keyPath)
@@ -62,8 +65,8 @@ func AddHTTPSRepoClientCert(t *testing.T, insecure bool) {
 		fixture.RepoURL(fixture.RepoURLTypeHTTPSClientCert),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", CertPath,
-		"--tls-client-cert-key-path", CertKeyPath,
+		"--tls-client-cert-path", CertPath(t),
+		"--tls-client-cert-key-path", CertKeyPath(t),
 	}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
@@ -79,8 +82,8 @@ func AddHelmRepo(t *testing.T, name string) {
 		fixture.RepoURL(fixture.RepoURLTypeHelm),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", CertPath,
-		"--tls-client-cert-key-path", CertKeyPath,
+		"--tls-client-cert-path", CertPath(t),
+		"--tls-client-cert-key-path", CertKeyPath(t),
 		"--type", "helm",
 		"--name", name,
 	}
@@ -112,9 +115,9 @@ func AddHTTPSCredentialsUserPass(t *testing.T) {
 func AddHTTPSCredentialsTLSClientCert(t *testing.T) {
 	t.Helper()
 	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	args := []string{
 		"repocreds",
 		"add",
@@ -131,9 +134,9 @@ func AddHTTPSCredentialsTLSClientCert(t *testing.T) {
 func AddHelmHTTPSCredentialsTLSClientCert(t *testing.T) {
 	t.Helper()
 	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	args := []string{
 		"repocreds",
 		"add",
@@ -161,7 +164,7 @@ func AddHelmoOCICredentialsWithoutUserPass(t *testing.T) {
 func AddSSHCredentials(t *testing.T) {
 	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
@@ -172,11 +175,11 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	t.Helper()
 	// create empty temp directory to extract chart from the registry
 	tempDest, err1 := os.MkdirTemp("", "helm")
-	errors.CheckError(err1)
+	errors.NewHandler(t).CheckForErr(err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
 	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
-	errors.CheckError(err2)
+	errors.NewHandler(t).CheckForErr(err2)
 
 	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))

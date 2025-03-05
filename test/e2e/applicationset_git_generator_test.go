@@ -925,7 +925,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 				},
 			},
 			// We use an extra-long duration here, as we might need to wait for image pull.
-		}).Then().ExpectWithDuration(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
+		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
 		Delete().
 		And(func() {
@@ -935,7 +935,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 			// that is what we are testing here.
 			time.Sleep(15 * time.Second)
 			// The pod should continue to exist after 15 seconds.
-		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
+		}).Then().Expect(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
 }
 
 func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
@@ -986,7 +986,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 				},
 			},
 			// We use an extra-long duration here, as we might need to wait for image pull.
-		}).Then().ExpectWithDuration(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
+		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
 		Delete().
 		And(func() {
@@ -996,7 +996,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 			// that is what we are testing here.
 			time.Sleep(15 * time.Second)
 			// The pod should continue to exist after 15 seconds.
-		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
+		}).Then().Expect(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
 }
 
 func TestGitGeneratorPrivateRepo(t *testing.T) {
@@ -1466,7 +1466,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		Addr: "localhost:6379",
 	})
 	all := r.FlushAll(context.Background())
-	errors.CheckError(all.Err())
+	errors.NewHandler(t).CheckForErr(all.Err())
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
