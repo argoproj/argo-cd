@@ -1548,7 +1548,7 @@ func TestDeleteApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 
-	fakeAppCs := appServer.appclientset.(*apps.Clientset)
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
 	// this removes the default */* reactor so we can set our own patch/delete reactor
 	fakeAppCs.ReactionChain = nil
 	patched := false
@@ -2070,7 +2070,7 @@ func TestGetCachedAppState(t *testing.T) {
 		},
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
-	fakeClientSet := appServer.appclientset.(*apps.Clientset)
+	fakeClientSet := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
 	fakeClientSet.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
