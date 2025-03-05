@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
@@ -36,14 +36,14 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 		{name: "Get an app project", fields: fields{AppProjectInterface: setupAppProjects("appproject")}, args: args{
 			name: "appproject",
 		}, want: &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{Name: "appproject", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "appproject", Namespace: "default"},
 		}, wantErr: assert.NoError},
 		{
 			name: "Error getting an app project",
 			fields: fields{
 				AppProjectInterface: func() clientset.AppProjectInterface {
 					appProject := mocks.AppProjectInterface{}
-					appProject.On("Get", context.Background(), "appproject2", v1.GetOptions{}).Return(nil, errors.New("error"))
+					appProject.On("Get", context.Background(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
 					return &appProject
 				}(),
 			},
@@ -59,7 +59,7 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 			d := &deepCopyAppProjectClient{
 				AppProjectInterface: tt.fields.AppProjectInterface,
 			}
-			got, err := d.Get(context.Background(), tt.args.name, v1.GetOptions{})
+			got, err := d.Get(context.Background(), tt.args.name, metav1.GetOptions{})
 			if !tt.wantErr(t, err, fmt.Sprintf("Get(%v)", tt.args.name)) {
 				return
 			}
@@ -88,7 +88,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 		{name: "Error listing app project", fields: fields{
 			AppProjectInterface: func() clientset.AppProjectInterface {
 				appProject := mocks.AppProjectInterface{}
-				appProject.On("List", context.Background(), v1.ListOptions{}).Return(nil, errors.New("error"))
+				appProject.On("List", context.Background(), metav1.ListOptions{}).Return(nil, errors.New("error"))
 				return &appProject
 			}(),
 		}, want: nil, wantErr: assert.Error},
@@ -98,7 +98,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 			d := &deepCopyAppProjectClient{
 				AppProjectInterface: tt.fields.AppProjectInterface,
 			}
-			got, err := d.List(context.Background(), v1.ListOptions{})
+			got, err := d.List(context.Background(), metav1.ListOptions{})
 			if !tt.wantErr(t, err, "List") {
 				return
 			}
@@ -115,7 +115,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 func createAppProject(projects ...string) []v1alpha1.AppProject {
 	appProjects := make([]v1alpha1.AppProject, len(projects))
 	for i, p := range projects {
-		appProjects[i] = v1alpha1.AppProject{ObjectMeta: v1.ObjectMeta{Name: p, Namespace: "default"}}
+		appProjects[i] = v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: p, Namespace: "default"}}
 	}
 	return appProjects
 }
@@ -136,7 +136,7 @@ func Test_deepCopyApplicationClient_Get(t *testing.T) {
 	type args struct {
 		ctx     context.Context
 		name    string
-		options v1.GetOptions
+		options metav1.GetOptions
 	}
 	tests := []struct {
 		name    string
@@ -167,7 +167,7 @@ func Test_deepCopyApplicationClient_List(t *testing.T) {
 	}
 	type args struct {
 		ctx  context.Context
-		opts v1.ListOptions
+		opts metav1.ListOptions
 	}
 	tests := []struct {
 		name    string
@@ -289,7 +289,7 @@ func Test_deepCopyApplicationSetClient_Get(t *testing.T) {
 	type args struct {
 		ctx     context.Context
 		name    string
-		options v1.GetOptions
+		options metav1.GetOptions
 	}
 	tests := []struct {
 		name    string
@@ -320,7 +320,7 @@ func Test_deepCopyApplicationSetClient_List(t *testing.T) {
 	}
 	type args struct {
 		ctx  context.Context
-		opts v1.ListOptions
+		opts metav1.ListOptions
 	}
 	tests := []struct {
 		name    string
