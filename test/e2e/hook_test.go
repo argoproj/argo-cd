@@ -14,7 +14,6 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/pkg/errors"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -99,9 +98,9 @@ func TestPreSyncHookFailure(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("hook  Failed              PreSync", "")).
+		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
 		// make sure resource are also printed
-		Expect(Error("pod   OutOfSync  Missing", "")).
+		Expect(Error("pod  OutOfSync  Missing", "")).
 		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -447,7 +446,7 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
 	Given(t).
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
 					HealthLua: `
 						local hs = {}

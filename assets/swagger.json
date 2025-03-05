@@ -6439,6 +6439,7 @@
     },
     "v1PortStatus": {
       "type": "object",
+      "title": "PortStatus represents the error condition of a service port",
       "properties": {
         "error": {
           "type": "string",
