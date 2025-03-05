@@ -432,8 +432,18 @@ data:
       - /status
   resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
     jqPathExpressions:
-      # Ignore the rollout restart metadata
-      - '.metadata.annotations."argo-rollouts.argoproj.io/restarted-after"'
+      - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
+      - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
+      - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.operation'
+  resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
+    jqPathExpressions:
+      - '.metadata.annotations."notified.notifications.argoproj.io"'
   resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
     jqPathExpressions:
       - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
