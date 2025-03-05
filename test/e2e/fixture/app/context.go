@@ -219,7 +219,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetProjectSpec(c.t, c.project, spec))
+	errors.NewHandler(c.t).CheckForErr(fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
