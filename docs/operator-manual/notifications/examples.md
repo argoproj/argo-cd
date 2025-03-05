@@ -1,8 +1,8 @@
-Here you can find some examples of what you can do with the notifications service in ArgoCD.
+Here you can find some examples of what you can do with the notifications service in Argo CD.
 
 ## Getting notified when a sync occurs and understanding how your resources changed
 
-With ArgoCD you can build a notification system that tells you when a sync occurred and what it changed. 
+With Argo CD you can build a notification system that tells you when a sync occurred and what it changed. 
 To get notified via webhook when a sync occurs you can add the following trigger:
 
 ```yaml
@@ -48,6 +48,10 @@ You can test that this works and see how the response looks by adding any webhoo
     {
       "group": "apps",
       "hookPhase": "Running",
+      # The images array follows the same order as in the resource yaml
+      "images": [
+        "nginx:1.27.1"
+      ],
       "kind": "Deployment",
       "message": "deployment.apps/test configured",
       "name": "test",
@@ -55,9 +59,6 @@ You can test that this works and see how the response looks by adding any webhoo
       "status": "Synced",
       "syncPhase": "Sync",
       "version": "v1"
-      images: [
-        "nginx:1.27.1"
-      ]
     },
     {
       "group": "autoscaling",
