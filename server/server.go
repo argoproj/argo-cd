@@ -1235,8 +1235,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Serve extensions
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-
-    server.serveExtensions(server.ExtensionsSharedPath, writer)
+		server.serveExtensions(server.ExtensionsSharedPath, writer)
 	})
 	if server.ArgoCDServerOpts.EnableGZip {
 		extensionsHandler = compressHandler(extensionsHandler)
