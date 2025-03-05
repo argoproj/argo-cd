@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"text/tabwriter"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
