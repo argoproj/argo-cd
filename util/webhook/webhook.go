@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/git"
 	bb "github.com/ktrysmt/go-bitbucket"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -206,17 +207,11 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		if len(a.settings.WebhookBitbucketUUID) > 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			repositories, err := a.db.ListRepositories(ctx)
+			repository, err := a.lookupRepository(ctx, a.settings.WebhookBitbucketUUID)
 			if err != nil {
-				log.Warnf("error listing repositories for finding matching URL %s: %v", payload.Repository.Links.HTML.Href, err)
-			}
-			var repository *v1alpha1.Repository
-			for _, repo := range repositories {
-				if repo.Repo == payload.Repository.Links.HTML.Href {
-					log.Debugf("found a matching repository for URL %s", payload.Repository.Links.HTML.Href)
-					repository = repo
-					break
-				}
+				// This could be a public repository, which does not require and repo credentials.
+				// use no auth client for such cases.
+				log.Warnf("no matching repository found for URL %s: %v", payload.Repository.Links.HTML.Href, err)
 			}
 			workspace := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
 			apiURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
@@ -436,6 +431,23 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	}
 
 	return nil
+}
+
+// lookupRepository returns a repository with its credentials for a given URL. If there are no matching repository secret found,
+// then nil repository is returned.
+func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
+	repositories, err := a.db.ListRepositories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error listing repositories: %w", err)
+	}
+	var repository *v1alpha1.Repository
+	for _, repo := range repositories {
+		if git.SameURL(repo.Repo, repoURL) {
+			log.Debugf("found a matching repository for URL %s", repoURL)
+			return repo, nil
+		}
+	}
+	return repository, nil
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
