@@ -42,6 +42,16 @@ data:
 
 ## Additional tracking methods via an annotation
 
+>v3.0
+
+The default resource tracking method has been changed to `annotation` after v3.0. Please see the rationale and discussions in [this issue](https://github.com/argoproj/argo-cd/issues/13981).
+Note that this is a major change and can be intrusive if you have autosync enabled for many applications. If you'd like to reduce the impact, please see the following suggested steps for upgrading:
+
+1. Disable autosync on your applications
+1. Upgrade ArgoCD
+1. Manually sync applications in batches
+1. Re-enable autosync
+
 >v2.2
 
 To offer more flexible options for tracking resources and solve some of the issues outlined in the previous section Argo CD can be instructed to use the following methods for tracking:
