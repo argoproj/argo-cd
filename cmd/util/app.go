@@ -243,7 +243,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				if spec.SyncPolicy == nil {
 					spec.SyncPolicy = &argoappv1.SyncPolicy{}
 				}
-				*spec.SyncPolicy.Automated.Enable = true
+				spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{}
 			default:
 				log.Fatalf("Invalid sync-policy: %s", appOpts.syncPolicy)
 			}
