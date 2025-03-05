@@ -14,7 +14,7 @@ import (
 func AddCustomCACert(t *testing.T) {
 	t.Helper()
 	caCertPath, err := filepath.Abs("../fixture/certs/argocd-test-ca.crt")
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	// We need to setup TLS certs according to whether we are running tests
 	// against a local workload (repositories available as localhost) and
 	// against remote workloads (repositories available as argocd-e2e-server)
@@ -24,11 +24,11 @@ func AddCustomCACert(t *testing.T) {
 		args = []string{"cert", "add-tls", "127.0.0.1", "--from", caCertPath}
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 		certData, err := os.ReadFile(caCertPath)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/localhost", certData, 0o644)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/127.0.0.1", certData, 0o644)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 	} else {
 		args := []string{"cert", "add-tls", "argocd-e2e-server", "--from", caCertPath}
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
@@ -47,15 +47,15 @@ func AddCustomSSHKnownHostsKeys(t *testing.T) {
 		source = "../fixture/testrepos/ssh_known_hosts"
 	}
 	knownHostsPath, err := filepath.Abs(source)
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	args := []string{"cert", "add-ssh", "--upsert", "--batch", "--from", knownHostsPath}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 
 	if fixture.IsLocal() {
 		knownHostsData, err := os.ReadFile(knownHostsPath)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 		err = os.WriteFile(fixture.TmpDir+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0o644)
-		errors.CheckError(err)
+		errors.NewHandler(t).CheckForErr(err)
 	} else {
 		fixture.RestartAPIServer(t)
 		fixture.RestartRepoServer(t)

@@ -85,11 +85,12 @@ func TestNamespace() string {
 
 // GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initialized value.
 // Note: this requires a local Kubernetes configuration (for example, while running the E2E tests).
-func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
+func GetE2EFixtureK8sClient(t *testing.T) *E2EFixtureK8sClient {
+	t.Helper()
 	// Initialize the Kubernetes clients only on first use
 	clientInitialized.Do(func() {
 		// set-up variables
-		config := getKubeConfig("", clientcmd.ConfigOverrides{})
+		config := getKubeConfig(t, "", clientcmd.ConfigOverrides{})
 
 		internalClientVars = &E2EFixtureK8sClient{
 			AppClientset:     appclientset.NewForConfigOrDie(config),
@@ -111,7 +112,7 @@ func EnsureCleanState(t *testing.T) {
 	t.Helper()
 	start := time.Now()
 
-	fixtureClient := GetE2EFixtureK8sClient()
+	fixtureClient := GetE2EFixtureK8sClient(t)
 
 	policy := metav1.DeletePropagationForeground
 
@@ -203,26 +204,27 @@ func EnsureCleanState(t *testing.T) {
 		}
 		return nil
 	}, time.Now().Add(120*time.Second))
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 
-	errors.CheckError(waitForExpectedClusterState())
+	errors.NewHandler(t).CheckForErr(waitForExpectedClusterState(t))
 
 	// remove tmp dir
-	errors.CheckError(os.RemoveAll(TmpDir))
+	errors.NewHandler(t).CheckForErr(os.RemoveAll(TmpDir))
 
 	// create tmp dir
 	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	errors.CheckError(fixture.LoginAs("admin"))
+	errors.NewHandler(t).CheckForErr(fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
-func waitForExpectedClusterState() error {
-	fixtureClient := GetE2EFixtureK8sClient()
+func waitForExpectedClusterState(t *testing.T) error {
+	t.Helper()
+	fixtureClient := GetE2EFixtureK8sClient(t)
 
-	SetProjectSpec(fixtureClient, "default", v1alpha1.AppProjectSpec{
+	SetProjectSpec(t, fixtureClient, "default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
@@ -274,12 +276,12 @@ func waitForExpectedClusterState() error {
 	return nil
 }
 
-func SetProjectSpec(fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
+func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
 	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	proj.Spec = spec
 	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 }
 
 func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
@@ -345,13 +347,13 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
-func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+func getKubeConfig(t *testing.T, configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	return restConfig
 }
 

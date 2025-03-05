@@ -55,7 +55,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	errors.NewHandler(t).CheckForErr(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -78,7 +78,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	errors.NewHandler(t).CheckForErr(SetTrackingMethod(string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().

@@ -52,26 +52,26 @@ func fakeCluster() *appsv1.Cluster {
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestAppSetServer(objects ...runtime.Object) *Server {
+func newTestAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := ""
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
 }
 
 // return an ApplicationServiceServer which returns fake data
-func newTestNamespacedAppSetServer(objects ...runtime.Object) *Server {
+func newTestNamespacedAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
 	scopedNamespaces := "argocd"
-	return newTestAppSetServerWithEnforcerConfigure(f, scopedNamespaces, objects...)
+	return newTestAppSetServerWithEnforcerConfigure(t, f, scopedNamespaces, objects...)
 }
 
-func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
+func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -93,9 +93,9 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
-	errors.CheckError(err)
+	errors.NewHandler(t).CheckForErr(err)
 
 	defaultProj := &appsv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
@@ -274,7 +274,7 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 
 func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 	testNamespace := "test-namespace"
-	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+	appSetServer := newTestAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
 		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
@@ -294,7 +294,7 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 }
 
 func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
-	appSetServer := newTestAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+	appSetServer := newTestAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
 	}), newTestAppSet(func(appset *appsv1.ApplicationSet) {
@@ -314,7 +314,7 @@ func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
 // default namespace must be used and not all the namespaces
 func TestListAppSetsWithoutNamespace(t *testing.T) {
 	testNamespace := "test-namespace"
-	appSetServer := newTestNamespacedAppSetServer(newTestAppSet(func(appset *appsv1.ApplicationSet) {
+	appSetServer := newTestNamespacedAppSetServer(t, newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
 		appset.ObjectMeta.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value1", "key2": "value1"})
@@ -337,7 +337,7 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 
 func TestCreateAppSet(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
 		{
 			List: &appsv1.ListGenerator{},
@@ -352,7 +352,7 @@ func TestCreateAppSet(t *testing.T) {
 
 func TestCreateAppSetTemplatedProject(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Template.Spec.Project = "{{ .project }}"
 	createReq := applicationset.ApplicationSetCreateRequest{
 		Applicationset: testAppSet,
@@ -363,7 +363,7 @@ func TestCreateAppSetTemplatedProject(t *testing.T) {
 
 func TestCreateAppSetWrongNamespace(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
+	appServer := newTestAppSetServer(t)
 	testAppSet.ObjectMeta.Namespace = "NOT-ALLOWED"
 	createReq := applicationset.ApplicationSetCreateRequest{
 		Applicationset: testAppSet,
@@ -375,7 +375,7 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 
 func TestCreateAppSetDryRun(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
 		{
@@ -406,7 +406,7 @@ func TestCreateAppSetDryRun(t *testing.T) {
 
 func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
 	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
+	appServer := newTestAppSetServer(t)
 	testAppSet.Spec.Template.Name = "{{name}}"
 	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
 		{
@@ -441,7 +441,7 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in default namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
 
@@ -451,7 +451,7 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in named namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
 
@@ -461,7 +461,7 @@ func TestGetAppSet(t *testing.T) {
 	})
 
 	t.Run("Get in not allowed namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 
@@ -484,7 +484,7 @@ func TestDeleteAppSet(t *testing.T) {
 	})
 
 	t.Run("Delete in default namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1"}
 
@@ -494,7 +494,7 @@ func TestDeleteAppSet(t *testing.T) {
 	})
 
 	t.Run("Delete in named namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1", AppsetNamespace: testNamespace}
 
@@ -526,7 +526,7 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 
 	t.Run("Update merge", func(t *testing.T) {
-		appServer := newTestAppSetServer(appSet)
+		appServer := newTestAppSetServer(t, appSet)
 
 		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, true)
 
@@ -542,7 +542,7 @@ func TestUpdateAppSet(t *testing.T) {
 	})
 
 	t.Run("Update no merge", func(t *testing.T) {
-		appServer := newTestAppSetServer(appSet)
+		appServer := newTestAppSetServer(t, appSet)
 
 		updated, err := appServer.updateAppSet(context.Background(), appSet, newAppSet, false)
 
@@ -611,7 +611,7 @@ func TestResourceTree(t *testing.T) {
 	}
 
 	t.Run("ResourceTree in default namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
 
@@ -621,7 +621,7 @@ func TestResourceTree(t *testing.T) {
 	})
 
 	t.Run("ResourceTree in named namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
 
@@ -631,7 +631,7 @@ func TestResourceTree(t *testing.T) {
 	})
 
 	t.Run("ResourceTree in not allowed namespace", func(t *testing.T) {
-		appSetServer := newTestAppSetServer(appSet1, appSet2, appSet3)
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3)
 
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: "NOT-ALLOWED"}
 

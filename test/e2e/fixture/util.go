@@ -33,5 +33,5 @@ func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions []func() error
 	for _, function := range functions {
 		eg.Go(function)
 	}
-	errors.CheckError(eg.Wait())
+	errors.NewHandler(t).CheckForErr(eg.Wait())
 }

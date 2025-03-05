@@ -88,6 +88,7 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 }
 
 func (c *Consequences) apps() []v1alpha1.Application {
+	c.context.t.Helper()
 	var namespace string
 	if c.context.switchToNamespace != "" {
 		namespace = string(c.context.switchToNamespace)
@@ -95,7 +96,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 		namespace = fixture.TestNamespace()
 	}
 
-	fixtureClient := utils.GetE2EFixtureK8sClient()
+	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
 	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
@@ -107,7 +108,8 @@ func (c *Consequences) apps() []v1alpha1.Application {
 }
 
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
-	fixtureClient := utils.GetE2EFixtureK8sClient()
+	c.context.t.Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
 
 	var appSetClientSet dynamic.ResourceInterface
 
