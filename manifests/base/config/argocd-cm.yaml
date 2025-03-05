@@ -38,11 +38,9 @@ data:
       - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
       # Ignore the annotation of the legacy Leases election
       - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
+  # Ignore the common scaling annotations
   resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
     jqPathExpressions:
-      # Ignore the rollout restart metadata
-      - '.metadata.annotations."argo-rollouts.argoproj.io/restarted-after"'
-      # Ignore the common scaling annotations
       - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
       - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
       - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
