@@ -71,6 +71,12 @@ func (d *deepCopyAppClientset) ArgoprojV1alpha1() argoprojv1alpha1.ArgoprojV1alp
 	}
 }
 
+// GetUnderlyingClientSet returns the underlying clientset.Interface.
+// Unit tests should only call this
+func (d *deepCopyAppClientset) GetUnderlyingClientSet() appclientset.Interface {
+	return d.Interface
+}
+
 type deepCopyArgoprojV1alpha1Client struct {
 	argoprojv1alpha1.ArgoprojV1alpha1Interface
 }

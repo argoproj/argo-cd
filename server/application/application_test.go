@@ -1548,7 +1548,7 @@ func TestDeleteApp(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 
-	fakeAppCs := appServer.appclientset.(*apps.Clientset)
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
 	// this removes the default */* reactor so we can set our own patch/delete reactor
 	fakeAppCs.ReactionChain = nil
 	patched := false
