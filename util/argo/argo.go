@@ -761,6 +761,16 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+
+		appLabelKey, err := settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting app label key ID: %v", err),
+			})
+			continue
+		}
+
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -774,6 +784,7 @@ func verifyGenerateManifests(
 			AppName:                         app.Name,
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
+			AppLabelKey:                     appLabelKey,
 			KustomizeOptions:                kustomizeOptions,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
