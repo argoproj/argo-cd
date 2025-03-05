@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -42,7 +43,7 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 			fields: fields{
 				AppProjectInterface: func() clientset.AppProjectInterface {
 					appProject := mocks.AppProjectInterface{}
-					appProject.On("Get", context.Background(), "appproject2", v1.GetOptions{}).Return(nil, fmt.Errorf("error"))
+					appProject.On("Get", context.Background(), "appproject2", v1.GetOptions{}).Return(nil, errors.New("error"))
 					return &appProject
 				}(),
 			},
@@ -87,7 +88,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 		{name: "Error listing app project", fields: fields{
 			AppProjectInterface: func() clientset.AppProjectInterface {
 				appProject := mocks.AppProjectInterface{}
-				appProject.On("List", context.Background(), v1.ListOptions{}).Return(nil, fmt.Errorf("error"))
+				appProject.On("List", context.Background(), v1.ListOptions{}).Return(nil, errors.New("error"))
 				return &appProject
 			}(),
 		}, want: nil, wantErr: assert.Error},
@@ -98,7 +99,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 				AppProjectInterface: tt.fields.AppProjectInterface,
 			}
 			got, err := d.List(context.Background(), v1.ListOptions{})
-			if !tt.wantErr(t, err, fmt.Sprintf("List")) {
+			if !tt.wantErr(t, err, "List") {
 				return
 			}
 			if tt.want != nil {
