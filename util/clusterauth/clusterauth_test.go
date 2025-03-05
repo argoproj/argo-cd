@@ -39,6 +39,7 @@ var testClaims = ServiceAccountClaims{
 }
 
 func newServiceAccount(t *testing.T) *corev1.ServiceAccount {
+	t.Helper()
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
 	errors.NewHandler(t).CheckForErr(err)
 	var sa corev1.ServiceAccount
@@ -48,6 +49,7 @@ func newServiceAccount(t *testing.T) *corev1.ServiceAccount {
 }
 
 func newServiceAccountSecret(t *testing.T) *corev1.Secret {
+	t.Helper()
 	secretBytes, err := os.ReadFile("./testdata/argocd-manager-sa-token.yaml")
 	errors.NewHandler(t).CheckForErr(err)
 	var secret corev1.Secret

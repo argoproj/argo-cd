@@ -11,14 +11,17 @@ import (
 )
 
 func CertPath(t *testing.T) string {
+	t.Helper()
 	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.crt")
 }
 
 func CertKeyPath(t *testing.T) string {
+	t.Helper()
 	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.key")
 }
 
 func mustToAbsPath(t *testing.T, relativePath string) string {
+	t.Helper()
 	res, err := filepath.Abs(relativePath)
 	errors.NewHandler(t).CheckForErr(err)
 	return res

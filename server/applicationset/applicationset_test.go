@@ -53,6 +53,7 @@ func fakeCluster() *appsv1.Cluster {
 
 // return an ApplicationServiceServer which returns fake data
 func newTestAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
+	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
@@ -63,6 +64,7 @@ func newTestAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
 
 // return an ApplicationServiceServer which returns fake data
 func newTestNamespacedAppSetServer(t *testing.T, objects ...runtime.Object) *Server {
+	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
@@ -72,6 +74,7 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...runtime.Object) *Ser
 }
 
 func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...runtime.Object) *Server {
+	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,

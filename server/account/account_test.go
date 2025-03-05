@@ -32,12 +32,14 @@ const (
 
 // return an AccountServer which returns fake data
 func newTestAccountServer(t *testing.T, ctx context.Context, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
+	t.Helper()
 	return newTestAccountServerExt(t, ctx, func(_ jwt.Claims, _ ...any) bool {
 		return true
 	}, opts...)
 }
 
 func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
+	t.Helper()
 	bcrypt, err := password.HashPassword("oldpassword")
 	errors.NewHandler(t).CheckForErr(err)
 	cm := &corev1.ConfigMap{
