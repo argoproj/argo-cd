@@ -126,7 +126,7 @@ func NewServer(
 	}
 	s := &Server{
 		ns:                     namespace,
-		appclientset:           appclientset,
+		appclientset:           &deepCopyAppClientset{appclientset},
 		appLister:              &deepCopyApplicationLister{appLister},
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
