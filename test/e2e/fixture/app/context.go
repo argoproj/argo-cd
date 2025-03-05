@@ -116,104 +116,104 @@ func (c *Context) SetAppNamespace(namespace string) *Context {
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey()
+	gpgkeys.AddGPGPublicKey(c.t)
 	return c
 }
 
 func (c *Context) GPGPublicKeyRemoved() *Context {
-	gpgkeys.DeleteGPGPublicKey()
+	gpgkeys.DeleteGPGPublicKey(c.t)
 	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
-	certs.AddCustomCACert()
+	certs.AddCustomCACert(c.t)
 	return c
 }
 
 func (c *Context) CustomSSHKnownHostsAdded() *Context {
-	certs.AddCustomSSHKnownHostsKeys()
+	certs.AddCustomSSHKnownHostsKeys(c.t)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(true)
+	repos.AddHTTPSRepoClientCert(c.t, true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(false)
+	repos.AddHTTPSRepoClientCert(c.t, false)
 	return c
 }
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("https")
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.t, "https")
+	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.t, true, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("ssh")
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.t, "ssh")
+	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
 func (c *Context) HelmRepoAdded(name string) *Context {
-	repos.AddHelmRepo(name)
+	repos.AddHelmRepo(c.t, name)
 	return c
 }
 
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
-	repos.AddHelmOCIRepo(name)
+	repos.AddHelmOCIRepo(c.t, name)
 	return c
 }
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHTTPSCredentialsUserPass()
+	repos.AddHTTPSCredentialsUserPass(c.t)
 	return c
 }
 
 func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHelmHTTPSCredentialsTLSClientCert()
+	repos.AddHelmHTTPSCredentialsTLSClientCert(c.t)
 	return c
 }
 
 func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
-	repos.AddHelmoOCICredentialsWithoutUserPass()
+	repos.AddHelmoOCICredentialsWithoutUserPass(c.t)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
-	repos.AddHTTPSCredentialsTLSClientCert()
+	repos.AddHTTPSCredentialsTLSClientCert(c.t)
 	return c
 }
 
 func (c *Context) SSHCredentialsAdded() *Context {
-	repos.AddSSHCredentials()
+	repos.AddSSHCredentials(c.t)
 	return c
 }
 

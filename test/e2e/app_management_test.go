@@ -11,7 +11,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +36,7 @@ import (
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
 	"github.com/argoproj/argo-cd/v3/util/argo"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
@@ -57,7 +56,7 @@ const (
 func TestGetLogsAllowNoSwitch(_ *testing.T) {
 }
 
-func TestGetLogsDenySwitchOn(t *testing.T) {
+func TestGetLogsDeny(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -93,7 +92,6 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
@@ -102,7 +100,7 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		})
 }
 
-func TestGetLogsAllowSwitchOn(t *testing.T) {
+func TestGetLogsAllow(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 
 	accountFixture.Given(t).
@@ -143,63 +141,6 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		Then().
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			require.NoError(t, err)
-			assert.Contains(t, out, "Hi")
-		}).
-		And(func(app *Application) {
-			out, err := fixture.RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			require.NoError(t, err)
-			assert.NotContains(t, out, "Hi")
-		})
-}
-
-func TestGetLogsAllowSwitchOff(t *testing.T) {
-	fixture.SkipOnEnv(t, "OPENSHIFT")
-
-	accountFixture.Given(t).
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetPermissions([]fixture.ACL{
-			{
-				Resource: "applications",
-				Action:   "create",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "get",
-				Scope:    "*",
-			},
-			{
-				Resource: "applications",
-				Action:   "sync",
-				Scope:    "*",
-			},
-			{
-				Resource: "projects",
-				Action:   "get",
-				Scope:    "*",
-			},
-		}, "app-creator")
-
-	GivenWithSameState(t).
-		Path("guestbook-logs").
-		When().
-		CreateApp().
-		Sync().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
@@ -410,7 +351,7 @@ func TestAppCreation(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			FailOnErr(fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(context.Background(),
 				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
@@ -610,9 +551,9 @@ func TestAppLabels(t *testing.T) {
 		CreateApp("-l", "foo=bar").
 		Then().
 		And(func(_ *Application) {
-			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
-			assert.Contains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
-			assert.NotContains(t, FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list")), fixture.Name())
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=bar")), fixture.Name())
+			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "-l", "foo=rubbish")), fixture.Name())
 		}).
 		Given().
 		// remove both name and replace labels means nothing will sync
@@ -845,7 +786,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
+			res := errors.NewHandler(t).FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
 				Namespace:    &app.Spec.Destination.Namespace,
 				Kind:         ptr.To(kube.SecretKind),
 				Group:        ptr.To(""),
@@ -862,7 +803,7 @@ func TestAppWithSecrets(t *testing.T) {
 				assetSecretDataHidden(t, manifest)
 			}
 
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 
 			// make sure resource update error does not print secret details
@@ -874,7 +815,7 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.NotContains(t, err.Error(), "password")
 
 			// patch secret and make sure app is out of sync and diff detects the change
-			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.DeploymentNamespace()).Patch(context.Background(),
 				"test-secret", types.JSONPatchType, []byte(`[
 	{"op": "remove", "path": "/data/username"},
 	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
@@ -891,14 +832,14 @@ func TestAppWithSecrets(t *testing.T) {
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
 			// local diff should ignore secrets
-			diffOutput = FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput = errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 
 			// ignore missing field and make sure diff shows no difference
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
 			}}
-			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
+			errors.NewHandler(t).FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -906,7 +847,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
 			assert.Empty(t, diffOutput)
 		}).
 		// verify not committed secret also ignore during diffing
@@ -920,7 +861,7 @@ stringData:
   username: test-username`).
 		Then().
 		And(func(app *Application) {
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
+			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 		})
 }
@@ -1043,13 +984,13 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		And(func() {
 			dummyResIf := fixture.DynamicClientset.Resource(dummiesGVR).Namespace(fixture.DeploymentNamespace())
 			patchData := []byte(`{"spec":{"cpu": "2"}}`)
-			FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
+			errors.NewHandler(t).FailOnErr(dummyResIf.Patch(context.Background(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
 		}).Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
@@ -1375,7 +1316,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1392,7 +1333,7 @@ func TestSyncResourceByProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			assert.ErrorContains(t, err, "\"level\":\"fatal\"")
 		})
 }
 
@@ -1440,7 +1381,7 @@ func TestLocalSync(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
 		})
 }
 
@@ -1959,7 +1900,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -2065,7 +2006,7 @@ func TestNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", fixture.TestNamespace())
-		CheckError(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		errors.CheckError(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &corev1.Service{
@@ -2094,8 +2035,8 @@ func TestNotPermittedResources(t *testing.T) {
 		},
 	}).
 		And(func() {
-			FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
-			FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Create(context.Background(), ingress, metav1.CreateOptions{}))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Create(context.Background(), svc, metav1.CreateOptions{}))
 		}).
 		Path(guestbookPath).
 		When().
@@ -2120,8 +2061,8 @@ func TestNotPermittedResources(t *testing.T) {
 		Expect(DoesNotExist())
 
 	// Make sure prohibited resources are not deleted during application deletion
-	FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
-	FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
+	errors.NewHandler(t).FailOnErr(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Get(context.Background(), "sample-ingress", metav1.GetOptions{}))
+	errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Services(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{}))
 }
 
 func TestSyncWithInfos(t *testing.T) {
@@ -2241,7 +2182,7 @@ func TestListResource(t *testing.T) {
 		Expect(NoConditions()).
 		When().
 		And(func() {
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "orphaned-configmap",
 				},
@@ -2424,7 +2365,7 @@ definitions:
 	Given(t).
 		Path("crd-subresource").
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
@@ -2442,38 +2383,38 @@ definitions:
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-both")
 			require.NoError(t, err)
-			text := FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		}).
 		// tests resource actions on a CRD *not* using status subresource
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-both")
 			require.NoError(t, err)
-			text := FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = fixture.RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
 			require.NoError(t, err)
-			text = FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
+			text = errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		})
 }
@@ -2509,7 +2450,7 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		And(func() {
-			CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
@@ -2618,7 +2559,7 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			CheckError(fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			errors.CheckError(fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			}))
 		}).
@@ -2651,7 +2592,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		And(func() {
 			// Add resource with tracking annotation. This should put the
 			// application OutOfSync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2667,7 +2608,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2685,7 +2626,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add a resource with a tracking annotation. This should not
 			// affect the application, because we now use the tracking method
 			// "label".
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2702,7 +2643,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		And(func() {
 			// Add a resource with the tracking label. The app should become
 			// OutOfSync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "extra-configmap",
 					Labels: map[string]string{
@@ -2718,7 +2659,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "extra-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "extra-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2743,7 +2684,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		And(func() {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to go out of sync.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2759,7 +2700,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2777,7 +2718,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		And(func() {
 			// Create resource with the new tracking label, the application
 			// is expected to go out of sync
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2793,7 +2734,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 		When().
 		And(func() {
 			// Delete resource to bring application back in sync
-			FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
+			errors.NewHandler(t).FailOnErr(nil, fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Delete(context.Background(), "other-configmap", metav1.DeleteOptions{}))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2804,7 +2745,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to stay in sync, because the configured
 			// label is different.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Labels: map[string]string{
@@ -2822,7 +2763,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 func TestAnnotationTrackingExtraResources(t *testing.T) {
 	ctx := Given(t)
 
-	CheckError(fixture.SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	errors.CheckError(fixture.SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -2837,7 +2778,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a resource with an annotation that is not referencing the
 			// resource.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "extra-configmap",
 					Annotations: map[string]string{
@@ -2862,7 +2803,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
-			FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Create(context.Background(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "other-configmap",
 					Annotations: map[string]string{
@@ -2891,7 +2832,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		When().
 		And(func() {
 			// Add a cluster-scoped resource that is not referencing itself
-			FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "e2e-test-clusterrole",
 					Annotations: map[string]string{
@@ -2911,7 +2852,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		When().
 		And(func() {
 			// Add a cluster-scoped resource that is referencing itself
-			FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "e2e-other-clusterrole",
 					Annotations: map[string]string{

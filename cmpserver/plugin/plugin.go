@@ -157,7 +157,7 @@ func newCmdError(args string, cause error, stderr string) *CmdError {
 func environ(envVars []*apiclient.EnvEntry) []string {
 	var environ []string
 	for _, item := range envVars {
-		if item != nil && item.Name != "" && item.Value != "" {
+		if item != nil && item.Name != "" {
 			environ = append(environ, fmt.Sprintf("%s=%s", item.Name, item.Value))
 		}
 	}

@@ -59,6 +59,24 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 	assert.Equal(t, &ApplicationTree{Nodes: []ResourceNode{{}}}, value)
 }
 
+func TestCache_GetClusterInfo(t *testing.T) {
+	cache := newFixtures().Cache
+	// cache miss
+	res := &ClusterInfo{}
+	err := cache.GetClusterInfo("http://minikube", res)
+	assert.Equal(t, ErrCacheMiss, err)
+	// populate cache
+	err = cache.SetClusterInfo("http://kind-cluster", &ClusterInfo{ServerVersion: "0.24.0"})
+	require.NoError(t, err)
+	// cache miss
+	err = cache.GetClusterInfo("http://kind-clusterss", res)
+	assert.Equal(t, ErrCacheMiss, err)
+	// cache hit
+	err = cache.GetClusterInfo("http://kind-cluster", res)
+	require.NoError(t, err)
+	assert.Equal(t, &ClusterInfo{ServerVersion: "0.24.0"}, res)
+}
+
 func TestAddCacheFlagsToCmd(t *testing.T) {
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
