@@ -635,7 +635,7 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize appsa
+	// NamePrefix is a prefix appended to resources for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
 	// NameSuffix is a suffix appended to resources for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
@@ -1433,10 +1433,10 @@ type SyncPolicy struct {
 }
 
 // IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
-func (s *SyncPolicy) IsAutomatedSyncEnabled() *bool {
+func (p *SyncPolicy) IsAutomatedSyncEnabled() *bool {
 	var isEnabled bool
 
-	if s.Automated != nil && (s.Automated.Enable == nil || *s.Automated.Enable == true) {
+	if p.Automated != nil && (p.Automated.Enable == nil || *p.Automated.Enable) {
 		isEnabled = true
 	}
 	return &isEnabled
