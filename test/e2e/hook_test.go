@@ -483,3 +483,44 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
+
+func TestHookFinalizerExternalDeletionPreSync(t *testing.T) {
+	testHookFinalizerExternalDeletion(t, HookTypePreSync)
+}
+
+func TestHookFinalizerExternalDeletionSync(t *testing.T) {
+	testHookFinalizerExternalDeletion(t, HookTypeSync)
+}
+
+func TestHookFinalizerExternalDeletionPostSync(t *testing.T) {
+	testHookFinalizerExternalDeletion(t, HookTypePostSync)
+}
+
+func testHookFinalizerExternalDeletion(t *testing.T, hookType HookType) {
+	t.Helper()
+	Given(t).
+		Async(true).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/spec/containers/0/command", "value": ["sleep","15"]}]`).
+		CreateApp().
+		Sync().
+		And(func() {
+			// wait for the pod to be created before stopping the application controller
+			WaitForResourceToBeCreated("pod", DeploymentNamespace(), "hook", 10*time.Second)
+			StopApplicationController()
+			DeleteResource("pod", DeploymentNamespace(), "hook", false)
+			// wait for the hook pod to complete
+			time.Sleep(15 * time.Second)
+		}).Then().
+		And(func(_ *Application) {
+			StartApplicationController()
+		}).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+}
