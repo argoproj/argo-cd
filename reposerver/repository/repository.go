@@ -2654,7 +2654,6 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
 	noRevisionCache := request.GetNoRevisionCache()
-	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
 	if gitPath == "" {
 		gitPath = "."
 	}
@@ -2692,7 +2691,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 	defer io.Close(closer)
 
-	gitFiles, err := gitClient.LsFiles(gitPath, enableNewGitFileGlobbing)
+	gitFiles, err := gitClient.LsFiles(gitPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
