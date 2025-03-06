@@ -203,18 +203,18 @@ func EnsureCleanState(t *testing.T) {
 		}
 		return nil
 	}, time.Now().Add(120*time.Second))
-	CheckError(err)
+	errors.CheckError(err)
 
-	CheckError(waitForExpectedClusterState())
+	errors.CheckError(waitForExpectedClusterState())
 
 	// remove tmp dir
-	CheckError(os.RemoveAll(TmpDir))
+	errors.CheckError(os.RemoveAll(TmpDir))
 
 	// create tmp dir
-	FailOnErr(Run("", "mkdir", "-p", TmpDir))
+	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	CheckError(fixture.LoginAs("admin"))
+	errors.CheckError(fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -351,7 +351,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	CheckError(err)
+	errors.CheckError(err)
 	return restConfig
 }
 
@@ -363,7 +363,7 @@ func init() {
 }
 
 // PrettyPrintJson is a utility function for debugging purposes
-func PrettyPrintJson(obj any) string {
+func PrettyPrintJson(obj any) string { //nolint:revive //FIXME(var-naming)
 	bytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
 		return err.Error()
@@ -372,7 +372,7 @@ func PrettyPrintJson(obj any) string {
 }
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string {
+func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
 	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
 	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
 

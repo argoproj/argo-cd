@@ -197,6 +197,13 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
+
 			// We let the server check access to the repository before adding it. If
 			// it is a private repo, but we cannot access with with the credentials
 			// that were supplied, we bail out.
@@ -210,6 +217,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Name:                       repoOpts.Repo.Name,
 				Username:                   repoOpts.Repo.Username,
 				Password:                   repoOpts.Repo.Password,
+				BearerToken:                repoOpts.Repo.BearerToken,
 				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
 				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
 				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
@@ -225,7 +233,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
 				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
 			}
-			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
+			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{

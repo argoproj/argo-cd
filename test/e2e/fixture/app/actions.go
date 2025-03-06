@@ -42,13 +42,13 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 
 func (a *Actions) PatchFile(file string, jsonPath string) *Actions {
 	a.context.t.Helper()
-	fixture.Patch(a.context.path+"/"+file, jsonPath)
+	fixture.Patch(a.context.t, a.context.path+"/"+file, jsonPath)
 	return a
 }
 
 func (a *Actions) DeleteFile(file string) *Actions {
 	a.context.t.Helper()
-	fixture.Delete(a.context.path + "/" + file)
+	fixture.Delete(a.context.t, a.context.path+"/"+file)
 	return a
 }
 
@@ -60,31 +60,31 @@ func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.AddFile(a.context.path+"/"+fileName, fileContents)
+	fixture.AddFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	fixture.AddSignedFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
 func (a *Actions) AddSignedTag(name string) *Actions {
 	a.context.t.Helper()
-	fixture.AddSignedTag(name)
+	fixture.AddSignedTag(a.context.t, name)
 	return a
 }
 
 func (a *Actions) AddTag(name string) *Actions {
 	a.context.t.Helper()
-	fixture.AddTag(name)
+	fixture.AddTag(a.context.t, name)
 	return a
 }
 
 func (a *Actions) RemoveSubmodule() *Actions {
 	a.context.t.Helper()
-	fixture.RemoveSubmodule()
+	fixture.RemoveSubmodule(a.context.t)
 	return a
 }
 
@@ -333,7 +333,7 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
-func (a *Actions) PatchAppHttp(patch string) *Actions {
+func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(var-naming)
 	a.context.t.Helper()
 	var application Application
 	patchType := "merge"

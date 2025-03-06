@@ -2,22 +2,35 @@ package e2e
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/pkg/rand"
 	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
+
+func randStr(t *testing.T) string {
+	t.Helper()
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		require.NoError(t, err)
+		return ""
+	}
+	return hex.EncodeToString(bytes)
+}
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -392,13 +405,11 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 
 	project := "gpg"
 
-	str, _ := rand.RandString(1)
-
 	Given(t).
 		Project(project).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", str).IgnoreErrors().
+		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -704,8 +715,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		}
 	}
 
-	str, _ := rand.RandString(1)
-
 	expectedApps := []v1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
@@ -715,7 +724,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		Project(project).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", str).IgnoreErrors().
+		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -1457,7 +1466,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		Addr: "localhost:6379",
 	})
 	all := r.FlushAll(context.Background())
-	utils.CheckError(all.Err())
+	errors.CheckError(all.Err())
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{

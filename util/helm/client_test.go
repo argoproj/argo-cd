@@ -400,20 +400,20 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 
 func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *testing.T) {
 	expectedAuthorization := "Basic MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOmFjY2Vzc1Rva2Vu" // base64(00000000-0000-0000-0000-000000000000:accessToken)
-	mockUrl := ""
-	serverUrl := func() string {
-		return mockUrl
+	mockServerURL := ""
+	mockedServerURL := func() string {
+		return mockServerURL
 	}
 
 	workloadIdentityMock := new(mocks.TokenProvider)
 	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
 
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
 		switch r.URL.Path {
 		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, serverUrl(), serverUrl()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 
 		case "/oauth2/exchange":
@@ -446,10 +446,10 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
 		}
 	}))
-	mockUrl = server.URL
-	t.Cleanup(server.Close)
+	mockServerURL = mockServer.URL
+	t.Cleanup(mockServer.Close)
 
-	serverURL, err := url.Parse(server.URL)
+	serverURL, err := url.Parse(mockServer.URL)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -458,11 +458,11 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 	}{
 		{
 			name:    "should login correctly when the repo path is in the server root with http scheme",
-			repoURL: server.URL,
+			repoURL: mockServer.URL,
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: server.URL + "/my-repo",
+			repoURL: mockServer.URL + "/my-repo",
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -477,7 +477,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			client := NewClient(testCase.repoURL, AzureWorkloadIdentityCreds{
-				repoUrl:            server.URL[8:],
+				repoURL:            mockServer.URL[8:],
 				InsecureSkipVerify: true,
 				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
