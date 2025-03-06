@@ -358,14 +358,7 @@ export class ReposList extends React.Component<
                                                     <div className='columns small-4'>
                                                         <Tooltip content={repo.repo}>
                                                             <span>
-                                                                <a
-                                                                    href={repo.repo}
-                                                                    target='_blank'
-                                                                    rel='noopener noreferrer'
-                                                                    style={{cursor: 'pointer', color: '#007bff', textDecoration: 'underline'}}
-                                                                    onClick={e => e.stopPropagation()}>
-                                                                    {repo.repo}
-                                                                </a>
+                                                                <Repo url={repo.repo} />
                                                             </span>
                                                         </Tooltip>
                                                     </div>
