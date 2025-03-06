@@ -5,7 +5,9 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -2331,7 +2333,6 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 		aName, appNs := argo.ParseFromQualifiedName(appName, appServer.ns)
 		a, err := appServer.appLister.Applications(appNs).Get(aName)
 		require.NoError(t, err)
-		a = a.DeepCopy()
 		if a.GetAnnotations() != nil && a.GetAnnotations()[v1alpha1.AnnotationKeyRefresh] != "" {
 			a.SetAnnotations(map[string]string{})
 			a.SetResourceVersion("999")
@@ -3349,5 +3350,108 @@ func Test_RevisionMetadata(t *testing.T) {
 				require.NoError(t, err)
 			}
 		})
+	}
+}
+
+func Test_DeepCopyInformers(t *testing.T) {
+	t.Parallel()
+
+	namespace := "test-namespace"
+	var ro []runtime.Object
+	appOne := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appOne"
+		app.ObjectMeta.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	appTwo := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appTwo"
+		app.ObjectMeta.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	appThree := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "appThree"
+		app.ObjectMeta.Namespace = namespace
+		app.Spec = v1alpha1.ApplicationSpec{}
+	})
+	ro = append(ro, appOne, appTwo, appThree)
+	appls := []v1alpha1.Application{*appOne, *appTwo, *appThree}
+
+	appSetOne := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetOne", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	appSetTwo := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetTwo", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	appSetThree := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appSetThree", Namespace: namespace},
+		Spec:       v1alpha1.ApplicationSetSpec{},
+	}
+	ro = append(ro, appSetOne, appSetTwo, appSetThree)
+	appSets := []v1alpha1.ApplicationSet{*appSetOne, *appSetTwo, *appSetThree}
+
+	appProjects := createAppProject("projOne", "projTwo", "projThree")
+	for i := range appProjects {
+		ro = append(ro, &appProjects[i])
+	}
+
+	s := newTestAppServer(t, ro...)
+
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appls, appList.Items)
+	sAppList := appList.Items
+	slices.SortFunc(sAppList, func(a, b v1alpha1.Application) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appls, func(a, b v1alpha1.Application) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	// ensure there is a deep copy
+	for i := range appls {
+		assert.NotSame(t, &appls[i], &sAppList[i])
+		assert.NotSame(t, &appls[i].Spec, &sAppList[i].Spec)
+		a, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).Get(context.Background(), sAppList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, a, &sAppList[i])
+	}
+
+	appSetList, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appSets, appSetList.Items)
+	sAppSetList := appSetList.Items
+	slices.SortFunc(sAppSetList, func(a, b v1alpha1.ApplicationSet) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appSets, func(a, b v1alpha1.ApplicationSet) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	for i := range appSets {
+		assert.NotSame(t, &appSets[i], &sAppSetList[i])
+		assert.NotSame(t, &appSets[i].Spec, &sAppSetList[i].Spec)
+		a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(context.Background(),
+			sAppSetList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, a, &sAppSetList[i])
+	}
+
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, appProjects, projList.Items)
+	spList := projList.Items
+	slices.SortFunc(spList, func(a, b v1alpha1.AppProject) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	slices.SortFunc(appProjects, func(a, b v1alpha1.AppProject) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	for i := range appProjects {
+		assert.NotSame(t, &appProjects[i], &spList[i])
+		assert.NotSame(t, &appProjects[i].Spec, &spList[i].Spec)
+		p, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").Get(context.Background(),
+			spList[i].Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotSame(t, p, &spList[i])
 	}
 }

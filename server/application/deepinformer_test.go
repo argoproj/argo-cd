@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	clientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1/mocks"
-	lister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 )
 
 func Test_deepCopyAppProjectClient_Get(t *testing.T) {
@@ -115,7 +113,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 func createAppProject(projects ...string) []v1alpha1.AppProject {
 	appProjects := make([]v1alpha1.AppProject, len(projects))
 	for i, p := range projects {
-		appProjects[i] = v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: p, Namespace: "default"}}
+		appProjects[i] = v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: p, Namespace: "deep-copy-ns"}}
 	}
 	return appProjects
 }
@@ -126,226 +124,11 @@ func setupAppProjects(projects ...string) clientset.AppProjectInterface {
 	for i := range appProjects {
 		ro[i] = &appProjects[i]
 	}
-	return fake.NewSimpleClientset(ro...).ArgoprojV1alpha1().AppProjects("default")
-}
-
-func Test_deepCopyApplicationClient_Get(t *testing.T) {
-	type fields struct {
-		ApplicationInterface clientset.ApplicationInterface
-	}
-	type args struct {
-		ctx     context.Context
-		name    string
-		options metav1.GetOptions
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *v1alpha1.Application
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationClient{
-				ApplicationInterface: tt.fields.ApplicationInterface,
-			}
-			got, err := d.Get(tt.args.ctx, tt.args.name, tt.args.options)
-			if !tt.wantErr(t, err, fmt.Sprintf("Get(%v, %v, %v)", tt.args.ctx, tt.args.name, tt.args.options)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "Get(%v, %v, %v)", tt.args.ctx, tt.args.name, tt.args.options)
-		})
-	}
-}
-
-func Test_deepCopyApplicationClient_List(t *testing.T) {
-	type fields struct {
-		ApplicationInterface clientset.ApplicationInterface
-	}
-	type args struct {
-		ctx  context.Context
-		opts metav1.ListOptions
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *v1alpha1.ApplicationList
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationClient{
-				ApplicationInterface: tt.fields.ApplicationInterface,
-			}
-			got, err := d.List(tt.args.ctx, tt.args.opts)
-			if !tt.wantErr(t, err, fmt.Sprintf("List(%v, %v)", tt.args.ctx, tt.args.opts)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "List(%v, %v)", tt.args.ctx, tt.args.opts)
-		})
-	}
-}
-
-func Test_deepCopyApplicationLister_List(t *testing.T) {
-	type fields struct {
-		ApplicationLister lister.ApplicationLister
-	}
-	type args struct {
-		selector labels.Selector
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*v1alpha1.Application
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationLister{
-				ApplicationLister: tt.fields.ApplicationLister,
-			}
-			got, err := d.List(tt.args.selector)
-			if !tt.wantErr(t, err, fmt.Sprintf("List(%v)", tt.args.selector)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "List(%v)", tt.args.selector)
-		})
-	}
-}
-
-func Test_deepCopyApplicationNamespaceLister_Get(t *testing.T) {
-	type fields struct {
-		ApplicationNamespaceLister lister.ApplicationNamespaceLister
-	}
-	type args struct {
-		name string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *v1alpha1.Application
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationNamespaceLister{
-				ApplicationNamespaceLister: tt.fields.ApplicationNamespaceLister,
-			}
-			got, err := d.Get(tt.args.name)
-			if !tt.wantErr(t, err, fmt.Sprintf("Get(%v)", tt.args.name)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "Get(%v)", tt.args.name)
-		})
-	}
-}
-
-func Test_deepCopyApplicationNamespaceLister_List(t *testing.T) {
-	type fields struct {
-		ApplicationNamespaceLister lister.ApplicationNamespaceLister
-	}
-	type args struct {
-		selector labels.Selector
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*v1alpha1.Application
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationNamespaceLister{
-				ApplicationNamespaceLister: tt.fields.ApplicationNamespaceLister,
-			}
-			got, err := d.List(tt.args.selector)
-			if !tt.wantErr(t, err, fmt.Sprintf("List(%v)", tt.args.selector)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "List(%v)", tt.args.selector)
-		})
-	}
-}
-
-func Test_deepCopyApplicationSetClient_Get(t *testing.T) {
-	type fields struct {
-		ApplicationSetInterface clientset.ApplicationSetInterface
-	}
-	type args struct {
-		ctx     context.Context
-		name    string
-		options metav1.GetOptions
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *v1alpha1.ApplicationSet
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationSetClient{
-				ApplicationSetInterface: tt.fields.ApplicationSetInterface,
-			}
-			got, err := d.Get(tt.args.ctx, tt.args.name, tt.args.options)
-			if !tt.wantErr(t, err, fmt.Sprintf("Get(%v, %v, %v)", tt.args.ctx, tt.args.name, tt.args.options)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "Get(%v, %v, %v)", tt.args.ctx, tt.args.name, tt.args.options)
-		})
-	}
-}
-
-func Test_deepCopyApplicationSetClient_List(t *testing.T) {
-	type fields struct {
-		ApplicationSetInterface clientset.ApplicationSetInterface
-	}
-	type args struct {
-		ctx  context.Context
-		opts metav1.ListOptions
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *v1alpha1.ApplicationSetList
-		wantErr assert.ErrorAssertionFunc
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d := &deepCopyApplicationSetClient{
-				ApplicationSetInterface: tt.fields.ApplicationSetInterface,
-			}
-			got, err := d.List(tt.args.ctx, tt.args.opts)
-			if !tt.wantErr(t, err, fmt.Sprintf("List(%v, %v)", tt.args.ctx, tt.args.opts)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "List(%v, %v)", tt.args.ctx, tt.args.opts)
-		})
-	}
+	return fake.NewSimpleClientset(ro...).ArgoprojV1alpha1().AppProjects("deep-copy-ns")
 }
 
 func Test_deepCopyArgoprojV1alpha1Client_RESTClient(t *testing.T) {
+	fclientset := fake.NewSimpleClientset().ArgoprojV1alpha1()
 	type fields struct {
 		ArgoprojV1alpha1Interface clientset.ArgoprojV1alpha1Interface
 	}
@@ -354,7 +137,7 @@ func Test_deepCopyArgoprojV1alpha1Client_RESTClient(t *testing.T) {
 		fields fields
 		want   rest.Interface
 	}{
-		// TODO: Add test cases.
+		{name: "RestClientGetter", fields: fields{ArgoprojV1alpha1Interface: fclientset}, want: fclientset.RESTClient()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
