@@ -22,7 +22,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	// the maximum time limit required by `TestRandomPasswordVerificationDelay`.
 
 	var sleptFor time.Duration
-	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	mgr.verificationDelayNoiseEnabled = true
 	mgr.sleep = func(d time.Duration) {
