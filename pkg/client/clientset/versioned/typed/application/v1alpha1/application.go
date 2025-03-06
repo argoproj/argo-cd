@@ -3,9 +3,9 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 
-	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	scheme "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -21,31 +21,32 @@ type ApplicationsGetter interface {
 
 // ApplicationInterface has methods to work with Application resources.
 type ApplicationInterface interface {
-	Create(ctx context.Context, application *v1alpha1.Application, opts v1.CreateOptions) (*v1alpha1.Application, error)
-	Update(ctx context.Context, application *v1alpha1.Application, opts v1.UpdateOptions) (*v1alpha1.Application, error)
+	Create(ctx context.Context, application *applicationv1alpha1.Application, opts v1.CreateOptions) (*applicationv1alpha1.Application, error)
+	Update(ctx context.Context, application *applicationv1alpha1.Application, opts v1.UpdateOptions) (*applicationv1alpha1.Application, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Application, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.ApplicationList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*applicationv1alpha1.Application, error)
+	List(ctx context.Context, opts v1.ListOptions) (*applicationv1alpha1.ApplicationList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Application, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *applicationv1alpha1.Application, err error)
 	ApplicationExpansion
 }
 
 // applications implements ApplicationInterface
 type applications struct {
-	*gentype.ClientWithList[*v1alpha1.Application, *v1alpha1.ApplicationList]
+	*gentype.ClientWithList[*applicationv1alpha1.Application, *applicationv1alpha1.ApplicationList]
 }
 
 // newApplications returns a Applications
 func newApplications(c *ArgoprojV1alpha1Client, namespace string) *applications {
 	return &applications{
-		gentype.NewClientWithList[*v1alpha1.Application, *v1alpha1.ApplicationList](
+		gentype.NewClientWithList[*applicationv1alpha1.Application, *applicationv1alpha1.ApplicationList](
 			"applications",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v1alpha1.Application { return &v1alpha1.Application{} },
-			func() *v1alpha1.ApplicationList { return &v1alpha1.ApplicationList{} }),
+			func() *applicationv1alpha1.Application { return &applicationv1alpha1.Application{} },
+			func() *applicationv1alpha1.ApplicationList { return &applicationv1alpha1.ApplicationList{} },
+		),
 	}
 }

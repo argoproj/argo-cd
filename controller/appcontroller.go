@@ -288,8 +288,31 @@ func NewApplicationController(
 					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
 				}
 				shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
-				if _, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard); err != nil {
+				shard, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard)
+				if err != nil {
 					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %w", err)
+				}
+
+				// update the shard number in the clusterSharding, and resync all applications if the shard number is updated
+				if ctrl.clusterSharding.UpdateShard(shard) {
+					// update shard number in stateCache
+					ctrl.stateCache.UpdateShard(shard)
+
+					// resync all applications
+					apps, err := ctrl.appLister.List(labels.Everything())
+					if err != nil {
+						return err
+					}
+					for _, app := range apps {
+						if !ctrl.canProcessApp(app) {
+							continue
+						}
+						key, err := cache.MetaNamespaceKeyFunc(app)
+						if err == nil {
+							ctrl.appRefreshQueue.AddRateLimited(key)
+							ctrl.clusterSharding.AddApp(app)
+						}
+					}
 				}
 			}
 		}
@@ -309,7 +332,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, kubectl, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, projInformer, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -2093,9 +2116,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
 	}
-	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
-	}
+
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
@@ -2111,21 +2132,27 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
 		return nil, 0
-	} else if alreadyAttempted && selfHeal {
-		shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app)
-		if !shouldSelfHeal {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
-			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
-			return nil, 0
+	} else if selfHeal {
+		shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app, alreadyAttempted)
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
-		op.Sync.SelfHealAttemptsCount++
-		for _, resource := range resources {
-			if resource.Status != appv1.SyncStatusCodeSynced {
-				op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
-					Kind:  resource.Kind,
-					Group: resource.Group,
-					Name:  resource.Name,
-				})
+
+		if alreadyAttempted {
+			if !shouldSelfHeal {
+				logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
+				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
+				return nil, 0
+			}
+			op.Sync.SelfHealAttemptsCount++
+			for _, resource := range resources {
+				if resource.Status != appv1.SyncStatusCodeSynced {
+					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
+						Kind:  resource.Kind,
+						Group: resource.Group,
+						Name:  resource.Name,
+					})
+				}
 			}
 		}
 	}
@@ -2208,9 +2235,14 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
 }
 
-func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {
+func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application, alreadyAttempted bool) (bool, time.Duration) {
 	if app.Status.OperationState == nil {
 		return true, time.Duration(0)
+	}
+
+	// Reset counter if the prior sync was successful OR if the revision has changed
+	if !alreadyAttempted || app.Status.Sync.Status == appv1.SyncStatusCodeSynced {
+		app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = 0
 	}
 
 	var retryAfter time.Duration
