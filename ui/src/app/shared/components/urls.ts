@@ -12,11 +12,10 @@ function protocol(proto: string): string {
 }
 
 export function repoUrl(url: string): string {
-        if (/^https?:\/\//.test(url)) {
-            // return url as is without .git suffix and username@ part
-            return url.replace(/\.git$/, '')
-                     .replace(/\/\/(.*?@)/, '//');
-        }       
+    if (/^https?:\/\//.test(url)) {
+        // return url as is without .git suffix and username@ part
+        return url.replace(/\.git$/, '').replace(/\/\/(.*?@)/, '//');
+    }
     try {
         const parsed = GitUrlParse(url);
 
