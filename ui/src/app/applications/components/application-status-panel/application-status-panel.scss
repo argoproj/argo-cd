@@ -58,6 +58,7 @@
         padding: 0 5px;
         cursor: pointer;
         color: $argo-color-gray-6;
+        border: 1px solid $argo-color-gray-5;
     }
 
     &__item {
@@ -179,6 +180,16 @@
             padding-left: 8px;
             margin-bottom: 2px;
         }
+
+        &__status-button {
+            border-radius: 5px;
+            padding: 2px;
+            border: 1px solid $argo-color-gray-5;
+            &:hover {
+                background-color: $argo-color-gray-4;
+            }
+        }
+
     }
 
     &__hydrator-link {
