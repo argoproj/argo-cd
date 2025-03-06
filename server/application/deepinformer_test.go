@@ -34,7 +34,7 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 		{name: "Get an app project", fields: fields{AppProjectInterface: setupAppProjects("appproject")}, args: args{
 			name: "appproject",
 		}, want: &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "appproject", Namespace: "default"},
+			ObjectMeta: metav1.ObjectMeta{Name: "appproject", Namespace: "deep-copy-ns"},
 		}, wantErr: assert.NoError},
 		{
 			name: "Error getting an app project",
