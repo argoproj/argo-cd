@@ -71,9 +71,7 @@ const (
 	ociPrefix                      = "oci://"
 )
 
-var (
-	ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
-)
+var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
 
 // Service implements ManifestService interface
 type Service struct {
@@ -1090,7 +1088,6 @@ func isSourcePermitted(url string, repos []string) bool {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, string, error) {
-
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
