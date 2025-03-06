@@ -3765,3 +3765,16 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }
+
+func TestApplicationStatusOmittedWhenEmpty(t *testing.T) {
+	app := Application{}
+	b, err := json.Marshal(app)
+	require.NoError(t, err)
+	data := make(map[string]any)
+	err = json.Unmarshal(b, &data)
+	require.NoError(t, err)
+
+	_, ok := data["status"]
+
+	assert.False(t, ok)
+}
