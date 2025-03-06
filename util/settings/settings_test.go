@@ -568,29 +568,28 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	assert.NotNil(t, allOverrides)
 	assert.Equal(t, allDefault, allOverrides)
 
-	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
-	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
-			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
-		},
-		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
-	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
-
 	// with ignoreDifferencesOnResourceUpdates, ignoreDifferences should be added
-	_, settingsManager = fixtures(mergemaps(testCustomizations, map[string]string{
-		"resource.compareoptions": `
-    ignoreDifferencesOnResourceUpdates: true`,
-	}))
-	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
-	require.NoError(t, err)
-
 	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle", "/webhooks/0/clientConfig/caBundle"},
 			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle", ".webhooks[0].clientConfig.caBundle"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
+	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+
+	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
+	_, settingsManager = fixtures(mergemaps(testCustomizations, map[string]string{
+		"resource.compareoptions": `
+    ignoreDifferencesOnResourceUpdates: false`,
+	}))
+	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
+	require.NoError(t, err)
+	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
 		},
 		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
 	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
