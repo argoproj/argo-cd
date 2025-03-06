@@ -8,19 +8,18 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
-	jwtgo "github.com/golang-jwt/jwt/v5"
+	jwtgo "github.com/golang-jwt/jwt/v4"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
-	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/templates"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/jwt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 const (
@@ -192,7 +191,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	command := &cobra.Command{
 		Use:   "create PROJECT ROLE-NAME",
 		Short: "Create a project role",
-		Example: templates.Examples(`
+		Example: templates.Examples(`  
   # Create a project role in the "my-project" project with the name "my-role".
   argocd proj role create my-project my-role --description "My project role description"
   		`),
@@ -322,24 +321,18 @@ Create token succeeded for proj:test-project:test-role.
 			})
 			errors.CheckError(err)
 
-			var claims jwtgo.MapClaims
-			_, _, err = jwtgo.NewParser().ParseUnverified(tokenResponse.Token, &claims)
-			if err != nil {
+			token, err := jwtgo.Parse(tokenResponse.Token, nil)
+			if token == nil {
 				err = fmt.Errorf("received malformed token %w", err)
 				errors.CheckError(err)
 				return
 			}
 
-			argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
-			if err != nil {
-				errors.CheckError(fmt.Errorf("invalid argo claims: %w", err))
-				return
-			}
-
+			claims := token.Claims.(jwtgo.MapClaims)
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
-			id := argoClaims.ID
-			subject := argoClaims.GetUserIdentifier()
+			id := jwt.StringField(claims, "jti")
+			subject := jwt.StringField(claims, "sub")
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
@@ -503,7 +496,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List all the roles in a project",
-		Example: templates.Examples(`
+		Example: templates.Examples(`  
   # This command will list all the roles in argocd-project in a default table format.
   argocd proj role list PROJECT
 

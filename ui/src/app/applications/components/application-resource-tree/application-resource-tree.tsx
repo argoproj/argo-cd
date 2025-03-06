@@ -926,16 +926,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
-
-            const shouldKeepNode = () => {
-                //case for podgroup in group node view
-                if (node.podGroup) {
-                    return predicate(node) || node.podGroup.pods.some(pod => predicate({...node, kind: 'Pod', name: pod.name}));
-                }
-                return predicate(node);
-            };
-
-            if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
+            if (node.root != null && !predicate(node) && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
                 filtered++;
@@ -948,14 +939,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 if (node.root != null) filteredNodes.push(node);
             }
         });
-
         if (filtered) {
-            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
-                height: NODE_HEIGHT,
-                width: NODE_WIDTH,
-                count: filtered,
-                type: NODE_TYPES.filteredIndicator
-            });
+            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
     }

@@ -2,22 +2,22 @@ package generators
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	pullrequest "github.com/argoproj/argo-cd/v2/applicationset/services/pull_request"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-		expected       []map[string]any
+		expected       []map[string]interface{}
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
 	}{
@@ -38,7 +38,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -71,7 +71,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "2",
 					"title":              "title2",
@@ -104,7 +104,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -125,11 +125,11 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 				return pullrequest.NewFakeService(
 					ctx,
 					nil,
-					errors.New("fake error"),
+					fmt.Errorf("fake error"),
 				)
 			},
 			expected:    nil,
-			expectedErr: errors.New("error listing repos: fake error"),
+			expectedErr: fmt.Errorf("error listing repos: fake error"),
 		},
 		{
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
@@ -149,7 +149,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -190,7 +190,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 					nil,
 				)
 			},
-			expected: []map[string]any{
+			expected: []map[string]interface{}{
 				{
 					"number":             "1",
 					"title":              "title1",
@@ -224,7 +224,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 
 		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
 		if c.expectedErr != nil {
-			require.EqualError(t, gotErr, c.expectedErr.Error())
+			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
 		} else {
 			require.NoError(t, gotErr)
 		}

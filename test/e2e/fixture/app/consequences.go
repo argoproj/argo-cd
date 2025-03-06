@@ -6,14 +6,11 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	util "github.com/argoproj/argo-cd/v3/util/io"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // this implements the "then" part of given/when/then
@@ -111,20 +108,11 @@ func (c *Consequences) app() *Application {
 }
 
 func (c *Consequences) get() (*Application, error) {
-	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
+	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), v1.GetOptions{})
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	errors.CheckError(err)
-	defer util.Close(closer)
-	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
-		Name:         ptr.To(c.context.AppName()),
-		Projects:     []string{c.context.project},
-		AppNamespace: ptr.To(c.context.appNamespace),
-	})
-	errors.CheckError(err)
-	for _, r := range app.Status.Resources {
+	for _, r := range c.app().Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r
 		}

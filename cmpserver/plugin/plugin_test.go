@@ -18,11 +18,11 @@ import (
 	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/cmp"
-	"github.com/argoproj/argo-cd/v3/util/tgzstream"
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/tgzstream"
 )
 
 func newService(configFilePath string) (*Service, error) {
@@ -514,20 +514,19 @@ func TestEnviron(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{})
 		assert.Nil(t, env)
 	})
-	t.Run("env vars with empty names", func(t *testing.T) {
+	t.Run("env vars with empty names or values", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Value: "test"},
 			{Name: "test"},
 		})
-		assert.Equal(t, []string{"test="}, env)
+		assert.Nil(t, env)
 	})
 	t.Run("proper env vars", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Name: "name1", Value: "value1"},
 			{Name: "name2", Value: "value2"},
-			{Name: "name3", Value: ""},
 		})
-		assert.Equal(t, []string{"name1=value1", "name2=value2", "name3="}, env)
+		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
 	})
 }
 
@@ -807,11 +806,11 @@ func (m *MockParametersAnnouncementStream) Context() context.Context {
 	return context.Background()
 }
 
-func (m *MockParametersAnnouncementStream) SendMsg(any) error {
+func (m *MockParametersAnnouncementStream) SendMsg(interface{}) error {
 	return nil
 }
 
-func (m *MockParametersAnnouncementStream) RecvMsg(any) error {
+func (m *MockParametersAnnouncementStream) RecvMsg(interface{}) error {
 	return nil
 }
 

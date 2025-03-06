@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -16,7 +16,7 @@ var (
 )
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
+func DnsFriendly(str string, postfix string) string {
 	str = matchFirstCap.ReplaceAllString(str, "${1}-${2}")
 	str = matchAllCap.ReplaceAllString(str, "${1}-${2}")
 	str = strings.ToLower(str)

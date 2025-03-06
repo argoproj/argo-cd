@@ -3,7 +3,7 @@ package fixture
 import (
 	"bufio"
 	"context"
-	stderrors "errors"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"path"
@@ -14,33 +14,31 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
-	"github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/rand"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
+	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
+	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
-	defaultAPIServer        = "localhost:8080"
+	defaultApiServer        = "localhost:8080"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -122,7 +120,6 @@ const (
 	RepoURLTypeHelmOCI              = "helm-oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
-	GitBearerToken                  = "test"
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
@@ -146,7 +143,7 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	errors.CheckError(err)
+	CheckError(err)
 	return restConfig
 }
 
@@ -181,7 +178,7 @@ func init() {
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
 	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -193,7 +190,7 @@ func init() {
 
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
-	errors.CheckError(err)
+	CheckError(err)
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:          true,
@@ -205,11 +202,11 @@ func init() {
 		RepoServerName:    argoCDRepoServerName,
 		AppControllerName: argoCDAppControllerName,
 	})
-	errors.CheckError(err)
+	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
 
-	errors.CheckError(LoginAs(adminUsername))
+	CheckError(LoginAs(adminUsername))
 
 	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
 
@@ -221,10 +218,11 @@ func init() {
 	}
 	f, err := os.Open(rf)
 	if err != nil {
-		if stderrors.Is(err, os.ErrNotExist) {
+		if goerrors.Is(err, os.ErrNotExist) {
 			return
+		} else {
+			panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 		}
-		panic(fmt.Sprintf("Could not read record file %s: %v", rf, err))
 	}
 	defer func() {
 		err := f.Close()
@@ -344,7 +342,7 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
-		return GetEnvWithDefault(EnvRepoURLDefault, "file://"+repoDirectory())
+		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
 }
 
@@ -354,6 +352,17 @@ func RepoBaseURL(urlType RepoURLType) string {
 
 func DeploymentNamespace() string {
 	return deploymentNamespace
+}
+
+// creates a secret for the current test, this currently can only create a single secret
+func CreateSecret(username, password string) string {
+	secretName := fmt.Sprintf("argocd-e2e-%s", name)
+	FailOnErr(Run("", "kubectl", "create", "secret", "generic", secretName,
+		"--from-literal=username="+username,
+		"--from-literal=password="+password,
+		"-n", TestNamespace()))
+	FailOnErr(Run("", "kubectl", "label", "secret", secretName, TestingLabel+"=true", "-n", TestNamespace()))
+	return secretName
 }
 
 // Convenience wrapper for updating argocd-cm
@@ -382,7 +391,7 @@ func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
 
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) error {
-	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, metav1.GetOptions{})
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -395,7 +404,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		return err
 	}
 	if !configMapsEquivalent(cm, oldCm) {
-		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, metav1.UpdateOptions{})
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -406,7 +415,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range val {
-			cm.Data[strings.ToLower(string(k))+".enable"] = strconv.FormatBool(v)
+			cm.Data[fmt.Sprintf("%s.enable", strings.ToLower(string(k)))] = strconv.FormatBool(v)
 		}
 		return nil
 	})
@@ -453,57 +462,6 @@ func SetTrackingLabel(trackingLabel string) error {
 	})
 }
 
-func SetImpersonationEnabled(impersonationEnabledFlag string) error {
-	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
-		return nil
-	})
-}
-
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
-	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Rules: policyRules,
-	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: DeploymentNamespace(),
-			},
-		},
-	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -547,7 +505,7 @@ func getResourceOverrideSplitKey(key string, customizeType string) string {
 func SetAccounts(accounts map[string][]string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range accounts {
-			cm.Data["accounts."+k] = strings.Join(v, ",")
+			cm.Data[fmt.Sprintf("accounts.%s", k)] = strings.Join(v, ",")
 		}
 		return nil
 	})
@@ -584,13 +542,35 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
+func SetHelmRepos(repos ...settings.HelmRepoCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["helm.repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
+func SetRepos(repos ...settings.RepositoryCredentials) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		yamlBytes, err := yaml.Marshal(repos)
+		if err != nil {
+			return err
+		}
+		cm.Data["repositories"] = string(yamlBytes)
+		return nil
+	})
+}
+
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
-	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, v1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	proj.Spec = spec
-	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, v1.UpdateOptions{})
 	return err
 }
 
@@ -641,57 +621,57 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	})
 
 	start := time.Now()
-	policy := metav1.DeletePropagationBackground
+	policy := v1.DeletePropagationBackground
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete appprojects --field-selector metadata.name!=default
 			return AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{FieldSelector: "metadata.name!=default"})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{FieldSelector: "metadata.name!=default"})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
 		},
 		func() error {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
-				metav1.DeleteOptions{PropagationPolicy: &policy},
-				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
 	})
 
@@ -700,7 +680,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
-				metav1.ListOptions{
+				v1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
 					FieldSelector: "status.phase=Active",
 				},
@@ -719,7 +699,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -748,7 +728,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
 				context.Background(),
-				metav1.ListOptions{
+				v1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
 				},
 			)
@@ -766,7 +746,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -788,7 +768,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -847,7 +827,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -858,19 +838,19 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				context.Background(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: v1.ObjectMeta{
 						Name: "gpg",
 					},
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+						ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},
-				metav1.CreateOptions{},
+				v1.CreateOptions{},
 			)
 			return err
 		},
@@ -906,14 +886,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
-			//nolint:errcheck
+			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			// nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
 			if err != nil {
 				return err
 			}
-			t.Setenv("GNUPGHOME", prevGnuPGHome)
+			os.Setenv("GNUPGHOME", prevGnuPGHome)
 
 			// recreate GPG directories
 			if IsLocal() {
@@ -982,7 +962,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			postFix := "-" + strings.ToLower(randString)
 			id = t.Name() + postFix
 			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
+			deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
 			// create namespace
 			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
 			if err != nil {
@@ -1034,181 +1014,178 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
-func Patch(t *testing.T, path string, jsonPatch string) {
-	t.Helper()
+func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
 	bytes, err := os.ReadFile(filename)
-	errors.CheckError(err)
+	CheckError(err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	errors.CheckError(err)
+	CheckError(err)
 
 	isYaml := strings.HasSuffix(filename, ".yaml")
 	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
-		errors.CheckError(err)
+		CheckError(err)
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
-	errors.CheckError(err)
+	CheckError(err)
 
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
-		errors.CheckError(err)
+		CheckError(err)
 	}
 
-	errors.CheckError(os.WriteFile(filename, bytes, 0o644))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
+	CheckError(os.WriteFile(filename, bytes, 0o644))
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func Delete(t *testing.T, path string) {
-	t.Helper()
+func Delete(path string) {
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	errors.CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
 
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	errors.CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
-func AddFile(t *testing.T, path, contents string) {
-	t.Helper()
+func AddFile(path, contents string) {
 	WriteFile(path, contents)
 
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
 
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func AddSignedFile(t *testing.T, path, contents string) {
-	t.Helper()
+func AddSignedFile(path, contents string) {
 	WriteFile(path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
-	t.Setenv("GNUPGHOME", prevGnuPGHome)
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	FailOnErr(Run(repoDirectory(), "git", "diff"))
+	FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
-func AddSignedTag(t *testing.T, name string) {
-	t.Helper()
+func AddSignedTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
-func AddTag(t *testing.T, name string) {
-	t.Helper()
+func AddTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
+	FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values any) (string, error) {
+func Declarative(filename string, values interface{}) (string, error) {
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
-	errors.CheckError(err)
+	CheckError(err)
 
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	CheckError(err)
 	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
-	errors.CheckError(err)
+	CheckError(err)
 	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }
 
-func CreateSubmoduleRepos(t *testing.T, repoType string) {
-	t.Helper()
+func CreateSubmoduleRepos(repoType string) {
 	// set-up submodule repo
-	errors.NewHandler(t).FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
-	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
-	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
-	errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
+	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
+	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
+	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
-		errors.NewHandler(t).FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
+		FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
+		FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
 	}
 
 	// set-up submodule parent repo
-	errors.NewHandler(t).FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
+	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
+	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
 	} else {
-		t.Setenv("GIT_ALLOW_PROTOCOL", "file")
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
+		CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		if isAllowProtocolSet {
+			CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldAllowProtocol))
+		} else {
+			CheckError(os.Unsetenv("GIT_ALLOW_PROTOCOL"))
+		}
 	}
 	if repoType == "ssh" {
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
 
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
 }
 
-func RemoveSubmodule(t *testing.T) {
-	t.Helper()
+func RemoveSubmodule() {
 	log.Info("removing submodule")
 
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
-	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "rm", "submodule/test"))
+	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
 // RestartRepoServer performs a restart of the repo server deployment and waits
 // until the rollout has completed.
-func RestartRepoServer(t *testing.T) {
-	t.Helper()
+func RestartRepoServer() {
 	if IsRemote() {
 		log.Infof("Waiting for repo server to restart")
 		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
@@ -1216,8 +1193,8 @@ func RestartRepoServer(t *testing.T) {
 		if prefix != "" {
 			workload = prefix + "-repo-server"
 		}
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 		// wait longer to avoid error on s390x
 		time.Sleep(5 * time.Second)
 	}
@@ -1225,8 +1202,7 @@ func RestartRepoServer(t *testing.T) {
 
 // RestartAPIServer performs a restart of the API server deployemt and waits
 // until the rollout has completed.
-func RestartAPIServer(t *testing.T) {
-	t.Helper()
+func RestartAPIServer() {
 	if IsRemote() {
 		log.Infof("Waiting for API server to restart")
 		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
@@ -1234,8 +1210,8 @@ func RestartAPIServer(t *testing.T) {
 		if prefix != "" {
 			workload = prefix + "-server"
 		}
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 	}
 }
 
@@ -1244,8 +1220,9 @@ func RestartAPIServer(t *testing.T) {
 func LocalOrRemotePath(base string) string {
 	if IsRemote() {
 		return base + "/remote"
+	} else {
+		return base + "/local"
 	}
-	return base + "/local"
 }
 
 // SkipOnEnv allows to skip a test when a given environment variable is set.
@@ -1292,12 +1269,12 @@ func RecordTestRun(t *testing.T) {
 			t.Fatalf("could not close record file %s: %v", rf, err)
 		}
 	}()
-	if _, err := f.WriteString(t.Name() + "\n"); err != nil {
+	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
 }
 
-func GetApiServerAddress() string { //nolint:revive //FIXME(var-naming)
+func GetApiServerAddress() string {
 	return apiServerAddress
 }
 
