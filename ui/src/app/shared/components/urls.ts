@@ -12,6 +12,9 @@ function protocol(proto: string): string {
 }
 
 export function repoUrl(url: string): string {
+    if (/^https?:\/\//.test(url)) {
+        return url; // Return HTTP(S) URL as-is
+    }
     try {
         const parsed = GitUrlParse(url);
 
