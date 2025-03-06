@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/v3/util/gpg"
+
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -771,6 +773,11 @@ func verifyGenerateManifests(
 			continue
 		}
 
+		verifySignature := false
+		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+			verifySignature = true
+		}
+
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -779,6 +786,7 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
+			VerifySignature:                 verifySignature,
 			Repos:                           helmRepos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
