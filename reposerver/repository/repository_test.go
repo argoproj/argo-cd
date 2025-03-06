@@ -4309,7 +4309,7 @@ images:
 
 		service := newService(t, tempDir)
 
-		// Fill the manifest request with as many parameters affecting Helm commands as possible.
+		// Fill the manifest request with as many parameters affecting Kustomize commands as possible.
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
@@ -4334,11 +4334,12 @@ images:
 					Images: v1alpha1.KustomizeImages{
 						"image=override",
 					},
-					KubeVersion:          "5.6.7",
-					LabelWithoutSelector: true,
-					NamePrefix:           "test-prefix",
-					NameSuffix:           "test-suffix",
-					Namespace:            "override-namespace",
+					KubeVersion:           "5.6.7",
+					LabelWithoutSelector:  true,
+					LabelIncludeTemplates: true,
+					NamePrefix:            "test-prefix",
+					NameSuffix:            "test-suffix",
+					Namespace:             "override-namespace",
 					Replicas: v1alpha1.KustomizeReplicas{
 						{
 							Name:  "guestbook-ui",
@@ -4359,7 +4360,7 @@ images:
 			"kustomize edit set namesuffix -- test-suffix",
 			"kustomize edit set image image=override",
 			"kustomize edit set replicas guestbook-ui=1337",
-			"kustomize edit add label --force --without-selector test:label",
+			"kustomize edit add label --force --without-selector --include-templates test:label",
 			"kustomize edit add annotation --force test:annotation-test-app",
 			"kustomize edit set namespace -- override-namespace",
 			"kustomize edit add component component",

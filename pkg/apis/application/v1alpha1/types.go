@@ -671,6 +671,8 @@ type ApplicationSourceKustomize struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
+	// LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+	LabelIncludeTemplates bool `json:"labelIncludeTemplates,omitempty" protobuf:"bytes,18,opt,name=labelIncludeTemplates"`
 }
 
 type KustomizeReplica struct {

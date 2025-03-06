@@ -4,34 +4,39 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // Add GPG public key via API and create appropriate file where the ConfigMap mount would de it as well
-func AddGPGPublicKey() {
+func AddGPGPublicKey(t *testing.T) {
+	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/gpg/" + fixture.GpgGoodKeyID)
-	errors.CheckError(err)
+	require.NoError(t, err)
 	args := []string{"gpg", "add", "--from", keyPath}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 
 	if fixture.IsLocal() {
 		keyData, err := os.ReadFile(keyPath)
-		errors.CheckError(err)
+		require.NoError(t, err)
 		err = os.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID), keyData, 0o644)
-		errors.CheckError(err)
+		require.NoError(t, err)
 	} else {
-		fixture.RestartRepoServer()
+		fixture.RestartRepoServer(t)
 	}
 }
 
-func DeleteGPGPublicKey() {
+func DeleteGPGPublicKey(t *testing.T) {
+	t.Helper()
 	args := []string{"gpg", "rm", fixture.GpgGoodKeyID}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 	if fixture.IsLocal() {
-		errors.CheckError(os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
+		require.NoError(t, os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir, fixture.GpgGoodKeyID)))
 	} else {
-		fixture.RestartRepoServer()
+		fixture.RestartRepoServer(t)
 	}
 }

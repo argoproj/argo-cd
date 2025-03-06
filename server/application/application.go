@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -46,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -76,22 +79,23 @@ var (
 
 // Server provides an Application service
 type Server struct {
-	ns                string
-	kubeclientset     kubernetes.Interface
-	appclientset      appclientset.Interface
-	appLister         applisters.ApplicationLister
-	appInformer       cache.SharedIndexInformer
-	appBroadcaster    Broadcaster
-	repoClientset     apiclient.Clientset
-	kubectl           kube.Kubectl
-	db                db.ArgoDB
-	enf               *rbac.Enforcer
-	projectLock       sync.KeyLock
-	auditLogger       *argo.AuditLogger
-	settingsMgr       *settings.SettingsManager
-	cache             *servercache.Cache
-	projInformer      cache.SharedIndexInformer
-	enabledNamespaces []string
+	ns                     string
+	kubeclientset          kubernetes.Interface
+	appclientset           appclientset.Interface
+	appLister              applisters.ApplicationLister
+	appInformer            cache.SharedIndexInformer
+	appBroadcaster         Broadcaster
+	repoClientset          apiclient.Clientset
+	kubectl                kube.Kubectl
+	db                     db.ArgoDB
+	enf                    *rbac.Enforcer
+	projectLock            sync.KeyLock
+	auditLogger            *argo.AuditLogger
+	settingsMgr            *settings.SettingsManager
+	cache                  *servercache.Cache
+	projInformer           cache.SharedIndexInformer
+	enabledNamespaces      []string
+	syncWithReplaceAllowed bool
 }
 
 // NewServer returns a new instance of the Application service
@@ -112,6 +116,7 @@ func NewServer(
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
 	enableK8sEvent []string,
+	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -121,22 +126,23 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                namespace,
-		appclientset:      appclientset,
-		appLister:         appLister,
-		appInformer:       appInformer,
-		appBroadcaster:    appBroadcaster,
-		kubeclientset:     kubeclientset,
-		cache:             cache,
-		db:                db,
-		repoClientset:     repoClientset,
-		kubectl:           kubectl,
-		enf:               enf,
-		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
-		settingsMgr:       settingsMgr,
-		projInformer:      projInformer,
-		enabledNamespaces: enabledNamespaces,
+		ns:                     namespace,
+		appclientset:           appclientset,
+		appLister:              appLister,
+		appInformer:            appInformer,
+		appBroadcaster:         appBroadcaster,
+		kubeclientset:          kubeclientset,
+		cache:                  cache,
+		db:                     db,
+		repoClientset:          repoClientset,
+		kubectl:                kubectl,
+		enf:                    enf,
+		projectLock:            projectLock,
+		auditLogger:            argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		settingsMgr:            settingsMgr,
+		projInformer:           projInformer,
+		enabledNamespaces:      enabledNamespaces,
+		syncWithReplaceAllowed: syncWithReplaceAllowed,
 	}
 	return s, s.getAppResources
 }
@@ -249,9 +255,15 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 		if !s.isNamespaceEnabled(namespaceOrDefault) {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
-		return s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
+		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
 		})
+		if err != nil {
+			return nil, err
+		}
+		// Objects returned by the lister must be treated as read-only.
+		// To allow us to modify the app later, make a copy
+		return app.DeepCopy(), nil
 	})
 }
 
@@ -368,6 +380,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to check existing application details (%s): %v", appNs, err)
 	}
+	// Objects returned from listers have to be treated as read-only
+	// Take a deep copy so we can edit it below
+	existing = existing.DeepCopy()
 
 	if _, err := argo.GetDestinationCluster(ctx, existing.Spec.Destination, s.db); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "application destination spec for %s is invalid: %s", existing.Name, err.Error())
@@ -805,7 +820,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 					annotations = make(map[string]string)
 				}
 				if _, ok := annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-					return &event.Application, nil
+					return event.Application.DeepCopy(), nil
 				}
 			}
 		}
@@ -1211,6 +1226,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if err != nil {
 			return fmt.Errorf("error listing apps with selector: %w", err)
 		}
+		apps = util.SliceCopy(apps)
 		sort.Slice(apps, func(i, j int) bool {
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
@@ -1799,7 +1815,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				return
 			}
 			if q.Filter != nil {
-				lineContainsFilter := strings.Contains(entry.line, literal)
+				var lineContainsFilter bool
+				if q.GetMatchCase() {
+					lineContainsFilter = strings.Contains(entry.line, literal)
+				} else {
+					lineContainsFilter = strings.Contains(strings.ToLower(entry.line), strings.ToLower(literal))
+				}
+
 				if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
 					continue
 				}
@@ -1950,6 +1972,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 	if syncReq.SyncOptions != nil {
 		syncOptions = syncReq.SyncOptions.Items
+	}
+
+	if syncOptions.HasOption(common.SyncOptionReplace) && !s.syncWithReplaceAllowed {
+		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
@@ -2650,7 +2676,14 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
 			for _, node := range tree.Nodes {
-				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
+				if node.Health != nil {
+					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
+				} else if node.ResourceVersion == "" && node.ResourceRef.UID == "" && node.CreatedAt == nil {
+					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusMissing,
+						Message: "Resource has not been created",
+					}
+				}
 			}
 			for i, res := range app.Status.Resources {
 				res.Health = healthByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)]

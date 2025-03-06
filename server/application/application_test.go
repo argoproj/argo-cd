@@ -54,7 +54,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -188,9 +187,9 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	ctx := context.Background()
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
-	errors.CheckError(err)
+	require.NoError(t, err)
 	_, err = db.CreateCluster(ctx, fakeCluster())
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
@@ -315,6 +314,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
@@ -477,6 +477,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		projInformer,
 		[]string{},
 		testEnableEventList,
+		true,
 	)
 	return server.(*Server)
 }
