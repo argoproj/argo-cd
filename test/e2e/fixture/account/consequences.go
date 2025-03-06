@@ -2,7 +2,7 @@ package project
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 
 	"github.com/stretchr/testify/require"
 
@@ -48,7 +48,7 @@ func (c *Consequences) get() (*account.Account, error) {
 			return acc, nil
 		}
 	}
-	return nil, stderrors.New("account not found")
+	return nil, errors.New("account not found")
 }
 
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
