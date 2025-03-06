@@ -1,8 +1,9 @@
 package project
 
 import (
+	"github.com/stretchr/testify/require"
+
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // this implements the "when" part of given/when/then
@@ -48,7 +49,7 @@ func (a *Actions) prepareSetPasswordArgs(account string) []string {
 
 func (a *Actions) Create() *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetAccounts(map[string][]string{
+	require.NoError(a.context.t, fixture.SetAccounts(map[string][]string{
 		a.context.name: {"login"},
 	}))
 	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
@@ -57,19 +58,19 @@ func (a *Actions) Create() *Actions {
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetPermissions(permissions, a.context.name, roleName))
+	require.NoError(a.context.t, fixture.SetPermissions(permissions, a.context.name, roleName))
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetParamInSettingConfigMap(key, value))
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Login() *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.LoginAs(a.context.name))
+	require.NoError(a.context.t, fixture.LoginAs(a.context.name))
 	return a
 }
 

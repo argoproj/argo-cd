@@ -17,7 +17,6 @@ import (
 
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type testNormalizer struct{}
@@ -208,14 +207,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
 	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	unstructuredList := &unstructured.UnstructuredList{}
 	yamlString := bytes.NewBuffer(yamlBytes).String()
 	if yamlString[0] == '-' {
 		// The string represents a new-style action array output, where each member is a wrapper around a k8s unstructured resource
 		objList := make([]map[string]any, 5)
 		err = yaml.Unmarshal(yamlBytes, &objList)
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, len(objList))
 		// Append each map in objList to the Items field of the new object
 		for i, obj := range objList {
@@ -227,7 +226,7 @@ func getExpectedObjectList(t *testing.T, path string) *unstructured.Unstructured
 		// The string represents an old-style action object output, which is a k8s unstructured resource
 		obj := make(map[string]any)
 		err = yaml.Unmarshal(yamlBytes, &obj)
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 		unstructuredList.Items = make([]unstructured.Unstructured, 1)
 		unstructuredList.Items[0] = unstructured.Unstructured{Object: obj}
 	}

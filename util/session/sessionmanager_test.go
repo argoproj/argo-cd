@@ -30,7 +30,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -46,7 +45,7 @@ func getKubeClient(t *testing.T, pass string, enabled bool, capabilities ...sett
 	const defaultSecretKey = "Hello, world!"
 
 	bcrypt, err := password.HashPassword(pass)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	if len(capabilities) == 0 {
 		capabilities = []settings.AccountCapability{settings.AccountCapabilityLogin, settings.AccountCapabilityApiKey}
 	}

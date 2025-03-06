@@ -1,8 +1,9 @@
 package notification
 
 import (
+	"github.com/stretchr/testify/require"
+
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // this implements the "when" part of given/when/then
@@ -17,7 +18,7 @@ type Actions struct {
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetParamInNotificationsConfigMap(key, value))
+	require.NoError(a.context.t, fixture.SetParamInNotificationsConfigMap(key, value))
 	return a
 }
 

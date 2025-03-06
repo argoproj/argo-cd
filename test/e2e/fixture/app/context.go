@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
@@ -11,7 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -219,7 +220,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetProjectSpec(c.project, spec))
+	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -332,13 +333,13 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetResourceOverrides(overrides))
+	require.NoError(c.t, fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetResourceFilter(filter))
+	require.NoError(c.t, fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -408,13 +409,13 @@ func (c *Context) HelmSkipTests() *Context {
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetTrackingMethod(trackingMethod))
+	require.NoError(c.t, fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
 	c.t.Helper()
-	errors.NewHandler(c.t).CheckForErr(fixture.SetInstallationID(installationID))
+	require.NoError(c.t, fixture.SetInstallationID(installationID))
 	return c
 }
 

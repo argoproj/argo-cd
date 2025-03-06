@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/stretchr/testify/require"
 )
 
 type AddBinDirToPath struct {
@@ -22,7 +22,7 @@ func NewBinDirToPath(t *testing.T) AddBinDirToPath {
 	t.Helper()
 	originalPath := os.Getenv("PATH")
 	binDir, err := filepath.Abs("../../dist")
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	t.Setenv("PATH", fmt.Sprintf("%s:%s", originalPath, binDir))
 	return AddBinDirToPath{originalPath}
 }

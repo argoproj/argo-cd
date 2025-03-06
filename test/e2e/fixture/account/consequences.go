@@ -4,11 +4,12 @@ import (
 	"context"
 	stderrors "errors"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -53,7 +54,7 @@ func (c *Consequences) get() (*account.Account, error) {
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
 	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
-	errors.NewHandler(c.context.t).CheckForErr(err)
+	require.NoError(c.context.t, err)
 	defer io.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 }

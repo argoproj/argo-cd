@@ -7,17 +7,17 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/stretchr/testify/require"
 )
 
 // utility method to template a string using a map
 func Tmpl(t *testing.T, text string, values any) string {
 	t.Helper()
 	parse, err := template.New(text).Parse(text)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	buf := new(bytes.Buffer)
 	err = parse.Execute(buf, values)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	return buf.String()
 }
 

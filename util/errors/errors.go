@@ -22,12 +22,6 @@ func NewHandler(t *testing.T) *Handler {
 	return &Handler{t: t}
 }
 
-// CheckForErr fails the test if there is an error.
-func (h *Handler) CheckForErr(err error) {
-	h.t.Helper()
-	require.NoError(h.t, err)
-}
-
 // FailOnErr fails the test if there is an error. It returns the first value so you can use it if you cast it:
 // text := FailOrErr(Foo).(string)
 func (h *Handler) FailOnErr(v any, err error) any {

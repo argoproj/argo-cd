@@ -19,6 +19,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -1040,30 +1041,30 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 
 	filename := filepath.Join(repoDirectory(), path)
 	bytes, err := os.ReadFile(filename)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
 	isYaml := strings.HasSuffix(filename, ".yaml")
 	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 	}
 
-	errors.NewHandler(t).CheckForErr(os.WriteFile(filename, bytes, 0o644))
+	require.NoError(t, os.WriteFile(filename, bytes, 0o644))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -1075,7 +1076,7 @@ func Delete(t *testing.T, path string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	errors.NewHandler(t).CheckForErr(os.Remove(filepath.Join(repoDirectory(), path)))
+	require.NoError(t, os.Remove(filepath.Join(repoDirectory(), path)))
 
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
@@ -1088,7 +1089,7 @@ func WriteFile(t *testing.T, path, contents string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	errors.NewHandler(t).CheckForErr(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(t *testing.T, path, contents string) {
@@ -1145,12 +1146,12 @@ func AddTag(t *testing.T, name string) {
 func Declarative(t *testing.T, filename string, values any) (string, error) {
 	t.Helper()
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "")
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	_, err = tmpFile.WriteString(Tmpl(t, string(bytes), values))
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }

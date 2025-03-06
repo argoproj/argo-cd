@@ -19,7 +19,6 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/session"
 	"github.com/argoproj/argo-cd/v3/test"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	sessionutil "github.com/argoproj/argo-cd/v3/util/session"
@@ -41,7 +40,7 @@ func newTestAccountServer(t *testing.T, ctx context.Context, opts ...func(cm *co
 func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.ClaimsEnforcerFunc, opts ...func(cm *corev1.ConfigMap, secret *corev1.Secret)) (*Server, *session.Server) {
 	t.Helper()
 	bcrypt, err := password.HashPassword("oldpassword")
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",

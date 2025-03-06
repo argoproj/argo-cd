@@ -10,12 +10,12 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
@@ -91,9 +91,9 @@ func (a *Actions) RemoveSubmodule() *Actions {
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write([]byte(data))
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -155,9 +155,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	handler(app)
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -192,9 +192,9 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -346,12 +346,12 @@ func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(
 		AppNamespace: &appNamespace,
 	}
 	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 	err = fixture.DoHttpJsonRequest("PATCH",
 		fmt.Sprintf("/api/v1/applications/%v", appName),
 		&application,
 		jsonBytes...)
-	errors.NewHandler(a.context.t).CheckForErr(err)
+	require.NoError(a.context.t, err)
 	return a
 }
 
@@ -480,7 +480,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetParamInSettingConfigMap(key, value))
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -510,34 +510,34 @@ func (a *Actions) verifyAction() {
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetTrackingMethod(trackingMethod))
+	require.NoError(a.context.t, fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetInstallationID(installationID))
+	require.NoError(a.context.t, fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetTrackingLabel(trackingLabel))
+	require.NoError(a.context.t, fixture.SetTrackingLabel(trackingLabel))
 	return a
 }
 
 func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetImpersonationEnabled("true"))
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("true"))
 	if serviceAccountName == "" || policyRules == nil {
 		return a
 	}
-	errors.NewHandler(a.context.t).CheckForErr(fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	require.NoError(a.context.t, fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
 	return a
 }
 
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.t.Helper()
-	errors.NewHandler(a.context.t).CheckForErr(fixture.SetImpersonationEnabled("false"))
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("false"))
 	return a
 }

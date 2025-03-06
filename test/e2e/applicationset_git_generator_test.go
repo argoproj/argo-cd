@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
@@ -1466,7 +1465,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		Addr: "localhost:6379",
 	})
 	all := r.FlushAll(context.Background())
-	errors.NewHandler(t).CheckForErr(all.Err())
+	require.NoError(t, all.Err())
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{

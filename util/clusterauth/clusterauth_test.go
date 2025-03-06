@@ -18,8 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const (
@@ -41,20 +39,20 @@ var testClaims = ServiceAccountClaims{
 func newServiceAccount(t *testing.T) *corev1.ServiceAccount {
 	t.Helper()
 	saBytes, err := os.ReadFile("./testdata/argocd-manager-sa.yaml")
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	var sa corev1.ServiceAccount
 	err = yaml.Unmarshal(saBytes, &sa)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	return &sa
 }
 
 func newServiceAccountSecret(t *testing.T) *corev1.Secret {
 	t.Helper()
 	secretBytes, err := os.ReadFile("./testdata/argocd-manager-sa-token.yaml")
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	var secret corev1.Secret
 	err = yaml.Unmarshal(secretBytes, &secret)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	return &secret
 }
 

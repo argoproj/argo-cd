@@ -8,10 +8,9 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type TestStructure struct {
@@ -26,10 +25,10 @@ type IndividualTest struct {
 func getObj(t *testing.T, path string) *unstructured.Unstructured {
 	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	obj := make(map[string]any)
 	err = yaml.Unmarshal(yamlBytes, &obj)
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
 	return &unstructured.Unstructured{Object: obj}
 }
@@ -39,13 +38,13 @@ func TestLuaHealthScript(t *testing.T) {
 		if !strings.Contains(path, "health.lua") {
 			return nil
 		}
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 		dir := filepath.Dir(path)
 		yamlBytes, err := os.ReadFile(dir + "/health_test.yaml")
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 		var resourceTest TestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		errors.NewHandler(t).CheckForErr(err)
+		require.NoError(t, err)
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
 			t.Run(test.InputPath, func(t *testing.T) {
@@ -54,9 +53,9 @@ func TestLuaHealthScript(t *testing.T) {
 				}
 				obj := getObj(t, filepath.Join(dir, test.InputPath))
 				script, _, err := vm.GetHealthScript(obj)
-				errors.NewHandler(t).CheckForErr(err)
+				require.NoError(t, err)
 				result, err := vm.ExecuteHealthLua(obj, script)
-				errors.NewHandler(t).CheckForErr(err)
+				require.NoError(t, err)
 				assert.Equal(t, &test.HealthStatus, result)
 			})
 		}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -204,18 +205,18 @@ func EnsureCleanState(t *testing.T) {
 		}
 		return nil
 	}, time.Now().Add(120*time.Second))
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 
-	errors.NewHandler(t).CheckForErr(waitForExpectedClusterState(t))
+	require.NoError(t, waitForExpectedClusterState(t))
 
 	// remove tmp dir
-	errors.NewHandler(t).CheckForErr(os.RemoveAll(TmpDir))
+	require.NoError(t, os.RemoveAll(TmpDir))
 
 	// create tmp dir
 	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	errors.NewHandler(t).CheckForErr(fixture.LoginAs("admin"))
+	require.NoError(t, fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -279,10 +280,10 @@ func waitForExpectedClusterState(t *testing.T) error {
 func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
 	t.Helper()
 	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	proj.Spec = spec
 	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 }
 
 func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
@@ -355,7 +356,7 @@ func getKubeConfig(t *testing.T, configPath string, overrides clientcmd.ConfigOv
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	errors.NewHandler(t).CheckForErr(err)
+	require.NoError(t, err)
 	return restConfig
 }
 

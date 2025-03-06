@@ -8,6 +8,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -34,7 +35,7 @@ func GetVersions(t *testing.T) *Versions {
 	t.Helper()
 	output := errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "version", "-o", "json")).(string)
 	version := &Versions{}
-	errors.NewHandler(t).CheckForErr(json.Unmarshal([]byte(output), version))
+	require.NoError(t, json.Unmarshal([]byte(output), version))
 	return version
 }
 
