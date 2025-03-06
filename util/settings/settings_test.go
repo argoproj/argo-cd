@@ -261,9 +261,6 @@ func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
 	}}
-	ignoreCRDFields := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/status", "/spec/preserveUnknownFields"},
-	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -297,10 +294,10 @@ func TestGetResourceOverrides(t *testing.T) {
 		},
 	}, webHookOverrides)
 
-	// by default, crd status should be ignored
-	crdOverrides := overrides[crdGK]
-	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreCRDFields, crdOverrides)
+	// by default, all status should be ignored
+	globalOverrides := overrides["*/*"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -310,7 +307,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	globalOverrides := overrides["*/*"]
+	globalOverrides = overrides["*/*"]
 	assert.NotNil(t, globalOverrides)
 	assert.Equal(t, ignoreStatus, globalOverrides)
 
@@ -330,14 +327,14 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	crdOverrides = overrides[crdGK]
+	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
-	// with incorrect value, status of crd objects should be ignored
+	// with incorrect value, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: foobar`,
@@ -345,15 +342,32 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	defaultOverrides := overrides[crdGK]
-	assert.NotNil(t, defaultOverrides)
-	assert.Equal(t, ignoreStatus, defaultOverrides)
-	assert.Equal(t, ignoreStatus, defaultOverrides)
+	globalOverrides = overrides["*/*"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
 
-	// with value off, status of no objects should be ignored
+	// with value non-string off, status of no objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	require.NoError(t, err)
+	assert.Empty(t, overrides)
+
+	// with value non-string false, status of no objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: false`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	require.NoError(t, err)
+	assert.Empty(t, overrides)
+
+	// with value none, status of no objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: none`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
@@ -517,7 +531,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		newData := map[string]string{
 			"resource.customizations.health.cert-manager.io_Certificate": "bar",
 			"resource.customizations.actions.apps_Deployment":            "bar",
-			"resource.compareoptions":                                    `ignoreResourceStatusField: off`,
+			"resource.compareoptions":                                    `ignoreResourceStatusField: none`,
 		}
 		_, settingsManager := fixtures(mergemaps(data, newData))
 

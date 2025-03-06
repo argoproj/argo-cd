@@ -584,7 +584,7 @@ const (
 	// IgnoreResourceStatusInAll ignores status changes for all resources
 	IgnoreResourceStatusInAll IgnoreStatus = "all"
 	// IgnoreResourceStatusInNone ignores status changes for no resources
-	IgnoreResourceStatusInNone IgnoreStatus = "off"
+	IgnoreResourceStatusInNone IgnoreStatus = "none"
 )
 
 type ArgoCDDiffOptions struct {
@@ -977,31 +977,30 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 
-	var diffOptions ArgoCDDiffOptions
-	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
-		err := yaml.Unmarshal([]byte(value), &diffOptions)
-		if err != nil {
-			return nil, err
-		}
+	diffOptions, err := mgr.GetResourceCompareOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
-	case "", "crd":
-		addStatusOverrideToGK(resourceOverrides, crdGK)
-		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
-	case "all":
+	case "", IgnoreResourceStatusInAll:
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
-
-	case "off", "false":
-		log.Info("Not ignoring status for any object")
-
-	default:
+	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
+	case IgnoreResourceStatusInNone, "off", "false":
+		// Yaml 'off' non-string value can be converted to 'false'
+		// Support these cases because compareoptions is a yaml string in the config
+		// and this misconfiguration can be hard to catch for users.
+		// To prevent this, the default value has been changed to none
+		log.Info("Not ignoring status for any object")
+	default:
+		addStatusOverrideToGK(resourceOverrides, "*/*")
+		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for all resources", diffOptions.IgnoreResourceStatusField)
 	}
 
 	return resourceOverrides, nil
@@ -1110,7 +1109,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: true}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreResourceStatusField: IgnoreResourceStatusInAll, IgnoreDifferencesOnResourceUpdates: true}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
