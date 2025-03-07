@@ -378,7 +378,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 }
 
 func TestNewFactory(t *testing.T) {
-	addBinDirToPath := path.NewBinDirToPath()
+	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
 	defer closer()

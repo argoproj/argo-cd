@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -53,7 +54,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"/": {
 					IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/status"}},
 				},
