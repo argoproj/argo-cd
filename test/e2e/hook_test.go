@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -50,6 +51,84 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
 		Expect(ResourceResultNumbering(2)).
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+}
+
+func TestPreDeleteHook(t *testing.T) {
+	Given(t).
+		Path("pre-delete-hook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			_, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
+				context.Background(), "guestbook-ui", metav1.GetOptions{},
+			)
+			require.NoError(t, err)
+		}).
+		When().
+		Delete(true).
+		Then().
+		AndAction(func() {
+			var hooks *corev1.PodList
+			var err error
+
+			found := false
+			for i := 0; i < 10; i++ {
+				hooks, err = KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
+					context.Background(),
+					metav1.ListOptions{},
+				)
+				require.NoError(t, err)
+
+				if len(hooks.Items) > 0 {
+					for _, pod := range hooks.Items {
+						if pod.Name == "hook" {
+							found = true
+							break
+						}
+					}
+				}
+
+				if found {
+					break
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
+			assert.True(t, found)
+
+			_, err = KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
+				context.Background(), "guestbook-ui", metav1.GetOptions{},
+			)
+			assert.NoError(t, err)
+		}).
+		AndAction(func() {
+			deleted := false
+			for i := 0; i < 20; i++ {
+				hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
+					context.Background(),
+					metav1.ListOptions{},
+				)
+				require.NoError(t, err)
+
+				_, cmErr := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
+					context.Background(), "guestbook-ui", metav1.GetOptions{},
+				)
+
+				if (len(hooks.Items) == 0 || (len(hooks.Items) == 1 && hooks.Items[0].Name != "hook")) &&
+					(cmErr != nil && k8serrors.IsNotFound(cmErr)) {
+					deleted = true
+					break
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
+			assert.True(t, deleted)
+		})
 }
 
 func TestPostDeleteHook(t *testing.T) {
