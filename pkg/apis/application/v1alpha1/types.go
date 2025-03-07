@@ -61,7 +61,7 @@ type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            ApplicationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+	Status            ApplicationStatus `json:"status,omitempty,omitzero" protobuf:"bytes,3,opt,name=status"`
 	Operation         *Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
 }
 
@@ -1748,7 +1748,7 @@ type ComparedTo struct {
 	// Source is a reference to the application's source used for comparison
 	Source ApplicationSource `json:"source,omitempty" protobuf:"bytes,1,opt,name=source"`
 	// Destination is a reference to the application's destination used for comparison
-	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
+	Destination ApplicationDestination `json:"destination,omitempty" protobuf:"bytes,2,opt,name=destination"`
 	// Sources is a reference to the application's multiple sources used for comparison
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
@@ -1758,7 +1758,7 @@ type ComparedTo struct {
 // SyncStatus contains information about the currently observed live and desired states of an application
 type SyncStatus struct {
 	// Status is the sync state of the comparison
-	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
+	Status SyncStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
 	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
