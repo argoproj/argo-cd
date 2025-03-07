@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -85,11 +86,12 @@ func TestNamespace() string {
 
 // GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initialized value.
 // Note: this requires a local Kubernetes configuration (for example, while running the E2E tests).
-func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
+func GetE2EFixtureK8sClient(t *testing.T) *E2EFixtureK8sClient {
+	t.Helper()
 	// Initialize the Kubernetes clients only on first use
 	clientInitialized.Do(func() {
 		// set-up variables
-		config := getKubeConfig("", clientcmd.ConfigOverrides{})
+		config := getKubeConfig(t, "", clientcmd.ConfigOverrides{})
 
 		internalClientVars = &E2EFixtureK8sClient{
 			AppClientset:     appclientset.NewForConfigOrDie(config),
@@ -111,7 +113,7 @@ func EnsureCleanState(t *testing.T) {
 	t.Helper()
 	start := time.Now()
 
-	fixtureClient := GetE2EFixtureK8sClient()
+	fixtureClient := GetE2EFixtureK8sClient(t)
 
 	policy := metav1.DeletePropagationForeground
 
@@ -203,26 +205,27 @@ func EnsureCleanState(t *testing.T) {
 		}
 		return nil
 	}, time.Now().Add(120*time.Second))
-	CheckError(err)
+	require.NoError(t, err)
 
-	CheckError(waitForExpectedClusterState())
+	require.NoError(t, waitForExpectedClusterState(t))
 
 	// remove tmp dir
-	CheckError(os.RemoveAll(TmpDir))
+	require.NoError(t, os.RemoveAll(TmpDir))
 
 	// create tmp dir
-	FailOnErr(Run("", "mkdir", "-p", TmpDir))
+	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	CheckError(fixture.LoginAs("admin"))
+	require.NoError(t, fixture.LoginAs("admin"))
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
 
-func waitForExpectedClusterState() error {
-	fixtureClient := GetE2EFixtureK8sClient()
+func waitForExpectedClusterState(t *testing.T) error {
+	t.Helper()
+	fixtureClient := GetE2EFixtureK8sClient(t)
 
-	SetProjectSpec(fixtureClient, "default", v1alpha1.AppProjectSpec{
+	SetProjectSpec(t, fixtureClient, "default", v1alpha1.AppProjectSpec{
 		OrphanedResources:        nil,
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
@@ -274,12 +277,13 @@ func waitForExpectedClusterState() error {
 	return nil
 }
 
-func SetProjectSpec(fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
+func SetProjectSpec(t *testing.T, fixtureClient *E2EFixtureK8sClient, project string, spec v1alpha1.AppProjectSpec) {
+	t.Helper()
 	proj, err := fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
-	errors.CheckError(err)
+	require.NoError(t, err)
 	proj.Spec = spec
 	_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
-	errors.CheckError(err)
+	require.NoError(t, err)
 }
 
 func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) error {
@@ -345,13 +349,14 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
-func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+func getKubeConfig(t *testing.T, configPath string, overrides clientcmd.ConfigOverrides) *rest.Config {
+	t.Helper()
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.ExplicitPath = configPath
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
 
 	restConfig, err := clientConfig.ClientConfig()
-	CheckError(err)
+	require.NoError(t, err)
 	return restConfig
 }
 
@@ -363,7 +368,7 @@ func init() {
 }
 
 // PrettyPrintJson is a utility function for debugging purposes
-func PrettyPrintJson(obj any) string {
+func PrettyPrintJson(obj any) string { //nolint:revive //FIXME(var-naming)
 	bytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
 		return err.Error()
@@ -372,7 +377,7 @@ func PrettyPrintJson(obj any) string {
 }
 
 // returns dns friends string which is no longer than 63 characters and has specified postfix at the end
-func DnsFriendly(str string, postfix string) string {
+func DnsFriendly(str string, postfix string) string { //nolint:revive //FIXME(var-naming)
 	matchFirstCap := regexp.MustCompile("(.)([A-Z][a-z]+)")
 	matchAllCap := regexp.MustCompile("([a-z0-9])([A-Z])")
 

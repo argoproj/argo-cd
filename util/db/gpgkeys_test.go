@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -258,7 +257,7 @@ func Test_AddGPGPublicKey(t *testing.T) {
 }
 
 func Test_DeleteGPGPublicKey(t *testing.T) {
-	defer os.Setenv("GNUPGHOME", "")
+	defer t.Setenv("GNUPGHOME", "")
 
 	t.Run("good case", func(t *testing.T) {
 		clientset := getGPGKeysClientset(gpgCMMultiGoodPubkey)

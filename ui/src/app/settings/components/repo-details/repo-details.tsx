@@ -37,6 +37,14 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             }
         ];
 
+        if (repository.type === 'git') {
+            items.push({
+                title: 'Bearer token (optional, for BitBucket Data Center only)',
+                view: repository.bearerToken ? '******' : '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='bearerToken' component={Text} componentProps={{type: 'password'}} />
+            });
+        }
+
         if (useAuthSettingsCtx?.hydratorEnabled) {
             // Insert this item at index 1.
             const item = {
@@ -77,6 +85,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         url: repo.repo,
         username: repo.username || '',
         password: repo.password || '',
+        bearerToken: repo.bearerToken || '',
         tlsClientCertData: repo.tlsClientCertData || '',
         tlsClientCertKey: repo.tlsClientCertKey || '',
         insecure: repo.insecure || false,
@@ -94,13 +103,15 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             values={repo}
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
-                password: !input.password && input.username && 'Password is required if username is given.'
+                password: !input.password && input.username && 'Password is required if username is given.',
+                bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.'
             })}
             save={async input => {
                 const params: NewHTTPSRepoParams = {...newRepo, write};
                 params.name = input.name || '';
                 params.username = input.username || '';
                 params.password = input.password || '';
+                params.bearerToken = input.bearerToken || '';
                 save(params);
             }}
             title='CONNECTED REPOSITORY'
