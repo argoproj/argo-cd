@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/r3labs/diff"
+	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,6 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -761,6 +763,21 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+
+		appLabelKey, err := settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting app label key ID: %v", err),
+			})
+			continue
+		}
+
+		verifySignature := false
+		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+			verifySignature = true
+		}
+
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -769,11 +786,13 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
+			VerifySignature:                 verifySignature,
 			Repos:                           helmRepos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
+			AppLabelKey:                     appLabelKey,
 			KustomizeOptions:                kustomizeOptions,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
