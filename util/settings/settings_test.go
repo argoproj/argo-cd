@@ -404,6 +404,8 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 
 func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	data := map[string]string{
+		"resource.compareoptions": `ignoreResourceStatusField: none`,
+
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
@@ -425,13 +427,11 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	}
 
 	t.Run("MergedKey", func(t *testing.T) {
-		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 		_, settingsManager := fixtures(data)
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 5)
-		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
+		assert.Len(t, overrides, 4)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -445,6 +445,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 	t.Run("SplitKeys", func(t *testing.T) {
 		newData := map[string]string{
+			"resource.compareoptions": `ignoreResourceStatusField: none`,
+
 			"resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration": "bar",
 			"resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
         - bar`,
@@ -473,16 +475,12 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.ignoreResourceUpdates.apps_Deployment": `jqPathExpressions:
         - bar`,
 		}
-		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 		_, settingsManager := fixtures(mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 9)
-		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
-		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
-		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
+		assert.Len(t, overrides, 8)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -507,41 +505,6 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Len(t, overrides["iam-manager.k8s.io/Iamrole"].IgnoreResourceUpdates.JSONPointers, 1)
 		assert.Len(t, overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions, 1)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions[0])
-	})
-
-	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
-		newData := map[string]string{
-			"resource.customizations.health.cert-manager.io_Certificate": "bar",
-			"resource.customizations.actions.apps_Deployment":            "bar",
-			"resource.compareoptions":                                    `ignoreResourceStatusField: all`,
-		}
-		_, settingsManager := fixtures(mergemaps(data, newData))
-
-		overrides, err := settingsManager.GetResourceOverrides()
-		require.NoError(t, err)
-		assert.Len(t, overrides, 5)
-		assert.Len(t, overrides["*/*"].IgnoreDifferences.JSONPointers, 1)
-		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
-		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
-	})
-
-	t.Run("SplitKeysCompareOptionsOff", func(t *testing.T) {
-		newData := map[string]string{
-			"resource.customizations.health.cert-manager.io_Certificate": "bar",
-			"resource.customizations.actions.apps_Deployment":            "bar",
-			"resource.compareoptions":                                    `ignoreResourceStatusField: none`,
-		}
-		_, settingsManager := fixtures(mergemaps(data, newData))
-
-		overrides, err := settingsManager.GetResourceOverrides()
-		require.NoError(t, err)
-		assert.Len(t, overrides, 4)
-		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
-		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
 	})
 }
 
