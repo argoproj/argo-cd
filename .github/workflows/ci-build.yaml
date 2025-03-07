@@ -413,8 +413,6 @@ jobs:
             latest: false
           - version: v1.29.8
             latest: false
-          - version: v1.28.13
-            latest: false
     needs:
       - build-go
       - changes
