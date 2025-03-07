@@ -1359,7 +1359,13 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host
 			if rootPath != "" {
-				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				root := strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				target += "/" + root
+
+				// Check if the request path already contains rootPath
+				// If so, remove rootPath from the request path
+				prefix := "/" + root
+				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefix)
 			}
 			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {

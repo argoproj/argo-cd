@@ -11,7 +11,7 @@ import (
 // TestWithRootPathEmptyRootPath tests that withRootPath returns the original handler when RootPath is empty
 func TestWithRootPathEmptyRootPath(t *testing.T) {
 	// Create a simple handler
-	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -34,7 +34,7 @@ func TestWithRootPathEmptyRootPath(t *testing.T) {
 // TestWithRootPathNonEmptyRootPath tests that withRootPath returns a ServeMux when RootPath is not empty
 func TestWithRootPathNonEmptyRootPath(t *testing.T) {
 	// Create a simple handler
-	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -62,7 +62,7 @@ func TestNewRedirectServerEmptyRootPath(t *testing.T) {
 	assert.Equal(t, "localhost:8080", server.Addr, "When rootPath is empty, server address should be 'localhost:8080'")
 
 	// Test the redirect handler
-	req := httptest.NewRequest("GET", "/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/applications", nil)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
@@ -84,7 +84,7 @@ func TestNewRedirectServerNonEmptyRootPath(t *testing.T) {
 	assert.Equal(t, "localhost:8080/argocd", server.Addr, "When rootPath is '/argocd', server address should be 'localhost:8080/argocd'")
 
 	// Test the redirect handler
-	req := httptest.NewRequest("GET", "/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/applications", nil)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
@@ -103,7 +103,7 @@ func TestNewRedirectServerRootPathDuplication(t *testing.T) {
 	server := newRedirectServer(8080, "/argocd")
 
 	// Test the redirect handler with a request path that already includes rootPath
-	req := httptest.NewRequest("GET", "/argocd/applications", nil)
+	req := httptest.NewRequest(http.MethodGet, "/argocd/applications", nil)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
