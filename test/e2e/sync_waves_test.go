@@ -5,12 +5,12 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestFixingDegradedApp(t *testing.T) {
@@ -20,7 +20,7 @@ func TestFixingDegradedApp(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.metadata.annotations and obj.metadata.annotations['health'] or 'Degraded' }`,
 				},
