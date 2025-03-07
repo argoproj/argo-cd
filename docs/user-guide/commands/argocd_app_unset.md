@@ -24,7 +24,10 @@ argocd app unset APPNAME parameters [flags]
   argocd app unset my-app --source-name test --namesuffix
 
   # Unset parameter override
-  argocd app unset my-app -p COMPONENT=PARAM
+  argocd app unset my-app -p COMPONENT=PARAM 
+
+  # Unset plugin parameter
+  argocd app unset my-app --plugin-param some-param-array --plugin-param some-param-map --plugin-param some-param-string
 ```
 
 ### Options
@@ -43,6 +46,7 @@ argocd app unset APPNAME parameters [flags]
   -p, --parameter stringArray           Unset a parameter override (e.g. -p guestbook=image)
       --pass-credentials                Unset passCredentials
       --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
+      --plugin-param stringArray        Unset plugin parameter variables (e.g --plugin-param name)
       --ref                             Unset ref on the source
       --source-position int             Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
       --values stringArray              Unset one or more Helm values files
