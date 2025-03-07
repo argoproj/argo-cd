@@ -6,13 +6,13 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	util "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -105,8 +105,9 @@ func (c *Consequences) When() *Actions {
 }
 
 func (c *Consequences) app() *Application {
+	c.context.t.Helper()
 	app, err := c.get()
-	errors.CheckError(err)
+	require.NoError(c.context.t, err)
 	return app
 }
 
@@ -115,15 +116,16 @@ func (c *Consequences) get() (*Application, error) {
 }
 
 func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
+	c.context.t.Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	errors.CheckError(err)
+	require.NoError(c.context.t, err)
 	defer util.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
 		Name:         ptr.To(c.context.AppName()),
 		Projects:     []string{c.context.project},
 		AppNamespace: ptr.To(c.context.appNamespace),
 	})
-	errors.CheckError(err)
+	require.NoError(c.context.t, err)
 	for _, r := range app.Status.Resources {
 		if r.Kind == kind && r.Name == name && (namespace == "" || namespace == r.Namespace) {
 			return r

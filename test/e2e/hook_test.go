@@ -18,7 +18,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
@@ -65,7 +64,7 @@ func TestPostDeleteHook(t *testing.T) {
 		Expect(DoesNotExist()).
 		AndAction(func() {
 			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
-			CheckError(err)
+			require.NoError(t, err)
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
@@ -334,7 +333,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
 			time.Sleep(1 * time.Second)
@@ -349,7 +348,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})
@@ -446,7 +445,7 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
 	Given(t).
 		And(func() {
-			CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
 					HealthLua: `
 						local hs = {}

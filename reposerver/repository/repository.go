@@ -49,7 +49,6 @@ import (
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
@@ -67,18 +66,12 @@ import (
 const (
 	cachedManifestGenerationPrefix = "Manifest generation error (cached)"
 	helmDepUpMarkerFile            = ".argocd-helm-dep-up"
-	allowConcurrencyFile           = ".argocd-allow-concurrency"
 	repoSourceFile                 = ".argocd-source.yaml"
 	appSourceFile                  = ".argocd-source-%s.yaml"
 	ociPrefix                      = "oci://"
 )
 
-var (
-	ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
-	// helmConcurrencyDefault if true then helm concurrent manifest generation is enabled
-	// TODO: remove env variable and usage of .argocd-allow-concurrency once we are sure that it is safe to enable it by default
-	helmConcurrencyDefault = env.ParseBoolFromEnv("ARGOCD_HELM_ALLOW_CONCURRENCY", false)
-)
+var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
 
 // Service implements ManifestService interface
 type Service struct {
@@ -116,6 +109,8 @@ type RepoServerInitConstants struct {
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
 }
+
+var manifestGenerateLock = sync.NewKeyLock()
 
 // NewService returns a new instance of the Manifest service
 func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, resourceTracking argo.ResourceTracking, gitCredsStore git.CredsStore, rootDir string) *Service {
@@ -1061,15 +1056,6 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
-func isConcurrencyAllowed(appPath string) bool {
-	if _, err := os.Stat(path.Join(appPath, allowConcurrencyFile)); err == nil {
-		return true
-	}
-	return false
-}
-
-var manifestGenerateLock = sync.NewKeyLock()
-
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
@@ -1102,12 +1088,6 @@ func isSourcePermitted(url string, repos []string) bool {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, string, error) {
-	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
-	if !concurrencyAllowed {
-		manifestGenerateLock.Lock(appPath)
-		defer manifestGenerateLock.Unlock(appPath)
-	}
-
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1226,12 +1206,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, "", err
 		}
 
-		if concurrencyAllowed {
-			err = runHelmBuild(appPath, h)
-		} else {
-			err = h.DependencyBuild()
-		}
-
+		err = runHelmBuild(appPath, h)
 		if err != nil {
 			var reposNotPermitted []string
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by

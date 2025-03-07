@@ -591,7 +591,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 				Name:         &app.Name,
 				AppNamespace: ptr.To(fixture.AppNamespace()),
 			})
-			errors.CheckError(err)
+			require.NoError(t, err)
 
 			for _, manifest := range manifests.Manifests {
 				assetSecretDataHidden(t, manifest)
@@ -790,7 +790,7 @@ func TestNamespacedKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
@@ -1536,7 +1536,7 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 	}
 	defer func() {
 		log.Infof("Ingress 'sample-ingress' deleted from %s", fixture.TestNamespace())
-		errors.CheckError(fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
+		require.NoError(t, fixture.KubeClientset.NetworkingV1().Ingresses(fixture.TestNamespace()).Delete(context.Background(), "sample-ingress", metav1.DeleteOptions{}))
 	}()
 
 	svc := &corev1.Service{
@@ -1974,9 +1974,9 @@ metadata:
 	s := fmt.Sprintf(existingNs, updatedNamespace)
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	_, err = tmpFile.Write([]byte(s))
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	_, err = fixture.Run("", "kubectl", "apply", "-f", tmpFile.Name())
 	require.NoError(t, err)
@@ -2170,7 +2170,7 @@ definitions:
 		SetTrackingMethod("annotation").
 		Path("crd-subresource").
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
@@ -2258,7 +2258,7 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		SetAppNamespace(fixture.AppNamespace()).
 		SetTrackingMethod("annotation").
 		And(func() {
-			errors.CheckError(fixture.SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
@@ -2279,7 +2279,7 @@ func TestNamespacedAppWaitOperationInProgress(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "wait", app.QualifiedName(), "--suspended")
-			errors.CheckError(err)
+			require.NoError(t, err)
 		})
 }
 
@@ -2376,7 +2376,7 @@ func TestNamespacedDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			errors.CheckError(fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			require.NoError(t, fixture.SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
 			}))
 		}).
