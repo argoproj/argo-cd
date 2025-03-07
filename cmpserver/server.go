@@ -50,13 +50,11 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.UnaryServerInterceptor(serverLog),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
@@ -72,6 +70,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 				MinTime: common.GetGRPCKeepAliveEnforcementMinimum(),
 			},
 		),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 	}
 
 	return &ArgoCDCMPServer{
