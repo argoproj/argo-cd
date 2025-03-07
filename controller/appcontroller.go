@@ -1842,8 +1842,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
 	ts.AddCheckpoint("persist_app_status_ms")
 	if (compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer() ||
-		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
-		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
+		compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
 		if compareResult.hasPreDeleteHooks {
 			app.SetPreDeleteFinalizer()
@@ -1857,7 +1856,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			logCtx.Errorf("Failed to update finalizers: %v", err)
 		}
 	}
-	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() || compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
+	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
+		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
 		if compareResult.hasPostDeleteHooks {
 			app.SetPostDeleteFinalizer()
