@@ -9,6 +9,7 @@ and after a Sync operation. Hooks can also be run if a Sync operation fails at a
 Kubernetes rolling update strategy.
 * Using a `PostSync` hook to run integration and health checks after a deployment.
 * Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails.
+* Using a `PreDelete` hook to run tasks before an Application's resources are deleted. This can be useful for graceful shutdowns, backup operations, or other pre-deletion tasks. Similar to `PostDelete` hooks, `PreDelete` hooks are executed when the application is being deleted, and are managed separately from the application lifecycle.
 * Using a `PostDelete` hook to run clean-up or finalizer logic after all Application resources are deleted. Please note that
   `PostDelete` hooks are only deleted if the delete policy matches the aggregated deletion hooks status and not garbage collected after the application is deleted. 
 
