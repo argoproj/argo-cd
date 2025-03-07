@@ -4,14 +4,16 @@ metadata:
   creationTimestamp: "2025-02-21T19:43:06Z"
   finalizers:
   - numaplane.numaproj.io/numaplane-controller
-  labels:
-    numaplane.numaproj.io/promote: "false"
   generation: 4
   name: test-isbservice-rollout
   namespace: numaplane-system
   resourceVersion: "6984"
   uid: 0c926b94-f7a7-4580-a865-f9dd8d54525f
 spec:
+  strategy:
+    progressive:
+      assessmentSchedule: 60,60,10
+      forcePromote: true
   interStepBufferService:
     metadata: {}
     spec:

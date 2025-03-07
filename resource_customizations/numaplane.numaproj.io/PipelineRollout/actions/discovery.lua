@@ -3,8 +3,14 @@ actions["pause"] = {["disabled"] = true}
 actions["unpause"] = {["disabled"] = true}
 actions["allow-data-loss"] = {["disabled"] = true}
 actions["disallow-data-loss"] = {["disabled"] = true}
-actions["enable-full-promote"] = {["disabled"] = true}
-actions["disable-full-promote"] = {["disabled"] = true}
+actions["enable-force-promote"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Enable Force Promote"
+}
+actions["disable-force-promote"] = {
+  ["disabled"] = true,
+  ["displayName"] = "Disable Force Promote"
+}
 
 -- pause/unpause
 local paused = false
@@ -25,12 +31,12 @@ if obj.metadata.annotations ~= nil and obj.metadata.annotations["numaplane.numap
   actions["disallow-data-loss"]["disabled"] = false
 end
 
--- full-promote
+-- force-promote
 if (obj.status ~= nil and obj.status.upgradeInProgress == "Progressive" and obj.status.phase == "Pending") then
-  actions["enable-full-promote"]["disabled"] = false
+  actions["enable-force-promote"]["disabled"] = false
 end
-if obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/promote"] == "true" then
-  actions["disable-full-promote"]["disabled"] = false
+if (obj.spec ~= nil and obj.spec.strategy ~= nil and obj.spec.strategy.progressive ~= nil and obj.spec.strategy.progressive.forcePromote == true) then
+  actions["disable-force-promote"]["disabled"] = false
 end
 
 return actions

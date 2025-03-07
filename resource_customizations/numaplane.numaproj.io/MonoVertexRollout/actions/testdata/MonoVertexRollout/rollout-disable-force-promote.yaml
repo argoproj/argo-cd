@@ -7,8 +7,6 @@ metadata:
   creationTimestamp: "2025-03-03T18:51:52Z"
   finalizers:
   - numaplane.numaproj.io/numaplane-controller
-  labels:
-    numaplane.numaproj.io/promote: "true"
   generation: 3
   name: my-monovertex
   namespace: example-namespace
@@ -29,6 +27,7 @@ spec:
   strategy:
     progressive:
       assessmentSchedule: 60,60,10
+      forcePromote: true
 status:
   conditions:
   - lastTransitionTime: "2025-03-03T18:51:52Z"
