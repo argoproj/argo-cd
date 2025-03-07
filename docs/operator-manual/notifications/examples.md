@@ -126,7 +126,7 @@ data:
     send: [on-deployed-template]
 ```
 
-Now, with the setup above, a sync will send the list of images to your Slack application. For more information about integratin with Slack, see the [Slack integration guide](/operator-manual/notifications/services/slack/),
+Now, with the setup above, a sync will send the list of images to your Slack application. For more information about integratin with Slack, see the [Slack integration guide](/operator-manual/notifications/services/slack/).
 
 ### Deduplicating images
 
