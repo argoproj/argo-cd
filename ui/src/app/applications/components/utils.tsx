@@ -224,7 +224,7 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
-export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: appModels.HydrateOperation}) => {
+export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
     if (operationState === undefined) {
         return <React.Fragment />;
     }
@@ -232,11 +232,11 @@ export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: ap
     let color = '';
     switch (operationState.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
-            className = 'fa fa-check-circle';
+            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.success;
             break;
         case appModels.HydrateOperationPhases.Failed:
-            className = 'fa fa-times-circle';
+            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.failed;
             break;
         default:

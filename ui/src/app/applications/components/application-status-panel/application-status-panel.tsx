@@ -103,7 +103,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </div>
                     <div className='application-status-panel__item-value'>
                         <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
                             &nbsp;
                             {application.status.sourceHydrator.currentOperation.phase}
                         </a>
