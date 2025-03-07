@@ -1193,26 +1193,53 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if err != nil {
 		return err
 	}
+
+	// Get destination cluster
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
-		logCtx.Warnf("Unable to get destination cluster: %v", err)
+		logCtx.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizer()
+		if app.HasPreDeleteFinalizer() {
+			app.UnSetPreDeleteFinalizer()
+		}
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
+
 	clusterRESTConfig, err := destCluster.RESTConfig()
 	if err != nil {
 		return err
 	}
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
+	// Handle PreDelete hooks - run them before any deletion occurs
+	if app.HasPreDeleteFinalizer() {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return err
+		}
+
+		done, err := ctrl.executePreDeleteHooks(app, proj, objsMap, config, logCtx)
+		if err != nil {
+			return err
+		}
+		if !done {
+			// PreDelete hooks are still running - wait for them to complete
+			return nil
+		}
+		// PreDelete hooks are done - remove the finalizer so we can continue with deletion
+		app.UnSetPreDeleteFinalizer()
+		if err := ctrl.updateFinalizers(app); err != nil {
+			return err
+		}
+	}
+
 	if app.CascadedDeletion() {
 		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1289,6 +1316,23 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
+	if app.HasPreDeleteFinalizer("cleanup") {
+		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+		if err != nil {
+			return err
+		}
+
+		done, err := ctrl.cleanupPreDeleteHooks(objsMap, config, logCtx)
+		if err != nil {
+			return err
+		}
+		if !done {
+			return nil
+		}
+		app.UnSetPreDeleteFinalizer("cleanup")
+		return ctrl.updateFinalizers(app)
+	}
+
 	if app.HasPostDeleteFinalizer("cleanup") {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
@@ -1306,7 +1350,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		return ctrl.updateFinalizers(app)
 	}
 
-	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() {
+	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
 		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
 			return err
 		}
@@ -1797,6 +1841,22 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
 	ts.AddCheckpoint("persist_app_status_ms")
+	if (compareResult.hasPreDeleteHooks != app.HasPreDeleteFinalizer() ||
+		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() ||
+		compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
+		app.GetDeletionTimestamp() == nil {
+		if compareResult.hasPreDeleteHooks {
+			app.SetPreDeleteFinalizer()
+			app.SetPreDeleteFinalizer("cleanup")
+		} else {
+			app.UnSetPreDeleteFinalizer()
+			app.UnSetPreDeleteFinalizer("cleanup")
+		}
+
+		if err := ctrl.updateFinalizers(app); err != nil {
+			logCtx.Errorf("Failed to update finalizers: %v", err)
+		}
+	}
 	if (compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer() || compareResult.hasPostDeleteHooks != app.HasPostDeleteFinalizer("cleanup")) &&
 		app.GetDeletionTimestamp() == nil {
 		if compareResult.hasPostDeleteHooks {

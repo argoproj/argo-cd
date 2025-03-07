@@ -3138,6 +3138,18 @@ func (app *Application) IsHydrateRequested() bool {
 	return false
 }
 
+func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPreDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPreDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/"), false)
+}
+
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
 	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
 }
