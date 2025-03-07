@@ -522,6 +522,10 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	allGK := "*/*"
 
 	testCustomizations := map[string]string{
+		"resource.compareoptions": `
+            ignoreResourceStatusField: none
+            ignoreDifferencesOnResourceUpdates: true`,
+
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
@@ -556,10 +560,11 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
 
 	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
-	_, settingsManager = fixtures(mergemaps(testCustomizations, map[string]string{
+	_, settingsManager = fixtures(mergemaps(map[string]string{
 		"resource.compareoptions": `
-    ignoreDifferencesOnResourceUpdates: false`,
-	}))
+            ignoreResourceStatusField: none
+            ignoreDifferencesOnResourceUpdates: false`,
+	}, testCustomizations))
 	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
 	require.NoError(t, err)
 	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
