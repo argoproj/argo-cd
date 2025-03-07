@@ -53,6 +53,23 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
+func TestPreDeleteHook(t *testing.T) {
+	Given(t).
+		Path("pre-delete-hook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		AndAction(func() {
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, hooks.Items, 1)
+			assert.Equal(t, "hook", hooks.Items[0].Name)
+		})
+}
+
 func TestPostDeleteHook(t *testing.T) {
 	Given(t).
 		Path("post-delete-hook").
