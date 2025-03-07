@@ -11,8 +11,10 @@ import (
 
 // MaxVersion takes a revision and a list of tags.
 // If the revision is a version, it returns that version, even if it is not in the list of tags.
+// If the revision is not a version, but is also not a constraint, it returns that revision, even if it is not in the list of tags.
 // If the revision is a constraint, it iterates over the list of tags to find the "maximum" tag which satisfies that
 // constraint.
+// If the revision is a constraint, but no tag satisfies that constraint, then it returns an error.
 func MaxVersion(revision string, tags []string) (string, error) {
 	if v, err := semver.NewVersion(revision); err == nil {
 		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
@@ -25,8 +27,14 @@ func MaxVersion(revision string, tags []string) (string, error) {
 
 	constraints, err := semver.NewConstraint(revision)
 	if err != nil {
-		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
-		return revision, nil
+		log.Debugf("Revision '%s' is not a valid semver constraint, resolving via basic string equality.", revision)
+		// If this is also an invalid constraint, we just iterate over available tags to determine if it is valid/invalid.
+		for _, tag := range tags {
+			if tag == revision {
+				return revision, nil
+			}
+		}
+		return "", fmt.Errorf("failed to determine semver constraint: %w", err)
 	}
 
 	var maxVersion *semver.Version
@@ -52,5 +60,5 @@ func MaxVersion(revision string, tags []string) (string, error) {
 	}
 
 	log.Debugf("Semver constraint '%s' resolved to version '%s'", constraints.String(), maxVersion.Original())
-	return maxVersion.String(), nil
+	return maxVersion.Original(), nil
 }

@@ -15,6 +15,7 @@ var tags = []string{
 	"0.5.2",
 	"0.5.1",
 	"0.5.0",
+	"2024.03-LTS-RC19",
 }
 
 func TestTags_MaxVersion(t *testing.T) {
