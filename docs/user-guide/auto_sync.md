@@ -18,6 +18,16 @@ spec:
   syncPolicy:
     automated: {}
 ```
+Application CRD now also support explicitly setting automated sync to be turn on or off  by using `spec.syncPolicy.automated.enable` flag to true or false
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      enable: true
+```
+
+!!!note 
+  **Note:** Setting `spec.syncPolicy.automated.enable` flag to null will be treated as automated sync as enabled.
 
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
