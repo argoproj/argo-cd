@@ -175,7 +175,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 }),
                 retryWhen(errors => errors.pipe(delay(500)))
             )
-            .subscribe(log => setLogs(previousLogs => previousLogs.concat(log)));
+            .subscribe(log => {
+                if (log.length) {
+                    setLogs(previousLogs => previousLogs.concat(log));
+                }
+            });
 
         return () => logsSource.unsubscribe();
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous, matchCase]);
@@ -247,8 +251,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             </div>
         </div>
     );
+
+    const preferenceLoader = React.useCallback(() => services.viewPreferences.getPreferences(), []);
     return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+        <DataLoader load={preferenceLoader}>
             {(prefs: ViewPreferences) => {
                 return (
                     <React.Fragment>
