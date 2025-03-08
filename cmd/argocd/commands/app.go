@@ -486,7 +486,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		filter       string
 		container    string
 		previous     bool
-		matchCase    bool
 	)
 	command := &cobra.Command{
 		Use:   "logs APPNAME",
@@ -522,9 +521,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Filter logs to show only those containing a specific string
   argocd app logs my-app --filter "error"
 
-  # Filter logs to show only those containing a specific string and match case
-  argocd app logs my-app --filter "error" --match-case
-
   # Get logs for a specific container within the pods
   argocd app logs my-app -c my-container
 
@@ -558,7 +554,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: ptr.To(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
-					MatchCase:    ptr.To(matchCase),
 					Container:    ptr.To(container),
 					Previous:     ptr.To(previous),
 					AppNamespace: &appNs,
@@ -603,7 +598,6 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
 	command.Flags().StringVarP(&container, "container", "c", "", "Optional container name")
 	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
-	command.Flags().BoolVarP(&matchCase, "match-case", "m", false, "Specify if the filter should be case-sensitive")
 
 	return command
 }
@@ -1667,6 +1661,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		repo         string
 		appNamespace string
 		cluster      string
+		path         string
+		files        []string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1703,6 +1699,13 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				appList = argo.FilterByCluster(appList, cluster)
 			}
 
+			if path != "" {
+				appList = argo.FilterByPath(appList, path)
+			}
+			if len(files) != 0 {
+				appList = argo.FilterByFiles(appList, files)
+			}
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(appList, output, false)
@@ -1722,6 +1725,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
+	command.Flags().StringVarP(&path, "path", "P", "", "Filter apps by source path")
+	command.Flags().StringArrayVarP(&files, "files", "f", []string{}, "Filter Apps by files")
 	return command
 }
 

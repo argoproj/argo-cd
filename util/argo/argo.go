@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -23,12 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	pathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -197,6 +201,69 @@ func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.A
 	return items
 }
 
+// FilterByPath returns a list of applications after post-filtering by path
+func FilterByPath(apps []argoappv1.Application, filterPath string) []argoappv1.Application {
+	if filterPath == "" {
+		return apps
+	}
+	filteredApps := make([]argoappv1.Application, 0)
+
+	filterPath = filepath.ToSlash(path.Clean(filterPath))
+	filterPath, err := filepath.Abs(filterPath)
+	if err != nil {
+		return nil
+	}
+
+	for _, app := range apps {
+
+		for _, source := range app.Spec.GetSources() {
+			repoUrl := git.NormalizeGitURL(source.RepoURL)
+			repoDir := path.Base(repoUrl)
+			appSourcePath := filepath.Join(repoDir, filepath.ToSlash(filepath.Clean(source.Path)))
+			index := strings.Index(filterPath, appSourcePath)
+			fmt.Println(appSourcePath)
+			fmt.Println(filterPath)
+			if index == -1 {
+				continue
+			}
+			filterPath := filterPath[index:]
+			fmt.Println(appSourcePath)
+			fmt.Println(filterPath)
+			if pathutil.AppFilesHaveChanged([]string{appSourcePath}, []string{filterPath}) {
+				filteredApps = append(filteredApps, app)
+				break
+			}
+		}
+	}
+
+	return filteredApps
+}
+
+// FilterByFiles returns a list of applications post filtering by affected files
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+
+	absFiles := make([]string, 0)
+	for _, file := range files {
+		absFilePath := filepath.Clean(file)
+		// if err != nil {
+		// 	continue
+		// }
+		absFiles = append(absFiles, absFilePath)
+	}
+	items := make([]argoappv1.Application, 0)
+
+	for _, app := range apps {
+		manifestGeneratePaths := pathutil.GetAppRefreshPaths(&app)
+		if pathutil.AppFilesHaveChanged(manifestGeneratePaths, absFiles) {
+			items = append(items, app)
+		}
+	}
+	return items
+}
+
 // FilterByName returns an application
 func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Application, error) {
 	if name == "" {
@@ -250,7 +317,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
-			return app.DeepCopy(), nil
+			return app, nil
 		}
 		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)

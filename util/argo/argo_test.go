@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -627,6 +629,149 @@ func TestFilterByRepoP(t *testing.T) {
 	})
 }
 
+func TestFilterByPath(t *testing.T) {
+	workingDir, _ := os.Getwd()
+	currentDir := path.Base(workingDir)
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path:    "example/apps/foo/chart",
+					RepoURL: "https://github.com/" + currentDir + ".git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path:    "example/apps/foo/chart2",
+					RepoURL: "https://github.com/" + currentDir + ".git",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Sources: argoappv1.ApplicationSources{
+					{
+						Path:    "example/apps/multi/source1",
+						RepoURL: "https://github.com/" + currentDir + ".git",
+					},
+					{
+						Path:    "example/apps/multi/source2",
+						RepoURL: "https://github.com/" + currentDir + ".git",
+					},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path:    "example/apps/bar/chart",
+					RepoURL: "https://github.com/" + currentDir + ".git",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty path returns all apps", func(t *testing.T) {
+		res := FilterByPath(apps, "")
+		assert.Equal(t, len(apps), len(res))
+	})
+
+	t.Run("No apps for matching path", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/baz")
+		assert.Empty(t, res)
+	})
+
+	t.Run("Exact path match - single source", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/foo/chart")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/foo/chart", res[0].Spec.Source.Path)
+	})
+
+	t.Run("Multiple sources - first source path match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/multi/source1")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/multi/source1", res[0].Spec.Sources[0].Path)
+	})
+
+	t.Run("Multiple sources - second source path match", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/multi/source2")
+		assert.Len(t, res, 1)
+		assert.Equal(t, "example/apps/multi/source2", res[0].Spec.Sources[1].Path)
+	})
+}
+
+func TestFilterByFiles(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo;example/apps/bar",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/baz",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/baz",
+				},
+			},
+		},
+	}
+
+	t.Run("No files match", func(t *testing.T) {
+		files := []string{"example/apps/nonexistent/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Empty(t, res)
+	})
+
+	t.Run("One file matches one app", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Multiple files match", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml", "example/apps/bar/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Some files match", func(t *testing.T) {
+		files := []string{"example/apps/bar/file.yaml", "example/apps/baz/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Multiple annotation paths", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml", "example/apps/bar/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+}
 func TestValidatePermissions(t *testing.T) {
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
