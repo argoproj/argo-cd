@@ -81,24 +81,8 @@ func copySingleFile(src string, dest string, mode os.FileInfo) error {
 // workingDir
 func CreateSymlink(t *testing.T, workingDir, destName, linkName string) error {
 	t.Helper()
-	oldWorkingDir, err := os.Getwd()
-	if err != nil {
-		return err
-	}
 	if workingDir != "" {
-		err = os.Chdir(workingDir)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := os.Chdir(oldWorkingDir); err != nil {
-				t.Fatal(err.Error())
-			}
-		}()
+		t.Chdir(workingDir)
 	}
-	err = os.Symlink(destName, linkName)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.Symlink(destName, linkName)
 }
