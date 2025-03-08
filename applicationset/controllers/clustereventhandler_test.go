@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"testing"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
@@ -550,7 +549,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 			mockAddRateLimitingInterface := mockAddRateLimitingInterface{}
 
-			handler.queueRelatedAppGenerators(context.Background(), &mockAddRateLimitingInterface, &test.secret)
+			handler.queueRelatedAppGenerators(t.Context(), &mockAddRateLimitingInterface, &test.secret)
 
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
 		})

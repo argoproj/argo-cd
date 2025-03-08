@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -63,7 +62,7 @@ func TestPostDeleteHook(t *testing.T) {
 		Then().
 		Expect(DoesNotExist()).
 		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(t.Context(), metav1.ListOptions{})
 			require.NoError(t, err)
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)

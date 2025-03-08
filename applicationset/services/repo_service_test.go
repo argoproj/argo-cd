@@ -171,7 +171,7 @@ func TestGetFiles(t *testing.T) {
 func TestNewArgoCDService(t *testing.T) {
 	testNamespace := "test"
 	clientset := fake.NewClientset()
-	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	assert.NotNil(t, service)
 }

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -24,7 +23,7 @@ import (
 
 func TestRequeueAfter(t *testing.T) {
 	mockServer := &mocks.Repos{}
-	ctx := context.Background()
+	ctx := t.Context()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
