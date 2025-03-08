@@ -153,12 +153,14 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
+	github.com/coder/websocket v1.8.12 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
-	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
+	github.com/desertbit/timer v1.0.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5
@@ -195,7 +197,7 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/gregdel/pushover v1.3.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
@@ -212,7 +214,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -237,7 +239,7 @@ require (
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/rs/cors v1.11.0 // indirect
+	github.com/rs/cors v1.11.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
@@ -247,7 +249,7 @@ require (
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
@@ -283,15 +285,20 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20240911193312-2b36238f13e9 // indirect
 	k8s.io/kube-aggregator v0.32.2 // indirect
 	k8s.io/kubernetes v1.32.2 // indirect
-	nhooyr.io/websocket v1.8.7 // indirect
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kustomize/api v0.18.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
 )
 
 replace (
+	// andrii-korotkov-verkada replaces are for libraries deps updates and are hopefully temporary until lib maintainers accept the patches
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
+	github.com/google/go-jsonnet => github.com/andrii-korotkov-verkada/go-jsonnet v0.0.0-20250308155707-03f98b787f0e
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/improbable-eng/grpc-web => github.com/andrii-korotkov-verkada/grpc-web v0.0.0-20250308155810-b852cec1344d
+	github.com/olekukonko/tablewriter => github.com/andrii-korotkov-verkada/tablewriter v0.0.0-20250308155854-8571ed54aa92
+	github.com/r3labs/diff/v3 => github.com/andrii-korotkov-verkada/diff/v3 v3.0.0-20250308155935-ef18f9606732
+	github.com/soheilhy/cmux => github.com/andrii-korotkov-verkada/cmux v0.0.0-20250308160011-2ab3fff3705c
 
 	// Avoid CVE-2022-3064
 	gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.4.0
