@@ -1101,7 +1101,7 @@ spec:
         fsGroup: 99
         runAsNonRoot: true
         runAsUser: 99
-      automountServiceAccountToken: true
+      automountServiceAccountToken: false
       nodeSelector:
         {}
       tolerations:
