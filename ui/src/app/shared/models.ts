@@ -94,6 +94,16 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface OCIMetadata {
+    createdAt: string;
+    authors: string;
+    imageUrl: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
+}
+
 export interface ChartDetails {
     description?: string;
     maintainers?: string[];
@@ -607,6 +617,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
+    insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
 }
@@ -657,7 +668,7 @@ export interface HelmChart {
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin' | 'OCI';
 
 export interface RepoAppDetails {
     type: AppSourceType;

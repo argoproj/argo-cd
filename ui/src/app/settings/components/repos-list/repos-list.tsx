@@ -43,6 +43,7 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    insecureOCIForceHttp: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
@@ -88,6 +89,7 @@ interface NewSSHRepoCredsParams {
 
 interface NewHTTPSRepoCredsParams {
     url: string;
+    type: string;
     username: string;
     password: string;
     bearerToken: string;
@@ -97,6 +99,7 @@ interface NewHTTPSRepoCredsParams {
     noProxy: string;
     forceHttpBasicAuth: boolean;
     enableOCI: boolean;
+    insecureOCIForceHttp: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
@@ -212,7 +215,8 @@ export class ReposList extends React.Component<
                 return {
                     url:
                         (!httpsValues.url && 'Repository URL is required') ||
-                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && 'Not a valid HTTPS URL'),
+                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && httpsValues.type != 'oci' && 'Not a valid HTTPS URL') ||
+                        (this.credsTemplate && !this.isOCIUrl(httpsValues.url) && 'Not a valid OCI URL'),
                     name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
                     username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
@@ -280,7 +284,7 @@ export class ReposList extends React.Component<
                 return (params: FormValues) => this.connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
                 return (params: FormValues) => {
-                    params.url = params.enableOCI ? this.stripProtocol(params.url) : params.url;
+                    params.url = params.enableOCI && params.type != 'oci' ? this.stripProtocol(params.url) : params.url;
                     return this.connectHTTPSRepo(params as NewHTTPSRepoParams);
                 };
             case ConnectionMethod.GITHUBAPP:
@@ -648,7 +652,13 @@ export class ReposList extends React.Component<
                                                 <div className='white-box'>
                                                     <p>CONNECT REPO USING HTTPS</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Type'
+                                                            field='type'
+                                                            component={FormSelect}
+                                                            componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        />
                                                     </div>
                                                     {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
@@ -725,7 +735,11 @@ export class ReposList extends React.Component<
                                                         <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                        {formApi.getFormState().values.type !== 'oci' ? (
+                                                            <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                        ) : (
+                                                            <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
+                                                        )}
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField
@@ -869,6 +883,15 @@ export class ReposList extends React.Component<
         }
     }
 
+    // Whether url is an oci url (simple version)
+    private isOCIUrl(url: string) {
+        if (url.match(/^oci:\/\/.*$/gi)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     private stripProtocol(url: string) {
         return url.replace('https://', '').replace('oci://', '');
     }
@@ -932,7 +955,8 @@ export class ReposList extends React.Component<
     // Connect a new repository or create a repository credentials for HTTPS repositories
     private async connectHTTPSRepo(params: NewHTTPSRepoParams) {
         if (this.credsTemplate) {
-            this.createHTTPSCreds({
+            await this.createHTTPSCreds({
+                type: params.type,
                 url: params.url,
                 username: params.username,
                 password: params.password,
@@ -944,7 +968,8 @@ export class ReposList extends React.Component<
                 forceHttpBasicAuth: params.forceHttpBasicAuth,
                 enableOCI: params.enableOCI,
                 write: params.write,
-                useAzureWorkloadIdentity: params.useAzureWorkloadIdentity
+                useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
+                insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {
             this.setState({connecting: true});
