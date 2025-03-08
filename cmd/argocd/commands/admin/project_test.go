@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +29,7 @@ func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
 }
 
 func TestUpdateProjects_FindMatchingProject(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
 
@@ -49,7 +48,7 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 }
 
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
 

@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -69,7 +68,7 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 			projects:        fakeDynClient.Resource(schema.GroupVersionResource{}),
 		}
 
-		result := getAdditionalNamespaces(context.TODO(), argoCDClientsets)
+		result := getAdditionalNamespaces(t.Context(), argoCDClientsets)
 		assert.Equal(t, c.expected, *result)
 	}
 }

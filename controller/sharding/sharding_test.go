@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -817,7 +816,7 @@ func TestGetClusterSharding(t *testing.T) {
 	objects := append([]runtime.Object{}, deployment, deploymentMultiReplicas)
 	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-	settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
 	}))
 
 	testCases := []struct {

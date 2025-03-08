@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,7 +32,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 
 		service, _ := newServiceWithMocks(t)
 		request := &apiclient.CommitHydratedManifestsRequest{}
-		_, err := service.CommitHydratedManifests(context.Background(), request)
+		_, err := service.CommitHydratedManifests(t.Context(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "repo is required")
 	})
@@ -45,7 +44,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{},
 		}
-		_, err := service.CommitHydratedManifests(context.Background(), request)
+		_, err := service.CommitHydratedManifests(t.Context(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "repo URL is required")
 	})
@@ -59,7 +58,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
 		}
-		_, err := service.CommitHydratedManifests(context.Background(), request)
+		_, err := service.CommitHydratedManifests(t.Context(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "target branch is required")
 	})
@@ -74,7 +73,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			},
 			TargetBranch: "main",
 		}
-		_, err := service.CommitHydratedManifests(context.Background(), request)
+		_, err := service.CommitHydratedManifests(t.Context(), request)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "sync branch is required")
 	})
@@ -85,7 +84,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
-		_, err := service.CommitHydratedManifests(context.Background(), validRequest)
+		_, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, assert.AnError)
 	})
@@ -105,7 +104,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.On("CommitSHA").Return("it-worked!", nil).Once()
 		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
-		resp, err := service.CommitHydratedManifests(context.Background(), validRequest)
+		resp, err := service.CommitHydratedManifests(t.Context(), validRequest)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "it-worked!", resp.HydratedSha)

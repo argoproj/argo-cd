@@ -203,7 +203,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 	assert.True(t, settings.InClusterEnabled)
@@ -924,7 +924,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -956,7 +956,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -988,7 +988,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
@@ -1023,7 +1023,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1103,7 +1103,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1159,7 +1159,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1207,7 +1207,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1252,7 +1252,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
@@ -1287,7 +1287,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
@@ -1366,7 +1366,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 	}
 	kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
@@ -1424,7 +1424,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			}
 
 			kubeClient := fake.NewClientset(cm, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
 			require.NoError(t, err)
@@ -1493,7 +1493,7 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 			}
 			kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			helmSettings, err := settingsManager.GetHelmSettings()
 			require.NoError(t, err)
@@ -1811,7 +1811,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
 		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")

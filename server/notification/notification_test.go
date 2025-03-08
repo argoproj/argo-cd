@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -54,7 +53,7 @@ func TestNotificationServer(t *testing.T) {
 			Data: map[string][]byte{},
 		})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	secretInformer := k8s.NewSecretInformer(kubeclientset, testNamespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(kubeclientset, testNamespace, "argocd-notifications-cm")
 	go secretInformer.Run(ctx.Done())

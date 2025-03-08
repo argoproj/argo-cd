@@ -1029,11 +1029,10 @@ func TestTargetObjects_invalid(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckForDeleteEvent(_ *testing.T) {
-	ctx := context.Background()
+func TestCheckForDeleteEvent(t *testing.T) {
 	fakeClient := new(fakeAcdClient)
 
-	checkForDeleteEvent(ctx, fakeClient, "testApp")
+	checkForDeleteEvent(t.Context(), fakeClient, "testApp")
 }
 
 func TestPrintApplicationNames(t *testing.T) {
@@ -1872,7 +1871,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{}}
-	ctx := context.Background()
+	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
 	watch := watchOpts{
 		sync:      false,

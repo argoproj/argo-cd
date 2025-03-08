@@ -1,7 +1,6 @@
 package pull_request
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"io"
@@ -64,9 +63,9 @@ func TestListPullRequestNoAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
@@ -165,9 +164,9 @@ func TestListPullRequestPagination(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, PullRequest{
@@ -207,9 +206,9 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
@@ -224,9 +223,9 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBearerToken(context.Background(), "tolkien", ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceBearerToken(t.Context(), "tolkien", ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
@@ -290,9 +289,9 @@ func TestListPullRequestTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewBitbucketServiceBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", "REPO", "", test.tlsInsecure, certs)
+			svc, err := NewBitbucketServiceBasicAuth(t.Context(), "user", "password", ts.URL, "PROJECT", "REPO", "", test.tlsInsecure, certs)
 			require.NoError(t, err)
-			_, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+			_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 			if test.requireErr {
 				require.Error(t, err)
 			} else {
@@ -307,8 +306,8 @@ func TestListResponseError(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
-	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
 
@@ -332,8 +331,8 @@ func TestListResponseMalformed(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
-	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	svc, _ := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
 
@@ -357,9 +356,9 @@ func TestListResponseEmpty(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Empty(t, pullRequests)
 }
@@ -453,9 +452,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}))
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
+	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},
@@ -482,9 +481,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
-	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	pullRequests, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
+	pullRequests, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},
@@ -502,9 +501,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
-	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
+	svc, err = NewBitbucketServiceNoAuth(t.Context(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
-	_, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
+	_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},

@@ -14,7 +14,7 @@ import (
 func TestSanitizer(t *testing.T) {
 	s := NewSanitizer()
 
-	ctx := ContextWithSanitizer(context.TODO(), s)
+	ctx := ContextWithSanitizer(t.Context(), s)
 
 	sanitizer, ok := SanitizerFromContext(ctx)
 	require.True(t, ok)
@@ -27,7 +27,7 @@ func TestSanitizer(t *testing.T) {
 func TestSanitizer_RegexReplacement(t *testing.T) {
 	s := NewSanitizer()
 
-	ctx := ContextWithSanitizer(context.TODO(), s)
+	ctx := ContextWithSanitizer(t.Context(), s)
 
 	sanitizer, ok := SanitizerFromContext(ctx)
 	require.True(t, ok)
@@ -40,7 +40,7 @@ func TestSanitizer_RegexReplacement(t *testing.T) {
 func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {
 	interceptor := ErrorSanitizerUnaryServerInterceptor()
 
-	_, err := interceptor(context.Background(), nil, nil, func(ctx context.Context, _ any) (any, error) {
+	_, err := interceptor(t.Context(), nil, nil, func(ctx context.Context, _ any) (any, error) {
 		sanitizer, ok := SanitizerFromContext(ctx)
 		require.True(t, ok)
 		sanitizer.AddReplacement("/my-random/path", ".")
