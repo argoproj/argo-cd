@@ -92,7 +92,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	t.Run("GNUPGHOME is a file", func(t *testing.T) {
-		f, err := os.CreateTemp("", "gpg-test")
+		f, err := os.CreateTemp(t.TempDir(), "gpg-test")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
 

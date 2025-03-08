@@ -7,6 +7,7 @@ export interface HTTPSQuery {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     insecure: boolean;
@@ -97,6 +98,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -121,6 +123,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -145,6 +148,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,
@@ -169,6 +173,7 @@ export class RepositoriesService {
                 repo: q.url,
                 username: q.username,
                 password: q.password,
+                bearerToken: q.bearerToken,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
                 insecure: q.insecure,

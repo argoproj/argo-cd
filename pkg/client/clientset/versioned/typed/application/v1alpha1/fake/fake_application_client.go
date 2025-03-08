@@ -13,15 +13,15 @@ type FakeArgoprojV1alpha1 struct {
 }
 
 func (c *FakeArgoprojV1alpha1) AppProjects(namespace string) v1alpha1.AppProjectInterface {
-	return &FakeAppProjects{c, namespace}
+	return newFakeAppProjects(c, namespace)
 }
 
 func (c *FakeArgoprojV1alpha1) Applications(namespace string) v1alpha1.ApplicationInterface {
-	return &FakeApplications{c, namespace}
+	return newFakeApplications(c, namespace)
 }
 
 func (c *FakeArgoprojV1alpha1) ApplicationSets(namespace string) v1alpha1.ApplicationSetInterface {
-	return &FakeApplicationSets{c, namespace}
+	return newFakeApplicationSets(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

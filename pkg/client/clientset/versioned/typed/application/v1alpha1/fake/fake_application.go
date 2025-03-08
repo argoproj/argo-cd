@@ -3,116 +3,34 @@
 package fake
 
 import (
-	"context"
-
 	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeApplications implements ApplicationInterface
-type FakeApplications struct {
+// fakeApplications implements ApplicationInterface
+type fakeApplications struct {
+	*gentype.FakeClientWithList[*v1alpha1.Application, *v1alpha1.ApplicationList]
 	Fake *FakeArgoprojV1alpha1
-	ns   string
 }
 
-var applicationsResource = v1alpha1.SchemeGroupVersion.WithResource("applications")
-
-var applicationsKind = v1alpha1.SchemeGroupVersion.WithKind("Application")
-
-// Get takes name of the application, and returns the corresponding application object, and an error if there is any.
-func (c *FakeApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Application, err error) {
-	emptyResult := &v1alpha1.Application{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(applicationsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeApplications(fake *FakeArgoprojV1alpha1, namespace string) applicationv1alpha1.ApplicationInterface {
+	return &fakeApplications{
+		gentype.NewFakeClientWithList[*v1alpha1.Application, *v1alpha1.ApplicationList](
+			fake.Fake,
+			namespace,
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			v1alpha1.SchemeGroupVersion.WithKind("Application"),
+			func() *v1alpha1.Application { return &v1alpha1.Application{} },
+			func() *v1alpha1.ApplicationList { return &v1alpha1.ApplicationList{} },
+			func(dst, src *v1alpha1.ApplicationList) { dst.ListMeta = src.ListMeta },
+			func(list *v1alpha1.ApplicationList) []*v1alpha1.Application {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v1alpha1.ApplicationList, items []*v1alpha1.Application) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v1alpha1.Application), err
-}
-
-// List takes label and field selectors, and returns the list of Applications that match those selectors.
-func (c *FakeApplications) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.ApplicationList, err error) {
-	emptyResult := &v1alpha1.ApplicationList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(applicationsResource, applicationsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v1alpha1.ApplicationList{ListMeta: obj.(*v1alpha1.ApplicationList).ListMeta}
-	for _, item := range obj.(*v1alpha1.ApplicationList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested applications.
-func (c *FakeApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(applicationsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a application and creates it.  Returns the server's representation of the application, and an error, if there is any.
-func (c *FakeApplications) Create(ctx context.Context, application *v1alpha1.Application, opts v1.CreateOptions) (result *v1alpha1.Application, err error) {
-	emptyResult := &v1alpha1.Application{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(applicationsResource, c.ns, application, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Application), err
-}
-
-// Update takes the representation of a application and updates it. Returns the server's representation of the application, and an error, if there is any.
-func (c *FakeApplications) Update(ctx context.Context, application *v1alpha1.Application, opts v1.UpdateOptions) (result *v1alpha1.Application, err error) {
-	emptyResult := &v1alpha1.Application{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(applicationsResource, c.ns, application, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Application), err
-}
-
-// Delete takes name of the application and deletes it. Returns an error if one occurs.
-func (c *FakeApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(applicationsResource, c.ns, name, opts), &v1alpha1.Application{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(applicationsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v1alpha1.ApplicationList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched application.
-func (c *FakeApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Application, err error) {
-	emptyResult := &v1alpha1.Application{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(applicationsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v1alpha1.Application), err
 }

@@ -33,6 +33,7 @@ export interface NewHTTPSRepoParams {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     insecure: boolean;
@@ -91,6 +92,7 @@ interface NewHTTPSRepoCredsParams {
     type: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
@@ -218,6 +220,9 @@ export class ReposList extends React.Component<
                     name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
                     username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
+                    bearerToken:
+                        (httpsValues.password && httpsValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
+                        (httpsValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories'),
                     tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
                 };
             case ConnectionMethod.GITHUBAPP:
@@ -691,18 +696,27 @@ export class ReposList extends React.Component<
                                                             componentProps={{type: 'password'}}
                                                         />
                                                     </div>
+                                                    {formApi.getFormState().values.type === 'git' && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label='Bearer token (optional, for BitBucket Data Center only)'
+                                                                field='bearerToken'
+                                                                component={Text}
+                                                                componentProps={{type: 'password'}}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
                                                     </div>
-                                                    {(formApi.getFormState().values.type === 'git' || formApi.getFormState().values.type === 'oci') && (
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                        </div>
-                                                    )}
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                    </div>
                                                     {formApi.getFormState().values.type === 'git' && (
                                                         <React.Fragment>
                                                             <div className='argo-form-row'>
@@ -946,6 +960,7 @@ export class ReposList extends React.Component<
                 url: params.url,
                 username: params.username,
                 password: params.password,
+                bearerToken: params.bearerToken,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
                 proxy: params.proxy,

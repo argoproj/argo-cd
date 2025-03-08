@@ -21,6 +21,9 @@ argocd admin repo generate-spec REPOURL [flags]
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
+  # Add a private Git BitBucket Data Center repository via HTTPS using bearer token:
+  argocd admin repo generate-spec https://bitbucket.example.com/scm/proj/repo --bearer-token secret-token
+
   # Add a private Git repository via HTTPS using username/password without verifying the server's TLS certificate
   argocd admin repo generate-spec https://git.example.com/repos/repo --username git --password secret --insecure-skip-server-verification
 
@@ -47,6 +50,7 @@ argocd admin repo generate-spec REPOURL [flags]
 ### Options
 
 ```
+      --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --enable-lfs                              enable git-lfs (Large File Support) on this repository
       --enable-oci                              enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                   whether to force use of basic auth when connecting repository via HTTP

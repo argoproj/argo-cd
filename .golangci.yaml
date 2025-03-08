@@ -30,6 +30,7 @@ linters:
     - unparam
     - unused
     - usestdlibvars
+    - usetesting
     - whitespace
 linters-settings:
   gocritic:
@@ -149,5 +150,7 @@ linters-settings:
     enable-all: true
     disable:
       - go-require
+  usetesting:
+    os-mkdir-temp: false
 run:
   timeout: 50m

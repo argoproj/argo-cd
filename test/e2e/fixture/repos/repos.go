@@ -5,26 +5,36 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
-var (
-	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
-	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
-)
+func CertPath(t *testing.T) string {
+	t.Helper()
+	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.crt")
+}
 
-func mustToAbsPath(relativePath string) string {
+func CertKeyPath(t *testing.T) string {
+	t.Helper()
+	return mustToAbsPath(t, "../fixture/certs/argocd-test-client.key")
+}
+
+func mustToAbsPath(t *testing.T, relativePath string) string {
+	t.Helper()
 	res, err := filepath.Abs(relativePath)
-	errors.CheckError(err)
+	require.NoError(t, err)
 	return res
 }
 
 // sets the current repo as the default SSH test repo
-func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+func AddSSHRepo(t *testing.T, insecure bool, credentials bool, repoURLType fixture.RepoURLType) {
+	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
 		args = append(args, "--ssh-private-key-path", keyPath)
@@ -32,11 +42,12 @@ func AddSSHRepo(insecure bool, credentials bool, repoURLType fixture.RepoURLType
 	if insecure {
 		args = append(args, "--insecure-ignore-host-key")
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // sets the current repo as the default HTTPS test repo
-func AddHTTPSRepo(insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+func AddHTTPSRepo(t *testing.T, insecure bool, credentials bool, project string, repoURLType fixture.RepoURLType) {
+	t.Helper()
 	// This construct is somewhat necessary to satisfy the compiler
 	args := []string{"repo", "add", fixture.RepoURL(repoURLType)}
 	if credentials {
@@ -48,42 +59,45 @@ func AddHTTPSRepo(insecure bool, credentials bool, project string, repoURLType f
 	if project != "" {
 		args = append(args, "--project", project)
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // sets a HTTPS repo using TLS client certificate authentication
-func AddHTTPSRepoClientCert(insecure bool) {
+func AddHTTPSRepoClientCert(t *testing.T, insecure bool) {
+	t.Helper()
 	args := []string{
 		"repo",
 		"add",
 		fixture.RepoURL(fixture.RepoURLTypeHTTPSClientCert),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", CertPath,
-		"--tls-client-cert-key-path", CertKeyPath,
+		"--tls-client-cert-path", CertPath(t),
+		"--tls-client-cert-key-path", CertKeyPath(t),
 	}
 	if insecure {
 		args = append(args, "--insecure-skip-server-verification")
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
-func AddHelmRepo(name string) {
+func AddHelmRepo(t *testing.T, name string) {
+	t.Helper()
 	args := []string{
 		"repo",
 		"add",
 		fixture.RepoURL(fixture.RepoURLTypeHelm),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"--tls-client-cert-path", CertPath,
-		"--tls-client-cert-key-path", CertKeyPath,
+		"--tls-client-cert-path", CertPath(t),
+		"--tls-client-cert-key-path", CertKeyPath(t),
 		"--type", "helm",
 		"--name", name,
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
-func AddOCIRepo(name, imagePath string) {
+func AddOCIRepo(t *testing.T, name, imagePath string) {
+	t.Helper()
 	args := []string{
 		"repo",
 		"add",
@@ -92,10 +106,11 @@ func AddOCIRepo(name, imagePath string) {
 		"--name", name,
 		"--insecure-oci-force-http",
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
-func AddHelmOCIRepo(name string) {
+func AddHelmOCIRepo(t *testing.T, name string) {
+	t.Helper()
 	args := []string{
 		"repo",
 		"add",
@@ -104,22 +119,24 @@ func AddHelmOCIRepo(name string) {
 		"--name", name,
 		"--enable-oci",
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
-func AddHTTPSCredentialsUserPass() {
+func AddHTTPSCredentialsUserPass(t *testing.T) {
+	t.Helper()
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeHTTPS
 	args := []string{"repocreds", "add", fixture.RepoURL(repoURLType), "--username", fixture.GitUsername, "--password", fixture.GitPassword}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // AddHTTPSRepoCredentialsTLSClientCert adds E2E  for HTTPS repos to context
-func AddHTTPSCredentialsTLSClientCert() {
+func AddHTTPSCredentialsTLSClientCert(t *testing.T) {
+	t.Helper()
 	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	args := []string{
 		"repocreds",
 		"add",
@@ -129,15 +146,16 @@ func AddHTTPSCredentialsTLSClientCert() {
 		"--tls-client-cert-path", certPath,
 		"--tls-client-cert-key-path", keyPath,
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // AddHelmHTTPSCredentialsTLSClientCert adds credentials for Helm repos to context
-func AddHelmHTTPSCredentialsTLSClientCert() {
+func AddHelmHTTPSCredentialsTLSClientCert(t *testing.T) {
+	t.Helper()
 	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	args := []string{
 		"repocreds",
 		"add",
@@ -148,42 +166,45 @@ func AddHelmHTTPSCredentialsTLSClientCert() {
 		"--tls-client-cert-key-path", keyPath,
 		"--type", "helm",
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
-func AddHelmoOCICredentialsWithoutUserPass() {
+func AddHelmoOCICredentialsWithoutUserPass(t *testing.T) {
+	t.Helper()
 	args := []string{
 		"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
 		"--enable-oci", "--type", "helm",
 	}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // AddSSHRepoCredentials adds E2E fixture credentials for SSH repos to context
-func AddSSHCredentials() {
+func AddSSHCredentials(t *testing.T) {
+	t.Helper()
 	keyPath, err := filepath.Abs("../fixture/testrepos/id_rsa")
-	errors.CheckError(err)
+	require.NoError(t, err)
 	var repoURLType fixture.RepoURLType = fixture.RepoURLTypeSSH
 	args := []string{"repocreds", "add", fixture.RepoBaseURL(repoURLType), "--ssh-private-key-path", keyPath}
-	errors.FailOnErr(fixture.RunCli(args...))
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
 // PushChartToOCIRegistry adds a helm chart to helm OCI registry
-func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
+func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion string) {
+	t.Helper()
 	// create empty temp directory to extract chart from the registry
 	tempDest, err1 := os.MkdirTemp("", "helm")
-	errors.CheckError(err1)
+	require.NoError(t, err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
 	chartAbsPath, err2 := filepath.Abs("./testdata/" + chartPathName)
-	errors.CheckError(err2)
+	require.NoError(t, err2)
 
-	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
-	errors.FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
-	errors.FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
+	t.Setenv("HELM_EXPERIMENTAL_OCI", "1")
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
-	errors.FailOnErr(fixture.Run(
+	errors.NewHandler(t).FailOnErr(fixture.Run(
 		"",
 		"helm",
 		"push",
@@ -193,10 +214,10 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 }
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
-func PushImageToOCIRegistry(pathName, tag string) {
+func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
 	imagePath := "./testdata/" + pathName
 
-	errors.FailOnErr(fixture.Run(
+	errors.NewHandler(t).FailOnErr(fixture.Run(
 		imagePath,
 		"oras",
 		"push",

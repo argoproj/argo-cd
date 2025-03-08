@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - master
-    types: [ labeled, unlabeled, opened, synchronize, reopened ]
+    types: [labeled, unlabeled, opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,14 +46,14 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.23.3
+      go-version: 1.23.5
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -61,7 +61,7 @@ jobs:
     needs: [set-vars]
     permissions:
       contents: read
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
       id-token: write # for creating OIDC tokens for signing.
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
@@ -70,7 +70,7 @@ jobs:
       ghcr_image_name: ghcr.io/argoproj/argo-cd/argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.23.3
+      go-version: 1.23.5
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -101,8 +101,8 @@ jobs:
       - build-and-publish
       - set-vars
     permissions:
-      contents: write  # for git to push upgrade commit if not already deployed
-      packages: write  # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
+      contents: write # for git to push upgrade commit if not already deployed
+      packages: write # for pushing packages to GHCR, which is used by cd.apps.argoproj.io to avoid polluting Quay with tags
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
@@ -116,4 +116,3 @@ jobs:
           git config --global user.name 'CI'
           git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${{ needs.set-vars.outputs.image-tag }}' && git push)
         working-directory: argoproj-deployments/argocd
-

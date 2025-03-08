@@ -594,6 +594,9 @@ message ApplicationSourceKustomize {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 16;
+
+  // LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+  optional bool labelIncludeTemplates = 18;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1730,8 +1733,11 @@ message RepoCreds {
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
 
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
+
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 25;
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1816,8 +1822,11 @@ message Repository {
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
 
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
+
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 25;
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
