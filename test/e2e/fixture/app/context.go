@@ -190,7 +190,7 @@ func (c *Context) HelmOCIRepoAdded(name string) *Context {
 }
 
 func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
-	repos.PushImageToOCIRegistry(pathName, tag)
+	repos.PushImageToOCIRegistry(c.t, pathName, tag)
 	return c
 }
 
@@ -225,7 +225,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 }
 
 func (c *Context) OCIRepoAdded(name, imagePath string) *Context {
-	repos.AddOCIRepo(name, imagePath)
+	repos.AddOCIRepo(c.t, name, imagePath)
 	return c
 }
 
