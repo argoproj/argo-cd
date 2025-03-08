@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -25,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -208,7 +206,6 @@ func FilterByPath(apps []argoappv1.Application, filterPath string) []argoappv1.A
 	}
 	filteredApps := make([]argoappv1.Application, 0)
 
-	filterPath = filepath.ToSlash(path.Clean(filterPath))
 	filterPath, err := filepath.Abs(filterPath)
 	if err != nil {
 		return nil
@@ -217,12 +214,8 @@ func FilterByPath(apps []argoappv1.Application, filterPath string) []argoappv1.A
 	for _, app := range apps {
 
 		for _, source := range app.Spec.GetSources() {
-			repoUrl := git.NormalizeGitURL(source.RepoURL)
-			repoDir := path.Base(repoUrl)
-			appSourcePath := filepath.Join(repoDir, filepath.ToSlash(filepath.Clean(source.Path)))
+			appSourcePath := filepath.ToSlash(filepath.Clean(source.Path))
 			index := strings.Index(filterPath, appSourcePath)
-			fmt.Println(appSourcePath)
-			fmt.Println(filterPath)
 			if index == -1 {
 				continue
 			}
@@ -247,17 +240,30 @@ func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.App
 
 	absFiles := make([]string, 0)
 	for _, file := range files {
-		absFilePath := filepath.Clean(file)
-		// if err != nil {
-		// 	continue
-		// }
+		absFilePath, err := filepath.Abs(file)
+		if err != nil {
+			continue
+		}
 		absFiles = append(absFiles, absFilePath)
 	}
 	items := make([]argoappv1.Application, 0)
 
 	for _, app := range apps {
 		manifestGeneratePaths := pathutil.GetAppRefreshPaths(&app)
-		if pathutil.AppFilesHaveChanged(manifestGeneratePaths, absFiles) {
+		filterFiles := make([]string, 0)
+		for _, manifestGenPath := range manifestGeneratePaths {
+			for _, file := range absFiles {
+				index := strings.Index(file, manifestGenPath)
+				if index == -1 {
+					continue
+				}
+				filterFiles = append(filterFiles, file[index:])
+			}
+		}
+		if len(filterFiles) == 0 {
+			continue
+		}
+		if pathutil.AppFilesHaveChanged(manifestGeneratePaths, filterFiles) {
 			items = append(items, app)
 		}
 	}

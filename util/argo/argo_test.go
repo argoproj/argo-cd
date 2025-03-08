@@ -703,40 +703,45 @@ func TestFilterByPath(t *testing.T) {
 }
 
 func TestFilterByFiles(t *testing.T) {
+	workingDir, _ := os.Getwd()
+	currentDir := path.Base(workingDir)
 	apps := []argoappv1.Application{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo;example/apps/bar",
+					"argocd.argoproj.io/manifest-generate-paths": ".;../bar",
 				},
 			},
 			Spec: argoappv1.ApplicationSpec{
 				Source: &argoappv1.ApplicationSource{
-					Path: "example/apps/foo",
+					Path:    "example/apps/foo",
+					RepoURL: "https://github.com/" + currentDir + ".git",
 				},
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo",
+					"argocd.argoproj.io/manifest-generate-paths": ".",
 				},
 			},
 			Spec: argoappv1.ApplicationSpec{
 				Source: &argoappv1.ApplicationSource{
-					Path: "example/apps/foo",
+					Path:    "example/apps/foo",
+					RepoURL: "https://github.com/" + currentDir + ".git",
 				},
 			},
 		},
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
-					"argocd.argoproj.io/manifest-generate-paths": "example/apps/baz",
+					"argocd.argoproj.io/manifest-generate-paths": ".",
 				},
 			},
 			Spec: argoappv1.ApplicationSpec{
 				Source: &argoappv1.ApplicationSource{
-					Path: "example/apps/baz",
+					Path:    "example/apps/baz",
+					RepoURL: "https://github.com/" + currentDir + ".git",
 				},
 			},
 		},
@@ -749,7 +754,7 @@ func TestFilterByFiles(t *testing.T) {
 	})
 
 	t.Run("One file matches one app", func(t *testing.T) {
-		files := []string{"example/apps/foo/file.yaml"}
+		files := []string{"/example/apps/foo/file.yaml"}
 		res := FilterByFiles(apps, files)
 		assert.Len(t, res, 2)
 	})
