@@ -9,8 +9,6 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang-jwt/jwt/v5"
-	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
-	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -70,24 +68,22 @@ func (l *loggingServerStream) RecvMsg(m any) error {
 	return err
 }
 
-func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.StreamServerInterceptor {
+func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider func(context.Context, string, any) bool) grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if !decider(stream.Context(), info.FullMethod, srv) {
 			return handler(srv, stream)
 		}
-		logEntry := entry.WithFields(ctx_logrus.Extract(stream.Context()).Data)
-		newStream := &loggingServerStream{ServerStream: stream, entry: logEntry, logClaims: logClaims, info: "received streaming call " + info.FullMethod}
+		newStream := &loggingServerStream{ServerStream: stream, entry: entry, logClaims: logClaims, info: "received streaming call " + info.FullMethod}
 		return handler(srv, newStream)
 	}
 }
 
-func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.UnaryServerInterceptor {
+func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider func(context.Context, string, any) bool) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if !decider(ctx, info.FullMethod, info.Server) {
 			return handler(ctx, req)
 		}
-		logEntry := entry.WithFields(ctx_logrus.Extract(ctx).Data)
-		logRequest(ctx, logEntry, "received unary call "+info.FullMethod, req, logClaims)
+		logRequest(ctx, entry, "received unary call "+info.FullMethod, req, logClaims)
 		resp, err := handler(ctx, req)
 		return resp, err
 	}

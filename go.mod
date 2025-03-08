@@ -52,8 +52,8 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosimple/slug v1.15.0
-	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
+	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
@@ -197,7 +197,6 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/gregdel/pushover v1.3.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
-	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.23.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
@@ -295,7 +294,7 @@ replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/google/go-jsonnet => github.com/andrii-korotkov-verkada/go-jsonnet v0.0.0-20250308155707-03f98b787f0e
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/improbable-eng/grpc-web => github.com/andrii-korotkov-verkada/grpc-web v0.0.0-20250308155810-b852cec1344d
+	github.com/improbable-eng/grpc-web => github.com/andrii-korotkov-verkada/grpc-web v0.0.0-20250308221419-d37df84c6882
 	github.com/olekukonko/tablewriter => github.com/andrii-korotkov-verkada/tablewriter v0.0.0-20250308155854-8571ed54aa92
 	github.com/r3labs/diff/v3 => github.com/andrii-korotkov-verkada/diff/v3 v3.0.0-20250308155935-ef18f9606732
 	github.com/soheilhy/cmux => github.com/andrii-korotkov-verkada/cmux v0.0.0-20250308160011-2ab3fff3705c
