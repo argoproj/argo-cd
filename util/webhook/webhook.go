@@ -201,31 +201,42 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			change.shaAfter = changes.New.Target.Hash
 			break
 		}
+		// Not actually sure how to check if the incoming change affected HEAD just by examining the
+		// payload alone. To be safe, we just return true and let the controller check for himself.
+		touchedHead = true
+
 		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
 		if len(a.settings.WebhookBitbucketUUID) > 0 {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			repository, err := a.lookupRepository(ctx, a.settings.WebhookBitbucketUUID)
+			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
 			if err != nil {
-				// This could be a public repository, which does not require and repo credentials.
-				// use no auth client for such cases.
-				log.Warnf("no matching repository found for URL %s: %v", payload.Repository.Links.HTML.Href, err)
+				log.Warnf("error trying to find a matching repo for URL %s: %v", payload.Repository.Links.HTML.Href, err)
+				break
 			}
-			workspace := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			if argoRepo == nil {
+				// it could be a public repository with no repo creds stored.
+				// initialize with empty bearer token to use the no auth bitbucket client.
+				log.Debugf("no bitbucket repository configured for URL %s, initializing with empty bearer token", webURLs[0])
+				argoRepo = &v1alpha1.Repository{BearerToken: "", Repo: webURLs[0]}
+			}
+			bbClient, err := createBitbucketClient(ctx, argoRepo, webURLs[0])
+			if err != nil {
+				log.Warnf("error creating Bitbucket client for repo %s: %v", payload.Repository.Name, err)
+				break
+			}
+			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
 			apiURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
 			spec := change.shaAfter + ".." + change.shaBefore
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, apiURL, workspace, payload.Repository.Name, spec, repository)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(bbClient, apiURL, owner, payload.Repository.Name, spec)
 			if err != nil {
 				log.Warnf("error fetching diffstat: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
+			touchedHead, _ = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
 		}
-
-		// Not actually sure how to check if the incoming change affected HEAD just by examining the
-		// payload alone. To be safe, we just return true and let the controller check for himself.
-		touchedHead = true
 
 	// Bitbucket does not include a list of changed files anywhere in it's payload
 	// so we cannot update changedFiles for this type of payload
@@ -475,34 +486,36 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 	return true
 }
 
-func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, spec string, repository *v1alpha1.Repository) ([]string, error) {
-	// Getting the files changed from diff API:
-	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
+func createBitbucketClient(_ context.Context, repository *v1alpha1.Repository, repoURL string) (*bb.Client, error) {
 	var bbClient *bb.Client
-	var bearerToken string
-	if repository == nil {
-		log.Debugf("no bitbucket repository configured for URL %s, using no auth client", webURL)
-		bearerToken = ""
-	} else {
-		bearerToken = repository.BearerToken
-	}
 	if repository.Username != "" && repository.Password != "" {
 		log.Debug("repository has user/password, initializing basic auth client")
-		bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
+		if repository.Username == "x-token-auth" {
+			bbClient = bb.NewOAuthbearerToken(repository.Password)
+		} else {
+			bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
+		}
 	} else {
-		log.Debug("repository has no creds or a bearer token, initializing token based client")
-		bbClient = bb.NewOAuthbearerToken(bearerToken)
+		log.Debug("repository has no creds or a valid bearer token, initializing token based client")
+		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
 	}
 	// parse and set the target URL of the Bitbucket server in the client
-	repoBaseURL, err := url.Parse(webURL)
+	repoBaseURL, err := url.Parse(repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
+		return nil, fmt.Errorf("failed to parse repoURL '%s'", repoURL)
 	}
 	bbClient.SetApiBaseURL(*repoBaseURL)
+	return bbClient, nil
+}
+
+func fetchDiffStatFromBitbucket(bbClient *bb.Client, repoURL, owner, repoSlug, spec string) ([]string, error) {
+	// Getting the files changed from diff API:
+	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
+
 	// invoke the diffstat api call to get the list of changed files between two commit shas
-	log.Debugf("invoking diffstat call with parameters: [URL:%s, Owner:%s, RepoSlug:%s, Spec:%s]", repoBaseURL.String(), workspace, repoSlug, spec)
+	log.Debugf("invoking diffstat call with parameters: [URL:%s, Owner:%s, RepoSlug:%s, Spec:%s]", repoURL, owner, repoSlug, spec)
 	diffStatResp, err := bbClient.Repositories.Diff.GetDiffStat(&bb.DiffStatOptions{
-		Owner:      workspace,
+		Owner:      owner,
 		RepoSlug:   repoSlug,
 		Spec:       spec,
 		Whitespace: false,
@@ -514,7 +527,7 @@ func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 		Fields:     nil,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error getting the diffstat: %w", err)
+		return nil, fmt.Errorf("error getting the diffstat for URL %s: %w", repoURL, err)
 	}
 	changedFiles := make([]string, len(diffStatResp.DiffStats))
 	for i, value := range diffStatResp.DiffStats {
@@ -522,6 +535,19 @@ func fetchDiffStatFromBitbucket(_ context.Context, webURL, workspace, repoSlug, 
 	}
 	log.Debugf("changed files for spec %s: %v", spec, changedFiles)
 	return changedFiles, nil
+}
+
+func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, revision string) (bool, error) {
+	bbRepoOptions := &bb.RepositoryOptions{
+		Owner:    owner,
+		RepoSlug: repoSlug,
+	}
+	bbRepo, err := bbClient.Repositories.Repository.Get(bbRepoOptions.WithContext(ctx))
+	if err != nil {
+		// we are not sure, set it to true so that the controller can detect if its
+		return true, err
+	}
+	return bbRepo.Mainbranch.Name == revision, nil
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
