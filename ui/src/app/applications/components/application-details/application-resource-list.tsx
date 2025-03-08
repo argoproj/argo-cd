@@ -1,15 +1,15 @@
-import { DropDown } from 'argo-ui';
+import {DropDown} from 'argo-ui';
 import * as React from 'react';
 import * as classNames from 'classnames';
 import * as models from '../../../shared/models';
-import { ResourceIcon } from '../resource-icon';
-import { ResourceLabel } from '../resource-label';
-import { ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode } from '../utils';
-import { AppDetailsPreferences } from '../../../shared/services';
+import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
+import {ComparisonStatusIcon, HealthStatusIcon, nodeKey, createdOrNodeKey, isSameNode} from '../utils';
+import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
-import { format } from 'date-fns';
-import { ResourceNode } from '../../../shared/models';
+import {format} from 'date-fns';
+import {ResourceNode} from '../../../shared/models';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -55,7 +55,11 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
     const statuses = Array.from(new Set(props.resources.filter(res => res.status).map(res => res.status)));
     const healthStatuses = Array.from(new Set(props.resources.filter(res => res.health).map(res => res.health.status)));
     const filteredResources = props.resources.filter(
-        res => res.name.includes(filter) && (selectedKind === '' || res.kind === selectedKind) && (selectedStatus === '' || res.status === selectedStatus) && (selectedHealth === '' || (res.health?.status || 'Healthy') === selectedHealth)
+        res =>
+            res.name.includes(filter) &&
+            (selectedKind === '' || res.kind === selectedKind) &&
+            (selectedStatus === '' || res.status === selectedStatus) &&
+            (selectedHealth === '' || (res.health?.status || 'Healthy') === selectedHealth)
     );
 
     //If a dropdown value is not in the list of available values (for example an unsynced resource becomes synced), reset it
@@ -83,21 +87,15 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
             <div>
                 {/* Display only when the view is set to tree or network */}
                 {(view === 'tree' || view === 'network') && (
-                    <div className='resource-details__header' style={{ paddingTop: '20px' }}>
+                    <div className='resource-details__header' style={{paddingTop: '20px'}}>
                         <ParentRefDetails />
                     </div>
                 )}
                 <div className='argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
-                        <div className='row' style={{ backgroundColor: 'white', padding: '10px', borderRadius: '4px' }}>
+                        <div className='row' style={{backgroundColor: 'white', padding: '10px', borderRadius: '4px'}}>
                             <div className='columns small-2 xxxlarge-1'>
-                                <input
-                                    type='text'
-                                    placeholder='Filter by name'
-                                    value={filter}
-                                    onChange={e => setFilter(e.target.value)}
-                                    className='argo-field'
-                                />
+                                <input type='text' placeholder='Filter by name' value={filter} onChange={e => setFilter(e.target.value)} className='argo-field' />
                             </div>
                             <div className='columns small-1 xxxlarge-1'>
                                 <select value={selectedKind} onChange={e => setSelectedKind(e.target.value)} className='argo-field'>
@@ -164,7 +162,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                             <div className='application-details__resource-icon'>
                                                 <ResourceIcon kind={res.kind} />
                                                 <br />
-                                                <div>{ResourceLabel({ kind: res.kind })}</div>
+                                                <div>{ResourceLabel({kind: res.kind})}</div>
                                             </div>
                                         </div>
                                         <div className='columns small-2 xxxlarge-1 application-details__item' onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
