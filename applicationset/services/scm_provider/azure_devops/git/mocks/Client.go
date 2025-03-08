@@ -608,6 +608,36 @@ func (_m *Client) CreateThread(_a0 context.Context, _a1 git.CreateThreadArgs) (*
 	return r0, r1
 }
 
+// CreateUnmaterializedPullRequestReviewer provides a mock function with given fields: _a0, _a1
+func (_m *Client) CreateUnmaterializedPullRequestReviewer(_a0 context.Context, _a1 git.CreateUnmaterializedPullRequestReviewerArgs) (*git.IdentityRefWithVote, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateUnmaterializedPullRequestReviewer")
+	}
+
+	var r0 *git.IdentityRefWithVote
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, git.CreateUnmaterializedPullRequestReviewerArgs) (*git.IdentityRefWithVote, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, git.CreateUnmaterializedPullRequestReviewerArgs) *git.IdentityRefWithVote); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*git.IdentityRefWithVote)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, git.CreateUnmaterializedPullRequestReviewerArgs) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // DeleteAttachment provides a mock function with given fields: _a0, _a1
 func (_m *Client) DeleteAttachment(_a0 context.Context, _a1 git.DeleteAttachmentArgs) error {
 	ret := _m.Called(_a0, _a1)
@@ -1770,6 +1800,36 @@ func (_m *Client) GetMergeRequest(_a0 context.Context, _a1 git.GetMergeRequestAr
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, git.GetMergeRequestArgs) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetPermission provides a mock function with given fields: _a0, _a1
+func (_m *Client) GetPermission(_a0 context.Context, _a1 git.GetPermissionArgs) (*bool, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPermission")
+	}
+
+	var r0 *bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, git.GetPermissionArgs) (*bool, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, git.GetPermissionArgs) *bool); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*bool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, git.GetPermissionArgs) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
@@ -3156,6 +3216,36 @@ func (_m *Client) UpdatePullRequestProperties(_a0 context.Context, _a1 git.Updat
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, git.UpdatePullRequestPropertiesArgs) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdatePullRequestReviewer provides a mock function with given fields: _a0, _a1
+func (_m *Client) UpdatePullRequestReviewer(_a0 context.Context, _a1 git.UpdatePullRequestReviewerArgs) (*git.IdentityRefWithVote, error) {
+	ret := _m.Called(_a0, _a1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdatePullRequestReviewer")
+	}
+
+	var r0 *git.IdentityRefWithVote
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, git.UpdatePullRequestReviewerArgs) (*git.IdentityRefWithVote, error)); ok {
+		return rf(_a0, _a1)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, git.UpdatePullRequestReviewerArgs) *git.IdentityRefWithVote); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*git.IdentityRefWithVote)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, git.UpdatePullRequestReviewerArgs) error); ok {
 		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
