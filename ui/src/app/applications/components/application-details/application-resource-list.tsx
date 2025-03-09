@@ -51,7 +51,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
         );
     };
 
-    const kinds = Array.from(new Set(props.resources.map(res => res.kind)));
+    const kinds = Array.from(new Set(props.resources.map(res => res.kind))).sort();
     const statuses = Array.from(new Set(props.resources.filter(res => res.status).map(res => res.status)));
     const healthStatuses = Array.from(new Set(props.resources.filter(res => res.health).map(res => res.health.status)));
     const filteredResources = props.resources.filter(
