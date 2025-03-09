@@ -79,10 +79,7 @@ func copySingleFile(src string, dest string, mode os.FileInfo) error {
 
 // CreateSymlink creates a symlink with name linkName to file destName in
 // workingDir
-func CreateSymlink(t *testing.T, workingDir, destName, linkName string) error {
+func CreateSymlink(t *testing.T, destName, linkName string) error {
 	t.Helper()
-	if workingDir != "" {
-		t.Chdir(workingDir)
-	}
 	return os.Symlink(destName, linkName)
 }

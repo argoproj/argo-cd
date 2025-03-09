@@ -2631,10 +2631,13 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t,  "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t,  "b.json", "a.json"))
 		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
@@ -2731,10 +2734,13 @@ func Test_findManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t,  "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t,  "b.json", "a.json"))
 		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
