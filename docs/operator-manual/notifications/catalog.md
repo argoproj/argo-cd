@@ -20,9 +20,9 @@
 ### app-created
 **definition**:
 ```yaml
+message: Application {{.app.metadata.name}} has been created.
 email:
   subject: Application {{.app.metadata.name}} has been created.
-message: Application {{.app.metadata.name}} has been created.
 teams:
   title: Application {{.app.metadata.name}} has been created.
 
@@ -30,9 +30,9 @@ teams:
 ### app-deleted
 **definition**:
 ```yaml
+message: Application {{.app.metadata.name}} has been deleted.
 email:
   subject: Application {{.app.metadata.name}} has been deleted.
-message: Application {{.app.metadata.name}} has been deleted.
 teams:
   title: Application {{.app.metadata.name}} has been deleted.
 
@@ -40,10 +40,10 @@ teams:
 ### app-deployed
 **definition**:
 ```yaml
-email:
-  subject: New version of an application {{.app.metadata.name}} is up and running.
 message: |
   {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{.app.metadata.name}} is now running new version of deployments manifests.
+email:
+  subject: New version of an application {{.app.metadata.name}} is up and running.
 slack:
   attachments: |
     [{
@@ -76,10 +76,12 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: New version of an application {{.app.metadata.name}} is up and running.
+  themeColor: "#000080"
   facts: |
     [{
       "name": "Sync Status",
@@ -118,18 +120,16 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  themeColor: '#000080'
-  title: New version of an application {{.app.metadata.name}} is up and running.
 
 ```
 ### app-health-degraded
 **definition**:
 ```yaml
-email:
-  subject: Application {{.app.metadata.name}} has degraded.
 message: |
   {{if eq .serviceType "slack"}}:exclamation:{{end}} Application {{.app.metadata.name}} has degraded.
   Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+email:
+  subject: Application {{.app.metadata.name}} has degraded.
 slack:
   attachments: |
     [{
@@ -157,10 +157,12 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: Application {{.app.metadata.name}} has degraded.
+  themeColor: "#FF0000"
   facts: |
     [{
       "name": "Health Status",
@@ -195,18 +197,16 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  themeColor: '#FF0000'
-  title: Application {{.app.metadata.name}} has degraded.
 
 ```
 ### app-sync-failed
 **definition**:
 ```yaml
-email:
-  subject: Failed to sync application {{.app.metadata.name}}.
 message: |
   {{if eq .serviceType "slack"}}:exclamation:{{end}}  The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+email:
+  subject: Failed to sync application {{.app.metadata.name}}.
 slack:
   attachments: |
     [{
@@ -234,10 +234,12 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: Failed to sync application {{.app.metadata.name}}.
+  themeColor: "#FF0000"
   facts: |
     [{
       "name": "Sync Status",
@@ -276,18 +278,16 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  themeColor: '#FF0000'
-  title: Failed to sync application {{.app.metadata.name}}.
 
 ```
 ### app-sync-running
 **definition**:
 ```yaml
-email:
-  subject: Start syncing application {{.app.metadata.name}}.
 message: |
   The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+email:
+  subject: Start syncing application {{.app.metadata.name}}.
 slack:
   attachments: |
     [{
@@ -315,10 +315,11 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: Start syncing application {{.app.metadata.name}}.
   facts: |
     [{
       "name": "Sync Status",
@@ -357,14 +358,11 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  title: Start syncing application {{.app.metadata.name}}.
 
 ```
 ### app-sync-status-unknown
 **definition**:
 ```yaml
-email:
-  subject: Application {{.app.metadata.name}} sync status is 'Unknown'
 message: |
   {{if eq .serviceType "slack"}}:exclamation:{{end}} Application {{.app.metadata.name}} sync is 'Unknown'.
   Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
@@ -373,6 +371,8 @@ message: |
       * {{$c.message}}
   {{end}}
   {{end}}
+email:
+  subject: Application {{.app.metadata.name}} sync status is 'Unknown'
 slack:
   attachments: |
     [{
@@ -400,10 +400,11 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: Application {{.app.metadata.name}} sync status is 'Unknown'
   facts: |
     [{
       "name": "Sync Status",
@@ -438,17 +439,16 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  title: Application {{.app.metadata.name}} sync status is 'Unknown'
 
 ```
 ### app-sync-succeeded
 **definition**:
 ```yaml
-email:
-  subject: Application {{.app.metadata.name}} has been successfully synced.
 message: |
   {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
+email:
+  subject: Application {{.app.metadata.name}} has been successfully synced.
 slack:
   attachments: |
     [{
@@ -476,10 +476,12 @@ slack:
       {{end}}
       ]
     }]
-  deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
+  deliveryPolicy: Post
 teams:
+  title: Application {{.app.metadata.name}} has been successfully synced
+  themeColor: "#000080"
   facts: |
     [{
       "name": "Sync Status",
@@ -518,7 +520,5 @@ teams:
         "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
-  themeColor: '#000080'
-  title: Application {{.app.metadata.name}} has been successfully synced
 
 ```

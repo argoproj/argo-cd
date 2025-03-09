@@ -65,19 +65,19 @@ func newCatalogCommand() *cobra.Command {
 
 			misc.IterateStringKeyMap(triggers, func(name string) {
 				trigger := triggers[name]
-				t, err := yaml.Marshal(trigger)
+				t, err := yaml.MarshalWithOptions(trigger, yaml.UseLiteralStyleIfMultiline(true), yaml.UseJSONMarshaler())
 				dieOnError(err, "Failed to marshal trigger")
 				cm.Data["trigger."+name] = string(t)
 			})
 
 			misc.IterateStringKeyMap(templates, func(name string) {
 				template := templates[name]
-				t, err := yaml.Marshal(template)
+				t, err := yaml.MarshalWithOptions(template, yaml.UseLiteralStyleIfMultiline(true), yaml.UseJSONMarshaler())
 				dieOnError(err, "Failed to marshal template")
 				cm.Data["template."+name] = string(t)
 			})
 
-			d, err := yaml.Marshal(cm)
+			d, err := yaml.MarshalWithOptions(cm, yaml.UseLiteralStyleIfMultiline(true), yaml.UseJSONMarshaler())
 			dieOnError(err, "Failed to marshal final configmap")
 
 			err = os.WriteFile(target, d, 0o644)
@@ -146,7 +146,7 @@ func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.C
 	_, _ = fmt.Fprintln(out, "## Templates")
 	misc.IterateStringKeyMap(templates, func(name string) {
 		t := templates[name]
-		yamlData, err := yaml.Marshal(t)
+		yamlData, err := yaml.MarshalWithOptions(t, yaml.UseLiteralStyleIfMultiline(true), yaml.UseJSONMarshaler())
 		if err != nil {
 			panic(err)
 		}

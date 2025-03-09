@@ -120,14 +120,13 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 		}
 	}()
 
-	enc := yaml.NewEncoder(file)
+	enc := yaml.NewEncoder(file, yaml.Indent(2))
 	defer func() {
 		err := enc.Close()
 		if err != nil {
 			log.WithError(err).Error("failed to close yaml encoder")
 		}
 	}()
-	enc.SetIndent(2)
 
 	for _, m := range manifests {
 		obj := &unstructured.Unstructured{}

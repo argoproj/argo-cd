@@ -226,7 +226,7 @@ nav:
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-cd
-site_name: Argo CD - Declarative GitOps CD for Kubernetes
+site_name: "Argo CD - Declarative GitOps CD for Kubernetes"
 site_url: !ENV READTHEDOCS_CANONICAL_URL
 strict: true
 theme:
@@ -237,13 +237,13 @@ theme:
   logo: assets/logo.png
   name: material
   palette:
-  - media: '(prefers-color-scheme: light)'
+  - media: "(prefers-color-scheme: light)"
     primary: teal
     scheme: default
     toggle:
       icon: material/brightness-7
       name: Switch to dark mode
-  - media: '(prefers-color-scheme: dark)'
+  - media: "(prefers-color-scheme: dark)"
     primary: teal
     scheme: slate
     toggle:

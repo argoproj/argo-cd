@@ -48,20 +48,20 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if rootitem == nil {
 		return fmt.Errorf("can't find '%s' root item in mkdoc.yml", parent)
 	}
-	rootnavitemmap := rootitem.(map[any]any)
+	rootnavitemmap := rootitem.(map[string]any)
 	childnav, _ := findNavItem(rootnavitemmap[parent].([]any), child)
 	if childnav == nil {
 		return fmt.Errorf("can't find '%s' chile item under '%s' parent item in mkdoc.yml", child, parent)
 	}
 
-	childnavmap := childnav.(map[any]any)
+	childnavmap := childnav.(map[string]any)
 	childnavitems := childnavmap[child].([]any)
 
 	childnavitems = removeNavItem(childnavitems, subchild)
 	commands := make(map[string]any)
 	commands[subchild] = files
 	childnavmap[child] = append(childnavitems, commands)
-	newmkdocs, err := yaml.Marshal(un.Object)
+	newmkdocs, err := yaml.MarshalWithOptions(un.Object, yaml.UseLiteralStyleIfMultiline(true), yaml.UseJSONMarshaler())
 	if err != nil {
 		return fmt.Errorf("error in marshaling final configmap: %w", err)
 	}
@@ -81,7 +81,7 @@ func trimPrefixes(files []string, prefix string) {
 
 func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
-		o, ismap := item.(map[any]any)
+		o, ismap := item.(map[string]any)
 		if ismap {
 			if _, ok := o[key]; ok {
 				return o, i
