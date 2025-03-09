@@ -400,21 +400,21 @@ func TestEnforceErrorMessage(t *testing.T) {
 	require.EqualError(t, enf.EnforceErr(), "rpc error: code = PermissionDenied desc = permission denied")
 
 	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
+	ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), exp)
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project")
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	assert.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 }
 

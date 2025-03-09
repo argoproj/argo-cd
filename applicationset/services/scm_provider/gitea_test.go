@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -305,7 +304,7 @@ func TestGiteaListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -342,19 +341,19 @@ func TestGiteaHasPath(t *testing.T) {
 	}
 
 	t.Run("file exists", func(t *testing.T) {
-		ok, err := host.RepoHasPath(context.Background(), repo, "README.md")
+		ok, err := host.RepoHasPath(t.Context(), repo, "README.md")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("directory exists", func(t *testing.T) {
-		ok, err := host.RepoHasPath(context.Background(), repo, "gitea")
+		ok, err := host.RepoHasPath(t.Context(), repo, "gitea")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("does not exists", func(t *testing.T) {
-		ok, err := host.RepoHasPath(context.Background(), repo, "notathing")
+		ok, err := host.RepoHasPath(t.Context(), repo, "notathing")
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})

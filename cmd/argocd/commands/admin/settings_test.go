@@ -88,7 +88,7 @@ type validatorTestCase struct {
 }
 
 func TestCreateSettingsManager(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	f, closer, err := tempFile(`apiVersion: v1
 kind: ConfigMap

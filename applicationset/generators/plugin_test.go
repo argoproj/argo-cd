@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -629,7 +628,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

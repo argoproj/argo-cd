@@ -64,7 +64,7 @@ func TestListPullRequest(t *testing.T) {
 	prID := 123
 	prTitle := "feat(123)"
 	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
-	ctx := context.Background()
+	ctx := t.Context()
 	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{

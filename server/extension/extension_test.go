@@ -1,7 +1,6 @@
 package extension_test
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -137,7 +136,7 @@ func TestRegisterExtensions(t *testing.T) {
 		settMock := &mocks.SettingsGetter{}
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(context.Background())
+		logEntry := logger.WithContext(t.Context())
 		m := extension.NewManager(logEntry, "", settMock, nil, nil, nil, nil, nil)
 
 		return &fixture{
@@ -258,7 +257,7 @@ func TestCallExtension(t *testing.T) {
 		dbMock.On("GetCluster", mock.Anything, mock.Anything).Return(&v1alpha1.Cluster{Server: "some-url", Name: "cluster1"}, nil)
 
 		logger, _ := test.NewNullLogger()
-		logEntry := logger.WithContext(context.Background())
+		logEntry := logger.WithContext(t.Context())
 		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, dbMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
@@ -513,9 +512,9 @@ func TestCallExtension(t *testing.T) {
 		req := newExtensionRequest(t, http.MethodGet, url)
 		req.Header.Del(extension.HeaderArgoCDApplicationName)
 
-		req1 := req.Clone(context.Background())
+		req1 := req.Clone(t.Context())
 		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1:app1")
-		req2 := req.Clone(context.Background())
+		req2 := req.Clone(t.Context())
 		req2.Header.Add(extension.HeaderArgoCDApplicationName, "ns2:app2")
 
 		// when
@@ -692,7 +691,7 @@ func TestCallExtension(t *testing.T) {
 		url := fmt.Sprintf("%s/extensions/%s/", ts.URL, extName)
 		req := newExtensionRequest(t, http.MethodGet, url)
 		req.Header.Del(extension.HeaderArgoCDApplicationName)
-		req1 := req.Clone(context.Background())
+		req1 := req.Clone(t.Context())
 		req1.Header.Add(extension.HeaderArgoCDApplicationName, "ns1:app1")
 
 		// when
