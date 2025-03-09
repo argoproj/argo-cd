@@ -201,11 +201,11 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 }
 
 func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
-	repo, err := s.getCluster(ctx, q)
-	if err != nil || repo == nil {
+	c, err := s.getCluster(ctx, q)
+	if err != nil || c == nil {
 		return nil, common.PermissionDeniedAPIError
 	}
-	return repo, nil
+	return c, nil
 }
 
 func (s *Server) getClusterAndVerifyAccess(ctx context.Context, q *cluster.ClusterQuery, action string) (*appv1.Cluster, error) {

@@ -70,8 +70,10 @@ export default {
         return Observable.create((observer: Observer<any>) => {
             const fullUrl = `${apiRoot()}${url}`;
 
+            const abortController = new AbortController();
+
             // If there is an error, show it beforehand
-            fetch(fullUrl).then(response => {
+            fetch(fullUrl, {signal: abortController.signal}).then(response => {
                 if (!response.ok) {
                     return response.text().then(text => {
                         observer.error({status: response.status, statusText: response.statusText, body: text});
@@ -96,6 +98,7 @@ export default {
             return () => {
                 clearInterval(interval);
                 eventSource.close();
+                abortController.abort();
                 eventSource = null;
             };
         });
