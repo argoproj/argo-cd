@@ -154,7 +154,7 @@ func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetG
 
 	var interpolatedGenerator *argoprojiov1alpha1.ApplicationSetGenerator
 
-	if requestedGenerator.Matrix != nil {
+	if requestedGenerator != nil && requestedGenerator.Matrix != nil {
 		// If 2nd child is a matrix, only interpolate the 1st child of the inner matrix
 		interpolatedGenerator = requestedGenerator
 
