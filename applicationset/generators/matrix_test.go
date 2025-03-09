@@ -1138,7 +1138,6 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 }
 
 func TestNestedMatrixes(t *testing.T) {
-
 	terminalGenerators := map[string]Generator{
 		"List": NewListGenerator(),
 	}
