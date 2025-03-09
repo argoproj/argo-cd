@@ -18,7 +18,7 @@ packages:
     interfaces:
       AWSCodeCommitClient:
       AWSTaggingClient:
-  github.com/microsoft/azure-devops-go-api/azuredevops/git:
+  github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:
     config:
       dir: "applicationset/services/scm_provider/azure_devops/git/mocks"
     interfaces:
