@@ -53,8 +53,6 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 			continue
 		}
 		var params []map[string]any
-
-		// IN THIS MOMENT I ALREADY INTERPOLATE WRONGLY
 		if len(genParams) != 0 {
 			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator = &tempInterpolatedGenerator

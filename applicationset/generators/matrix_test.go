@@ -1214,5 +1214,5 @@ func TestNestedMatrixes(t *testing.T) {
 	}, client)
 	require.NoError(t, err)
 
-	assert.Equal(t, "", params[0]["a"])
+	assert.Equal(t, "map[my-key:my-value]", params[0]["a"])
 }
