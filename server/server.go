@@ -1124,6 +1124,11 @@ func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) 
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
+	// If RootPath is empty, directly return the original handler
+	if a.RootPath == "" {
+		return handler
+	}
+
 	// get rid of slashes
 	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
 
@@ -1342,13 +1347,25 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
 func newRedirectServer(port int, rootPath string) *http.Server {
-	addr := fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+	var addr string
+	if rootPath == "" {
+		addr = fmt.Sprintf("localhost:%d", port)
+	} else {
+		addr = fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+	}
+
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host
 			if rootPath != "" {
-				target += "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				root := strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
+				target += "/" + root
+
+				// Check if the request path already contains rootPath
+				// If so, remove rootPath from the request path
+				prefix := "/" + root
+				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefix)
 			}
 			target += req.URL.Path
 			if len(req.URL.RawQuery) > 0 {
