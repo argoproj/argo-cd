@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/goccy/go-yaml"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -33,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"sigs.k8s.io/yaml"
+	"github.com/goccy/go-yaml"
 )
 
 const (

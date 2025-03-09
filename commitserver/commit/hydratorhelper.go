@@ -7,8 +7,8 @@ import (
 	"path"
 	"text/template"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"

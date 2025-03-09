@@ -5,9 +5,9 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
+	"github.com/goccy/go-yaml"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/notification/expression"
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/goccy/go-yaml"
 	"github.com/golang/protobuf/ptypes/empty"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	ioutil "github.com/argoproj/argo-cd/v3/util/io"

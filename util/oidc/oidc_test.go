@@ -17,11 +17,11 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/goccy/go-yaml"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/server/settings/oidc"

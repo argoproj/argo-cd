@@ -17,9 +17,9 @@ import (
 	"unsafe"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/goccy/go-yaml"
 	"github.com/gosimple/slug"
 	"github.com/valyala/fasttemplate"
-	"sigs.k8s.io/yaml"
 
 	log "github.com/sirupsen/logrus"
 

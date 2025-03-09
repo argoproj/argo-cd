@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/Masterminds/semver/v3"
-	"sigs.k8s.io/yaml"
+	"github.com/goccy/go-yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"

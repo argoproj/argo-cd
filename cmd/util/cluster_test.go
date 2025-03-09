@@ -3,6 +3,7 @@ package util
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -11,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )

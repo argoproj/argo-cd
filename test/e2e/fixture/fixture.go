@@ -18,6 +18,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"

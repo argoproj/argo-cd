@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/felixge/httpsnoop"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 

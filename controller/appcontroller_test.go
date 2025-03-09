@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,7 +39,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 

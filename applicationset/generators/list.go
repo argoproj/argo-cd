@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )

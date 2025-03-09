@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	yaml "gopkg.in/yaml.v3"
+	yaml "github.com/goccy/go-yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

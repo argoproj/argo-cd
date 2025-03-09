@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/goccy/go-yaml"
 	"k8s.io/client-go/util/retry"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v3/common"

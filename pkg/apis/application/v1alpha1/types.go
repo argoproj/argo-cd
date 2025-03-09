@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/goccy/go-yaml"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -37,7 +38,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 

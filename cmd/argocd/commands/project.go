@@ -12,10 +12,10 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"

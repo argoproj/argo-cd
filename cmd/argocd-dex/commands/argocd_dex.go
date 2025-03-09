@@ -9,11 +9,11 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/util/cli"

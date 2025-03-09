@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/notifications-engine/pkg/docs"

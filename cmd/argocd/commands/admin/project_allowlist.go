@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/goccy/go-yaml"
 	"github.com/spf13/cobra"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +16,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 

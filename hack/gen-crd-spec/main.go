@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/goccy/go-yaml"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 )
 
 var kindToCRDPath = map[string]string{

@@ -3,12 +3,12 @@ package managedfields_test
 import (
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	arv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 

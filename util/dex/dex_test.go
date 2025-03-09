@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"

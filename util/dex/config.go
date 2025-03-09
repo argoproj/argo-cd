@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"sigs.k8s.io/yaml"
+	"github.com/goccy/go-yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/settings"

@@ -33,12 +33,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/goccy/go-yaml"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"

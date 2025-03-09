@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"

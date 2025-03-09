@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )

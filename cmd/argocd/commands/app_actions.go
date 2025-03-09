@@ -12,10 +12,10 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"

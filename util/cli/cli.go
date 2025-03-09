@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/goccy/go-yaml"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -24,7 +25,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/util/term"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/errors"

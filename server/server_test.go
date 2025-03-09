@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goccy/go-yaml"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/yaml"
 
 	dynfake "k8s.io/client-go/dynamic/fake"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"

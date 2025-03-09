@@ -21,8 +21,8 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 
 	"github.com/argoproj/pkg/sync"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"

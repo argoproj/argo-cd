@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/goccy/go-yaml"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
-	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/account"

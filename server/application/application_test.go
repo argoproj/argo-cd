@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/sync"
+	"github.com/goccy/go-yaml"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -37,7 +38,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"

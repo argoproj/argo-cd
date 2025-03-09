@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"sigs.k8s.io/yaml"
+	"github.com/goccy/go-yaml"
 )
 
 // SanitizeName sanitizes the name in accordance with the below rules

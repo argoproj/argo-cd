@@ -11,10 +11,10 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/time"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
