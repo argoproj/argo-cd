@@ -218,6 +218,22 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
+func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.False(t, serverRBACLogEnforceEnable)
+}
+
+func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.log.enforce.enable": "true",
+	})
+	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	require.NoError(t, err)
+	assert.True(t, serverRBACLogEnforceEnable)
+}
+
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()

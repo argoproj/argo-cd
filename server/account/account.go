@@ -126,6 +126,21 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
+	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
+	// is defined and has a "true" value
+	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes",
+	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+	if r.Resource == "logs" {
+		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get server RBAC log enforcement setting: %w", err)
+		}
+
+		if !serverRBACLogEnforceEnable {
+			return &account.CanIResponse{Value: "yes"}, nil
+		}
+	}
+
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
