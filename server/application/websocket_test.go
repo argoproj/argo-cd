@@ -136,8 +136,8 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 		ts := newTestTerminalSession(w, r)
 		ts.terminalOpts = &TerminalOptions{Enf: enf}
 		ts.appRBACName = "test"
-		// nolint:staticcheck
-		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+		//nolint:staticcheck
+		ts.ctx = context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 		_, err := ts.validatePermissions([]byte{})
 		require.NoError(t, err)
 	}
@@ -156,8 +156,8 @@ func TestValidateWithoutPermissions(t *testing.T) {
 		ts := newTestTerminalSession(w, r)
 		ts.terminalOpts = &TerminalOptions{Enf: enf}
 		ts.appRBACName = "test"
-		// nolint:staticcheck
-		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
+		//nolint:staticcheck
+		ts.ctx = context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
 		_, err := ts.validatePermissions([]byte{})
 		require.Error(t, err)
 		assert.EqualError(t, err, common.PermissionDeniedAPIError.Error())

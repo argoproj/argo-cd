@@ -22,8 +22,8 @@ func TestCliAppCommand(t *testing.T) {
 			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
 			require.NoError(t, err)
 			vars := map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()}
-			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
-			assert.Contains(t, NormalizeOutput(output), Tmpl(`Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -32,6 +32,7 @@ func TestCliAppCommand(t *testing.T) {
 			output, err := RunCli("app", "list")
 			require.NoError(t, err)
 			expected := Tmpl(
+				t,
 				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
 				map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)

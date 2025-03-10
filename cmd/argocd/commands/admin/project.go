@@ -223,13 +223,14 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 				break
 			}
 			policyPermission := modification(proj.Name, action)
-			if actionPolicyIndex == -1 && policyPermission != "" {
+			switch {
+			case actionPolicyIndex == -1 && policyPermission != "":
 				updated = true
 				role.Policies = append(role.Policies, formatPolicy(proj.Name, role.Name, policyPermission))
-			} else if actionPolicyIndex > -1 && policyPermission == "" {
+			case actionPolicyIndex > -1 && policyPermission == "":
 				updated = true
 				role.Policies = append(role.Policies[:actionPolicyIndex], role.Policies[actionPolicyIndex+1:]...)
-			} else if actionPolicyIndex > -1 && policyPermission != "" {
+			case actionPolicyIndex > -1 && policyPermission != "":
 				updated = true
 				role.Policies[actionPolicyIndex] = formatPolicy(proj.Name, role.Name, policyPermission)
 			}

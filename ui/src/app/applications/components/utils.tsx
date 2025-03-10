@@ -831,8 +831,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     from{' '}
-                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
-                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={drySource.repoURL} revision={drySource.targetRevision}>
+                        {drySource.targetRevision}
                     </Revision>
                     <br />
                     to{' '}
@@ -845,8 +845,9 @@ export function hydrationStatusMessage(app: appModels.Application) {
             return (
                 <span>
                     from{' '}
-                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
-                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit || drySource.targetRevision}>
+                        {drySource.targetRevision}
+                        {dryCommit && ' (' + dryCommit.substr(0, 7) + ')'}
                     </Revision>
                     <br />
                     to{' '}
@@ -1544,6 +1545,44 @@ export function formatCreationTimestamp(creationTimestamp: string) {
             <i style={{padding: '2px'}} /> ({fromNow})
         </span>
     );
+}
+
+/*
+ * formatStatefulSetChange reformats a single line describing changes to immutable fields in a StatefulSet.
+ * It extracts the field name and its "from" and "to" values for better readability.
+ */
+function formatStatefulSetChange(line: string): string {
+    if (line.startsWith('-')) {
+        // Remove leading "- " from the line and split into field and changes
+        const [field, changes] = line.substring(2).split(':');
+        if (changes) {
+            // Split "from: X to: Y" into separate lines with aligned values
+            const [from, to] = changes.split('to:').map(s => s.trim());
+            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+        }
+    }
+    return line;
+}
+
+export function formatOperationMessage(message: string): string {
+    if (!message) {
+        return message;
+    }
+
+    // Format immutable fields error message
+    if (message.includes('attempting to change immutable fields:')) {
+        const [header, ...details] = message.split('\n');
+        const formattedDetails = details
+            // Remove empty lines
+            .filter(line => line.trim())
+            // Use helper function
+            .map(formatStatefulSetChange)
+            .join('\n');
+
+        return `${header}\n${formattedDetails}`;
+    }
+
+    return message;
 }
 
 export const selectPostfix = (arr: string[], singular: string, plural: string) => (arr.length > 1 ? plural : singular);

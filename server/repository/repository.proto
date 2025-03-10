@@ -89,6 +89,10 @@ message RepoAccessQuery {
 	string gcpServiceAccountKey = 18;
 	// Whether to force HTTP basic auth
 	bool forceHttpBasicAuth = 19;
+	// Whether to use azure workload identity for authentication
+	bool useAzureWorkloadIdentity = 20;
+	// BearerToken contains the bearer token used for Git auth at the repo server
+	string bearerToken = 21;
 }
 
 message RepoResponse {}

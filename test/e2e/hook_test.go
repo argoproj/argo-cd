@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -17,7 +17,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
 func TestPreSyncHookSuccessful(t *testing.T) {
@@ -62,8 +62,8 @@ func TestPostDeleteHook(t *testing.T) {
 		Then().
 		Expect(DoesNotExist()).
 		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
-			CheckError(err)
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(t.Context(), metav1.ListOptions{})
+			require.NoError(t, err)
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
@@ -96,9 +96,9 @@ func TestPreSyncHookFailure(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("hook  Failed              PreSync", "")).
+		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
 		// make sure resource are also printed
-		Expect(Error("pod   OutOfSync  Missing", "")).
+		Expect(Error("pod  OutOfSync  Missing", "")).
 		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -332,7 +332,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
 			time.Sleep(1 * time.Second)
@@ -347,7 +347,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})
@@ -426,4 +426,57 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 			assert.Contains(t, resources[0].Name, "presync")
 			assert.Contains(t, resources[2].Name, "postsync")
 		})
+}
+
+func TestHookFinalizerPreSync(t *testing.T) {
+	testHookFinalizer(t, HookTypePreSync)
+}
+
+func TestHookFinalizerSync(t *testing.T) {
+	testHookFinalizer(t, HookTypeSync)
+}
+
+func TestHookFinalizerPostSync(t *testing.T) {
+	testHookFinalizer(t, HookTypePostSync)
+}
+
+func testHookFinalizer(t *testing.T, hookType HookType) {
+	t.Helper()
+	Given(t).
+		And(func() {
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
+				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
+					HealthLua: `
+						local hs = {}
+						hs.status = "Healthy"
+						if obj.metadata.deletionTimestamp == nil then
+							hs.status = "Progressing"
+							hs.message = "Waiting to be externally deleted"
+							return hs
+						end
+						if obj.metadata.finalizers ~= nil  then
+							for i, finalizer in ipairs(obj.metadata.finalizers) do
+								if finalizer == "argocd.argoproj.io/hook-finalizer" then
+									hs.message = "Resource has finalizer"
+									return hs
+								end
+							end
+						end
+						hs.message = "no finalizer for a hook is wrong"
+						return hs`,
+				},
+			}))
+		}).
+		Path("hook-resource-deleted-externally").
+		When().
+		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Message: "Resource has finalizer", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }

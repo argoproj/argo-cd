@@ -10,11 +10,11 @@ import (
 type RepoOptions struct {
 	Repo                           appsv1.Repository
 	Upsert                         bool
-	SshPrivateKeyPath              string
+	SshPrivateKeyPath              string //nolint:revive //FIXME(var-naming)
 	InsecureIgnoreHostKey          bool
 	InsecureSkipServerVerification bool
-	TlsClientCertPath              string
-	TlsClientCertKeyPath           string
+	TlsClientCertPath              string //nolint:revive //FIXME(var-naming)
+	TlsClientCertKeyPath           string //nolint:revive //FIXME(var-naming)
 	EnableLfs                      bool
 	EnableOci                      bool
 	GithubAppId                    int64
@@ -24,7 +24,8 @@ type RepoOptions struct {
 	Proxy                          string
 	NoProxy                        string
 	GCPServiceAccountKeyPath       string
-	ForceHttpBasicAuth             bool
+	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
+	UseAzureWorkloadIdentity       bool
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -33,6 +34,7 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.Repo.Project, "project", "", "project of the repository")
 	command.Flags().StringVar(&opts.Repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&opts.Repo.Password, "password", "", "password to the repository")
+	command.Flags().StringVar(&opts.Repo.BearerToken, "bearer-token", "", "bearer token to the Git BitBucket Data Center repository")
 	command.Flags().StringVar(&opts.SshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&opts.TlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
 	command.Flags().StringVar(&opts.TlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
@@ -48,4 +50,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().StringVar(&opts.NoProxy, "no-proxy", "", "don't access these targets via proxy")
 	command.Flags().StringVar(&opts.GCPServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&opts.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force use of basic auth when connecting repository via HTTP")
+	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 }

@@ -175,7 +175,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }

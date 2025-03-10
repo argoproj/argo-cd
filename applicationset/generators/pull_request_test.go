@@ -14,7 +14,7 @@ import (
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 		expected       []map[string]any
@@ -224,7 +224,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 
 		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
 		if c.expectedErr != nil {
-			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
+			require.EqualError(t, gotErr, c.expectedErr.Error())
 		} else {
 			require.NoError(t, gotErr)
 		}

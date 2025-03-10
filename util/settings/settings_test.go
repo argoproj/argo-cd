@@ -101,15 +101,6 @@ func TestGetSecretByName(t *testing.T) {
 	})
 }
 
-func TestGetRepositories(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repositories": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
-}
-
 func TestGetExtensionConfigs(t *testing.T) {
 	type cases struct {
 		name        string
@@ -154,52 +145,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 			assert.Equal(t, tc.expected, output)
 		})
 	}
-}
-
-func TestSaveRepositories(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-
-	repos, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, repos, []Repository{{URL: "http://foo"}})
-}
-
-func TestSaveRepositoriesNoConfigMap(t *testing.T) {
-	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-
-	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repositories"])
-}
-
-func TestSaveRepositoryCredentials(t *testing.T) {
-	kubeClient, settingsManager := fixtures(nil)
-	err := settingsManager.SaveRepositoryCredentials([]RepositoryCredentials{{URL: "http://foo"}})
-	require.NoError(t, err)
-	cm, err := kubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, "- url: http://foo\n", cm.Data["repository.credentials"])
-
-	creds, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.ElementsMatch(t, creds, []RepositoryCredentials{{URL: "http://foo"}})
-}
-
-func TestGetRepositoryCredentials(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"repository.credentials": "\n  - url: http://foo\n",
-	})
-	filter, err := settingsManager.GetRepositoryCredentials()
-	require.NoError(t, err)
-	assert.Equal(t, []RepositoryCredentials{{URL: "http://foo"}}, filter)
 }
 
 func TestGetResourceFilter(t *testing.T) {
@@ -258,7 +203,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 	assert.True(t, settings.InClusterEnabled)
@@ -273,11 +218,20 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
-func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
 	_, settingsManager := fixtures(nil)
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
 	require.NoError(t, err)
-	assert.False(t, serverRBACLogEnforceEnable)
+	assert.True(t, flag)
+}
+
+func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
+	_, settingsManager := fixtures(map[string]string{
+		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
+	})
+	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
+	require.NoError(t, err)
+	assert.False(t, flag)
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
@@ -301,15 +255,6 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
-}
-
-func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"server.rbac.log.enforce.enable": "true",
-	})
-	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
-	require.NoError(t, err)
-	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetResourceOverrides(t *testing.T) {
@@ -839,10 +784,10 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 			}
 
 			inKeys := settingsManager.GetIncludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(inKeys))
+			assert.Len(t, inKeys, len(tt.expectedKeys))
 
 			exKeys := settingsManager.GetExcludeEventLabelKeys()
-			assert.Equal(t, len(tt.expectedKeys), len(exKeys))
+			assert.Len(t, exKeys, len(tt.expectedKeys))
 
 			for i := range tt.expectedKeys {
 				assert.Equal(t, tt.expectedKeys[i], inKeys[i])
@@ -979,7 +924,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -1011,7 +956,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -1043,7 +988,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
@@ -1078,7 +1023,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1158,7 +1103,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1214,7 +1159,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1262,7 +1207,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1307,7 +1252,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
@@ -1342,7 +1287,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
@@ -1421,7 +1366,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 	}
 	kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
@@ -1479,7 +1424,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			}
 
 			kubeClient := fake.NewClientset(cm, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
 			require.NoError(t, err)
@@ -1548,7 +1493,7 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 			}
 			kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			helmSettings, err := settingsManager.GetHelmSettings()
 			require.NoError(t, err)
@@ -1813,11 +1758,60 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 	}
 }
 
+func TestUseAzureWorkloadIdentity(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult bool
+	}{
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to true",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": true }}",
+			},
+			ExpectedResult: true,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity defined and set to false",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {\"useWorkloadIdentity\": false }}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined, with azure key present",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{ \"azure\": {}}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name: "UseAzureWorkloadIdentity not defined",
+			Settings: &ArgoCDSettings{
+				OIDCConfigRAW: "{}",
+			},
+			ExpectedResult: false,
+		},
+		{
+			Name:           "OIDC config isnot defined",
+			Settings:       &ArgoCDSettings{},
+			ExpectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result := tc.Settings.UseAzureWorkloadIdentity()
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}
+
 func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
 		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
@@ -1884,7 +1878,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
-			assert.Equal(t, len(tt.output), len(keys))
+			assert.Len(t, keys, len(tt.output))
 			assert.Equal(t, tt.output, keys)
 		})
 	}

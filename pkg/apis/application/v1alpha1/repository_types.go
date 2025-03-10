@@ -9,6 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/helm"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,9 +46,13 @@ type RepoCreds struct {
 	// Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,20,opt,name=forceHttpBasicAuth"` //nolint:revive //FIXME(var-naming)
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
 
 // Repository is a repository holding application configurations
@@ -96,9 +101,13 @@ type Repository struct {
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
 	// ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"` //nolint:revive //FIXME(var-naming)
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"bytes,24,opt,name=useAzureWorkloadIdentity"`
+	// BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -113,7 +122,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != ""
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -124,6 +133,9 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.Password == "" {
 			repo.Password = source.Password
+		}
+		if repo.BearerToken == "" {
+			repo.BearerToken = source.BearerToken
 		}
 		if repo.SSHPrivateKey == "" {
 			repo.SSHPrivateKey = source.SSHPrivateKey
@@ -150,6 +162,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
+		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
 }
 
@@ -161,6 +174,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		}
 		if repo.Password == "" {
 			repo.Password = source.Password
+		}
+		if repo.BearerToken == "" {
+			repo.BearerToken = source.BearerToken
 		}
 		if repo.SSHPrivateKey == "" {
 			repo.SSHPrivateKey = source.SSHPrivateKey
@@ -193,6 +209,7 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 			repo.NoProxy = source.NoProxy
 		}
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
+		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
 	}
 }
 
@@ -201,8 +218,8 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo == nil {
 		return git.NopCreds{}
 	}
-	if repo.Password != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.ForceHttpBasicAuth)
+	if repo.Password != "" || repo.BearerToken != "" {
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), store, repo.Proxy, repo.NoProxy)
@@ -213,12 +230,26 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
+	if repo.UseAzureWorkloadIdentity {
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+	}
 	return git.NopCreds{}
 }
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
-	return helm.Creds{
+	if repo.UseAzureWorkloadIdentity {
+		return helm.NewAzureWorkloadIdentityCreds(
+			repo.Repo,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
+			workloadidentity.NewWorkloadIdentityTokenProvider(),
+		)
+	}
+
+	return helm.HelmCreds{
 		Username:           repo.Username,
 		Password:           repo.Password,
 		CAPath:             getCAPath(repo.Repo),
@@ -302,6 +333,7 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppId:                repo.GithubAppId,
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
 	}
 }
 

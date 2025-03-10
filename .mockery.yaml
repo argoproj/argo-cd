@@ -66,6 +66,9 @@ packages:
   github.com/argoproj/argo-cd/v3/util/notification/argocd:
     interfaces:
       Service:
+  github.com/argoproj/argo-cd/v3/util/workloadidentity:
+    interfaces:
+      TokenProvider:
   # These mocks are not currently used, but they are part of the public API of this package.      
   github.com/argoproj/argo-cd/v3/pkg/apiclient/session:
     interfaces:
@@ -74,3 +77,6 @@ packages:
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer:
+  github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1:
+    interfaces:
+      AppProjectInterface:

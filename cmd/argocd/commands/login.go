@@ -23,11 +23,11 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	claimsutil "github.com/argoproj/argo-cd/v3/util/claims"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/io"
-	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
@@ -67,11 +67,12 @@ argocd login cd.argoproj.io --core`,
 				os.Exit(1)
 			}
 
-			if globalClientOpts.PortForward {
+			switch {
+			case globalClientOpts.PortForward:
 				server = "port-forward"
-			} else if globalClientOpts.Core {
+			case globalClientOpts.Core:
 				server = "kubernetes"
-			} else {
+			default:
 				server = args[0]
 
 				if !skipTestTLS {
@@ -142,7 +143,9 @@ argocd login cd.argoproj.io --core`,
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
 				errors.CheckError(err)
-				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
+				argoClaims, err := claimsutil.MapClaimsToArgoClaims(claims)
+				errors.CheckError(err)
+				fmt.Printf("'%s' logged in successfully\n", userDisplayName(argoClaims))
 			}
 
 			// login successful. Persist the config
@@ -189,14 +192,17 @@ argocd login cd.argoproj.io --core`,
 	return command
 }
 
-func userDisplayName(claims jwt.MapClaims) string {
-	if email := jwtutil.StringField(claims, "email"); email != "" {
-		return email
+func userDisplayName(claims *claimsutil.ArgoClaims) string {
+	if claims == nil {
+		return ""
 	}
-	if name := jwtutil.StringField(claims, "name"); name != "" {
-		return name
+	if claims.Email != "" {
+		return claims.Email
 	}
-	return jwtutil.StringField(claims, "sub")
+	if claims.Name != "" {
+		return claims.Name
+	}
+	return claims.GetUserIdentifier()
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
