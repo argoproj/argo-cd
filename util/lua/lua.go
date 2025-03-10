@@ -258,7 +258,7 @@ func cleanReturnedObj(newObj, obj map[string]any) map[string]any {
 				switch oldValue := oldValueInterface.(type) {
 				case map[string]any:
 					if len(newValue) == 0 {
-						mapToReturn[key] = oldValue
+						mapToReturn[key] = make(map[string]any)
 					}
 				case []any:
 					newArray := cleanReturnedArray(newValue, oldValue)
