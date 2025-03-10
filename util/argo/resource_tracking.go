@@ -185,11 +185,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return nil
 	default:
-		err := kube.SetAppInstanceLabel(un, key, val)
-		if err != nil {
-			return fmt.Errorf("failed to set app instance label: %w", err)
-		}
-		return nil
+		return setAppInstanceAnnotation()
 	}
 }
 
