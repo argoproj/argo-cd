@@ -5,3 +5,9 @@ actionTests:
 - action: unpause
   inputPath: testdata/MonoVertexRollout/rollout-paused.yaml
   expectedOutputPath: testdata/MonoVertexRollout/rollout-running.yaml
+- action: enable-force-promote
+  inputPath: testdata/MonoVertexRollout/rollout-enable-force-promote.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-disable-force-promote.yaml
+- action: disable-force-promote
+  inputPath: testdata/MonoVertexRollout/rollout-disable-force-promote.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-enable-force-promote.yaml

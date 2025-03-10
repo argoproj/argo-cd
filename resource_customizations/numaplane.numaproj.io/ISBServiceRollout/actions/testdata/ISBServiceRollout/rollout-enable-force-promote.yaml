@@ -1,0 +1,71 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: ISBServiceRollout
+metadata:
+  creationTimestamp: "2025-02-21T19:43:06Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 4
+  name: test-isbservice-rollout
+  namespace: numaplane-system
+  resourceVersion: "6984"
+  uid: 0c926b94-f7a7-4580-a865-f9dd8d54525f
+spec:
+  strategy:
+    progressive:
+      assessmentSchedule: 60,60,10
+      forcePromote: false
+  interStepBufferService:
+    metadata: {}
+    spec:
+      jetstream:
+        containerTemplate:
+          resources:
+            limits:
+              memory: 2Gi
+        persistence:
+          volumeSize: 20Mi
+        version: 2.10.11
+status:
+  conditions:
+  - lastTransitionTime: "2025-02-21T19:43:06Z"
+    message: Successful
+    observedGeneration: 3
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2025-02-21T19:55:13Z"
+    message: Successful
+    observedGeneration: 4
+    reason: Successful
+    status: "True"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2025-02-21T19:43:06Z"
+    message: no need for pause
+    observedGeneration: 4
+    reason: NoPause
+    status: "False"
+    type: PausingPipelines
+  - lastTransitionTime: "2025-02-21T19:57:27Z"
+    message: New Child Object numaplane-system/test-isbservice-rollout-2 Failed
+    observedGeneration: 4
+    reason: Failed
+    status: "False"
+    type: ProgressiveUpgradeSucceeded
+  lastFailureTime: "2025-02-21T19:53:30Z"
+  message: Progressing
+  nameCount: 3
+  observedGeneration: 4
+  pauseRequestStatus:
+    lastPauseBeginTime: null
+    lastPauseEndTime: null
+    lastPausePhaseChangeTime: null
+  phase: Pending
+  progressiveStatus:
+    promotedISBServiceStatus:
+      name: test-isbservice-rollout-1
+    upgradingISBServiceStatus:
+      assessmentEndTime: "2025-02-21T19:58:27Z"
+      assessmentResult: Failure
+      assessmentStartTime: "2025-02-21T19:57:05Z"
+      name: test-isbservice-rollout-2
+  upgradeInProgress: Progressive
