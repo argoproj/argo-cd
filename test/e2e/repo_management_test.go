@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,7 +25,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -41,7 +40,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", repoURL)
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -69,7 +68,7 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
+		_, err = repoClient.UpdateRepository(t.Context(), &repositorypkg.RepoUpdateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: repoURL,
 			},
@@ -115,7 +114,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -130,7 +129,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -161,7 +160,7 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 
