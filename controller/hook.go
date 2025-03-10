@@ -109,7 +109,7 @@ func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application,
 	}
 	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 
-	progressingHooksCnt := 0
+	progressingHooksCount := 0
 	for _, obj := range runningHooks {
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
@@ -128,11 +128,11 @@ func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application,
 			}
 		}
 		if hookHealth.Status == health.HealthStatusProgressing {
-			progressingHooksCnt++
+			progressingHooksCount++
 		}
 	}
-	if progressingHooksCnt > 0 {
-		logCtx.Infof("Waiting for %d pre-delete hooks to complete", progressingHooksCnt)
+	if progressingHooksCount > 0 {
+		logCtx.Infof("Waiting for %d pre-delete hooks to complete", progressingHooksCount)
 		return false, nil
 	}
 
@@ -241,7 +241,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application
 	}
 	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 
-	progressingHooksCnt := 0
+	progressingHooksCount := 0
 	for _, obj := range runningHooks {
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
@@ -260,11 +260,11 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application
 			}
 		}
 		if hookHealth.Status == health.HealthStatusProgressing {
-			progressingHooksCnt++
+			progressingHooksCount++
 		}
 	}
-	if progressingHooksCnt > 0 {
-		logCtx.Infof("Waiting for %d post-delete hooks to complete", progressingHooksCnt)
+	if progressingHooksCount > 0 {
+		logCtx.Infof("Waiting for %d post-delete hooks to complete", progressingHooksCount)
 		return false, nil
 	}
 
