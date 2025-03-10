@@ -26,12 +26,12 @@ data:
 
 
   trigger.on-deployed-trigger: |
-    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status in ['Healthy', 'Degraded']
+    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
     oncePer: app.status.sync.revision
     send: [on-deployed-template]
 ```
 
-This, as explained in the [triggers section](triggers/#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy. We then need to create a subscription for the webhook integration:
+This, as explained in the [triggers section](triggers/#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy or degraded. We then need to create a subscription for the webhook integration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
