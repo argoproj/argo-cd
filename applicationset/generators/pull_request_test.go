@@ -222,7 +222,7 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
 
-		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
+		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil, nil)
 		if c.expectedErr != nil {
 			require.EqualError(t, gotErr, c.expectedErr.Error())
 		} else {
@@ -296,7 +296,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				},
 			}
 
-			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil, nil)
 
 			require.Error(t, err, "Must return an error")
 			var expectedError ErrDisallowedSCMProvider
@@ -323,6 +323,6 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 		},
 	}
 
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

@@ -51,7 +51,7 @@ func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Appli
 	return getDefaultRequeueAfter()
 }
 
-func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ map[string]any, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
