@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -68,7 +69,7 @@ func userAgentEnforcer(ctx context.Context, clientName, constraintStr string, se
 			return status.Errorf(codes.InvalidArgument, "could not parse version from user-agent: %s", userAgent)
 		}
 		if ok, errs := semVerConstraint.Validate(uaVers); !ok {
-			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errs[0].Error())
+			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errors.Join(errs...))
 		}
 		return nil
 	}

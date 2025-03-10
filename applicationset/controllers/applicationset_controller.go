@@ -155,6 +155,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
 	desiredApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
 	if err != nil {
+		logCtx.Errorf("unable to generate applications: %v", err)
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
@@ -164,7 +165,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, err
+		// In order for the controller SDK to respect RequeueAfter, the error must be nil
+		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
 
 	parametersGenerated = true

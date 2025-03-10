@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/test"
+
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -269,6 +271,44 @@ func TestNoPolicy(t *testing.T) {
 	kubeclientset := fake.NewClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+}
+
+// TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity adds a hook into logrus.StandardLogger and validates
+// policies with and without referential integrity issues.  Log entries are searched to verify expected outcomes.
+func TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity(t *testing.T) {
+	// Policy with referential integrity
+	policy := `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depA, role:depA
+g, depB, role:depB
+`
+	hook := test.LogHook{}
+	log.AddHook(&hook)
+	t.Cleanup(func() {
+		log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+	})
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which transitively associates to policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+g, role:depC, role:depA
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which has no associated policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Len(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies: role:depC"), 1)
 }
 
 // TestClaimsEnforcerFunc tests

@@ -7,13 +7,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="27 known vulnerabilities found in 69 vulnerable dependency paths.">
+  <meta name="description" content="31 known vulnerabilities found in 76 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
   <link rel="shortcut icon" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.ico">
   <style type="text/css">
-
+  
     body {
       -moz-font-feature-settings: "pnum";
       -webkit-font-feature-settings: "pnum";
@@ -30,7 +30,7 @@
       background-color: #F5F5F5;
       font-family: 'Arial', 'Helvetica', Calibri, sans-serif;
     }
-
+  
     h1,
     h2,
     h3,
@@ -39,7 +39,7 @@
     h6 {
       font-weight: 500;
     }
-
+  
     a,
     a:link,
     a:visited {
@@ -47,31 +47,31 @@
       text-decoration: none;
       color: #4b45a9;
     }
-
+  
     a:hover,
     a:focus,
     a:active {
       border-bottom: 1px solid #4b45a9;
     }
-
+  
     hr {
       border: none;
       margin: 1em 0;
       border-top: 1px solid #c5c5c5;
     }
-
+  
     ul {
       padding: 0 1em;
       margin: 1em 0;
     }
-
+  
     code {
       background-color: #EEE;
       color: #333;
       padding: 0.25em 0.5em;
       border-radius: 0.25em;
     }
-
+  
     pre {
       background-color: #333;
       font-family: monospace;
@@ -79,19 +79,19 @@
       border-radius: 0.25em;
       font-size: 14px;
     }
-
+  
     pre code {
       padding: 0;
       background-color: transparent;
       color: #fff;
     }
-
+  
     a code {
       border-radius: .125rem .125rem 0 0;
       padding-bottom: 0;
       color: #4b45a9;
     }
-
+  
     a[href^="http://"]:after,
     a[href^="https://"]:after {
       background-image: linear-gradient(transparent,transparent),url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20112%20109%22%3E%3Cg%20id%3D%22Page-1%22%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20id%3D%22link-external%22%3E%3Cg%20id%3D%22arrow%22%3E%3Cpath%20id%3D%22Line%22%20stroke%3D%22%234B45A9%22%20stroke-width%3D%2215%22%20d%3D%22M88.5%2021l-43%2042.5%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20id%3D%22Triangle%22%20fill%3D%22%234B45A9%22%20d%3D%22M111.2%200v50L61%200z%22%2F%3E%3C%2Fg%3E%3Cpath%20id%3D%22square%22%20fill%3D%22%234B45A9%22%20d%3D%22M66%2015H0v94h94V44L79%2059v35H15V30h36z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E");
@@ -103,10 +103,10 @@
       margin-left: .25rem;
       width: .75rem;
     }
-
-
+  
+  
   /* Layout */
-
+  
     [class*=layout-container] {
       margin: 0 auto;
       max-width: 71.25em;
@@ -118,19 +118,19 @@
       padding-bottom: 0;
       max-width: 48.75em;
     }
-
+  
     .layout-container--short:after {
       display: block;
       content: "";
       clear: both;
     }
-
+  
   /* Header */
-
+  
     .header {
       padding-bottom: 1px;
     }
-
+  
     .paths {
       margin-left: 8px;
     }
@@ -148,7 +148,7 @@
       padding-bottom: 0.25em;
       border-bottom: 2px solid #BBB;
     }
-
+  
     .project__header__title {
       overflow-wrap: break-word;
       word-wrap: break-word;
@@ -156,13 +156,13 @@
       margin-bottom: .1em;
       margin-top: 0;
     }
-
+  
     .timestamp {
       float: right;
       clear: none;
       margin-bottom: 0;
     }
-
+  
     .meta-counts {
       clear: both;
       display: block;
@@ -173,7 +173,7 @@
       clear: both;
       font-size: 1.1em;
     }
-
+  
     .meta-count {
       display: block;
       flex-basis: 100%;
@@ -182,15 +182,15 @@
       padding-right: 1em;
       border-right: 2px solid #fff;
     }
-
+  
     .meta-count:last-child {
       border-right: 0;
       padding-right: 0;
       margin-right: 0;
     }
-
+  
   /* Card */
-
+  
     .card {
       background-color: #fff;
       border: 1px solid #c5c5c5;
@@ -200,7 +200,7 @@
       min-height: 40px;
       padding: 1.5em;
     }
-
+  
     .card .label {
       background-color: #767676;
       border: 2px solid #767676;
@@ -212,52 +212,52 @@
       margin: 0;
       border-radius: 0.25rem;
     }
-
+  
     .card .label__text {
       vertical-align: text-top;
         font-weight: bold;
     }
-
+  
     .card .label--critical {
       background-color: #AB1A1A;
       border-color: #AB1A1A;
     }
-
+  
     .card .label--high {
       background-color: #CE5019;
       border-color: #CE5019;
     }
-
+  
     .card .label--medium {
       background-color: #D68000;
       border-color: #D68000;
     }
-
+  
     .card .label--low {
       background-color: #88879E;
       border-color: #88879E;
     }
-
+  
     .severity--low {
       border-color: #88879E;
     }
-
+  
     .severity--medium {
       border-color: #D68000;
     }
-
+  
     .severity--high {
       border-color: #CE5019;
     }
-
+  
     .severity--critical {
       border-color: #AB1A1A;
     }
-
+  
     .card--vuln {
       padding-top: 4em;
     }
-
+  
     .card--vuln .label {
       left: 0;
       position: absolute;
@@ -266,36 +266,36 @@
       padding-right: 1.9em;
       border-radius: 0 0.25rem 0.25rem 0;
     }
-
+  
     .card--vuln .card__section h2 {
       font-size: 22px;
       margin-bottom: 0.5em;
     }
-
+  
     .card--vuln .card__section p {
       margin: 0 0 0.5em 0;
     }
-
+  
     .card--vuln .card__meta {
       padding: 0 0 0 1em;
       margin: 0;
       font-size: 1.1em;
     }
-
+  
     .card .card__meta__paths {
       font-size: 0.9em;
     }
-
+  
     .card--vuln .card__title {
       font-size: 28px;
       margin-top: 0;
     }
-
+  
     .card--vuln .card__cta p {
       margin: 0;
       text-align: right;
     }
-
+  
     .source-panel {
       clear: both;
       display: flex;
@@ -305,9 +305,9 @@
       padding: 0.5em 0;
       width: fit-content;
     }
-
-
-
+  
+  
+  
   </style>
   <style type="text/css">
     .metatable {
@@ -334,7 +334,7 @@
       font-variant-numeric: tabular-nums;
       max-width: 51.75em;
     }
-
+  
     tbody {
       text-size-adjust: 100%;
       -webkit-font-smoothing: antialiased;
@@ -358,7 +358,7 @@
       display: flex;
       flex-wrap: wrap;
     }
-
+  
     .meta-row {
       text-size-adjust: 100%;
       -webkit-font-smoothing: antialiased;
@@ -385,7 +385,7 @@
       margin: 8px;
       width: 47.75%;
     }
-
+  
     .meta-row-label {
       text-size-adjust: 100%;
       -webkit-font-smoothing: antialiased;
@@ -412,7 +412,7 @@
       text-transform: none;
       letter-spacing: 0;
     }
-
+  
     .meta-row-value {
       text-size-adjust: 100%;
       -webkit-font-smoothing: antialiased;
@@ -455,8 +455,8 @@
               </a>
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
-
-                <p class="timestamp">February 16th 2025, 12:19:53 am (UTC+00:00)</p>
+    
+                <p class="timestamp">March 9th 2025, 12:17:09 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -467,10 +467,10 @@
                   <li class="paths">ghcr.io/dexidp/dex:v2.41.1/dexidp/dex//usr/local/bin/dex (gomodules)</li>
                 </ul>
               </div>
-
+    
               <div class="meta-counts">
-                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>69 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>76 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>969</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -482,13 +482,13 @@
         <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
             <h2 class="card__title">Incorrect Implementation of Authentication Algorithm</h2>
             <div class="card__section">
-
+        
                 <div class="label label--critical">
                     <span class="label__text">critical severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -498,36 +498,36 @@
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             golang.org/x/crypto/ssh
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.24.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         golang.org/x/crypto/ssh@v0.24.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
@@ -545,24 +545,184 @@
         <li><a href="https://groups.google.com/g/golang-announce/c/-nPEi39gI4Q/m/cGVPJCqdAQAJ">Google Groups Forum</a></li>
         <li><a href="https://pkg.go.dev/vuln/GO-2024-3321">Go Vulnerability Database</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8496611">More about this vulnerability</a></p>
             </div>
-
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/oauth2/jws
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/oauth2/jws@v0.21.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@v0.21.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@v0.21.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to improper parsing of malformed tokens which can lead to memory consumption.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/oauth2/jws</code> to version 0.27.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/oauth2/commit/681b4d8edca1bcfea5bce685d77ea7b82ed3e7b3">GitHub Commit</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/commit/d0bb4610154d45b7dce7d706a8068ea72586d249">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71490">GitHub Issue</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/pull/1308">GitHub PR</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3488">Go Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXOAUTH2JWS-8749594">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http/httpproxy
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/net/http/httpproxy@v0.26.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http/httpproxy@v0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http/httpproxy@v0.27.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http/httpproxy">golang.org/x/net/http/httpproxy</a> is a package for HTTP proxy determination based on environment variables, as provided by net/http&#39;s ProxyFromEnvironment function</p>
+        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) in <code>proxy.go</code>, because hostname matching against proxy patterns may treat an IPv6 zone ID as a hostname component. An environment variable value like <code>*.example.com</code> could be matched to a request intended for <code>[::1%25.example.com]:80</code>.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http/httpproxy</code> to version 0.36.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://go-review.googlesource.com/c/go/+/654717/4/src/vendor/golang.org/x/net/http/httpproxy/proxy.go">Git Commit</a></li>
+        <li><a href="https://github.com/golang/go/commit/3705a6f1f0a66e70916bb09f50f4fcd1c520df53">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/net/commit/76f9bf3279eff2e596db4960a78a2665d0ff9405">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71984">GitHub Issue</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTPHTTPPROXY-9058601">More about this vulnerability</a></p>
+            </div>
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Denial of Service (DoS)</h2>
             <div class="card__section">
-
+        
                 <div class="label label--high">
                     <span class="label__text">high severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
@@ -572,36 +732,36 @@
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             golang.org/x/net/html
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/dexidp/dex@* and golang.org/x/net/html@v0.27.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         golang.org/x/net/html@v0.27.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
@@ -628,24 +788,24 @@
         <li><a href="https://github.com/golang/go/issues/70906">GitHub Issue</a></li>
         <li><a href="https://groups.google.com/g/golang-announce/c/wSCRmFnNmPA/m/Lvcd0mRMAwAJ">Google Groups Forum</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-8535262">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
-
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -655,36 +815,106 @@
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
-                            google.golang.org/grpc/metadata
+        
+                            golang.org/x/crypto/ssh
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
-                                github.com/hairyhenderson/gomplate/v4@* and google.golang.org/grpc/metadata@v1.64.0
-
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.24.0
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
-                                        google.golang.org/grpc/metadata@v1.64.0
-
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@v0.24.0
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in <code>handshakeTransport</code> in <code>handshake.go</code>. An internal queue gets populated with received packets during the key exchange process, while waiting for the client to send a <code>SSH_MSG_KEXINIT</code>. An attacker can cause the server to become unresponsive to new connections by delaying or withholding this message, or by causing the queue to consume all available memory.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.35.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://go.dev/cl/652135">Git Commit</a></li>
+        <li><a href="https://go.dev/issue/71931">Go Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3487">Vulnerability Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8747056">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc/metadata
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and google.golang.org/grpc/metadata@v1.64.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/metadata@v1.64.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
@@ -696,24 +926,24 @@
         <ul>
         <li><a href="https://github.com/grpc/grpc-go/commit/ab292411ddc0f3b7a7786754d1fe05264c3021eb">GitHub Commit</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPCMETADATA-7430177">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -723,57 +953,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/vault/api
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api@v1.14.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/vault/api@v1.14.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:vault:api:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -783,57 +1013,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/serf/coordinate
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/serf/coordinate@v0.10.1
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/serf/coordinate@v0.10.1
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:serf:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
@@ -843,120 +1073,120 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/hcl/v2
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/dexidp/dex@* and github.com/hashicorp/hcl/v2@v2.13.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/ext/customdecode@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/ext/tryfunc@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/gohcl@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/hclparse@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/hclsyntax@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/hclwrite@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/v2/json@v2.13.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:hcl:v2:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -966,66 +1196,66 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/hcl
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/hcl@v1.0.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl@v1.0.0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/hcl/hcl/token@v1.0.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:hcl:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1035,57 +1265,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/golang-lru/simplelru
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/golang-lru/simplelru@v1.0.2
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/golang-lru/simplelru@v1.0.2
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:golang-lru:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1095,57 +1325,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-uuid
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-uuid@v1.0.3
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-uuid@v1.0.3
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-uuid:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1155,66 +1385,66 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-sockaddr
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-sockaddr@v1.0.6
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-sockaddr@v1.0.6
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-sockaddr/template@v1.0.6
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-sockaddr:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1224,57 +1454,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-secure-stdlib/strutil
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-secure-stdlib/strutil@v0.1.2
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-secure-stdlib/strutil@v0.1.2
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-secure-stdlib:strutil:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1284,57 +1514,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-secure-stdlib/parseutil
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-secure-stdlib/parseutil@v0.1.8
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-secure-stdlib/parseutil@v0.1.8
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-secure-stdlib:parseutil:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1344,57 +1574,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-secure-stdlib/awsutil
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-secure-stdlib/awsutil@v0.3.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-secure-stdlib/awsutil@v0.3.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-secure-stdlib:awsutil:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1404,57 +1634,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-rootcerts
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-rootcerts@v1.0.2
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-rootcerts@v1.0.2
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-rootcerts:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1464,57 +1694,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-retryablehttp
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-retryablehttp@v0.7.7
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@v0.7.7
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-retryablehttp:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1524,57 +1754,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-multierror
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-multierror@v1.1.1
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-multierror@v1.1.1
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-multierror:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1584,57 +1814,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-immutable-radix
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-immutable-radix@v1.3.1
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-immutable-radix@v1.3.1
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-immutable-radix:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1644,57 +1874,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/go-cleanhttp
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/go-cleanhttp@v0.5.2
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-cleanhttp@v0.5.2
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:go-cleanhttp:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1704,57 +1934,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/errwrap
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/errwrap@v1.1.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/errwrap@v1.1.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:errwrap:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1764,57 +1994,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/hashicorp/consul/api
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/consul/api@v1.29.1
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/consul/api@v1.29.1
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:consul:api:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
@@ -1824,57 +2054,57 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/gosimple/slug
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/hairyhenderson/gomplate/v4@* and github.com/gosimple/slug@v1.14.0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/gosimple/slug@v1.14.0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:gosimple:slug:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
-
+        
                 <div class="label label--medium">
                     <span class="label__text">medium severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Manifest file: ghcr.io/dexidp/dex:v2.41.1/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
@@ -1884,159 +2114,238 @@
                     </li>
                     <li class="card__meta__item">
                             Module:
-
+        
                             github.com/go-sql-driver/mysql
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 github.com/dexidp/dex@* and github.com/go-sql-driver/mysql@v1.8.1
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         github.com/go-sql-driver/mysql@v1.8.1
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <p>MPL-2.0 license</p>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:go-sql-driver:mysql:MPL-2.0">More about this vulnerability</a></p>
             </div>
-
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/go-jose/go-jose/v4@v4.0.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@v4.0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@v4.0.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.0.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-8745975">More about this vulnerability</a></p>
+            </div>
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-6119</h2>
             <div class="card__section">
-
+        
                 <div class="label label--low">
                     <span class="label__text">low severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Package Manager: alpine:3.20
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             openssl/libcrypto3
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 docker-image|ghcr.io/dexidp/dex@v2.41.1 and openssl/libcrypto3@3.3.1-r3
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
@@ -2074,126 +2383,126 @@
         <li><a href="https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html">https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20240912-0001/">https://security.netapp.com/advisory/ntap-20240912-0001/</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-7895537">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-9143</h2>
             <div class="card__section">
-
+        
                 <div class="label label--low">
                     <span class="label__text">low severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Package Manager: alpine:3.20
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             openssl/libcrypto3
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 docker-image|ghcr.io/dexidp/dex@v2.41.1 and openssl/libcrypto3@3.3.1-r3
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
@@ -2237,126 +2546,126 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2024/10/24/1">http://www.openwall.com/lists/oss-security/2024/10/24/1</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20241101-0001/">https://security.netapp.com/advisory/ntap-20241101-0001/</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-8235201">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-13176</h2>
             <div class="card__section">
-
+        
                 <div class="label label--low">
                     <span class="label__text">low severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Package Manager: alpine:3.20
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             openssl/libcrypto3
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 docker-image|ghcr.io/dexidp/dex@v2.41.1 and openssl/libcrypto3@3.3.1-r3
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
@@ -2390,126 +2699,126 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2025/01/20/2">http://www.openwall.com/lists/oss-security/2025/01/20/2</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20250124-0005/">https://security.netapp.com/advisory/ntap-20250124-0005/</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-8690013">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-12797</h2>
             <div class="card__section">
-
+        
                 <div class="label label--low">
                     <span class="label__text">low severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Package Manager: alpine:3.20
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             openssl/libcrypto3
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 docker-image|ghcr.io/dexidp/dex@v2.41.1 and openssl/libcrypto3@3.3.1-r3
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
@@ -2545,169 +2854,169 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2025/02/11/4">http://www.openwall.com/lists/oss-security/2025/02/11/4</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20250214-0001/">https://security.netapp.com/advisory/ntap-20250214-0001/</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-8710359">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2025-26519</h2>
             <div class="card__section">
-
+        
                 <div class="label label--low">
                     <span class="label__text">low severity</span>
                 </div>
-
+        
                 <hr/>
-
+        
                 <ul class="card__meta">
                     <li class="card__meta__item">
                         Package Manager: alpine:3.20
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
-
+        
                             musl/musl
                     </li>
-
+        
                     <li class="card__meta__item">Introduced through:
-
+        
                                 docker-image|ghcr.io/dexidp/dex@v2.41.1 and musl/musl@1.2.5-r0
-
+        
                     </li>
                 </ul>
-
+        
                 <hr/>
-
-
+        
+        
                         <h3 class="card__section__title">Detailed paths</h3>
-
+        
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl-utils@1.2.5-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.1-r3
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.4-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         zlib/zlib@1.3.1-r1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl-utils@1.2.5-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         pax-utils/scanelf@1.3.7-r2
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.5-r0
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.36.1-r29
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|ghcr.io/dexidp/dex@v2.41.1
-                                         <span class="list-paths__item__arrow">›</span>
+                                         <span class="list-paths__item__arrow">›</span> 
                                         musl/musl-utils@1.2.5-r0
-
+                                        
                                 </span>
-
+        
                             </li>
                     </ul><!-- .list-paths -->
-
+        
             </div><!-- .card__section -->
-
+        
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
@@ -2728,13 +3037,13 @@
         <li><a href="http://www.openwall.com/lists/oss-security/2025/02/14/5">http://www.openwall.com/lists/oss-security/2025/02/14/5</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/02/14/6">http://www.openwall.com/lists/oss-security/2025/02/14/6</a></li>
         </ul>
-
+        
               <hr/>
-
+        
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-MUSL-8720638">More about this vulnerability</a></p>
             </div>
-
+        
         </div><!-- .card -->
       </div><!-- cards -->
     </div>

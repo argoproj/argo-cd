@@ -703,12 +703,12 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                    </div>
                                                     {formApi.getFormState().values.type === 'git' && (
                                                         <React.Fragment>
-                                                            <div className='argo-form-row'>
-                                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                            </div>
                                                             <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
                                                             </div>

@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -55,7 +54,7 @@ func TestDeployment(t *testing.T) {
 func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 	ctx := Given(t)
 
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
+	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().
@@ -78,7 +77,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 
 func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 	ctx := Given(t)
-	errors.CheckError(SetTrackingMethod(string(argo.TrackingMethodLabel)))
+	require.NoError(t, SetTrackingMethod(string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().

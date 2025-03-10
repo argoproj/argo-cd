@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -39,36 +39,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		When().
-		Create().
-		Login().
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
-		})
-}
-
-func TestCanIGetLogsDenySwitchOn(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		When().
-		Create().
-		Login().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "no")
-		})
-}
-
-func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
+func TestCanIGetLogsAllow(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
@@ -88,7 +59,6 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 				Scope:    ProjectName + "/*",
 			},
 		}, "log-viewer").
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
@@ -96,18 +66,17 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
+func TestCanIGetLogsDeny(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
 		When().
 		Create().
 		Login().
-		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
+			assert.Contains(t, output, "no")
 		})
 }
 
