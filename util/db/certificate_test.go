@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -288,12 +287,12 @@ func getCertClientset() *fake.Clientset {
 
 func TestListCertificate(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// List all SSH known host entries from configuration.
 	// Expected: List of 7 entries
-	certList, err := db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "ssh",
 	})
@@ -307,7 +306,7 @@ func TestListCertificate(t *testing.T) {
 
 	// List all TLS certificates from configuration.
 	// Expected: List of 3 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "https",
 	})
@@ -317,7 +316,7 @@ func TestListCertificate(t *testing.T) {
 
 	// List all certificates using selector
 	// Expected: List of 10 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "*",
 		CertType:        "*",
 	})
@@ -327,14 +326,14 @@ func TestListCertificate(t *testing.T) {
 
 	// List all certificates using nil selector
 	// Expected: List of 10 entries
-	certList, err = db.ListRepoCertificates(context.Background(), nil)
+	certList, err = db.ListRepoCertificates(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, TestNumTLSCertificatesExpected+TestNumSSHKnownHostsExpected)
 
 	// List all certificates matching a host name pattern
 	// Expected: List of 4 entries, all with servername gitlab.com
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "*",
 	})
@@ -346,7 +345,7 @@ func TestListCertificate(t *testing.T) {
 	}
 
 	// List all TLS certificates matching a host name pattern
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
@@ -359,11 +358,11 @@ func TestListCertificate(t *testing.T) {
 
 func TestCreateSSHKnownHostEntries(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid known hosts entry
-	certList, err := db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err := db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -377,7 +376,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 	assert.Len(t, certList.Items, 1)
 
 	// Valid known hosts entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "[foo.example.com]:2222",
@@ -392,7 +391,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Invalid hostname
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo..example.com",
@@ -406,7 +405,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Check if it really was added
 	// Result: List of 1 entry
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "ssh",
 	})
@@ -416,7 +415,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Existing cert, same data, no upsert
 	// Result: no error, should return 0 added certificates
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -431,7 +430,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Existing cert, different data, no upsert
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -444,7 +443,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 	assert.Nil(t, certList)
 
 	// Existing cert, different data, upsert
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -459,7 +458,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Invalid known hosts entry, case 1: key sub type missing
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
@@ -473,7 +472,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 	// Invalid known hosts entry, case 2: invalid base64 data
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
@@ -488,12 +487,12 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 
 func TestCreateTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Valid TLS certificate
 	// Expected: List of 1 entry
-	certList, err := db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err := db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -508,7 +507,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Invalid hostname
 	// Result: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo..example",
@@ -522,7 +521,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Check if it really was added
 	// Result: Return new certificate
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
@@ -532,7 +531,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid TLS certificates, multiple PEMs in data
 	// Expected: List of 2 entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "bar.example.com",
@@ -547,7 +546,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Check if it really was added
 	// Result: Return new certificate
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "bar.example.com",
 		CertType:        "https",
 	})
@@ -557,7 +556,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid TLS certificate, existing cert, same data, no upsert
 	// Expected: List of 0 entry
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -572,7 +571,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid TLS certificate, existing cert, different data, no upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -586,7 +585,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid TLS certificate, existing cert, different data, upsert
 	// Expected: List of 2 entries
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "foo.example.com",
@@ -601,7 +600,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Check if upsert was successful
 	// Expected: List of 2 entries, matching hostnames & cert types
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "foo.example.com",
 		CertType:        "https",
 	})
@@ -615,7 +614,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Invalid PEM data, new cert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
@@ -629,7 +628,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid PEM data, new cert, but invalid certificate
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
@@ -643,7 +642,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Invalid PEM data, existing cert, upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
@@ -657,7 +656,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 	// Valid PEM data, existing cert, but invalid certificate, upsert
 	// Expected: Error
-	certList, err = db.CreateRepoCertificate(context.Background(), &v1alpha1.RepositoryCertificateList{
+	certList, err = db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
 		Items: []v1alpha1.RepositoryCertificate{
 			{
 				ServerName: "baz.example.com",
@@ -672,12 +671,12 @@ func TestCreateTLSCertificates(t *testing.T) {
 
 func TestRemoveSSHKnownHosts(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single SSH known hosts entry by hostname
 	// Expected: List of 1 entry
-	certList, err := db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
@@ -687,7 +686,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "github.com",
 		CertType:        "ssh",
 	})
@@ -697,7 +696,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 	// Remove single SSH known hosts entry by sub type
 	// Expected: List of 1 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
@@ -707,7 +706,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType:    "ssh",
 		CertSubType: "ssh-ed25519",
 	})
@@ -717,7 +716,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 	// Remove all remaining SSH known hosts entries
 	// Expected: List of 5 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType: "ssh",
 	})
 	require.NoError(t, err)
@@ -726,7 +725,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 	// Check whether the entries were really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		CertType: "ssh",
 	})
 	require.NoError(t, err)
@@ -736,12 +735,12 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 
 func TestRemoveTLSCertificates(t *testing.T) {
 	clientset := getCertClientset()
-	db := NewDB(testNamespace, settings.NewSettingsManager(context.Background(), clientset, testNamespace), clientset)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
 
 	// Remove single TLS certificate entry by hostname
 	// Expected: List of 1 entry
-	certList, err := db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err := db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
@@ -751,7 +750,7 @@ func TestRemoveTLSCertificates(t *testing.T) {
 
 	// Check whether entry was really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "gitlab.com",
 		CertType:        "https",
 	})
@@ -761,7 +760,7 @@ func TestRemoveTLSCertificates(t *testing.T) {
 
 	// Remove all TLS certificate entry for hostname
 	// Expected: List of 2 entry
-	certList, err = db.RemoveRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.RemoveRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})
@@ -771,7 +770,7 @@ func TestRemoveTLSCertificates(t *testing.T) {
 
 	// Check whether entries were really removed
 	// Expected: List of 0 entries
-	certList, err = db.ListRepoCertificates(context.Background(), &CertificateListSelector{
+	certList, err = db.ListRepoCertificates(t.Context(), &CertificateListSelector{
 		HostNamePattern: "test.example.com",
 		CertType:        "https",
 	})

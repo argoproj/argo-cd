@@ -14,7 +14,7 @@ import (
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 		values         map[string]string
