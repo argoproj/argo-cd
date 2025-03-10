@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"
@@ -47,26 +46,37 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		}
 	}
 
+	if creds == nil {
+		creds = insecure.NewCredentials()
+	}
+
+	// custom credentials and dialer will notify on error via the
+	// writeResult function
+	creds = &errSignallingCreds{
+		TransportCredentials: creds,
+		writeResult:          writeResult,
+	}
+
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
+		// NB: We *could* handle the TLS handshake ourselves, in the custom
+		// dialer (instead of customizing both the dialer and the credentials).
+		// But that requires using WithInsecure dial option (so that the gRPC
+		// library doesn't *also* try to do a handshake). And that would mean
+		// that the library would send the wrong ":scheme" metaheader to
+		// servers: it would send "http" instead of "https" because it is
+		// unaware that TLS is actually in use.
 		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
-			return nil, fmt.Errorf("error dial proxy: %w", err)
 		}
-		if creds != nil {
-			conn, _, err = creds.ClientHandshake(ctx, address, conn)
-			if err != nil {
-				writeResult(err)
-				return nil, fmt.Errorf("error creating connection: %w", err)
-			}
-		}
-		return conn, nil
+
+		return conn, err
 	}
 
 	// Even with grpc.FailOnNonTempDialError, this call will usually timeout in
 	// the face of TLS handshake errors. So we can't rely on grpc.WithBlock() to
 	// know when we're done. So we run it in a goroutine and then use result
-	// channel to either get the channel or fail-fast.
+	// channel to either get the connection or fail-fast.
 	go func() {
 		opts = append(opts,
 			//nolint:staticcheck
@@ -74,7 +84,7 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 			//nolint:staticcheck
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
-			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
+			grpc.WithTransportCredentials(creds),
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
 		//nolint:staticcheck
@@ -97,6 +107,21 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// errSignallingCreds is a wrapper around a TransportCredentials value, but
+// it will use the writeResult function to notify on error.
+type errSignallingCreds struct {
+	credentials.TransportCredentials
+	writeResult func(res any)
+}
+
+func (c *errSignallingCreds) ClientHandshake(ctx context.Context, addr string, rawConn net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	conn, auth, err := c.TransportCredentials.ClientHandshake(ctx, addr, rawConn)
+	if err != nil {
+		c.writeResult(err)
+	}
+	return conn, auth, err
 }
 
 type TLSTestResult struct {
