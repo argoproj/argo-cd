@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -9,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -62,9 +61,9 @@ func TestPreDeleteHook(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			_, err := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
-				context.Background(), "guestbook-ui", metav1.GetOptions{},
+				t.Context(), "guestbook-ui", metav1.GetOptions{},
 			)
 			require.NoError(t, err)
 		}).
@@ -78,7 +77,7 @@ func TestPreDeleteHook(t *testing.T) {
 			found := false
 			for i := 0; i < 10; i++ {
 				hooks, err = KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
-					context.Background(),
+					t.Context(),
 					metav1.ListOptions{},
 				)
 				require.NoError(t, err)
@@ -102,7 +101,7 @@ func TestPreDeleteHook(t *testing.T) {
 			assert.True(t, found)
 
 			_, err = KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
-				context.Background(), "guestbook-ui", metav1.GetOptions{},
+				t.Context(), "guestbook-ui", metav1.GetOptions{},
 			)
 			assert.NoError(t, err)
 		}).
@@ -110,17 +109,17 @@ func TestPreDeleteHook(t *testing.T) {
 			deleted := false
 			for i := 0; i < 20; i++ {
 				hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(
-					context.Background(),
+					t.Context(),
 					metav1.ListOptions{},
 				)
 				require.NoError(t, err)
 
 				_, cmErr := KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Get(
-					context.Background(), "guestbook-ui", metav1.GetOptions{},
+					t.Context(), "guestbook-ui", metav1.GetOptions{},
 				)
 
 				if (len(hooks.Items) == 0 || (len(hooks.Items) == 1 && hooks.Items[0].Name != "hook")) &&
-					(cmErr != nil && k8serrors.IsNotFound(cmErr)) {
+					(cmErr != nil && apierrors.IsNotFound(cmErr)) {
 					deleted = true
 					break
 				}
