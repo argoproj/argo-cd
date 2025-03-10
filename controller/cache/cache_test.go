@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -142,7 +141,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
+	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{

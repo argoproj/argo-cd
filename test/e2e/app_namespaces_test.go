@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -50,7 +49,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			errors.NewHandler(t).FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(t.Context(),
 				ctx.AppName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
