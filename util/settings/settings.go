@@ -780,7 +780,7 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 
@@ -1035,7 +1035,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			continue
 		}
 
-		// config map key should be of format resource.customizations.<type>.<group-kind>
+		// config map key should be of format resource.customizations.<type>.<group_kind>
 		parts := strings.SplitN(k, ".", 4)
 		if len(parts) < 4 {
 			continue
@@ -1096,7 +1096,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 	return nil
 }
 
-// Convert group-kind format to <group/kind>, allowed key format examples
+// Convert group_kind format to <group/kind>, allowed key format examples
 // resource.customizations.health.cert-manager.io_Certificate
 // resource.customizations.health.Certificate
 func convertToOverrideKey(groupKind string) (string, error) {
@@ -1265,7 +1265,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return &settings, errs[0]
+		return &settings, errors.Join(errs...)
 	}
 
 	return &settings, nil
@@ -1534,7 +1534,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	}
 	settings.Secrets = secretValues
 	if len(errs) > 0 {
-		return errs[0]
+		return errors.Join(errs...)
 	}
 
 	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)

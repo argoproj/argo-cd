@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/stretchr/testify/require"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -33,5 +33,5 @@ func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions []func() error
 	for _, function := range functions {
 		eg.Go(function)
 	}
-	errors.CheckError(eg.Wait())
+	require.NoError(t, eg.Wait())
 }
