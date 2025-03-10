@@ -1241,6 +1241,7 @@ definitions:
     result = {}
     result[1] = impactedResource1
 
+    obj.metadata.labels = {}
     obj.metadata.labels["aKey"] = 'aValue'
     impactedResource2 = {}
     impactedResource2.operation = "patch"
