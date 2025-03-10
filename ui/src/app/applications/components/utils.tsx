@@ -50,7 +50,10 @@ export function helpTip(text: string) {
     );
 }
 
+//CLassic Solid circle-notch icon
+//<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 //this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
+
 export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
     return (
         <svg className='icon spin' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' style={{color}} qe-id={qeId}>
