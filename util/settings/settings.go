@@ -570,6 +570,9 @@ type SettingsManager struct {
 	reposCache            []Repository
 	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
+	// Add a cache for the TLS certificate and its resource version
+	tlsCertCache           *tls.Certificate
+	tlsCertResourceVersion string
 }
 
 type incompleteSettingsError struct {
@@ -1278,6 +1281,8 @@ func (mgr *SettingsManager) invalidateCache() {
 
 	mgr.reposCache = nil
 	mgr.repoCredsCache = nil
+	mgr.tlsCertCache = nil
+	mgr.tlsCertResourceVersion = ""
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
@@ -1552,21 +1557,35 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 // external secret, instead of tls.crt and tls.key in argocd-secret. If both
 // return values are nil, no external secret has been configured.
 func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	var cert tls.Certificate
+	if mgr.namespace == "" {
+		return nil, nil
+	}
+
+	// Get the secret
 	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
+		return nil, err
 	}
-	tlsCert, certOK := secret.Data[settingServerCertificate]
-	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+
+	// Check cache
+	if mgr.tlsCertCache != nil && mgr.tlsCertResourceVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
 	}
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
+
+	cert, err := tls.X509KeyPair(secret.Data[settingServerCertificate], secret.Data[settingServerPrivateKey])
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache certificate and resource version
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertResourceVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
