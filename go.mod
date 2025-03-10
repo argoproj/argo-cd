@@ -7,10 +7,10 @@ require (
 	dario.cat/mergo v1.0.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.2
-	github.com/Azure/kubelogin v0.1.6
+	github.com/Azure/kubelogin v0.1.8
 	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/TomOnTime/utfutil v0.0.0-20230223141146-125e65197b36
+	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250305152649-acb47d5407b6
 	github.com/argoproj/notifications-engine v0.4.1-0.20250305170439-f9a066a51080
