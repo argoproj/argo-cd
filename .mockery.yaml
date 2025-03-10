@@ -77,3 +77,6 @@ packages:
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer:
+  github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1:
+    interfaces:
+      AppProjectInterface:

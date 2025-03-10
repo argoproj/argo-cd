@@ -1,7 +1,6 @@
 package applicationsets
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -136,7 +135,7 @@ func pods(t *testing.T, namespace string) (*corev1.PodList, error) {
 	t.Helper()
 	fixtureClient := utils.GetE2EFixtureK8sClient(t)
 
-	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(t.Context(), metav1.ListOptions{})
 	return pods, err
 }
 

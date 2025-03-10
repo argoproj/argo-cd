@@ -1,7 +1,6 @@
 package clusterauth
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -83,7 +82,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -92,7 +91,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -101,7 +100,7 @@ func TestCreateServiceAccount(t *testing.T) {
 		cs := fake.NewClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(t.Context(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
@@ -215,7 +214,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 
 	// Verify service account references new secret and old secret is deleted
 	saClient := kubeclientset.CoreV1().ServiceAccounts(testClaims.Namespace)
-	sa, err := saClient.Get(context.Background(), testClaims.ServiceAccountName, metav1.GetOptions{})
+	sa, err := saClient.Get(t.Context(), testClaims.ServiceAccountName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, []corev1.ObjectReference{
 		{
@@ -223,7 +222,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 		},
 	}, sa.Secrets)
 	secretsClient := kubeclientset.CoreV1().Secrets(testClaims.Namespace)
-	_, err = secretsClient.Get(context.Background(), testClaims.SecretName, metav1.GetOptions{})
+	_, err = secretsClient.Get(t.Context(), testClaims.SecretName, metav1.GetOptions{})
 	assert.True(t, apierrors.IsNotFound(err))
 }
 

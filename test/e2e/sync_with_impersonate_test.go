@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -200,7 +199,7 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 			// Patch destination to disallow target destination namespace
 			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
 
-			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(context.Background(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
+			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(t.Context(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
 		}).
 		Refresh(v1alpha1.RefreshTypeNormal).
