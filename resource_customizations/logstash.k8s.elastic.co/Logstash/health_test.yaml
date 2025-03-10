@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Logstash status is Green"
+  inputPath: testdata/green.yaml
+- healthStatus:
+    status: Progressing
+    message: "Logstash status is Yellow"
+  inputPath: testdata/yellow.yaml
+- healthStatus:
+    status: Degraded
+    message: "Logstash status is Red"
+  inputPath: testdata/red.yaml
+- healthStatus:
+    status: Unknown
+    message: "Logstash status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+  inputPath: testdata/unknown.yaml
