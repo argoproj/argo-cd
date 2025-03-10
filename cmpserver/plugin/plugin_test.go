@@ -100,7 +100,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.ErrorContains(t, err, "syntax error")
@@ -145,7 +145,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -162,7 +162,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -179,7 +179,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		_, _, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.ErrorContains(t, err, "error finding glob match for pattern")
@@ -196,7 +196,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -215,7 +215,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
@@ -233,7 +233,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -253,7 +253,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -272,7 +272,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.Error(t, err)
@@ -285,7 +285,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, discovery, err := f.service.matchRepository(t.Context(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
@@ -308,7 +308,7 @@ func TestGenerateManifest(t *testing.T) {
 		service, err := newService(configFilePath)
 		require.NoError(t, err)
 
-		res1, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
+		res1, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
 		require.NoError(t, err)
 		require.NotNil(t, res1)
 
@@ -322,7 +322,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"bad-command"}})
 
-		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
+		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
 		require.ErrorContains(t, err, "executable file not found")
 		assert.Nil(t, res.Manifests)
 	})
@@ -331,7 +331,7 @@ func TestGenerateManifest(t *testing.T) {
 		require.NoError(t, err)
 		service.WithGenerateCommand(Command{Command: []string{"echo", "invalid yaml: }"}})
 
-		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
+		res, err := service.generateManifest(t.Context(), "testdata/kustomize", nil)
 		require.ErrorContains(t, err, "failed to unmarshal manifest")
 		assert.Nil(t, res.Manifests)
 	})
@@ -342,7 +342,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 	service, err := newService(configFilePath)
 	require.NoError(t, err)
 
-	expiredCtx, cancel := context.WithTimeout(context.Background(), time.Second*0)
+	expiredCtx, cancel := context.WithTimeout(t.Context(), time.Second*0)
 	defer cancel()
 	_, err = service.generateManifest(expiredCtx, "", nil)
 	require.ErrorContains(t, err, "context deadline exceeded")
@@ -350,7 +350,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 
 // TestRunCommandContextTimeout makes sure the command dies at timeout rather than sleeping past the timeout.
 func TestRunCommandContextTimeout(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 990*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 990*time.Millisecond)
 	defer cancel()
 	// Use a subshell so there's a child command.
 	command := Command{
@@ -365,13 +365,13 @@ func TestRunCommandContextTimeout(t *testing.T) {
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
-	_, err := runCommand(context.Background(), Command{}, "", nil)
+	_, err := runCommand(t.Context(), Command{}, "", nil)
 	require.ErrorContains(t, err, "Command is empty")
 }
 
 // TestRunCommandContextTimeoutWithCleanup makes sure that the process is given enough time to cleanup before sending SIGKILL.
 func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 900*time.Millisecond)
 	defer cancel()
 
 	// Use a subshell so there's a child command.
@@ -403,7 +403,7 @@ func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[]`},
 	}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -417,7 +417,7 @@ func Test_getParametersAnnouncement_no_command(t *testing.T) {
 	err := yaml.Unmarshal([]byte(staticYAML), static)
 	require.NoError(t, err)
 	command := Command{}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	assert.Equal(t, []*repoclient.ParameterAnnouncement{{Name: "static-a"}, {Name: "static-b"}}, res.ParameterAnnouncements)
 }
@@ -434,7 +434,7 @@ func Test_getParametersAnnouncement_static_and_dynamic(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[{"name": "dynamic-a"}, {"name": "dynamic-b"}]`},
 	}
-	res, err := getParametersAnnouncement(context.Background(), "", *static, command, []*apiclient.EnvEntry{})
+	res, err := getParametersAnnouncement(t.Context(), "", *static, command, []*apiclient.EnvEntry{})
 	require.NoError(t, err)
 	expected := []*repoclient.ParameterAnnouncement{
 		{Name: "dynamic-a"},
@@ -450,7 +450,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Command: []string{"echo"},
 		Args:    []string{`[`},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
+	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
 	assert.ErrorContains(t, err, "unexpected end of JSON input")
 }
 
@@ -459,7 +459,7 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Command: []string{"exit"},
 		Args:    []string{"1"},
 	}
-	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
+	_, err := getParametersAnnouncement(t.Context(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
 	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
 }
 
@@ -514,19 +514,20 @@ func TestEnviron(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{})
 		assert.Nil(t, env)
 	})
-	t.Run("env vars with empty names or values", func(t *testing.T) {
+	t.Run("env vars with empty names", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Value: "test"},
 			{Name: "test"},
 		})
-		assert.Nil(t, env)
+		assert.Equal(t, []string{"test="}, env)
 	})
 	t.Run("proper env vars", func(t *testing.T) {
 		env := environ([]*apiclient.EnvEntry{
 			{Name: "name1", Value: "value1"},
 			{Name: "name2", Value: "value2"},
+			{Name: "name3", Value: ""},
 		})
-		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
+		assert.Equal(t, []string{"name1=value1", "name2=value2", "name3="}, env)
 	})
 }
 
@@ -867,7 +868,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
 
 		// then
 		require.NoError(t, err)
@@ -880,7 +881,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
 
 		// then
 		require.NoError(t, err)

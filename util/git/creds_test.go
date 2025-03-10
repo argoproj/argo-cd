@@ -1,7 +1,6 @@
 package git
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -445,7 +444,7 @@ func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 
-	user, email, err := creds.GetUserInfo(context.Background())
+	user, email, err := creds.GetUserInfo(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, workloadidentity.EmptyGuid, user)
 	assert.Equal(t, "", email)

@@ -166,6 +166,17 @@ hydrator will not be able to use a project-scoped push secret and will require a
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
 currently support credential templates. You will need a separate credential for each repository.
 
+### `manifest-generate-paths` Annotation Support
+
+The source hydrator does not currently support the [manifest-generate-paths annotation](../operator-manual/high_availability.md#manifest-paths-annotation) 
+for work avoidance on hydration of dry commits. In other words, the source hydrator is not able to skip hydration of dry 
+commits that have not changed relevant files.
+
+The application controller _does_ honor the `manifest-generate-paths` annotation when syncing the hydrated manifests.
+So if your application hydrates to the `foo` directory, and the `manifest-generate-paths` annotation is set to `foo`, 
+then the application controller will not re-hydrate the manifests after a commit that only affects files in the `bar`
+directory.
+
 ## Prerequisites
 
 ### Handle Secrets on the Destination Cluster

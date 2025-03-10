@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -142,7 +141,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
+	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
@@ -730,4 +729,18 @@ func TestShouldHashManifest(t *testing.T) {
 			require.Equalf(t, test.want, got, "test=%v", test.name)
 		})
 	}
+}
+
+func Test_GetVersionsInfo_error_redacted(t *testing.T) {
+	c := liveStateCache{}
+	cluster := &appv1.Cluster{
+		Server: "https://localhost:1234",
+		Config: appv1.ClusterConfig{
+			Username: "admin",
+			Password: "password",
+		},
+	}
+	_, _, err := c.GetVersionsInfo(cluster)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "password")
 }
