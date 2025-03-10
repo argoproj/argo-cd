@@ -121,7 +121,7 @@ data:
             {{- end }}
           {{- end }}
   trigger.on-deployed-trigger: |
-    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status in ['Healthy', 'Degraded']
+    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
     oncePer: app.status.sync.revision
     send: [on-deployed-template]
 ```
