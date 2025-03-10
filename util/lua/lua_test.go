@@ -754,15 +754,69 @@ obj.spec.paused = false
 return obj
 `
 
+const objWithSingleEntryMap = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  labels:
+    app: test
+spec:
+  containers:
+  - name: sample-container
+    image: nginx
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - test
+        topologyKey: kubernetes.io/hostname
+`
+
+const expectedUpdatedObjWithSingleEntryMap = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test
+  labels:
+    app: test
+spec:
+  containers:
+  - name: sample-container
+    image: nginx
+  affinity: {}
+`
+
+const removePodAntiAffinityLua = `
+obj.spec.affinity.podAntiAffinity = nil
+return obj
+`
+
 func TestCleanPatch(t *testing.T) {
-	testObj := StrToUnstructured(objWithEmptyStruct)
-	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
-	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
-	require.NoError(t, err)
-	assert.Len(t, newObjects, 1)
-	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
-	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	t.Run("Set paused to false", func(t *testing.T) {
+		testObj := StrToUnstructured(objWithEmptyStruct)
+		expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
+		vm := VM{}
+		newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+		require.NoError(t, err)
+		assert.Len(t, newObjects, 1)
+		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+		assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	})
+	t.Run("Remove podAntiAffinity", func(t *testing.T) {
+		testObj := StrToUnstructured(objWithSingleEntryMap)
+		expectedObj := StrToUnstructured(expectedUpdatedObjWithSingleEntryMap)
+		vm := VM{}
+		newObjects, err := vm.ExecuteResourceAction(testObj, removePodAntiAffinityLua)
+		require.NoError(t, err)
+		assert.Len(t, newObjects, 1)
+		assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+		assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+	})
 }
 
 func TestGetResourceHealth(t *testing.T) {
