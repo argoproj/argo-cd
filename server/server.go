@@ -1130,7 +1130,7 @@ func withRootPath(handler http.Handler, a *ArgoCDServer) http.Handler {
 	}
 
 	// get rid of slashes
-	root := strings.TrimRight(strings.TrimLeft(a.RootPath, "/"), "/")
+	root := strings.Trim(a.RootPath, "/")
 
 	mux := http.NewServeMux()
 	mux.Handle("/"+root+"/", http.StripPrefix("/"+root, handler))
@@ -1351,23 +1351,28 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 	if rootPath == "" {
 		addr = fmt.Sprintf("localhost:%d", port)
 	} else {
-		addr = fmt.Sprintf("localhost:%d/%s", port, strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/"))
+		addr = fmt.Sprintf("localhost:%d/%s", port, strings.Trim(rootPath, "/"))
 	}
 
 	return &http.Server{
 		Addr: addr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			target := "https://" + req.Host
-			if rootPath != "" {
-				root := strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
-				target += "/" + root
 
-				// Check if the request path already contains rootPath
-				// If so, remove rootPath from the request path
+			if rootPath != "" {
+				root := strings.Trim(rootPath, "/")
 				prefix := "/" + root
-				req.URL.Path = strings.TrimPrefix(req.URL.Path, prefix)
+
+				// If the request path already starts with rootPath, no need to add rootPath again
+				if strings.HasPrefix(req.URL.Path, prefix) {
+					target += req.URL.Path
+				} else {
+					target += prefix + req.URL.Path
+				}
+			} else {
+				target += req.URL.Path
 			}
-			target += req.URL.Path
+
 			if len(req.URL.RawQuery) > 0 {
 				target += "?" + req.URL.RawQuery
 			}
