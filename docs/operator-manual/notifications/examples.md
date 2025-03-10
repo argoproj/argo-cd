@@ -31,7 +31,7 @@ data:
     send: [on-deployed-template]
 ```
 
-This, as explained in the [triggers section](triggers/#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy or degraded. We then need to create a subscription for the webhook integration:
+This, as explained in the [triggers section](triggers/#avoid-sending-same-notification-too-often), will generate a notification when the app is synced and healthy. We then need to create a subscription for the webhook integration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
