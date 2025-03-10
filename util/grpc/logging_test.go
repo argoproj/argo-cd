@@ -23,7 +23,7 @@ func Test_JSONLogging(t *testing.T) {
 	l.SetOutput(&buf)
 	entry := logrus.NewEntry(l)
 
-	c := context.Background()
+	c := t.Context()
 	req := new(account.CreateTokenRequest)
 	req.Name = "create-token-name"
 	info := &grpc.UnaryServerInfo{}
@@ -42,7 +42,7 @@ func Test_JSONLogging(t *testing.T) {
 }
 
 func Test_logRequest(t *testing.T) {
-	c := context.Background()
+	c := t.Context()
 	//nolint:staticcheck
 	c = context.WithValue(c, "claims", jwt.MapClaims{"groups": []string{"expected-group-claim"}})
 	req := new(account.CreateTokenRequest)

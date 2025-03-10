@@ -29,7 +29,7 @@ func TestPolicyInformer(t *testing.T) {
 	kubeclientset := fake.NewClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 
-	ctx := context.Background()
+	ctx := t.Context()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go enf.runInformer(ctx, func(_ *corev1.ConfigMap) error {

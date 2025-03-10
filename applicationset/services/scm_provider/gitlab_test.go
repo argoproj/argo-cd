@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -1152,7 +1151,7 @@ func TestGitlabListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -1235,7 +1234,7 @@ func TestGitlabHasPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
+			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
@@ -1253,7 +1252,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
-		repos, err := host.GetBranches(context.Background(), repo)
+		repos, err := host.GetBranches(t.Context(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
 	})
@@ -1263,7 +1262,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
-		_, err := host.GetBranches(context.Background(), repo2)
+		_, err := host.GetBranches(t.Context(), repo2)
 		require.NoError(t, err)
 	})
 }
@@ -1329,7 +1328,7 @@ func TestGetBranchesTLS(t *testing.T) {
 				RepositoryId: 27084533,
 				Branch:       "master",
 			}
-			_, err = host.GetBranches(context.Background(), repo)
+			_, err = host.GetBranches(t.Context(), repo)
 			if test.requireErr {
 				require.Error(t, err)
 			} else {
