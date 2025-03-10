@@ -53,11 +53,11 @@ func (c *Context) Path(path string) *Context {
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey()
+	gpgkeys.AddGPGPublicKey(c.t)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(project string) *Context {
-	repos.AddHTTPSRepo(true, true, project, fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(c.t, true, true, project, fixture.RepoURLTypeHTTPS)
 	return c
 }
