@@ -15,7 +15,7 @@ interface Props {
     application: models.Application;
     operationState: models.OperationState;
 }
-const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
+const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.namespace || ''}-${res.name}`;
 const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
@@ -158,13 +158,20 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
     const resourceHealth = application.status.resources.reduce(
         (acc, res) => {
-            if (res.health) {
-                acc[buildResourceUniqueId(res)] = res.health;
-            }
+            acc[buildResourceUniqueId(res)] = {
+                health: res.health,
+                syncWave: res.syncWave
+            };
 
             return acc;
         },
-        {} as Record<string, models.HealthStatus>
+        {} as Record<
+            string,
+            {
+                health: models.HealthStatus;
+                syncWave: number;
+            }
+        >
     );
 
     const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map(syncResultItem => {
@@ -176,9 +183,11 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             ...syncResultItem
         };
 
-        if (healthStatus) {
-            syncResultWithHealth.health = healthStatus;
+        if (healthStatus?.health) {
+            syncResultWithHealth.health = healthStatus.health;
         }
+
+        syncResultWithHealth.syncWave = healthStatus?.syncWave;
 
         return syncResultWithHealth;
     });
@@ -242,7 +251,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
-                                <div className='columns large-2 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
                                 <div className='columns large-1 show-for-large'>NAMESPACE</div>
                                 <div className='columns large-2 small-2'>NAME</div>
                                 <div className='columns large-1 small-2'>STATUS</div>
@@ -255,10 +265,13 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             filtered.map((resource, i) => (
                                 <div className='argo-table-list__row' key={i}>
                                     <div className='row'>
-                                        <div className='columns large-2 show-for-large application-operation-state__icons_container_padding'>
+                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
+                                            {resource.syncWave || '0'}
+                                        </div>
+                                        <div className='columns large-1 show-for-large'>
                                             <span title={getKind(resource)}>{getKind(resource)}</span>
                                         </div>
                                         <div className='columns large-1 show-for-large' title={resource.namespace}>
