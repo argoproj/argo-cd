@@ -602,6 +602,24 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
+func TestAutoSyncEnabledSetToTrue(t *testing.T) {
+	app := newFakeApp()
+	enable := true
+	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enable: &enable}
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:   v1alpha1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	assert.Nil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.NotNil(t, app.Operation)
+	assert.NotNil(t, app.Operation.Sync)
+	assert.False(t, app.Operation.Sync.Prune)
+}
+
 func TestMultiSourceSelfHeal(t *testing.T) {
 	// Simulate OutOfSync caused by object change in cluster
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
@@ -707,6 +725,23 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
+	// Verify we skip when auto-sync is disabled
+	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
+		app := newFakeApp()
+		enable := true
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enable: &enable}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
