@@ -115,10 +115,9 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		And(func(_ *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
 			require.NoError(t, err)
-			assert.Contains(t, out, fmt.Sprintf(`labels:
-    app: nginx
-    app.kubernetes.io/instance: %s
-`, ctx.AppName()))
+			assert.Contains(t, out, fmt.Sprintf(`annotations:
+    argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
+`, ctx.AppName(), DeploymentNamespace()))
 		})
 }
 

@@ -544,8 +544,9 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 				"--key-file", "../fixture/certs/argocd-test-client.key",
 				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
 			))
-			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")
 			assert.Empty(t, diffOutput)
+			assert.NoError(t, err)
 		})
 }
 
