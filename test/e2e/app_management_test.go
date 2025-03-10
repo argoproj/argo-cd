@@ -2670,6 +2670,7 @@ func TestSwitchTrackingMethod(t *testing.T) {
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
+	require.NoError(t, fixture.SetTrackingMethod(string(argo.TrackingMethodLabel)))
 	ctx.
 		Path("deployment").
 		When().
