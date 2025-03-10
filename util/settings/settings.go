@@ -513,8 +513,6 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
 	inClusterEnabledKey = "cluster.inClusterEnabled"
-	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
-	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -782,7 +780,7 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 
@@ -850,19 +848,6 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 		return common.PasswordPatten, nil
 	}
 	return label, nil
-}
-
-func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return false, err
-	}
-
-	if argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "" {
-		return false, nil
-	}
-
-	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (bool, error) {
@@ -1050,7 +1035,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			continue
 		}
 
-		// config map key should be of format resource.customizations.<type>.<group-kind>
+		// config map key should be of format resource.customizations.<type>.<group_kind>
 		parts := strings.SplitN(k, ".", 4)
 		if len(parts) < 4 {
 			continue
@@ -1111,7 +1096,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 	return nil
 }
 
-// Convert group-kind format to <group/kind>, allowed key format examples
+// Convert group_kind format to <group/kind>, allowed key format examples
 // resource.customizations.health.cert-manager.io_Certificate
 // resource.customizations.health.Certificate
 func convertToOverrideKey(groupKind string) (string, error) {
@@ -1280,7 +1265,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return &settings, errs[0]
+		return &settings, errors.Join(errs...)
 	}
 
 	return &settings, nil
@@ -1424,7 +1409,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
-	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
@@ -1550,7 +1534,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	}
 	settings.Secrets = secretValues
 	if len(errs) > 0 {
-		return errs[0]
+		return errors.Join(errs...)
 	}
 
 	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
