@@ -895,17 +895,12 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}
 
 	clusters, err := ctrl.db.ListClusters(ctx)
-	if err != nil {
-		log.Warnf("Cannot init sharding. Error while querying clusters list from database: %v", err)
-	} else {
-		appItems, err := ctrl.getAppList(metav1.ListOptions{})
+	errors.CheckError(err)
 
-		if err != nil {
-			log.Warnf("Cannot init sharding. Error while querying application list from database: %v", err)
-		} else {
-			ctrl.clusterSharding.Init(clusters, appItems)
-		}
-	}
+	appItems, err := ctrl.getAppList(metav1.ListOptions{})
+	errors.CheckError(err)
+
+	ctrl.clusterSharding.Init(clusters, appItems)
 
 	errors.CheckError(ctrl.stateCache.Init())
 
