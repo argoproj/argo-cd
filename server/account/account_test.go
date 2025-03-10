@@ -309,26 +309,49 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 	assert.Empty(t, acc.Tokens)
 }
 
-func TestCanI_GetLogsAllow(t *testing.T) {
-	accountServer, _ := newTestAccountServer(t, t.Context(), func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+func TestCanI_GetLogsAllowNoSwitch(t *testing.T) {
+	ctx := projTokenContext(t.Context())
+	accountServer, _ := newTestAccountServer(t, ctx, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
 	})
 
-	ctx := projTokenContext(t.Context())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
 	require.NoError(t, err)
 	assert.EqualValues(t, "yes", resp.Value)
 }
 
-func TestCanI_GetLogsDeny(t *testing.T) {
+func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 	enforcer := func(_ jwt.Claims, _ ...any) bool {
 		return false
 	}
+	ctx := projTokenContext(t.Context())
 
-	accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+	accountServer, _ := newTestAccountServerExt(t, ctx, enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
 
-	ctx := projTokenContext(t.Context())
 	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: "*/*"})
 	require.NoError(t, err)
 	assert.EqualValues(t, "no", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
+	ctx := projTokenContext(context.Background())
+	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "true"
+	})
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	require.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
+}
+
+func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
+	ctx := projTokenContext(context.Background())
+	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+		cm.Data["server.rbac.log.enforce.enable"] = "false"
+	})
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "logs", Action: "get", Subresource: ""})
+	require.NoError(t, err)
+	assert.EqualValues(t, "yes", resp.Value)
 }
