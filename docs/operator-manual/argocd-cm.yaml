@@ -88,8 +88,8 @@ data:
 
   # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
-  # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
-  # resource.customizations.ignoreResourceUpdates.<group-kind>
+  # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
+  # resource.customizations.ignoreResourceUpdates.<group_kind>
   resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
     jsonPointers:
     - /webhooks/0/clientConfig/caBundle
@@ -133,7 +133,7 @@ data:
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1metrics
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1current-metrics
 
-  resource.customizations.health.certmanager.k8s.io-Certificate: |
+  resource.customizations.health.certmanager.k8s.io_Certificate: |
     hs = {}
     if obj.status ~= nil then
       if obj.status.conditions ~= nil then
@@ -237,16 +237,15 @@ data:
   # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
   resource.excludeEventLabelKeys: environment,bu
 
-
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
 
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions (default)
-    # 'all' - all resources
+    # 'crd' - CustomResourceDefinitions 
+    # 'all' - all resources (default)
     # 'none' - disabled
-    ignoreResourceStatusField: crd
+    ignoreResourceStatusField: all
 
   # configuration to instruct controller to only watch for resources that it has permissions to list
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.

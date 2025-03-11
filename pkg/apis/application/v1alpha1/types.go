@@ -465,6 +465,13 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
+type HydrateType string
+
+const (
+	// HydrateTypeNormal is a normal hydration
+	HydrateTypeNormal HydrateType = "normal"
+)
+
 type RefTarget struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
@@ -664,6 +671,8 @@ type ApplicationSourceKustomize struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
+	// LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+	LabelIncludeTemplates bool `json:"labelIncludeTemplates,omitempty" protobuf:"bytes,18,opt,name=labelIncludeTemplates"`
 }
 
 type KustomizeReplica struct {
@@ -3123,7 +3132,7 @@ func (app *Application) IsHydrateRequested() bool {
 	if !ok {
 		return false
 	}
-	if typeStr == "normal" {
+	if typeStr == string(HydrateTypeNormal) {
 		return true
 	}
 	return false

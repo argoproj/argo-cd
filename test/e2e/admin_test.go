@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -71,9 +70,9 @@ func TestBackupExportImport(t *testing.T) {
 		Then().
 		AndCLIOutput(func(_ string, err error) {
 			require.NoError(t, err, "import finished with error")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), "exported-app1", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), "exported-app1", metav1.GetOptions{})
 			require.NoError(t, err, "failed getting test namespace application after import")
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(context.Background(), "exported-app-other-namespace", metav1.GetOptions{})
+			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(t.Context(), "exported-app-other-namespace", metav1.GetOptions{})
 			require.NoError(t, err, "failed getting app namespace application after import")
 		})
 }
