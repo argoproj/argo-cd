@@ -38,7 +38,7 @@ func TestCreateAndUseAccount(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
+func TestCanIGetLogsDenyNoSwitch(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
@@ -48,7 +48,7 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
+			assert.Contains(t, output, "no")
 		})
 }
 
