@@ -741,7 +741,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return nil
 		},
 		func() error {
-			_, _ = Run("", "kubectl", "get", "crd")
+			_, _ = Run("", "kubectl", "get", "crd", "-o", "json")
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=true")
 			return err
