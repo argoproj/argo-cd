@@ -2,7 +2,5 @@ apiVersion: stable.example.com/v1
 kind: CronTab
 metadata:
   name: {{ .Release.Name }}-inst
-  labels:
-    e2e.argoproj.io: "true"
 spec:
   cronSpec: "* * * * */5"
