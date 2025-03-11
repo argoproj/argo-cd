@@ -22,7 +22,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1433,13 +1432,13 @@ type SyncPolicy struct {
 }
 
 // IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
-func (p *SyncPolicy) IsAutomatedSyncEnabled() *bool {
+func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	var isEnabled bool
 
 	if p.Automated != nil && (p.Automated.Enable == nil || *p.Automated.Enable) {
 		isEnabled = true
 	}
-	return &isEnabled
+	return isEnabled
 }
 
 // IsZero returns true if the sync policy is empty
