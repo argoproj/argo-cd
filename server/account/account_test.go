@@ -335,7 +335,7 @@ func TestCanI_GetLogsDenySwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
-	ctx := projTokenContext(t.context())
+	ctx := projTokenContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "true"
 	})
@@ -346,7 +346,7 @@ func TestCanI_GetLogsAllowSwitchOn(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
-	ctx := projTokenContext(t.context())
+	ctx := projTokenContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["server.rbac.log.enforce.enable"] = "false"
 	})
