@@ -12865,6 +12865,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                               scmProvider:
                                 properties:
@@ -18679,6 +18683,10 @@ spec:
                                     - metadata
                                     - spec
                                     type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
+                                    type: object
                                 type: object
                               scmProvider:
                                 properties:
@@ -21792,6 +21800,10 @@ spec:
                           - metadata
                           - spec
                           type: object
+                        values:
+                          additionalProperties:
+                            type: string
+                          type: object
                       type: object
                     scmProvider:
                       properties:
@@ -24557,6 +24569,66 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
+data:
+  resource.exclusions: |
+    ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+    - apiGroups:
+      - ''
+      - discovery.k8s.io
+      kinds:
+      - Endpoints
+      - EndpointSlice
+    ### Internal Kubernetes resources excluded reduce the number of watched events
+    - apiGroups:
+      - apiregistration.k8s.io
+      kinds:
+      - APIService
+    - apiGroups:
+      - coordination.k8s.io
+      kinds:
+      - Lease
+    ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+    - apiGroups:
+      - authentication.k8s.io
+      - authorization.k8s.io
+      kinds:
+      - SelfSubjectReview
+      - TokenReview
+      - LocalSubjectAccessReview
+      - SelfSubjectAccessReview
+      - SelfSubjectRulesReview
+      - SubjectAccessReview
+    ### Intermediate Certificate Request excluded reduce the number of watched events
+    - apiGroups:
+      - certificates.k8s.io
+      kinds:
+      - CertificateSigningRequest
+    - apiGroups:
+      - cert-manager.io
+      kinds:
+      - CertificateRequest
+    ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+    - apiGroups:
+      - cilium.io
+      kinds:
+      - CiliumIdentity
+      - CiliumEndpoint
+      - CiliumEndpointSlice
+    ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+    - apiGroups:
+      - kyverno.io
+      - reports.kyverno.io
+      - wgpolicyk8s.io
+      kinds:
+      - PolicyReport
+      - ClusterPolicyReport
+      - EphemeralReport
+      - ClusterEphemeralReport
+      - AdmissionReport
+      - ClusterAdmissionReport
+      - BackgroundScanReport
+      - ClusterBackgroundScanReport
+      - UpdateRequest
 kind: ConfigMap
 metadata:
   labels:
