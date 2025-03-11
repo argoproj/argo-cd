@@ -1233,7 +1233,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			return true, &v1alpha1.AppProject{}, nil
 		})
 
-		err = ctrl.finalizeApplicationDeletion(defaultProjectApp, func(project string) ([]*v1alpha1.Cluster, error) {
+		err = ctrl.finalizeApplicationDeletion(defaultProjectApp, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1292,7 +1292,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			return true, &v1alpha1.AppProject{}, nil
 		})
 
-		err = ctrl.finalizeApplicationDeletion(defaultProjectApp, func(project string) ([]*v1alpha1.Cluster, error) {
+		err = ctrl.finalizeApplicationDeletion(defaultProjectApp, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
