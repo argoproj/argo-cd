@@ -156,8 +156,8 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		// The Application should update to the new annotated tag value within 10 seconds.
 		And(func() {
 			// Deployment revisionHistoryLimit should switch to 10
-			timeoutErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			timeoutErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
+				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
@@ -169,14 +169,14 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		}).
 		// Update the Deployment to a different revisionHistoryLimit
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 9}}`), metav1.PatchOptions{}))
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false. It should remain at 9.
 		And(func() {
 			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
-			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
+				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
@@ -209,8 +209,8 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		// The Application should update to the new annotated tag value within 10 seconds.
 		And(func() {
 			// Deployment revisionHistoryLimit should switch to 10
-			timeoutErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			timeoutErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
+				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
@@ -222,14 +222,14 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		}).
 		// Update the Deployment to a different revisionHistoryLimit
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(context.Background(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 9}}`), metav1.PatchOptions{}))
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false
 		And(func() {
 			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
-			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			waitErr := wait.PollUntilContextTimeout(t.Context(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
+				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
