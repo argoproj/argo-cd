@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
@@ -1464,7 +1463,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 	r := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 	})
-	all := r.FlushAll(context.Background())
+	all := r.FlushAll(t.Context())
 	require.NoError(t, all.Err())
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
