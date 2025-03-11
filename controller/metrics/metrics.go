@@ -412,7 +412,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
+	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
 	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
