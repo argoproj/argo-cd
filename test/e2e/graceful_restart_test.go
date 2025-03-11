@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -50,7 +49,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 		defer closer.Close()
 	}
 	require.NoError(t, err)
-	settings, err := settingsClient.Get(context.Background(), &settings.SettingsQuery{})
+	settings, err := settingsClient.Get(t.Context(), &settings.SettingsQuery{})
 	require.NoError(t, err)
 	require.Equal(t, "http://test-api-server-graceful-restart", settings.URL)
 }

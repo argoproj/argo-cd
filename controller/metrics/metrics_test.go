@@ -258,7 +258,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
-		collector := NewClusterCollector(context.Background(), ci, cfg.ClusterLister, cfg.ClusterLabels)
+		collector := NewClusterCollector(t.Context(), ci, cfg.ClusterLister, cfg.ClusterLabels)
 		metricsServ.registry.MustRegister(collector)
 	}
 

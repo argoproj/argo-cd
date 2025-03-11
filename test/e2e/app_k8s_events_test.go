@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -29,7 +28,7 @@ func TestLabelsOnAppK8sEvents(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
+			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(t.Context(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
 			require.NoError(t, err)
@@ -54,7 +53,7 @@ func TestNoLabelsOnAppK8sEvents(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
+			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(t.Context(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
 			require.NoError(t, err)
