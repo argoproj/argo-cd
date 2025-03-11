@@ -241,7 +241,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	// ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(t.Context())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -3397,7 +3397,7 @@ func Test_DeepCopyInformers(t *testing.T) {
 
 	s := newTestAppServer(t, ro...)
 
-	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
+	appList, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, appls, appList.Items)
 	sAppList := appList.Items
@@ -3411,12 +3411,12 @@ func Test_DeepCopyInformers(t *testing.T) {
 	for i := range appls {
 		assert.NotSame(t, &appls[i], &sAppList[i])
 		assert.NotSame(t, &appls[i].Spec, &sAppList[i].Spec)
-		a, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).Get(context.Background(), sAppList[i].Name, metav1.GetOptions{})
+		a, err := s.appclientset.ArgoprojV1alpha1().Applications(namespace).Get(t.Context(), sAppList[i].Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotSame(t, a, &sAppList[i])
 	}
 
-	appSetList, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).List(context.Background(), metav1.ListOptions{})
+	appSetList, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, appSets, appSetList.Items)
 	sAppSetList := appSetList.Items
@@ -3429,13 +3429,13 @@ func Test_DeepCopyInformers(t *testing.T) {
 	for i := range appSets {
 		assert.NotSame(t, &appSets[i], &sAppSetList[i])
 		assert.NotSame(t, &appSets[i].Spec, &sAppSetList[i].Spec)
-		a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(context.Background(),
+		a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(t.Context(),
 			sAppSetList[i].Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotSame(t, a, &sAppSetList[i])
 	}
 
-	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").List(context.Background(), metav1.ListOptions{})
+	projList, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, appProjects, projList.Items)
 	spList := projList.Items
@@ -3448,7 +3448,7 @@ func Test_DeepCopyInformers(t *testing.T) {
 	for i := range appProjects {
 		assert.NotSame(t, &appProjects[i], &spList[i])
 		assert.NotSame(t, &appProjects[i].Spec, &spList[i].Spec)
-		p, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").Get(context.Background(),
+		p, err := s.appclientset.ArgoprojV1alpha1().AppProjects("deep-copy-ns").Get(t.Context(),
 			spList[i].Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotSame(t, p, &spList[i])

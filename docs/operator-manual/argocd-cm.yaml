@@ -237,16 +237,15 @@ data:
   # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
   resource.excludeEventLabelKeys: environment,bu
 
-
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
 
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions (default)
-    # 'all' - all resources
+    # 'crd' - CustomResourceDefinitions 
+    # 'all' - all resources (default)
     # 'none' - disabled
-    ignoreResourceStatusField: crd
+    ignoreResourceStatusField: all
 
   # configuration to instruct controller to only watch for resources that it has permissions to list
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
