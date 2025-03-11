@@ -218,11 +218,11 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	assert.Equal(t, "testLabel", label)
 }
 
-func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
+func TestGetServerRBACLogEnforceEnableKeyDefaultTrue(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	serverRBACLogEnforceEnable, err := settingsManager.GetServerRBACLogEnforceEnable()
 	require.NoError(t, err)
-	assert.False(t, serverRBACLogEnforceEnable)
+	assert.True(t, serverRBACLogEnforceEnable)
 }
 
 func TestGetServerRBACLogEnforceEnableKey(t *testing.T) {
