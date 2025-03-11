@@ -107,7 +107,7 @@ require (
 	k8s.io/client-go v0.32.2
 	k8s.io/code-generator v0.32.2
 	k8s.io/klog/v2 v2.130.1
-	k8s.io/kube-openapi v0.0.0-20241212222426-2c72e554b1e7
+	k8s.io/kube-openapi v0.0.0-20250304201544-e5f78fe3ede9
 	k8s.io/kubectl v0.32.2
 	k8s.io/utils v0.0.0-20241210054802-24370beab758
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
@@ -287,9 +287,11 @@ require (
 	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kustomize/api v0.18.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.18.1 // indirect
+	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20250311160727-70181af58e7f
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
