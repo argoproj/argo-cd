@@ -13,6 +13,9 @@ redis-ha:
     enabled: true
     IPv6:
       enabled: false
+    deploymentStrategy:
+      rollingUpdate:
+        maxUnavailable: 1 # to avoid deadlock with default 3 replicas on 3-node deployment & pod anti-affinity rules
     image:
       tag: 3.0.8-alpine
     timeout:
