@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.23.5'
+  GOLANG_VERSION: '1.24.1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -412,8 +412,6 @@ jobs:
           - version: v1.30.4
             latest: false
           - version: v1.29.8
-            latest: false
-          - version: v1.28.13
             latest: false
     needs:
       - build-go

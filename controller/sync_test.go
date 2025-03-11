@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -54,7 +53,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	require.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
@@ -143,7 +142,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)

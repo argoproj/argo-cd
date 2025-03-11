@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"testing"
@@ -90,7 +89,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var (
-				ctx          = context.TODO()
+				ctx          = t.Context()
 				kubeClient   = kubefake.NewClientset()
 				redisOptions = &redis.Options{}
 			)

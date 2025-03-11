@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -230,7 +229,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
-			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
+			set := argosettings.NewSettingsManager(t.Context(), fakeClient, namespace)
 			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
 			require.NoError(t, err)
 
@@ -247,7 +246,7 @@ func TestWebhookHandler(t *testing.T) {
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
-			err = fc.List(context.TODO(), list)
+			err = fc.List(t.Context(), list)
 			require.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
 			for _, appSetName := range test.effectedAppSets {

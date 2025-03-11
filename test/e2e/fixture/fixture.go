@@ -19,6 +19,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -647,49 +648,49 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{})
 		},
 		func() error {
 			// kubectl delete appprojects --field-selector metadata.name!=default
 			return AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{FieldSelector: "metadata.name!=default"})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
 		},
 		func() error {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
-				context.Background(),
+				t.Context(),
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
@@ -699,7 +700,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		func() error {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
-				context.Background(),
+				t.Context(),
 				metav1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
 					FieldSelector: "status.phase=Active",
@@ -719,7 +720,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(t.Context(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -747,7 +748,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		func() error {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-				context.Background(),
+				t.Context(),
 				metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
 				},
@@ -766,7 +767,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 			}
 
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), metav1.ListOptions{})
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(t.Context(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -788,7 +789,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), metav1.ListOptions{})
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(t.Context(), metav1.ListOptions{})
 			if err != nil {
 				return err
 			}
@@ -856,7 +857,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 
 			// Create separate project for testing gpg signature verification
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
-				context.Background(),
+				t.Context(),
 				&v1alpha1.AppProject{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "gpg",
@@ -1040,30 +1041,30 @@ func Patch(t *testing.T, path string, jsonPatch string) {
 
 	filename := filepath.Join(repoDirectory(), path)
 	bytes, err := os.ReadFile(filename)
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	patch, err := jsonpatch.DecodePatch([]byte(jsonPatch))
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	isYaml := strings.HasSuffix(filename, ".yaml")
 	if isYaml {
 		log.Info("converting YAML to JSON")
 		bytes, err = yaml.YAMLToJSON(bytes)
-		errors.CheckError(err)
+		require.NoError(t, err)
 	}
 
 	log.WithFields(log.Fields{"bytes": string(bytes)}).Info("JSON")
 
 	bytes, err = patch.Apply(bytes)
-	errors.CheckError(err)
+	require.NoError(t, err)
 
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
-		errors.CheckError(err)
+		require.NoError(t, err)
 	}
 
-	errors.CheckError(os.WriteFile(filename, bytes, 0o644))
+	require.NoError(t, os.WriteFile(filename, bytes, 0o644))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -1075,7 +1076,7 @@ func Delete(t *testing.T, path string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	errors.CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+	require.NoError(t, os.Remove(filepath.Join(repoDirectory(), path)))
 
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
@@ -1084,15 +1085,16 @@ func Delete(t *testing.T, path string) {
 	}
 }
 
-func WriteFile(path, contents string) {
+func WriteFile(t *testing.T, path, contents string) {
+	t.Helper()
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	errors.CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(t *testing.T, path, contents string) {
 	t.Helper()
-	WriteFile(path, contents)
+	WriteFile(t, path, contents)
 
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
@@ -1105,7 +1107,7 @@ func AddFile(t *testing.T, path, contents string) {
 
 func AddSignedFile(t *testing.T, path, contents string) {
 	t.Helper()
-	WriteFile(path, contents)
+	WriteFile(t, path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
@@ -1141,14 +1143,15 @@ func AddTag(t *testing.T, name string) {
 }
 
 // create the resource by creating using "kubectl apply", with bonus templating
-func Declarative(filename string, values any) (string, error) {
+func Declarative(t *testing.T, filename string, values any) (string, error) {
+	t.Helper()
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
-	errors.CheckError(err)
+	require.NoError(t, err)
 
-	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
-	_, err = tmpFile.WriteString(Tmpl(string(bytes), values))
-	errors.CheckError(err)
+	tmpFile, err := os.CreateTemp(t.TempDir(), "")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(Tmpl(t, string(bytes), values))
+	require.NoError(t, err)
 	defer tmpFile.Close()
 	return Run("", "kubectl", "-n", TestNamespace(), "apply", "-f", tmpFile.Name())
 }

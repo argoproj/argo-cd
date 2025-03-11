@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -94,7 +93,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 				SHA:          c.sha,
 				Branch:       "main",
 			}
-			hasPath, err := provider.RepoHasPath(context.Background(), repo, c.path)
+			hasPath, err := provider.RepoHasPath(t.Context(), repo, c.path)
 			if err != nil {
 				require.Error(t, fmt.Errorf("Error in test %w", err))
 			}
@@ -488,7 +487,7 @@ func TestBitbucketListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewBitBucketCloudProvider(c.owner, "user", "password", c.allBranches)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
