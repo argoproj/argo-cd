@@ -1518,6 +1518,9 @@ message PullRequestGenerator {
 
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 10;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
