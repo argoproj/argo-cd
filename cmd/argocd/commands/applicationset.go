@@ -460,7 +460,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		syncPolicyStr string
 		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
 	)
-	if syncPolicy != nil && *syncPolicy.IsAutomatedSyncEnabled() {
+	if syncPolicy != nil && syncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicyStr = "Automated"
 		if syncPolicy.Automated.Prune {
 			syncPolicyStr += " (Prune)"
