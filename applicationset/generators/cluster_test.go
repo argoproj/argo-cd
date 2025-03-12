@@ -315,7 +315,7 @@ func TestGenerateParams(t *testing.T) {
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -853,7 +853,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(context.Background(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
