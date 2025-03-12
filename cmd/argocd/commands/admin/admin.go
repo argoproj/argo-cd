@@ -38,7 +38,7 @@ var (
 	appplicationSetResource = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationSetPlural}
 )
 
-type argocdAdditonalNamespaces struct {
+type argocdAdditionalNamespaces struct {
 	applicationNamespaces    []string
 	applicationsetNamespaces []string
 }
@@ -170,7 +170,7 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 }
 
 // Get additional namespaces from argocd-cmd-params
-func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.ResourceInterface) *argocdAdditonalNamespaces {
+func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.ResourceInterface) *argocdAdditionalNamespaces {
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
@@ -202,7 +202,7 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 		applicationsetNamespaces = namespacesListFromString(strNamespaces)
 	}
 
-	return &argocdAdditonalNamespaces{
+	return &argocdAdditionalNamespaces{
 		applicationNamespaces:    applicationNamespaces,
 		applicationsetNamespaces: applicationsetNamespaces,
 	}
