@@ -5,19 +5,13 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 )
 
 const (
 	// ErrorGeneric is returned for generic error
 	ErrorGeneric = 20
 )
-
-// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
-func CheckError(err error) {
-	if err != nil {
-		Fatal(ErrorGeneric, err)
-	}
-}
 
 type Handler struct {
 	t *testing.T
@@ -32,10 +26,15 @@ func NewHandler(t *testing.T) *Handler {
 // text := FailOrErr(Foo).(string)
 func (h *Handler) FailOnErr(v any, err error) any {
 	h.t.Helper()
-	if err != nil {
-		h.t.Fatal(err)
-	}
+	require.NoError(h.t, err)
 	return v
+}
+
+// CheckError logs a fatal message and exits with ErrorGeneric if err is not nil
+func CheckError(err error) {
+	if err != nil {
+		Fatal(ErrorGeneric, err)
+	}
 }
 
 // Fatal is a wrapper for logrus.Fatal() to exit with custom code

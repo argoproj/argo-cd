@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,7 +63,7 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 			configMaps: fakeDynClient.Resource(configMapResource).Namespace("argocd"),
 		}
 
-		result := getAdditionalNamespaces(context.TODO(), argoCDClientsets.configMaps)
+		result := getAdditionalNamespaces(t.Context(), argoCDClientsets.configMaps)
 		assert.Equal(t, c.expected, *result)
 	}
 }

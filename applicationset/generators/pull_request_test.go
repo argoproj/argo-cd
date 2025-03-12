@@ -14,9 +14,10 @@ import (
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	cases := []struct {
 		selectFunc     func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+		values         map[string]string
 		expected       []map[string]any
 		expectedErr    error
 		applicationSet argoprojiov1alpha1.ApplicationSet
@@ -124,6 +125,45 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 				return pullrequest.NewFakeService(
 					ctx,
+					[]*pullrequest.PullRequest{
+						{
+							Number:       1,
+							Title:        "title1",
+							Branch:       "my_branch",
+							TargetBranch: "master",
+							HeadSHA:      "abcd",
+							Author:       "testName",
+						},
+					},
+					nil,
+				)
+			},
+			values: map[string]string{
+				"foo":       "bar",
+				"pr_branch": "{{ branch }}",
+			},
+			expected: []map[string]any{
+				{
+					"number":             "1",
+					"title":              "title1",
+					"branch":             "my_branch",
+					"branch_slug":        "my-branch",
+					"target_branch":      "master",
+					"target_branch_slug": "master",
+					"head_sha":           "abcd",
+					"head_short_sha":     "abcd",
+					"head_short_sha_7":   "abcd",
+					"author":             "testName",
+					"values.foo":         "bar",
+					"values.pr_branch":   "my_branch",
+				},
+			},
+			expectedErr: nil,
+		},
+		{
+			selectFunc: func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+				return pullrequest.NewFakeService(
+					ctx,
 					nil,
 					errors.New("fake error"),
 				)
@@ -219,7 +259,9 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			selectServiceProviderFunc: c.selectFunc,
 		}
 		generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
-			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
+			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+				Values: c.values,
+			},
 		}
 
 		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
