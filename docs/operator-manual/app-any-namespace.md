@@ -20,9 +20,11 @@ One additional advantage of adopting applications in any namespace is to allow e
 
 This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will not work with an Argo CD installed in namespace-scoped mode.
 
-It is not recommended to deploy multiple cluster-wide instances on the same cluster. Even if the configured namespaces are mutually exclusive amongst
-the instances, each instance will negatively affect the performance of each other due to the shared cluster-wide access.
-If you need to isolate instances from each other, you must use multiple cluster.
+!!! warning
+
+    It is not recommended to deploy multiple cluster-wide instances on the same cluster. Even if the configured namespaces are mutually exclusive amongst
+    the instances, each instance will negatively affect the performance of each other due to the shared cluster-wide access.
+    If you need to isolate instances from each other, you must use multiple cluster.
 
 ### Switch resource tracking method
 
