@@ -232,10 +232,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			spec := change.shaAfter + ".." + change.shaBefore
 			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(bbClient, apiURL, owner, payload.Repository.Name, spec)
 			if err != nil {
-				log.Warnf("error fetching diffstat: %v", err)
+				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, _ = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			if err != nil {
+				log.Warnf("error fetching bitbucket repo details: %v", err)
+				// To be safe, we just return true and let the controller check for himself.
+				touchedHead = true
+			}
 		}
 
 	// Bitbucket does not include a list of changed files anywhere in it's payload
@@ -544,8 +549,7 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 	}
 	bbRepo, err := bbClient.Repositories.Repository.Get(bbRepoOptions.WithContext(ctx))
 	if err != nil {
-		// we are not sure, set it to true so that the controller can detect if its
-		return true, err
+		return false, err
 	}
 	return bbRepo.Mainbranch.Name == revision, nil
 }
