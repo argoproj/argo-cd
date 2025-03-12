@@ -1004,6 +1004,24 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
+	Given(t).
+		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		Path("duplicated-resources").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
+			assert.Empty(t, diffOutput)
+			require.NoError(t, err)
+		})
+}
+
 func TestDuplicatedResources(t *testing.T) {
 	testEdgeCasesApplicationResources(t, "duplicated-resources", health.HealthStatusHealthy)
 }
