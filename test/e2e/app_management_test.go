@@ -1005,6 +1005,9 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 }
 
 func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
+	// This test will fail if the controller fails to fix the tracking annotation for malformed cluster resources
+	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
+	// tracking annotation.
 	Given(t).
 		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
 		Path("duplicated-resources").
