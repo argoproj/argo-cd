@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynfake "k8s.io/client-go/dynamic/fake"
 )
 
@@ -62,14 +61,10 @@ func TestGetAdditionalNamespaces(t *testing.T) {
 		fakeDynClient := dynfake.NewSimpleDynamicClient(runtime.NewScheme(), createArgoCDCmdCMWithKeys(c.CmdParamsKeys))
 
 		argoCDClientsets := &argoCDClientsets{
-			configMaps:      fakeDynClient.Resource(configMapResource).Namespace("argocd"),
-			applications:    fakeDynClient.Resource(schema.GroupVersionResource{}),
-			applicationSets: fakeDynClient.Resource(schema.GroupVersionResource{}),
-			secrets:         fakeDynClient.Resource(schema.GroupVersionResource{}),
-			projects:        fakeDynClient.Resource(schema.GroupVersionResource{}),
+			configMaps: fakeDynClient.Resource(configMapResource).Namespace("argocd"),
 		}
 
-		result := getAdditionalNamespaces(context.TODO(), argoCDClientsets)
+		result := getAdditionalNamespaces(context.TODO(), argoCDClientsets.configMaps)
 		assert.Equal(t, c.expected, *result)
 	}
 }
