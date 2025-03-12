@@ -1,7 +1,6 @@
 package oidc
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -433,10 +432,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	app.HandleLogin(w, req)
 
-	redirectUrl, err := w.Result().Location()
+	redirectURL, err := w.Result().Location()
 	require.NoError(t, err)
 
-	state := redirectUrl.Query()["state"]
+	state := redirectURL.Query()["state"]
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), nil)
 	for _, cookie := range w.Result().Cookies() {
@@ -541,20 +540,20 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 	})
 
 	t.Run("Fetch the token value from the file", func(t *testing.T) {
-		_, err := app.getFederatedServiceAccountToken(context.Background())
+		_, err := app.getFederatedServiceAccountToken(t.Context())
 		require.NoError(t, err)
 		assert.Equal(t, "serviceAccountToken", app.assertion)
 	})
 
 	t.Run("Workload Identity Not enabled.", func(t *testing.T) {
 		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", "")
-		_, err := app.getFederatedServiceAccountToken(context.Background())
+		_, err := app.getFederatedServiceAccountToken(t.Context())
 		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE env variable not found, make sure workload identity is enabled on the cluster")
 	})
 
 	t.Run("Workload Identity invalid file", func(t *testing.T) {
 		t.Setenv("AZURE_FEDERATED_TOKEN_FILE", filepath.Join(t.TempDir(), "invalid.txt"))
-		_, err := app.getFederatedServiceAccountToken(context.Background())
+		_, err := app.getFederatedServiceAccountToken(t.Context())
 		assert.ErrorContains(t, err, "AZURE_FEDERATED_TOKEN_FILE specified file does not exist")
 	})
 
@@ -567,7 +566,7 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
 				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
+				_, err := app.getFederatedServiceAccountToken(t.Context())
 				require.NoError(t, err)
 				assert.Equal(t, "serviceAccountToken", app.assertion)
 			}()
@@ -587,7 +586,7 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
 				defer wg.Done()
-				_, err := app.getFederatedServiceAccountToken(context.Background())
+				_, err := app.getFederatedServiceAccountToken(t.Context())
 				require.NoError(t, err)
 				assert.Equal(t, "serviceAccountToken", app.assertion)
 			}()

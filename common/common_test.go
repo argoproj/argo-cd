@@ -1,9 +1,7 @@
 package common
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -29,7 +27,7 @@ func Test_GRPCKeepAliveMinNotSet(t *testing.T) {
 // Test valid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 	numSeconds := 15
-	os.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
+	t.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := time.Duration(numSeconds) * time.Second
@@ -42,7 +40,7 @@ func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 // Test invalid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIncorrectlySet(t *testing.T) {
 	numSeconds := 15
-	os.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
+	t.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := defaultGRPCKeepAliveEnforcementMinimum
@@ -91,7 +89,7 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var (
-				ctx          = context.TODO()
+				ctx          = t.Context()
 				kubeClient   = kubefake.NewClientset()
 				redisOptions = &redis.Options{}
 			)

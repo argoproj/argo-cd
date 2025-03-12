@@ -55,7 +55,7 @@ type ArgoCDSettings struct {
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
-	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"`
+	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
@@ -90,15 +90,15 @@ type ArgoCDSettings struct {
 	// Specifies token expiration duration
 	UserSessionDuration time.Duration `json:"userSessionDuration,omitempty"`
 	// UiCssURL local or remote path to user-defined CSS to customize ArgoCD UI
-	UiCssURL string `json:"uiCssURL,omitempty"`
+	UiCssURL string `json:"uiCssURL,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Content of UI Banner
-	UiBannerContent string `json:"uiBannerContent,omitempty"`
+	UiBannerContent string `json:"uiBannerContent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// URL for UI Banner
-	UiBannerURL string `json:"uiBannerURL,omitempty"`
+	UiBannerURL string `json:"uiBannerURL,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Make Banner permanent and not closeable
-	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"`
+	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
-	UiBannerPosition string `json:"uiBannerPosition,omitempty"`
+	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -355,7 +355,7 @@ type Repository struct {
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
@@ -389,7 +389,7 @@ type RepositoryCredentials struct {
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *corev1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
-	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"`
+	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
 }
@@ -427,20 +427,14 @@ const (
 	settingURLKey = "url"
 	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
 	settingAdditionalUrlsKey = "additionalUrls"
-	// repositoriesKey designates the key where ArgoCDs repositories list is set
-	repositoriesKey = "repositories"
-	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
-	repositoryCredentialsKey = "repository.credentials"
-	// helmRepositoriesKey designates the key where list of helm repositories is set
-	helmRepositoriesKey = "helm.repositories"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
 	statusBadgeEnabledKey = "statusbadge.enabled"
-	// statusBadgeRootUrlKey holds the key for the root badge URL override
-	statusBadgeRootUrlKey = "statusbadge.url"
+	// statusBadgeRootURLKey holds the key for the root badge URL override
+	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
@@ -491,16 +485,16 @@ const (
 	userSessionDurationKey = "users.session.duration"
 	// diffOptions is the key where diff options are configured
 	resourceCompareOptionsKey = "resource.compareoptions"
-	// settingUiCssURLKey designates the key for user-defined CSS URL for UI customization
-	settingUiCssURLKey = "ui.cssurl"
-	// settingUiBannerContentKey designates the key for content of user-defined info banner for UI
-	settingUiBannerContentKey = "ui.bannercontent"
-	// settingUiBannerURLKey designates the key for the link for user-defined info banner for UI
-	settingUiBannerURLKey = "ui.bannerurl"
-	// settingUiBannerPermanentKey designates the key for whether the banner is permanent and not closeable
-	settingUiBannerPermanentKey = "ui.bannerpermanent"
-	// settingUiBannerPositionKey designates the key for the position of the banner
-	settingUiBannerPositionKey = "ui.bannerposition"
+	// settingUICSSURLKey designates the key for user-defined CSS URL for UI customization
+	settingUICSSURLKey = "ui.cssurl"
+	// settingUIBannerContentKey designates the key for content of user-defined info banner for UI
+	settingUIBannerContentKey = "ui.bannercontent"
+	// settingUIBannerURLKey designates the key for the link for user-defined info banner for UI
+	settingUIBannerURLKey = "ui.bannerurl"
+	// settingUIBannerPermanentKey designates the key for whether the banner is permanent and not closeable
+	settingUIBannerPermanentKey = "ui.bannerpermanent"
+	// settingUIBannerPositionKey designates the key for the position of the banner
+	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
 	// globalProjectsKey designates the key for global project settings
@@ -519,8 +513,6 @@ const (
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
 	inClusterEnabledKey = "cluster.inClusterEnabled"
-	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
-	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -592,7 +584,7 @@ const (
 	// IgnoreResourceStatusInAll ignores status changes for all resources
 	IgnoreResourceStatusInAll IgnoreStatus = "all"
 	// IgnoreResourceStatusInNone ignores status changes for no resources
-	IgnoreResourceStatusInNone IgnoreStatus = "off"
+	IgnoreResourceStatusInNone IgnoreStatus = "none"
 )
 
 type ArgoCDDiffOptions struct {
@@ -788,7 +780,7 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 
@@ -856,19 +848,6 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 		return common.PasswordPatten, nil
 	}
 	return label, nil
-}
-
-func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return false, err
-	}
-
-	if argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "" {
-		return false, nil
-	}
-
-	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (bool, error) {
@@ -998,31 +977,30 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 
-	var diffOptions ArgoCDDiffOptions
-	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
-		err := yaml.Unmarshal([]byte(value), &diffOptions)
-		if err != nil {
-			return nil, err
-		}
+	diffOptions, err := mgr.GetResourceCompareOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
-	case "", "crd":
-		addStatusOverrideToGK(resourceOverrides, crdGK)
-		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
-	case "all":
+	case "", IgnoreResourceStatusInAll:
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
-
-	case "off", "false":
-		log.Info("Not ignoring status for any object")
-
-	default:
+	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
+	case IgnoreResourceStatusInNone, "off", "false":
+		// Yaml 'off' non-string value can be converted to 'false'
+		// Support these cases because compareoptions is a yaml string in the config
+		// and this misconfiguration can be hard to catch for users.
+		// To prevent this, the default value has been changed to none
+		log.Info("Not ignoring status for any object")
+	default:
+		addStatusOverrideToGK(resourceOverrides, "*/*")
+		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for all resources", diffOptions.IgnoreResourceStatusField)
 	}
 
 	return resourceOverrides, nil
@@ -1056,7 +1034,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			continue
 		}
 
-		// config map key should be of format resource.customizations.<type>.<group-kind>
+		// config map key should be of format resource.customizations.<type>.<group_kind>
 		parts := strings.SplitN(k, ".", 4)
 		if len(parts) < 4 {
 			continue
@@ -1117,7 +1095,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 	return nil
 }
 
-// Convert group-kind format to <group/kind>, allowed key format examples
+// Convert group_kind format to <group/kind>, allowed key format examples
 // resource.customizations.health.cert-manager.io_Certificate
 // resource.customizations.health.Certificate
 func convertToOverrideKey(groupKind string) (string, error) {
@@ -1131,7 +1109,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: false}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreResourceStatusField: IgnoreResourceStatusInAll, IgnoreDifferencesOnResourceUpdates: true}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
@@ -1233,111 +1211,6 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVe
 	return nil
 }
 
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-	helmRepositories := make([]HelmRepoCredentials, 0)
-	helmRepositoriesStr := argoCDCM.Data[helmRepositoriesKey]
-	if helmRepositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(helmRepositoriesStr), &helmRepositories)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling helm repositories: %w", err)
-		}
-	}
-	return helmRepositories, nil
-}
-
-func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-	mgr.mutex.Lock()
-	reposCache := mgr.reposCache
-	mgr.mutex.Unlock()
-	if reposCache != nil {
-		return reposCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	repositories := make([]Repository, 0)
-	repositoriesStr := argoCDCM.Data[repositoriesKey]
-	if repositoriesStr != "" {
-		err := yaml.Unmarshal([]byte(repositoriesStr), &repositories)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal repositories from config map key %q: %w", repositoriesKey, err)
-		}
-	}
-	mgr.reposCache = repositories
-
-	return mgr.reposCache, nil
-}
-
-func (mgr *SettingsManager) SaveRepositories(repos []Repository) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(repos) > 0 {
-			yamlStr, err := yaml.Marshal(repos)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoriesKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoriesKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredentials) error {
-	return mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if len(creds) > 0 {
-			yamlStr, err := yaml.Marshal(creds)
-			if err != nil {
-				return err
-			}
-			argoCDCM.Data[repositoryCredentialsKey] = string(yamlStr)
-		} else {
-			delete(argoCDCM.Data, repositoryCredentialsKey)
-		}
-		return nil
-	})
-}
-
-func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-	mgr.mutex.Lock()
-	repoCredsCache := mgr.repoCredsCache
-	mgr.mutex.Unlock()
-	if repoCredsCache != nil {
-		return repoCredsCache, nil
-	}
-
-	// Get the config map outside of the lock
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving config map: %w", err)
-	}
-
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
-	creds := make([]RepositoryCredentials, 0)
-	credsStr := argoCDCM.Data[repositoryCredentialsKey]
-	if credsStr != "" {
-		err := yaml.Unmarshal([]byte(credsStr), &creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-	mgr.repoCredsCache = creds
-
-	return mgr.repoCredsCache, nil
-}
-
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1391,7 +1264,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return &settings, errs[0]
+		return &settings, errors.Join(errs...)
 	}
 
 	return &settings, nil
@@ -1529,19 +1402,18 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
-	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootUrlKey]
+	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
 	settings.AnonymousUserEnabled = argoCDCM.Data[anonymousUserEnabledKey] == "true"
-	settings.UiCssURL = argoCDCM.Data[settingUiCssURLKey]
-	settings.UiBannerContent = argoCDCM.Data[settingUiBannerContentKey]
-	settings.UiBannerPermanent = argoCDCM.Data[settingUiBannerPermanentKey] == "true"
-	settings.UiBannerPosition = argoCDCM.Data[settingUiBannerPositionKey]
-	settings.ServerRBACLogEnforceEnable = argoCDCM.Data[settingsServerRBACLogEnforceEnableKey] == "true"
+	settings.UiCssURL = argoCDCM.Data[settingUICSSURLKey]
+	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
+	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
+	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
-	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
+	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
@@ -1554,7 +1426,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
 	}
-	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
+	settings.UiBannerURL = argoCDCM.Data[settingUIBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
 		if val, err := timeutil.ParseDuration(userSessionDurationStr); err != nil {
@@ -1661,7 +1533,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	}
 	settings.Secrets = secretValues
 	if len(errs) > 0 {
-		return errs[0]
+		return errors.Join(errs...)
 	}
 
 	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
@@ -1716,17 +1588,17 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 			delete(argoCDCM.Data, settingsOIDCConfigKey)
 		}
 		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUiCssURLKey] = settings.UiCssURL
+			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
 		}
 		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUiBannerContentKey] = settings.UiBannerContent
+			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
 		} else {
-			delete(argoCDCM.Data, settingUiBannerContentKey)
+			delete(argoCDCM.Data, settingUIBannerContentKey)
 		}
 		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUiBannerURLKey] = settings.UiBannerURL
+			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
 		} else {
-			delete(argoCDCM.Data, settingUiBannerURLKey)
+			delete(argoCDCM.Data, settingUIBannerURLKey)
 		}
 		return nil
 	})

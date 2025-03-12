@@ -2,7 +2,7 @@ import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useState, useRef} from 'react';
-import {bufferTime, delay, retryWhen} from 'rxjs/operators';
+import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -26,7 +26,9 @@ import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
 import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
+import {MatchCaseToggleButton} from './match-case-toggle-button';
 import Ansi from 'ansi-to-react';
+import {EMPTY} from 'rxjs';
 
 export interface PodLogsProps {
     namespace: string;
@@ -88,6 +90,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
     const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 1000);
+    const [matchCase, setMatchCase] = useState(queryParams.get('matchCase') === 'true');
     const [sinceSeconds, setSinceSeconds] = useState(0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
@@ -95,6 +98,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
         return (val => {
@@ -110,6 +114,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const setPreviousLogsWithQueryParams = setWithQueryParams('showPreviousLogs', setPreviousLogs);
     const setTailWithQueryParams = setWithQueryParams('tail', setTail);
     const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
+    const setMatchCaseWithQueryParams = setWithQueryParams('matchCase', setMatchCase);
 
     const onToggleViewPodNames = (val: boolean) => {
         setViewPodNamesWithQueryParams(val);
@@ -122,8 +127,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
         // eslint-disable-next-line no-useless-escape
-        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
-    }, [filter]);
+        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i')));
+    }, [filter, matchCase]);
 
     if (!containerName || containerName === '') {
         return <div>Pod does not have container with name {containerName}</div>;
@@ -154,14 +159,30 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 follow,
                 sinceSeconds,
                 filter,
-                previous
-            }) // accumulate log changes and render only once every 100ms to reduce CPU usage
-            .pipe(bufferTime(100))
-            .pipe(retryWhen(errors => errors.pipe(delay(500))))
-            .subscribe(log => setLogs(previousLogs => previousLogs.concat(log)));
+                previous,
+                matchCase
+            })
+            .pipe(
+                bufferTime(100),
+                catchError((error: any) => {
+                    const errorBody = JSON.parse(error.body);
+                    if (errorBody.error && errorBody.error.message) {
+                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
+                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                        }
+                    }
+                }),
+                retryWhen(errors => errors.pipe(delay(500)))
+            )
+            .subscribe(log => {
+                if (log.length) {
+                    setLogs(previousLogs => previousLogs.concat(log));
+                }
+            });
 
         return () => logsSource.unsubscribe();
-    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
+    }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous, matchCase]);
 
     const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
         if (event.deltaY < 0) setScrollToBottom(false);
@@ -205,7 +226,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             key={lineNum}
                             style={{
                                 whiteSpace: isWrapped ? 'normal' : 'pre',
-                                lineHeight: '16px',
+                                lineHeight: '1.5rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
                                 width: '100vw',
@@ -230,8 +251,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             </div>
         </div>
     );
+
+    const preferenceLoader = React.useCallback(() => services.viewPreferences.getPreferences(), []);
     return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+        <DataLoader load={preferenceLoader}>
             {(prefs: ViewPreferences) => {
                 return (
                     <React.Fragment>
@@ -255,6 +278,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
+                                <MatchCaseToggleButton matchCase={matchCase} setMatchCase={setMatchCaseWithQueryParams} />
                                 <WrapLinesButton prefs={prefs} />
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
@@ -268,7 +292,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
-                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines, prefs)}</AutoSizer>
+                            {errorMessage ? (
+                                <div>{errorMessage}</div>
+                            ) : (
+                                <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines, prefs)}</AutoSizer>
+                            )}
                         </div>
                     </React.Fragment>
                 );
