@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +20,7 @@ func TestGetSecretRef(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithObjects(secret).Build()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
 		name, namespace, token string
@@ -86,7 +85,7 @@ func TestGetConfigMapData(t *testing.T) {
 		},
 	}
 	client := fake.NewClientBuilder().WithObjects(configMap).Build()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	cases := []struct {
 		name, namespace, data string

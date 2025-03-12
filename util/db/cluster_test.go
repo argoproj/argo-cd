@@ -184,17 +184,17 @@ func TestUpdateCluster(t *testing.T) {
 			"config": []byte("{}"),
 		},
 	})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 	requestedAt := metav1.Now()
-	_, err := db.UpdateCluster(context.Background(), &v1alpha1.Cluster{
+	_, err := db.UpdateCluster(t.Context(), &v1alpha1.Cluster{
 		Name:               "test",
 		Server:             "http://mycluster",
 		RefreshRequestedAt: &requestedAt,
 	})
 	require.NoError(t, err)
 
-	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
+	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(t.Context(), "mycluster", metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
@@ -214,9 +214,9 @@ func TestDeleteUnknownCluster(t *testing.T) {
 			"name":   []byte("mycluster"),
 		},
 	})
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	assert.EqualError(t, db.DeleteCluster(context.Background(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
+	assert.EqualError(t, db.DeleteCluster(t.Context(), "http://unknown"), `rpc error: code = NotFound desc = cluster "http://unknown" not found`)
 }
 
 func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
@@ -244,9 +244,9 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		},
 	}
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	_, err := db.CreateCluster(context.Background(), &v1alpha1.Cluster{
+	_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
 		Server: v1alpha1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
@@ -255,7 +255,7 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
 	t.Helper()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	timeout := time.Second * 5
@@ -360,10 +360,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("Valid external cluster", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		cluster, err := db.GetCluster(context.TODO(), string(secretForServerWithExternalClusterAddr.Data["server"]))
+		cluster, err := db.GetCluster(t.Context(), string(secretForServerWithExternalClusterAddr.Data["server"]))
 		require.NoError(t, err)
 		assert.Equal(t, string(secretForServerWithExternalClusterAddr.Data["server"]), cluster.Server)
 		assert.Equal(t, string(secretForServerWithExternalClusterAddr.Data["name"]), cluster.Name)
@@ -371,10 +371,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("invalid cluster", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		_, err := db.GetCluster(context.TODO(), "https://mycluster-does-not-exist")
+		_, err := db.GetCluster(t.Context(), "https://mycluster-does-not-exist")
 		require.Error(t, err)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -383,10 +383,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("in-cluster not configured", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		cluster, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
+		cluster, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.NoError(t, err)
 		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster", cluster.Name)
@@ -394,10 +394,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("in-cluster disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		_, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
+		_, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.Error(t, err)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -406,10 +406,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("in-cluster configured", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		cluster, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
+		cluster, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.NoError(t, err)
 		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster-renamed", cluster.Name)
@@ -417,10 +417,10 @@ func TestGetCluster(t *testing.T) {
 
 	t.Run("in-cluster configured and disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		_, err := db.GetCluster(context.TODO(), v1alpha1.KubernetesInternalAPIServerAddr)
+		_, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
 		require.Error(t, err)
 		status, ok := status.FromError(err)
 		assert.True(t, ok)
@@ -504,30 +504,30 @@ func TestListClusters(t *testing.T) {
 
 	t.Run("Valid clusters", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		clusters, err := db.ListClusters(context.TODO())
+		clusters, err := db.ListClusters(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 2)
 	})
 
 	t.Run("Cluster list with invalid cluster", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, secretForServerWithExternalClusterAddr, invalidSecret, emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		clusters, err := db.ListClusters(context.TODO())
+		clusters, err := db.ListClusters(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 2)
 	})
 
 	t.Run("Implicit in-cluster secret", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithExternalClusterAddr, emptyArgoCDConfigMap, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		clusters, err := db.ListClusters(context.TODO())
+		clusters, err := db.ListClusters(t.Context())
 		require.NoError(t, err)
 		// ListClusters() should have added an implicit in-cluster secret to the list
 		assert.Len(t, clusters.Items, 2)
@@ -535,20 +535,20 @@ func TestListClusters(t *testing.T) {
 
 	t.Run("ListClusters() should not add the cluster with in-cluster server address since in-cluster is disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithInClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		clusters, err := db.ListClusters(context.TODO())
+		clusters, err := db.ListClusters(t.Context())
 		require.NoError(t, err)
 		assert.Empty(t, clusters.Items)
 	})
 
 	t.Run("ListClusters() should add this cluster since it does not contain in-cluster server address even though in-cluster is disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(secretForServerWithExternalClusterAddr, argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-		settingsManager := settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
 
-		clusters, err := db.ListClusters(context.TODO())
+		clusters, err := db.ListClusters(t.Context())
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 1)
 	})
@@ -626,36 +626,36 @@ func TestGetClusterServersByName(t *testing.T) {
 		}
 
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDClusterSecret, argoCDSecret)
-		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
-		servers, err := db.GetClusterServersByName(context.Background(), "my-cluster-name")
+		db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+		servers, err := db.GetClusterServersByName(t.Context(), "my-cluster-name")
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []string{"https://my-cluster-server"}, servers)
 	})
 	t.Run("returns in-cluster", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
-		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
-		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
+		db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+		servers, err := db.GetClusterServersByName(t.Context(), "in-cluster")
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
 	})
 	t.Run("does not return in-cluster when disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
-		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
-		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster")
+		db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+		servers, err := db.GetClusterServersByName(t.Context(), "in-cluster")
 		require.NoError(t, err)
 		assert.Empty(t, servers)
 	})
 	t.Run("returns in-cluster when configured", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretInClusterConfigured, argoCDSecret)
-		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
-		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
+		db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+		servers, err := db.GetClusterServersByName(t.Context(), "in-cluster-renamed")
 		require.NoError(t, err)
 		assert.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
 	})
 	t.Run("does not return in-cluster when configured and disabled", func(t *testing.T) {
 		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecretInClusterConfigured, argoCDSecret)
-		db := NewDB(fakeNamespace, settings.NewSettingsManager(context.Background(), kubeclientset, fakeNamespace), kubeclientset)
-		servers, err := db.GetClusterServersByName(context.Background(), "in-cluster-renamed")
+		db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+		servers, err := db.GetClusterServersByName(t.Context(), "in-cluster-renamed")
 		require.NoError(t, err)
 		assert.Empty(t, servers)
 	})
@@ -664,7 +664,7 @@ func TestGetClusterServersByName(t *testing.T) {
 // TestClusterRaceConditionClusterSecrets reproduces a race condition
 // on the cluster secrets. The test isn't asserting anything because
 // before the fix it would cause a panic from concurrent map iteration and map write
-func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
+func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 	clusterSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "mycluster",
@@ -704,14 +704,15 @@ func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 		},
 		clusterSecret,
 	)
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, "default")
+	ctx := t.Context()
+	settingsManager := settings.NewSettingsManager(ctx, kubeClient, "default")
 	db := NewDB("default", settingsManager, kubeClient)
 	cluster, _ := SecretToCluster(clusterSecret)
 	go func() {
 		for {
 			// create a copy so we dont act on the same argo cluster
 			clusterCopy := cluster.DeepCopy()
-			_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+			_, _ = db.UpdateCluster(ctx, clusterCopy)
 		}
 	}()
 	// yes, we will take 15 seconds to run this test
@@ -719,7 +720,7 @@ func TestClusterRaceConditionClusterSecrets(_ *testing.T) {
 	for i := 0; i < 30; i++ {
 		// create a copy so we dont act on the same argo cluster
 		clusterCopy := cluster.DeepCopy()
-		_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+		_, _ = db.UpdateCluster(ctx, clusterCopy)
 		time.Sleep(time.Millisecond * 500)
 	}
 }

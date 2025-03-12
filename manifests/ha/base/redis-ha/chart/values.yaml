@@ -14,7 +14,7 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      tag: 2.9.14-alpine
+      tag: 3.0.8-alpine
     timeout:
       server: 6m
       client: 6m
