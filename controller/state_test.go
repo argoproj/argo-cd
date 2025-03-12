@@ -3,11 +3,14 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"github.com/stretchr/testify/mock"
+	v1 "k8s.io/api/rbac/v1"
 	"os"
 	"testing"
 	"time"
 
 	"dario.cat/mergo"
+	cachemocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -1795,4 +1798,25 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.True(t, compRes.revisionUpdated)
+}
+
+func Test_normalizeClusterScopeTracking(t *testing.T) {
+	obj := kube.MustToUnstructured(&v1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+	})
+	c := cachemocks.ClusterCache{}
+	c.On("IsNamespaced", mock.Anything).Return(false, nil)
+	var called bool
+	err := normalizeClusterScopeTracking([]*unstructured.Unstructured{obj}, &c, func(u *unstructured.Unstructured) error {
+		// We expect that the normalization function will call this callback with an obj that has had the namespace set
+		// to empty.
+		called = true
+		assert.Empty(t, u.GetNamespace())
+		return nil
+	})
+	require.NoError(t, err)
+	require.True(t, called, "normalization function should have called the callback function")
 }
