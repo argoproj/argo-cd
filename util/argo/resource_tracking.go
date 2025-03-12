@@ -100,11 +100,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	case TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
-		label, err := kube.GetAppInstanceLabel(un, key)
-		if err != nil {
-			return ""
-		}
-		return label
+		return retrieveAppInstanceValue()
 	}
 }
 
