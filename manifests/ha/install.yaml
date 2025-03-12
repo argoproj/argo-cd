@@ -27500,7 +27500,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image:docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -27571,7 +27571,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image:docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -27646,7 +27646,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image:docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -27681,7 +27681,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image:docker.io/library/redis:7.2.7-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
