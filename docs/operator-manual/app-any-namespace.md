@@ -1,7 +1,7 @@
 # Applications in any namespace
 
 !!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -9,7 +9,7 @@ As of version 2.5, Argo CD supports managing `Application` resources in namespac
 
 Argo CD administrators can define a certain set of namespaces where `Application` resources may be created, updated and reconciled in. However, applications in these additional namespaces will only be allowed to use certain `AppProjects`, as configured by the Argo CD administrators. This allows ordinary Argo CD users (e.g. application teams) to use patterns like declarative management of `Application` resources, implementing app-of-apps and others without the risk of a privilege escalation through usage of other `AppProjects` that would exceed the permissions granted to the application teams.
 
-Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
+Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature.
 
 One additional advantage of adopting applications in any namespace is to allow end-users to configure notifications for their Argo CD application in the namespace where Argo CD application is running in. See notifications [namespace based configuration](notifications/index.md#namespace-based-configuration) page for more information.
 
@@ -18,6 +18,10 @@ One additional advantage of adopting applications in any namespace is to allow e
 ### Cluster-scoped Argo CD installation
 
 This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will not work with an Argo CD installed in namespace-scoped mode.
+
+It is not recommended to deploy multiple cluster-wide instances on the same cluster. Even if the configured namespaces are mutually exclusive amongst
+the instances, each instance will negatively affect the performance of each other due to the shared cluster-wide access.
+If you need to isolate instances from each other, you must use multiple cluster.
 
 ### Switch resource tracking method
 
@@ -45,8 +49,8 @@ In order to enable this feature, the Argo CD administrator must reconfigure the 
 The `--application-namespaces` parameter takes a comma-separated list of namespaces where `Applications` are to be allowed in. Each entry of the list supports:
 
 - shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
-- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
-  
+- regex, requires wrapping the string in `/`, example to allow all namespaces except a particular one: `/^((?!not-allowed).)*$/`.
+
 The startup parameters for both, the `argocd-server` and the `argocd-application-controller` can also be conveniently set up and kept in sync by specifying the `application.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the respective workloads. For example:
 
 ```yaml
@@ -74,7 +78,7 @@ kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 `argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
 
 !!! note
-    At some later point in time, we may make this cluster role part of the default installation manifests.
+At some later point in time, we may make this cluster role part of the default installation manifests.
 
 ### Allowing additional namespaces in an AppProject
 
@@ -94,7 +98,7 @@ metadata:
   namespace: argocd
 spec:
   sourceNamespaces:
-  - namespace-one
+    - namespace-one
 ```
 
 and
@@ -107,7 +111,7 @@ metadata:
   namespace: argocd
 spec:
   sourceNamespaces:
-  - namespace-two
+    - namespace-two
 ```
 
 In order for an Application to set `.spec.project` to `project-one`, it would have to be created in either namespace `namespace-one` or `argocd`. Likewise, in order for an Application to set `.spec.project` to `project-two`, it would have to be created in either namespace `namespace-two` or `argocd`.
@@ -119,14 +123,14 @@ Also, the Argo CD API will enforce these constraints, regardless of the Argo CD 
 The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contain an arbitrary amount of namespaces, and each entry supports shell-style wildcard, so that you can allow namespaces with patterns like `team-one-*`.
 
 !!! warning
-    Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
+Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
 
 !!! note
-    For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
-  
+For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
+
 ### Application names
 
-For the CLI and UI, applications are now referred to and displayed as in the format `<namespace>/<name>`. 
+For the CLI and UI, applications are now referred to and displayed as in the format `<namespace>/<name>`.
 
 For backwards compatibility, if the namespace of the Application is the control plane's namespace (i.e. `argocd`), the `<namespace>` can be omitted from the application name when referring to it. For example, the application names `argocd/someapp` and `someapp` are semantically the same and refer to the same application in the CLI and the UI.
 
@@ -147,7 +151,7 @@ If you want to restrict access to be granted only to `Applications` in project `
 ```
 p, somerole, applications, get, foo/bar/*, allow
 ```
-  
+
 ## Managing applications in other namespaces
 
 ### Declaratively
@@ -171,10 +175,10 @@ The project `some-project` will then need to specify `some-namespace` in the lis
 kind: AppProject
 apiVersion: argoproj.io/v1alpha1
 metadata:
-    name: some-project
-    namespace: argocd
+  name: some-project
+  namespace: argocd
 spec:
-    sourceNamespaces:
+  sourceNamespaces:
     - some-namespace
 ```
 
