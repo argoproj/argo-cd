@@ -416,6 +416,9 @@ func DeduplicateTargetObjects(
 func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) error {
 	for i := len(targetObjs) - 1; i >= 0; i-- {
 		targetObj := targetObjs[i]
+		if targetObj == nil {
+			continue
+		}
 		gvk := targetObj.GroupVersionKind()
 		if !kubeutil.IsNamespacedOrUnknown(infoProvider, gvk.GroupKind()) {
 			if targetObj.GetNamespace() != "" {
