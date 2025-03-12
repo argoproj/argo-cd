@@ -21,7 +21,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/api/rbac/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1801,7 +1801,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 }
 
 func Test_normalizeClusterScopeTracking(t *testing.T) {
-	obj := kube.MustToUnstructured(&v1.ClusterRole{
+	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "test",
