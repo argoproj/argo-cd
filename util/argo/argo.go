@@ -327,7 +327,7 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
 	}
 
-	destCluster, err := GetDestinationCluster(context.Background(), spec.Destination, db)
+	destCluster, err := GetDestinationCluster(ctx, spec.Destination, db)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
