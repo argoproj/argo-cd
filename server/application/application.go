@@ -125,8 +125,8 @@ func NewServer(
 	}
 	s := &Server{
 		ns:                namespace,
-		appclientset:      appclientset,
-		appLister:         appLister,
+		appclientset:      &deepCopyAppClientset{appclientset},
+		appLister:         &deepCopyApplicationLister{appLister},
 		appInformer:       appInformer,
 		appBroadcaster:    appBroadcaster,
 		kubeclientset:     kubeclientset,
