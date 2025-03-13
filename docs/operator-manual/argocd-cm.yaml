@@ -280,9 +280,9 @@ data:
   # You can change the resource tracking method Argo CD uses by changing the
   # setting application.resourceTrackingMethod to the desired method.
   # The following methods are available:
-  # - label            : Uses the application.instanceLabelKey label for tracking
   # - annotation       : Uses an annotation with additional metadata for tracking instead of the label
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
+  # - label            : Uses the application.instanceLabelKey label for tracking
   application.resourceTrackingMethod: annotation
 
   # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
