@@ -135,12 +135,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
             this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
-                let redirectURL = url.pathname + url.search;
-                // return url already contains baseHref, so we need to remove it
-                if (this.appContext.apis.baseHref != '/' && redirectURL.startsWith(this.appContext.apis.baseHref)) {
-                    redirectURL = redirectURL.substring(this.appContext.apis.baseHref.length);
-                }
-                this.appContext.apis.navigation.goto(redirectURL);
+                this.appContext.apis.navigation.goto(url.pathname + url.search);
             } else {
                 this.appContext.apis.navigation.goto('/applications');
             }

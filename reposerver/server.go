@@ -6,11 +6,12 @@ import (
 	"os"
 	"path/filepath"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
@@ -18,18 +19,18 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
-	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
-	"github.com/argoproj/argo-cd/v3/reposerver/repository"
-	"github.com/argoproj/argo-cd/v3/server/version"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/git"
-	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
-	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
+	"github.com/argoproj/argo-cd/v2/common"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
+	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
+	"github.com/argoproj/argo-cd/v2/reposerver/repository"
+	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/git"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
+	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
 // ArgoCDRepoServer is the repo server implementation
@@ -44,7 +45,7 @@ type ArgoCDRepoServer struct {
 }
 
 // The hostnames to generate self-signed issues with
-var tlsHostList = []string{"localhost", "reposerver"}
+var tlsHostList []string = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore) (*ArgoCDRepoServer, error) {
@@ -54,8 +55,8 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	// repository server.
 	if tlsConfCustomizer != nil {
 		var err error
-		certPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.crt"
-		keyPath := env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/reposerver/tls/tls.key"
+		certPath := fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
+		keyPath := fmt.Sprintf("%s/reposerver/tls/tls.key", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath))
 		tlsConfig, err = tlsutil.CreateServerTLSConfig(certPath, keyPath, tlsHostList)
 		if err != nil {
 			return nil, fmt.Errorf("error creating server TLS config: %w", err)
@@ -63,32 +64,28 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		tlsConfCustomizer(tlsConfig)
 	}
 
-	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
-		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
+		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
-	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
-		serverMetrics.StreamServerInterceptor(),
+		grpc_logrus.StreamServerInterceptor(serverLog),
+		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
-		serverMetrics.UnaryServerInterceptor(),
+		grpc_logrus.UnaryServerInterceptor(serverLog),
+		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}
 
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(unaryInterceptors...),
-		grpc.ChainStreamInterceptor(streamInterceptors...),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(

@@ -2,12 +2,9 @@ package util
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
-	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	apiv1 "k8s.io/api/core/v1"
 )
 
 // MakeSignature generates a cryptographically-secure pseudo-random token, based on a given number of random bytes, for signing purposes.
@@ -22,23 +19,14 @@ func MakeSignature(size int) ([]byte, error) {
 	return b, err
 }
 
-// SliceCopy generates a deep copy of a slice containing any type that implements the runtime.Object interface.
-func SliceCopy[T runtime.Object](items []T) []T {
-	itemsCopy := make([]T, len(items))
-	for i, item := range items {
-		itemsCopy[i] = item.DeepCopyObject().(T)
+// SecretCopy generates a deep copy of a slice containing secrets
+//
+// This function takes a slice of pointers to Secrets and returns a new slice
+// containing deep copies of the original secrets.
+func SecretCopy(secrets []*apiv1.Secret) []*apiv1.Secret {
+	secretsCopy := make([]*apiv1.Secret, len(secrets))
+	for i, secret := range secrets {
+		secretsCopy[i] = secret.DeepCopy()
 	}
-	return itemsCopy
-}
-
-// GenerateCacheKey generates a cache key based on a format string and arguments
-func GenerateCacheKey(format string, args ...any) (string, error) {
-	h := sha256.New()
-	_, err := h.Write([]byte(fmt.Sprintf(format, args...)))
-	if err != nil {
-		return "", err
-	}
-
-	key := hex.EncodeToString(h.Sum(nil))
-	return key, nil
+	return secretsCopy
 }

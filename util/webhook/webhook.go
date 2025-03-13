@@ -21,16 +21,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
-	"github.com/argoproj/argo-cd/v3/reposerver/cache"
-	servercache "github.com/argoproj/argo-cd/v3/server/cache"
-	"github.com/argoproj/argo-cd/v3/util/app/path"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/glob"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/app/path"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type settingsSource interface {
@@ -41,7 +41,7 @@ type settingsSource interface {
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
-const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
+const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
 const payloadQueueSize = 50000
 
@@ -62,7 +62,7 @@ type ArgoCDWebhookHandler struct {
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
-	queue                  chan any
+	queue                  chan interface{}
 	maxWebhookPayloadSizeB int64
 }
 
@@ -106,7 +106,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
-		queue:                  make(chan any, payloadQueueSize),
+		queue:                  make(chan interface{}, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 	}
 
@@ -138,7 +138,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -205,8 +205,8 @@ func affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, cha
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]any) {
-				link := l.(map[string]any)
+			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
+				link := l.(map[string]interface{})
 				if link["name"] == "http" {
 					webURLs = append(webURLs, link["href"].(string))
 				}
@@ -250,7 +250,7 @@ type changeInfo struct {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -300,7 +300,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := GetWebURLRegex(webURL)
+		repoRegexp, err := getWebUrlRegex(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -329,57 +329,34 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 }
 
-// GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
-// the given webURL. webURL is expected to be a URL from an SCM webhook payload pointing to the web
-// page for the repo.
-func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
-	// 1. Optional: protocol (`http`, `https`, or `ssh`) followed by `://`
-	// 2. Optional: username followed by `@`
-	// 3. Optional: `ssh` or `altssh` subdomain
-	// 4. Required: hostname parsed from `webURL`
-	// 5. Optional: `:` followed by port number
-	// 6. Required: `:` or `/`
-	// 7. Required: path parsed from `webURL`
-	// 8. Optional: `.git` extension
-	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
-}
-
-// GetAPIURLRegex compiles a regex that will match any targetRevision referring to the same repo as
-// the given apiURL.
-func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
-	// 1. Optional: protocol (`http` or `https`) followed by `://`
-	// 2. Optional: username followed by `@`
-	// 3. Required: hostname parsed from `webURL`
-	// 4. Optional: `:` followed by port number
-	// 5. Optional: `/`
-	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?/?$`)
-}
-
-func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
-	urlObj, err := url.Parse(originalURL)
+// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
+// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
+func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
+	urlObj, err := url.Parse(webURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse URL '%s'", originalURL)
+		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
+		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile regexp for URL '%s'", originalURL)
+		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
 	}
 
 	return repoRegexp, nil
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
+	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
 	var clusterInfo v1alpha1.ClusterInfo
-	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
+	err = a.serverCache.GetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
 	if err != nil {
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
@@ -431,7 +408,7 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload any
+	var payload interface{}
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
@@ -488,7 +465,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
+		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
 		return
 	}
 

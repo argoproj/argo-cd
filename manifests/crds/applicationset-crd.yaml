@@ -271,16 +271,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -547,16 +543,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -951,16 +943,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -1227,16 +1215,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -1630,16 +1614,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -1906,16 +1886,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -2289,16 +2265,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -2565,16 +2537,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -2973,16 +2941,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -3249,16 +3213,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -3653,16 +3613,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -3929,16 +3885,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4332,16 +4284,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -4608,16 +4556,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4991,16 +4935,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -5267,16 +5207,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -5658,16 +5594,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -5934,16 +5866,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -6544,16 +6472,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -6820,16 +6744,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -7425,16 +7345,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -7701,16 +7617,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8101,16 +8013,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -8377,16 +8285,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -8787,16 +8691,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9063,16 +8963,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9467,16 +9363,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9743,16 +9635,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10146,16 +10034,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10422,16 +10306,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10805,16 +10685,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11081,16 +10957,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11472,16 +11344,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11748,16 +11616,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12358,16 +12222,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12634,16 +12494,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -13239,16 +13095,12 @@ spec:
                                                     type: boolean
                                                   forceCommonLabels:
                                                     type: boolean
-                                                  ignoreMissingComponents:
-                                                    type: boolean
                                                   images:
                                                     items:
                                                       type: string
                                                     type: array
                                                   kubeVersion:
                                                     type: string
-                                                  labelIncludeTemplates:
-                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13515,16 +13367,12 @@ spec:
                                                       type: boolean
                                                     forceCommonLabels:
                                                       type: boolean
-                                                    ignoreMissingComponents:
-                                                      type: boolean
                                                     images:
                                                       items:
                                                         type: string
                                                       type: array
                                                     kubeVersion:
                                                       type: string
-                                                    labelIncludeTemplates:
-                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -13919,16 +13767,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -14195,16 +14039,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -14585,16 +14425,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -14861,16 +14697,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -15471,16 +15303,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -15747,16 +15575,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -16352,16 +16176,12 @@ spec:
                                           type: boolean
                                         forceCommonLabels:
                                           type: boolean
-                                        ignoreMissingComponents:
-                                          type: boolean
                                         images:
                                           items:
                                             type: string
                                           type: array
                                         kubeVersion:
                                           type: string
-                                        labelIncludeTemplates:
-                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -16628,16 +16448,12 @@ spec:
                                             type: boolean
                                           forceCommonLabels:
                                             type: boolean
-                                          ignoreMissingComponents:
-                                            type: boolean
                                           images:
                                             items:
                                               type: string
                                             type: array
                                           kubeVersion:
                                             type: string
-                                          labelIncludeTemplates:
-                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -17103,16 +16919,12 @@ spec:
                                 type: boolean
                               forceCommonLabels:
                                 type: boolean
-                              ignoreMissingComponents:
-                                type: boolean
                               images:
                                 items:
                                   type: string
                                 type: array
                               kubeVersion:
                                 type: string
-                              labelIncludeTemplates:
-                                type: boolean
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -17379,16 +17191,12 @@ spec:
                                   type: boolean
                                 forceCommonLabels:
                                   type: boolean
-                                ignoreMissingComponents:
-                                  type: boolean
                                 images:
                                   items:
                                     type: string
                                   type: array
                                 kubeVersion:
                                   type: string
-                                labelIncludeTemplates:
-                                  type: boolean
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:

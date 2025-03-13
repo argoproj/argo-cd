@@ -7,24 +7,26 @@ import (
 	"os/signal"
 	"syscall"
 
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
-	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v3/cmpserver/plugin"
-	"github.com/argoproj/argo-cd/v3/common"
-	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v3/server/version"
-	"github.com/argoproj/argo-cd/v3/util/errors"
-	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
+	"google.golang.org/grpc/keepalive"
+
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/cmpserver/plugin"
+	"github.com/argoproj/argo-cd/v2/common"
+	versionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/server/version"
+	"github.com/argoproj/argo-cd/v2/util/errors"
+	grpc_util "github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 // ArgoCDCMPServer is the config management plugin server implementation
@@ -33,37 +35,33 @@ type ArgoCDCMPServer struct {
 	opts          []grpc.ServerOption
 	initConstants plugin.CMPServerInitConstants
 	stopCh        chan os.Signal
-	doneCh        chan any
+	doneCh        chan interface{}
 	sig           os.Signal
 }
 
 // NewServer returns a new instance of the Argo CD config management plugin server
 func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, error) {
-	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
-		serverMetricsOptions = append(serverMetricsOptions, grpc_prometheus.WithServerHandlingTimeHistogram())
+		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
-	serverMetrics := grpc_prometheus.NewServerMetrics(serverMetricsOptions...)
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
-		serverMetrics.StreamServerInterceptor(),
+		grpc_logrus.StreamServerInterceptor(serverLog),
+		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
-		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
-		serverMetrics.UnaryServerInterceptor(),
+		grpc_logrus.UnaryServerInterceptor(serverLog),
+		grpc_prometheus.UnaryServerInterceptor,
 		grpc_util.PanicLoggerUnaryServerInterceptor(serverLog),
 	}
 
 	serverOpts := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(unaryInterceptors...),
-		grpc.ChainStreamInterceptor(streamInterceptors...),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(unaryInterceptors...)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(streamInterceptors...)),
 		grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.MaxSendMsgSize(apiclient.MaxGRPCMessageSize),
 		grpc.KeepaliveEnforcementPolicy(
@@ -77,7 +75,7 @@ func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, e
 		log:           serverLog,
 		opts:          serverOpts,
 		stopCh:        make(chan os.Signal),
-		doneCh:        make(chan any),
+		doneCh:        make(chan interface{}),
 		initConstants: initConstants,
 	}, nil
 }

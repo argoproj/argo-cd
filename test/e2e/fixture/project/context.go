@@ -3,20 +3,19 @@ package project
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 // this implements the "given" part of given/when/then
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout                    int
-	name                       string
-	destination                string
-	destinationServiceAccounts []string
-	repos                      []string
-	sourceNamespaces           []string
+	timeout          int
+	name             string
+	destination      string
+	repos            []string
+	sourceNamespaces []string
 }
 
 func Given(t *testing.T) *Context {
@@ -44,11 +43,6 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Destination(destination string) *Context {
 	c.destination = destination
-	return c
-}
-
-func (c *Context) DestinationServiceAccounts(destinationServiceAccounts []string) *Context {
-	c.destinationServiceAccounts = destinationServiceAccounts
 	return c
 }
 

@@ -48,7 +48,7 @@ func Test_isURLSchemeAllowed(t *testing.T) {
 		allowed  []string
 		expected bool
 	}
-	tts := []testdata{
+	var tts []testdata = []testdata{
 		{
 			name:     "Allowed scheme matches",
 			scheme:   "http",
