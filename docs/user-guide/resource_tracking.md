@@ -18,7 +18,7 @@ metadata:
   name: my-deployment
   namespace: default
   annotations:
-    argocd.argoproj.io/tracking-id: my-app:apps/Deployment:default/nginx-deployment
+    argocd.argoproj.io/tracking-id: my-app:apps/Deployment:default/my-deployment
 ```
 
 The advantages of using the tracking id annotation is that there are no clashes any
