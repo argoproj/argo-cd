@@ -50,6 +50,10 @@ status:
     status: Synced
   health:
     status: Healthy
+  operationState:
+    phase: Succeeded
+    startedAt: "2025-01-29T08:42:34Z"
+    finishedAt: "2025-01-29T08:42:35Z"
 `
 
 const fakeApp2 = `
@@ -450,6 +454,31 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 		}
 		assert.NotContains(t, body, expectedLines)
 	}
+}
+
+func TestMetricsSyncDuration(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
+
+	appSyncDurationTotal := `
+# HELP argocd_app_sync_duration_seconds_total Application sync performance in seconds total.
+# TYPE argocd_app_sync_duration_seconds_total counter
+argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",project="important-project"} 1
+`
+
+	fakeApp := newFakeApp(fakeApp)
+	metricsServ.IncAppSyncDuration(fakeApp, fakeApp.Status.OperationState)
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, appSyncDurationTotal, body)
 }
 
 func TestReconcileMetrics(t *testing.T) {
