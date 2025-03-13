@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nested-test-deployment
+  namespace: default
+  labels:
+    app: nested-test
+    applications.argoproj.io/app-name: nested-app
+  annotations:
+    deployment.kubernetes.io/revision: '1'
+  managedFields:
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            f:app: {}
+            f:applications.argoproj.io/app-name: {}
+        f:spec:
+          f:replicas: {}
+          f:selector: {}
+          f:template:
+            f:metadata:
+              f:labels:
+                f:app: {}
+            f:spec:
+              f:containers:
+                k:{"name":"main-container"}:
+                  .: {}
+                  f:image: {}
+                  f:name: {}
+                  f:ports:
+                    .: {}
+                    k:{"containerPort":80,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                  f:env:
+                    .: {}
+                    k:{"name":"ENV_VAR1"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+      manager: argocd-controller
+      operation: Apply
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nested-test
+  template:
+    metadata:
+      labels:
+        app: nested-test
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: main-container
+          image: 'nginx:latest'
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+          env:
+            - name: ENV_VAR1
+              value: "value1"
+          resources:
+            limits:
+              memory: "100Mi"

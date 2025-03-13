@@ -1,0 +1,19 @@
+{
+   "apiVersion": "rbac.authorization.k8s.io/v1",
+   "kind": "ClusterRole",
+   "metadata": {
+      "name": "test-clusterrole",
+       "labels": {
+            "app.kubernetes.io/instance": "clusterroles"
+        }
+   },
+   "aggregationRule": {
+      "clusterRoleSelectors": [
+         {
+            "matchLabels": {
+               "rbac.example.com/aggregate-to-test": "true"
+            }
+         }
+      ]
+   }
+}
