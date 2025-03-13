@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"errors"
 	"sort"
 	"testing"
@@ -160,7 +159,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			codecommitRepoNameIdPairs := make([]*codecommit.RepositoryNameIdPair, 0)
 			resourceTaggings := make([]*resourcegroupstaggingapi.ResourceTagMapping, 0)
 			validRepositories := make([]*awsCodeCommitTestRepository, 0)
@@ -349,7 +348,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			if testCase.expectedGetFolderPath != "" {
 				codeCommitClient.
 					On("GetFolderWithContext", ctx, &codecommit.GetFolderInput{
@@ -422,7 +421,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
-			ctx := context.Background()
+			ctx := t.Context()
 			if testCase.allBranches {
 				codeCommitClient.
 					On("ListBranchesWithContext", ctx, &codecommit.ListBranchesInput{

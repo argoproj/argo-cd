@@ -127,7 +127,7 @@ func TestInit(t *testing.T) {
 
 		assert.NotNil(t, nc)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
 		err = nc.Init(ctx)
@@ -160,7 +160,7 @@ func TestInitTimeout(t *testing.T) {
 	assert.NotNil(t, nc)
 
 	// Use a short timeout to simulate a timeout during cache synchronization
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
 	defer cancel()
 
 	err = nc.Init(ctx)
