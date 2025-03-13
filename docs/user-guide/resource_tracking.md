@@ -29,7 +29,7 @@ more with other Kubernetes tools and Argo CD is never confused about the owner o
 If you are managing one cluster using multiple Argo CD instances, you will need to set `installationID` in the Argo CD ConfigMap. This will prevent conflicts between
 the different Argo CD instances:
 
-* Each managed resource will have the annotation `argocd.argoproj.io/tracking-id: <installation-id>`
+* Each managed resource will have the annotation `argocd.argoproj.io/installation-id: <installation-id>`
 * It is possible to have applications with the same name in Argo CD instances without causing conflicts.
 
 ### Non self-referencing annotations
