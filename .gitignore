@@ -1,7 +1,0 @@
-*.swp
-*~
-.vscode
-.idea
-coverage.out
-vendor/
-.tool-versions
