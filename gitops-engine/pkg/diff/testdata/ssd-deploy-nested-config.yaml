@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nested-test-deployment
+  namespace: default
+  labels:
+    app: nested-test
+    applications.argoproj.io/app-name: nested-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nested-test
+  template:
+    metadata:
+      labels:
+        app: nested-test
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: main-container
+          image: 'nginx:latest'
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+            - containerPort: 443
+              name: https
+          env:
+            - name: ENV_VAR1
+              value: "value1"
+            - name: ENV_VAR2
+              value: "value2"
+          resources:
+            limits:
+              memory: 100Mi
