@@ -26448,7 +26448,7 @@ spec:
               matchLabels:
                 app.kubernetes.io/name: argocd-redis-ha-haproxy
             topologyKey: kubernetes.io/hostname
-      automountServiceAccountToken: false
+      automountServiceAccountToken: true
       containers:
       - env:
         - name: AUTH
