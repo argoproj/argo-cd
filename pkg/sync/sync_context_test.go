@@ -841,6 +841,34 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}
 }
 
+func TestSyncContext_ServerSideApplyWithDryRun(t *testing.T) {
+	tests := []struct {
+		name        string
+		scDryRun    bool
+		dryRun      bool
+		expectedSSA bool
+		objToUse    func(*unstructured.Unstructured) *unstructured.Unstructured
+	}{
+		{"BothFlagsFalseAnnotated", false, false, true, withServerSideApplyAnnotation},
+		{"scDryRunTrueAnnotated", true, false, false, withServerSideApplyAnnotation},
+		{"dryRunTrueAnnotated", false, true, false, withServerSideApplyAnnotation},
+		{"BothFlagsTrueAnnotated", true, true, false, withServerSideApplyAnnotation},
+		{"AnnotatedDisabledSSA", false, false, false, withDisableServerSideApplyAnnotation},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			sc := newTestSyncCtx(nil)
+			sc.dryRun = tc.scDryRun
+			targetObj := tc.objToUse(testingutils.NewPod())
+
+			// Execute the shouldUseServerSideApply method and assert expectations
+			serverSideApply := sc.shouldUseServerSideApply(targetObj, tc.dryRun)
+			assert.Equal(t, tc.expectedSSA, serverSideApply)
+		})
+	}
+}
+
 func withForceAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
 	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionForce})
 	return un
