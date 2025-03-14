@@ -886,6 +886,9 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	ctrl.RegisterClusterSecretUpdater(ctx)
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.metricsClusterLabels)
 
+	go ctrl.appInformer.Run(ctx.Done())
+	go ctrl.projInformer.Run(ctx.Done())
+
 	if ctrl.dynamicClusterDistributionEnabled {
 		// only start deployment informer if dynamic distribution is enabled
 		go ctrl.deploymentInformer.Informer().Run(ctx.Done())
@@ -903,9 +906,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 			ctrl.clusterSharding.Init(clusters, appItems)
 		}
 	}
-
-	go ctrl.appInformer.Run(ctx.Done())
-	go ctrl.projInformer.Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 
