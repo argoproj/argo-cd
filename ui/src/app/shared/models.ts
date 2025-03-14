@@ -668,7 +668,7 @@ export interface HelmChart {
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin' | 'OCI';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;
