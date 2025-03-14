@@ -1,0 +1,47 @@
+.application-details-app-dropdown {
+    min-width: 300px;
+    
+    &__search {
+        padding: 5px;
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        
+        .argo-field {
+            width: 100%;
+        }
+    }
+
+    &__list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    &__item {
+        padding: 5px 10px;
+        cursor: pointer;
+
+        &:hover {
+            background-color: rgba(var(--argo-colors-teal-3-rgb), 0.1);
+        }
+
+        &.selected {
+            background-color: var(--argo-colors-teal-3);
+            color: white;
+            font-weight: 500;
+            position: relative;
+
+            // Add a left border indicator
+            &::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 3px;
+                background-color: var(--argo-colors-teal-5);
+            }
+        }
+    }
+} 
