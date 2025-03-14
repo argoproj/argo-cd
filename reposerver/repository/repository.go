@@ -2510,7 +2510,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
 	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
 	digest, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
