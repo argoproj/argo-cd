@@ -2418,7 +2418,7 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 
 	metadata, err := client.DigestMetadata(ctx, q.Revision, q.Repo.Project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
 	a := metadata.Annotations
