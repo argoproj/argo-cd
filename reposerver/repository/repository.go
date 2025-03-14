@@ -2424,9 +2424,10 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 	a := metadata.Annotations
 
 	return &v1alpha1.OCIMetadata{
-		CreatedAt:   a["org.opencontainers.image.created"],
-		Authors:     a["org.opencontainers.image.authors"],
-		ImageURL:    a["org.opencontainers.image.url"],
+		CreatedAt: a["org.opencontainers.image.created"],
+		Authors:   a["org.opencontainers.image.authors"],
+		// TODO: add this field at a later stage
+		// ImageURL:    a["org.opencontainers.image.url"],
 		DocsURL:     a["org.opencontainers.image.documentation"],
 		SourceURL:   a["org.opencontainers.image.source"],
 		Version:     a["org.opencontainers.image.version"],

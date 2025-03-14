@@ -97,7 +97,6 @@ export interface RevisionMetadata {
 export interface OCIMetadata {
     createdAt: string;
     authors: string;
-    imageUrl: string;
     docsUrl: string;
     sourceUrl: string;
     version: string;
@@ -668,7 +667,8 @@ export interface HelmChart {
     versions: string[];
 }
 
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
+// TODO: OCI is not an app source type per se.
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin' | 'OCI';
 
 export interface RepoAppDetails {
     type: AppSourceType;
