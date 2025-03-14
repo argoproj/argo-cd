@@ -50,12 +50,12 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
 
 	for _, layer := range layerDescs {
-		require.NoError(t, store.Push(context.Background(), layer.desc, bytes.NewReader(layer.bytes)))
+		require.NoError(t, store.Push(t.Context(), layer.desc, bytes.NewReader(layer.bytes)))
 	}
 
-	require.NoError(t, store.Push(context.Background(), configDesc, bytes.NewReader(configBlob)))
-	require.NoError(t, store.Push(context.Background(), manifestDesc, bytes.NewReader(manifestBlob)))
-	require.NoError(t, store.Tag(context.Background(), manifestDesc, manifestDesc.Digest.String()))
+	require.NoError(t, store.Push(t.Context(), configDesc, bytes.NewReader(configBlob)))
+	require.NoError(t, store.Push(t.Context(), manifestDesc, bytes.NewReader(manifestBlob)))
+	require.NoError(t, store.Tag(t.Context(), manifestDesc, manifestDesc.Digest.String()))
 
 	return manifestDesc.Digest.String()
 }
@@ -238,7 +238,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
-					_, gotCloser, err := c.Extract(context.Background(), sha, args.project)
+					_, gotCloser, err := c.Extract(t.Context(), sha, args.project)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
 				},
@@ -259,7 +259,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
-					_, _, err := c.Extract(context.Background(), sha, "non-existent-project")
+					_, _, err := c.Extract(t.Context(), sha, "non-existent-project")
 					require.Error(t, err)
 					require.EqualError(t, errors.New("error resolving oci repo from digest sha256:34a4a54b23e018edd08aadd78a126a0cedf1e70452daf0d6b36ea44253350a73: not found"), err.Error())
 				},
@@ -276,7 +276,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			}
 
 			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
-			path, gotCloser, err := c.Extract(context.Background(), sha, tt.args.project)
+			path, gotCloser, err := c.Extract(t.Context(), sha, tt.args.project)
 
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
@@ -311,11 +311,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		MediaType: "",
 		Digest:    digest.FromBytes(data),
 	}
-	require.NoError(t, store.Push(context.Background(), descriptor, bytes.NewReader(data)))
-	require.NoError(t, store.Tag(context.Background(), descriptor, "latest"))
-	require.NoError(t, store.Tag(context.Background(), descriptor, "1.2.0"))
-	require.NoError(t, store.Tag(context.Background(), descriptor, "v1.2.0"))
-	require.NoError(t, store.Tag(context.Background(), descriptor, descriptor.Digest.String()))
+	require.NoError(t, store.Push(t.Context(), descriptor, bytes.NewReader(data)))
+	require.NoError(t, store.Tag(t.Context(), descriptor, "latest"))
+	require.NoError(t, store.Tag(t.Context(), descriptor, "1.2.0"))
+	require.NoError(t, store.Tag(t.Context(), descriptor, "v1.2.0"))
+	require.NoError(t, store.Tag(t.Context(), descriptor, descriptor.Digest.String()))
 
 	type fields struct {
 		creds             Creds
@@ -425,7 +425,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, tt.fields.repo, tt.fields.tagsFunc, tt.fields.allowedMediaTypes)
-			got, err := c.ResolveRevision(context.Background(), tt.revision, tt.noCache)
+			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
 				return
