@@ -2515,7 +2515,7 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 	digest, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to resolve revision %q: %w", revision, err)
 	}
 
 	return ociClient, digest, nil
