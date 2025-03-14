@@ -16,8 +16,8 @@ argocd-application-controller [flags]
 
 ```
       --app-hard-resync int                                       Time period in seconds for application hard resync.
-      --app-resync int                                            Time period in seconds for application resync. (default 180)
-      --app-resync-jitter int                                     Maximum time period in seconds to add as a delay jitter for application resync.
+      --app-resync int                                            Time period in seconds for application resync. (default 120)
+      --app-resync-jitter int                                     Maximum time period in seconds to add as a delay jitter for application resync. (default 60)
       --app-state-cache-expiration duration                       Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                            List of additional namespaces that applications are allowed to be reconciled from
       --as string                                                 Username to impersonate for the operation
@@ -54,7 +54,7 @@ argocd-application-controller [flags]
       --otlp-headers stringToString                               List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                             OpenTelemetry collector insecure mode (default true)
       --password string                                           Password for basic authentication to the API server
-      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD (default true)
+      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.

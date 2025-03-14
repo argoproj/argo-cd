@@ -86,9 +86,15 @@ func TestBadSymlinks3(t *testing.T) {
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
 	const testDir = "./testdata/abslink"
-	require.NoError(t, fileutil.CreateSymlink(t, testDir, "/somethingbad", "abslink"))
-	defer os.Remove(path.Join(testDir, "abslink"))
-	err := CheckOutOfBoundsSymlinks(testDir)
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Remove(path.Join(testDir, "abslink"))
+	})
+	t.Chdir(testDir)
+	require.NoError(t, fileutil.CreateSymlink(t, "/somethingbad", "abslink"))
+	t.Chdir(wd)
+	err = CheckOutOfBoundsSymlinks(testDir)
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "abslink", oobError.File)

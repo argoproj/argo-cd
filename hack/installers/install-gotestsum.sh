@@ -10,7 +10,7 @@ PATH="${INSTALL_PATH}:${PATH}"
 [ -d $INSTALL_PATH ] || mkdir -p $INSTALL_PATH
 
 # renovate: datasource=github-releases depName=gotestyourself/gotestsum packageName=gotestyourself/gotestsum
-GOTESTSUM_VERSION=1.12.0
+GOTESTSUM_VERSION=1.12.1
 
 OS=$(go env GOOS)
 ARCH=$(go env GOARCH)

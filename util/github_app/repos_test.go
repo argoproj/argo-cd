@@ -47,7 +47,7 @@ func Test_repoAsCredentials_GetAuth(t *testing.T) {
 			m.On("GetRepoCredsBySecretName", mock.Anything, mock.Anything).Return(&tt.repo, nil)
 			creds := NewAuthCredentials(ArgocdRepositoryMock{mock: &m})
 
-			auth, err := creds.GetAuthSecret(context.Background(), "https://github.com/foo")
+			auth, err := creds.GetAuthSecret(t.Context(), "https://github.com/foo")
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

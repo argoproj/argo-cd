@@ -791,7 +791,7 @@ The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPo
 assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
 associated EKS cluster.
 
-**AWS Auth (Depreciated)**
+**AWS Auth (Deprecated)**
 
 Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
 

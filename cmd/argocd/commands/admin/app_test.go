@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 
 	clustermocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
@@ -31,7 +30,7 @@ import (
 )
 
 func TestGetReconcileResults(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	appClientset := appfake.NewSimpleClientset(&v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,7 +55,7 @@ func TestGetReconcileResults(t *testing.T) {
 }
 
 func TestGetReconcileResults_Refresh(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	argoCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
@@ -268,4 +271,28 @@ func generateJWTToken(issuer string) (string, error) {
 		return "", err
 	}
 	return tokenString, nil
+}
+
+type LogHook struct {
+	Entries []log.Entry
+}
+
+func (h *LogHook) Levels() []log.Level {
+	return []log.Level{log.WarnLevel}
+}
+
+func (h *LogHook) Fire(entry *log.Entry) error {
+	h.Entries = append(h.Entries, *entry)
+	return nil
+}
+
+func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
+	re := regexp.MustCompile(match)
+	matches := make([]string, 0)
+	for _, entry := range h.Entries {
+		if re.Match([]byte(entry.Message)) {
+			matches = append(matches, entry.Message)
+		}
+	}
+	return matches
 }

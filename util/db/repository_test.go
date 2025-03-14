@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,7 +55,7 @@ var repoArgoProj = &corev1.Secret{
 
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset()
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -71,12 +70,12 @@ func TestDb_CreateRepository(t *testing.T) {
 	}
 
 	// The repository was indeed created successfully
-	output, err := testee.CreateRepository(context.TODO(), input)
+	output, err := testee.CreateRepository(t.Context(), input)
 	require.NoError(t, err)
 	assert.Same(t, input, output)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
-		context.TODO(),
+		t.Context(),
 		RepoURLToSecretName(repoSecretPrefix, input.Repo, ""),
 		metav1.GetOptions{},
 	)
@@ -86,24 +85,24 @@ func TestDb_CreateRepository(t *testing.T) {
 
 func TestDb_GetRepository(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
 
-	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
+	repository, err := testee.GetRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "")
 	require.NoError(t, err)
 	require.NotNil(t, repository)
 	assert.Equal(t, "OtherRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
+	repository, err = testee.GetRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
 	require.NoError(t, err)
 	require.NotNil(t, repository)
 	assert.Equal(t, "SomeRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git", "")
+	repository, err = testee.GetRepository(t.Context(), "git@github.com:argoproj/not-existing.git", "")
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
@@ -111,14 +110,14 @@ func TestDb_GetRepository(t *testing.T) {
 
 func TestDb_ListRepositories(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
 
-	repositories, err := testee.ListRepositories(context.TODO())
+	repositories, err := testee.ListRepositories(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, repositories, 2)
 }
@@ -133,7 +132,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	}
 
 	clientset := getClientset(repoArgoCD)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
@@ -141,13 +140,13 @@ func TestDb_UpdateRepository(t *testing.T) {
 	}
 
 	secretRepository.Username = "UpdatedUsername"
-	repository, err := testee.UpdateRepository(context.TODO(), secretRepository)
+	repository, err := testee.UpdateRepository(t.Context(), secretRepository)
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Same(t, secretRepository, repository)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
-		context.TODO(),
+		t.Context(),
 		"some-repo-secret",
 		metav1.GetOptions{},
 	)
@@ -158,20 +157,20 @@ func TestDb_UpdateRepository(t *testing.T) {
 
 func TestDb_DeleteRepository(t *testing.T) {
 	clientset := getClientset(repoArgoCD, repoArgoProj)
-	settingsManager := settings.NewSettingsManager(context.TODO(), clientset, testNamespace)
+	settingsManager := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 	testee := &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
 		settingsMgr:   settingsManager,
 	}
 
-	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
+	err := testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "")
 	require.NoError(t, err)
 
-	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
+	err = testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
 	require.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "some-repo-secret", metav1.GetOptions{})
 	require.Error(t, err)
 }
 
@@ -208,19 +207,19 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 	}
 
 	clientset := getClientset(gitHubRepoCredsSecret, gitLabRepoCredsSecret)
-	testee := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
+	testee := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
-	repoCreds, err := testee.GetRepositoryCredentials(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	repoCreds, err := testee.GetRepositoryCredentials(t.Context(), "git@github.com:argoproj/argoproj.git")
 	require.NoError(t, err)
 	require.NotNil(t, repoCreds)
 	assert.Equal(t, "git@github.com:argoproj", repoCreds.URL)
 
-	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@gitlab.com:someorg/foobar.git")
+	repoCreds, err = testee.GetRepositoryCredentials(t.Context(), "git@gitlab.com:someorg/foobar.git")
 	require.NoError(t, err)
 	require.NotNil(t, repoCreds)
 	assert.Equal(t, "git@gitlab.com", repoCreds.URL)
 
-	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@github.com:example/not-existing.git")
+	repoCreds, err = testee.GetRepositoryCredentials(t.Context(), "git@github.com:example/not-existing.git")
 	require.NoError(t, err)
 	assert.Nil(t, repoCreds)
 }
@@ -331,7 +330,7 @@ func Test_GetProjectRepositories(t *testing.T) {
 	}
 
 	clientset := getClientset(repoSecretWithProject, repoSecretWithoutProject)
-	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
+	argoDB := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	repos, err := argoDB.GetProjectRepositories("some-project")
 	require.NoError(t, err)

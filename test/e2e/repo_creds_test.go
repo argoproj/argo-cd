@@ -5,7 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // make sure you cannot create an app from a private repo without set-up
@@ -39,7 +39,7 @@ func TestCanAddAppFromPrivateRepoWithRepoCfg(t *testing.T) {
 		Path(fixture.LocalOrRemotePath("https-kustomize-base")).
 		And(func() {
 			// I use CLI, but you could also modify the settings, we get a free test of the CLI here
-			FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPS), "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 		}).
 		When().
 		CreateApp().

@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	argoio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -26,7 +25,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -41,7 +40,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", repoURL)
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -57,19 +56,19 @@ func TestAddRemovePublicRepo(t *testing.T) {
 func TestGetRepoWithInheritedCreds(t *testing.T) {
 	app.Given(t).And(func() {
 		// create repo credentials
-		FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath))
+		errors.NewHandler(t).FailOnErr(fixture.RunCli("repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHTTPSOrg), "--github-app-id", fixture.GithubAppID, "--github-app-installation-id", fixture.GithubAppInstallationID, "--github-app-private-key-path", repos.CertKeyPath(t)))
 
 		repoURL := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
 
 		// Hack: First we need to create repo with valid credentials
-		FailOnErr(fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
+		errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 
 		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
+		_, err = repoClient.UpdateRepository(t.Context(), &repositorypkg.RepoUpdateRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: repoURL,
 			},
@@ -107,15 +106,15 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			"--type", "helm",
 			"--username", fixture.GitUsername,
 			"--password", fixture.GitPassword,
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath)
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
 		require.NoError(t, err)
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 		exists := false
@@ -130,7 +129,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
 		require.NoError(t, err)
 
-		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err = repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
@@ -151,8 +150,8 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 			"--username", fixture.GitUsername,
 			"--password", fixture.GitPassword,
 			"--insecure-skip-server-verification",
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath)
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 
 		require.NoError(t, err)
 
@@ -161,7 +160,7 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		defer argoio.Close(conn)
 
-		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
+		repo, err := repoClient.ListRepositories(t.Context(), &repositorypkg.RepoQuery{})
 
 		require.NoError(t, err)
 
@@ -197,8 +196,8 @@ func TestFailOnCreatePrivateNonGitRepoWithBearerToken(t *testing.T) {
 		repoURL := fixture.RepoURL(fixture.RepoURLTypeHelm)
 		_, err := fixture.RunCli("repo", "add", repoURL, "--bearer-token", fixture.GitBearerToken,
 			"--insecure-skip-server-verification",
-			"--tls-client-cert-path", repos.CertPath,
-			"--tls-client-cert-key-path", repos.CertKeyPath,
+			"--tls-client-cert-path", repos.CertPath(t),
+			"--tls-client-cert-key-path", repos.CertKeyPath(t),
 			"--name", "testrepo",
 			"--type", "helm")
 		require.ErrorContains(t, err, "--bearer-token is only supported for Git repositories")

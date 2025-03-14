@@ -17,7 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestHelmHooksAreCreated(t *testing.T) {
@@ -322,7 +322,7 @@ func TestHelmSetEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, fixture.Name(), FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, fixture.Name(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
@@ -337,7 +337,7 @@ func TestHelmSetStringEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, fixture.Name(), FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, fixture.Name(), errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
 		})
 }
 
@@ -352,10 +352,10 @@ func TestKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			kubeVersion := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		}).
 		When().
 		// Make sure override works.
@@ -364,7 +364,7 @@ func TestKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, "v999.999.999", FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
 }
@@ -380,7 +380,7 @@ func TestApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
 			assert.Contains(t, apiVersions, "v1")
@@ -392,7 +392,7 @@ func TestApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
 		})
@@ -537,15 +537,16 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			t.Setenv("XDG_CONFIG_HOME", helmTmp)
-			FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
 				"--username", fixture.GitUsername,
 				"--password", fixture.GitPassword,
 				"--cert-file", "../fixture/certs/argocd-test-client.crt",
 				"--key-file", "../fixture/certs/argocd-test-client.key",
 				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
 			))
-			diffOutput := FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
+			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")
 			assert.Empty(t, diffOutput)
+			assert.NoError(t, err)
 		})
 }
 

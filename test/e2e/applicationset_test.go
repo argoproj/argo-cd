@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -1766,7 +1765,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 
 	Given(t).
 		And(func() {
-			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
+			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: fixture.TestNamespace(),
 					Name:      secretName,
@@ -1824,7 +1823,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		},
 	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		When().And(func() {
-		err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+		err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(t.Context(), secretName, metav1.DeleteOptions{})
 		assert.NoError(t, err)
 	})
 }
@@ -1871,7 +1870,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 
 	Given(t).
 		And(func() {
-			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
+			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: fixture.TestNamespace(),
 					Name:      secretName,
@@ -1935,7 +1934,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 			output, err := fixture.RunCli("appset", "get", "simple-scm-provider-generator-strict-ko")
 			require.NoError(t, err)
 			assert.Contains(t, output, fmt.Sprintf("scm provider: error fetching Github token: secret %s/%s is not a valid SCM creds secret", fixture.TestNamespace(), secretName))
-			err2 := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+			err2 := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(t.Context(), secretName, metav1.DeleteOptions{})
 			assert.NoError(t, err2)
 		})
 }

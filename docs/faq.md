@@ -147,7 +147,7 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default polling interval is 3 minutes (180 seconds) with a configurable jitter.
+The default maximum polling interval is 3 minutes (120 seconds + 60 seconds jitter).
 You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 

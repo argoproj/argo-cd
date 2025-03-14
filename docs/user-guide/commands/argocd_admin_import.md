@@ -11,8 +11,8 @@ argocd admin import SOURCE [flags]
 ### Options
 
 ```
-      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace
-      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace
+      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from 'application.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace
+      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace
       --as string                           Username to impersonate for the operation
       --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                       UID to impersonate for the operation

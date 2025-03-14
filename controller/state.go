@@ -410,6 +410,29 @@ func DeduplicateTargetObjects(
 	return result, conditions, nil
 }
 
+// normalizeClusterScopeTracking will set the app instance tracking metadata on malformed cluster-scoped resources where
+// metadata.namespace is not empty. The repo-server doesn't know which resources are cluster-scoped, so it may apply
+// an incorrect tracking annotation using the metadata.namespace. This function will correct that.
+func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) error {
+	for i := len(targetObjs) - 1; i >= 0; i-- {
+		targetObj := targetObjs[i]
+		if targetObj == nil {
+			continue
+		}
+		gvk := targetObj.GroupVersionKind()
+		if !kubeutil.IsNamespacedOrUnknown(infoProvider, gvk.GroupKind()) {
+			if targetObj.GetNamespace() != "" {
+				targetObj.SetNamespace("")
+				err := setAppInstance(targetObj)
+				if err != nil {
+					return fmt.Errorf("failed to set app instance label on cluster-scoped resource %s/%s: %w", gvk.String(), targetObj.GetName(), err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
 func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, error) {
@@ -591,12 +614,24 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	if err != nil {
 		infoProvider = &resourceInfoProviderStub{}
 	}
+
+	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
+	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
+		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID)
+	})
+	if err != nil {
+		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
+		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+	}
+
 	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
 	if err != nil {
 		msg := "Failed to deduplicate target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)
+
 	for i := len(targetObjs) - 1; i >= 0; i-- {
 		targetObj := targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
@@ -647,8 +682,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			delete(liveObjByKey, k)
 		}
 	}
-
-	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
 	for _, liveObj := range liveObjByKey {
 		if liveObj != nil {

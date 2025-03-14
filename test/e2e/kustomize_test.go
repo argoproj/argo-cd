@@ -145,7 +145,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--load-restrictor LoadRestrictionsNone" } }`))
 		}).
@@ -159,7 +159,7 @@ func TestKustomizeBuildOptionsLoadRestrictor(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Given().
 		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "" } }`))
 		})
@@ -292,7 +292,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 	Given(t).
 		Path("kustomize-kube-version").
 		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
 		}).
@@ -302,10 +302,10 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			kubeVersion := errors.FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s.0"), kubeVersion)
 		}).
 		When().
 		// Make sure override works.
@@ -314,7 +314,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, "v999.999.999", errors.FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
 }
@@ -324,7 +324,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 	Given(t).
 		Path("kustomize-api-versions").
 		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
 		}).
@@ -334,7 +334,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
 			assert.Contains(t, apiVersions, "v1")
@@ -346,7 +346,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
 		})
@@ -356,7 +356,7 @@ func TestKustomizeNamespaceOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize-kube-version").
 		And(func() {
-			errors.FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
 				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
 		}).
