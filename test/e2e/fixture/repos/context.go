@@ -2,6 +2,7 @@ package repos
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -54,6 +55,8 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return &Actions{context: c}
 }
 

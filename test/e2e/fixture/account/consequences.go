@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -64,5 +65,7 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return c.actions
 }
