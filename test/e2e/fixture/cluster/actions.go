@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -131,6 +132,8 @@ func (a *Actions) DeleteByServer() *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return &Consequences{a.context, a}
 }
 
