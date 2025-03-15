@@ -38,15 +38,13 @@ jobs:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
           filters: |
             backend:
-              - '!ui/**'
-              - '!**.md'
-              - '!**/*.md'
-              - '!docs/**'
+              - '!(ui/**|docs/**|**.md|**/*.md)'
             frontend:
               - 'ui/**'
-              - Dockerfile
             docs:
               - 'docs/**'
+              - '**.md'
+              - '**/*.md'
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
