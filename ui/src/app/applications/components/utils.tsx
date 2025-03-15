@@ -550,6 +550,11 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
         .catch(() => [] as MenuItem[]);
 }
 
+export function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+    const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
+    return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -558,11 +563,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.Application>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
-    }
-
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
     const childResources = findChildResources(resource, tree);
