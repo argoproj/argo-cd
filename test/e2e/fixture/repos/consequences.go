@@ -3,6 +3,7 @@ package repos
 import (
 	"context"
 	"errors"
+	"time"
 
 	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -54,5 +55,7 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return c.actions
 }

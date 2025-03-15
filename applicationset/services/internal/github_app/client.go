@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v69/github"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 )
