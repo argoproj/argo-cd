@@ -61,6 +61,8 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return &Consequences{a.context, a}
 }
 
