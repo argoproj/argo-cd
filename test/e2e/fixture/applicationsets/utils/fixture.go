@@ -140,22 +140,6 @@ func EnsureCleanState(t *testing.T) {
 			}
 			return nil
 		},
-		func() error {
-			// Delete the argocd-e2e-external namespace, if it exists
-			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(t.Context(), string(ArgoCDExternalNamespace), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
-				return err
-			}
-			return nil
-		},
-		func() error {
-			// Delete the argocd-e2e-external namespace, if it exists
-			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(t.Context(), string(ArgoCDExternalNamespace2), metav1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !apierrors.IsNotFound(err) { // 'not found' error is expected
-				return err
-			}
-			return nil
-		},
 		// delete resources
 		func() error {
 			// kubectl delete applicationsets --all
