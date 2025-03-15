@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"time"
+
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
@@ -63,5 +65,7 @@ func (a *Actions) runCliWithStdin(stdin string, args ...string) {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	// Account for batch events processing (set to 1ms in e2e tests)
+	time.Sleep(5 * time.Millisecond)
 	return &Consequences{a.context, a}
 }
