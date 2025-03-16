@@ -2,6 +2,7 @@ package util_test
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,4 +123,15 @@ func TestGenerateCacheKey(t *testing.T) {
 			require.Equalf(t, tc.expected, key, "expected %s but got %s", tc.expected, key)
 		})
 	}
+}
+
+func TestKeys(t *testing.T) {
+	t.Parallel()
+
+	r1 := util.Keys(map[string]int{"foo": 1, "bar": 2})
+	sort.Strings(r1)
+	assert.Equal(t, []string{"bar", "foo"}, r1)
+
+	r2 := util.Keys(map[string]int{})
+	assert.Empty(t, r2)
 }
