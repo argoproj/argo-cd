@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -280,17 +281,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return nil, fmt.Errorf("error listing apps with selectors: %w", err)
 	}
 
-	filteredApps := apps
-	// Filter applications by name
-	if q.Name != nil {
-		filteredApps = argo.FilterByNameP(filteredApps, *q.Name)
-	}
-
-	// Filter applications by projects
-	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
-
-	// Filter applications by source repo URL
-	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
+	filteredApps := argo.FilterByFiltersP(apps, buildFilter(*q))
 
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
@@ -309,13 +300,68 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 		return newItems[i].Name < newItems[j].Name
 	})
 
+	if q.Offset != nil && q.Limit != nil {
+		if *q.Offset < 0 || *q.Limit < 0 {
+			return nil, fmt.Errorf("offset %d and limit %d must be a non-negative integer", *q.Offset, *q.Limit)
+		}
+		if *q.Offset >= int64(len(newItems)) || *q.Limit == 0 {
+			newItems = make([]v1alpha1.Application, 0)
+		} else {
+			if *q.Offset+*q.Limit >= int64(len(newItems)) {
+				newItems = newItems[*q.Offset:]
+			} else {
+				newItems = newItems[*q.Offset : *q.Offset+*q.Limit]
+			}
+		}
+	}
+
 	appList := v1alpha1.ApplicationList{
 		ListMeta: metav1.ListMeta{
 			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
 		},
 		Items: newItems,
+		Stats: s.getAppsStats(apps),
 	}
 	return &appList, nil
+}
+
+// TODO(@yang.xiao): add UT
+func (s *Server) getAppsStats(apps []*v1alpha1.Application) v1alpha1.ApplicationListStats {
+	stats := v1alpha1.NewApplicationListStats()
+	destinations := map[v1alpha1.ApplicationDestination]bool{}
+	namespaces := map[string]bool{}
+	labels := map[string]map[string]bool{}
+	for _, app := range apps {
+		stats.Total++
+		stats.TotalByHealthStatus[app.Status.Health.Status]++
+		stats.TotalBySyncStatus[app.Status.Sync.Status]++
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+			stats.AutoSyncEnabledCount++
+		}
+		if _, ok := destinations[app.Spec.Destination]; !ok {
+			destinations[app.Spec.Destination] = true
+		}
+		if _, ok := namespaces[app.Spec.Destination.Namespace]; !ok {
+			namespaces[app.Spec.Destination.Namespace] = true
+		}
+		for key, value := range app.Labels {
+			if valueMap, ok := labels[key]; !ok {
+				labels[key] = map[string]bool{value: true}
+			} else {
+				valueMap[value] = true
+			}
+		}
+	}
+
+	stats.Destinations = lo.Keys(destinations)
+	stats.Namespaces = lo.Keys(namespaces)
+	for key, valueMap := range labels {
+		stats.Labels = append(stats.Labels, v1alpha1.ApplicationLabelStats{
+			Key:    key,
+			Values: lo.Keys(valueMap),
+		})
+	}
+	return stats
 }
 
 // Create creates an application
@@ -2736,4 +2782,70 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 		return q.Project
 	}
 	return q.Projects
+}
+
+func getReposFromApplicationQuery(q application.ApplicationQuery) []string {
+	if q.Repo != nil {
+		return []string{*q.Repo}
+	}
+	return q.Repos
+}
+
+func buildFilter(q application.ApplicationQuery) argo.Filter {
+	chainFilter := argo.NewChainFilter()
+
+	if q.Name != nil {
+		f := argo.NewStringPropertyFilter([]string{q.GetName()}, func(app *v1alpha1.Application) string { return app.Name })
+		chainFilter.AddFilter(f)
+	}
+
+	if getProjectsFromApplicationQuery(q) != nil {
+		f := argo.NewStringPropertyFilter(getProjectsFromApplicationQuery(q), func(app *v1alpha1.Application) string { return app.Spec.Project })
+		chainFilter.AddFilter(f)
+	}
+
+	if q.GetMinName() != "" {
+		chainFilter.AddFilter(argo.NewMinNameFilter(q.GetMinName()))
+	}
+
+	if q.GetMaxName() != "" {
+		chainFilter.AddFilter(argo.NewMaxNameFilter(q.GetMaxName()))
+	}
+
+	if len(getReposFromApplicationQuery(q)) > 0 {
+		f := argo.NewStringPropertyFilter(getReposFromApplicationQuery(q), func(app *v1alpha1.Application) string { return app.Spec.Source.RepoURL })
+		chainFilter.AddFilter(f)
+	}
+
+	if len(q.GetClusters()) > 0 {
+		chainFilter.AddFilter(argo.NewClustersFilter(q.GetClusters()))
+	}
+
+	if len(q.GetNamespaces()) > 0 {
+		f := argo.NewStringPropertyFilter(q.GetNamespaces(), func(app *v1alpha1.Application) string { return app.Spec.Destination.Namespace })
+		chainFilter.AddFilter(f)
+	}
+
+	if q.AutoSyncEnabled != nil {
+		f := argo.NewBoolPropertyFilter(*q.AutoSyncEnabled, func(app *v1alpha1.Application) bool {
+			return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
+		})
+		chainFilter.AddFilter(f)
+	}
+
+	if len(q.GetSyncStatuses()) > 0 {
+		f := argo.NewStringPropertyFilter(q.GetSyncStatuses(), func(app *v1alpha1.Application) string { return string(app.Status.Sync.Status) })
+		chainFilter.AddFilter(f)
+	}
+
+	if len(q.GetHealthStatuses()) > 0 {
+		f := argo.NewStringPropertyFilter(q.GetHealthStatuses(), func(app *v1alpha1.Application) string { return string(app.Status.Health.Status) })
+		chainFilter.AddFilter(f)
+	}
+
+	if q.Search != nil {
+		chainFilter.AddFilter(argo.NewSearchFilter(q.GetSearch()))
+	}
+
+	return chainFilter
 }
