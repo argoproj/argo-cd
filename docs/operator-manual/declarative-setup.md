@@ -1199,6 +1199,7 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+* Adding a resource not directly managed by ArgoCD (e.g., a ReplicaSet from a Deployment) requires restarting the controller for the changes to take effect.
 
 ## Mask sensitive Annotations on Secrets
 
