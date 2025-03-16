@@ -667,8 +667,7 @@ export interface HelmChart {
     versions: string[];
 }
 
-// TODO: OCI is not an app source type per se.
-export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin' | 'OCI';
+export type AppSourceType = 'Helm' | 'Kustomize' | 'Directory' | 'Plugin';
 
 export interface RepoAppDetails {
     type: AppSourceType;

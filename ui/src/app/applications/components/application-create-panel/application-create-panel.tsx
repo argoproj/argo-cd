@@ -21,8 +21,7 @@ const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
     {type: 'Kustomize', field: 'kustomize'},
     {type: 'Directory', field: 'directory'},
-    {type: 'Plugin', field: 'plugin'},
-    {type: 'OCI', field: 'oci'}
+    {type: 'Plugin', field: 'plugin'}
 );
 
 const DEFAULT_APP: Partial<models.Application> = {
@@ -335,7 +334,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         </p>
                                                                     )}
                                                                     qeId='application-create-dropdown-source-repository'
-                                                                    items={['git', 'helm'].map((type: 'git' | 'helm') => ({
+                                                                    items={['git', 'helm', 'oci'].map((type: 'git' | 'helm' | 'oci') => ({
                                                                         title: type.toUpperCase(),
                                                                         action: () => {
                                                                             if (repoType !== type) {
