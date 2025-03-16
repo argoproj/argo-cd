@@ -175,12 +175,37 @@ message ApplicationDestinationServiceAccount {
   optional string defaultServiceAccount = 3;
 }
 
+message ApplicationLabelStats {
+  optional string key = 1;
+
+  repeated string values = 2;
+}
+
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ApplicationList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Application items = 2;
+
+  optional ApplicationListStats stats = 3;
+}
+
+// ApplicationListStats holds additional information about the list of applications
+message ApplicationListStats {
+  optional int64 total = 1;
+
+  map<string, int64> totalBySyncStatus = 2;
+
+  map<string, int64> totalByHealthStatus = 3;
+
+  optional int64 autoSyncEnabledCount = 4;
+
+  repeated ApplicationDestination destinations = 5;
+
+  repeated string namespaces = 6;
+
+  repeated ApplicationLabelStats labels = 7;
 }
 
 message ApplicationMatchExpression {
