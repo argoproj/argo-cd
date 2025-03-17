@@ -93,14 +93,10 @@ func getMostRecentTag(tags []string) string {
 }
 
 func findPreviousTag(proposedTag string, tags []string) (string, error) {
-	proposedPatch, proposedRC, err := extractPatchAndRC(proposedTag)
-	if err != nil {
-		return "", err
-	}
-
 	tags = removeInvalidTags(tags)
 	tags = removeNewerOrEqualTags(proposedTag, tags)
 
+	proposedPatch, proposedRC, _ := extractPatchAndRC(proposedTag) // Ignore the error, we already filtered out invalid tags.
 	if proposedRC == "0" && proposedPatch == "0" {
 		// If we're cutting the first patch of a new minor release series, don't consider tags in the same minor release
 		// series. We want to compare to the latest tag in the previous minor release series.
