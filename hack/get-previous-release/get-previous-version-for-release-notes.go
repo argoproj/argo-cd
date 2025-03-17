@@ -103,7 +103,7 @@ func findPreviousTag(proposedTag string, tags []string) (string, error) {
 
 	if proposedRC == "0" && proposedPatch == "0" {
 		// If we're cutting the first patch of a new minor release series, don't consider tags in the same minor release
-		// series.
+		// series. We want to compare to the latest tag in the previous minor release series.
 		tags = removeTagsFromSameMinorSeries(proposedTag, tags)
 	}
 
