@@ -20,3 +20,4 @@ trap somefunc 2 15
 while :; do
 	sleep 1
 done
+
