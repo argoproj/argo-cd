@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"k8s.io/utils/ptr"
 	"math"
 	"math/rand"
 	"net/http"
@@ -2433,6 +2434,13 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
+				// if cluster has been changed, then let's clean resources of the oldApp.
+				if newOK && oldOK && oldApp.Spec.Destination.Server != newApp.Spec.Destination.Server {
+					if err := ctrl.deleteAppResources(oldApp); err != nil {
+						logCtx := getAppLog(oldApp)
+						logCtx.Errorf("Failed to delete old application resource: %v", err)
+					}
+				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj any) {
@@ -2457,6 +2465,42 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		return nil, nil
 	}
 	return informer, lister
+}
+
+func (ctrl *ApplicationController) deleteAppResources(app *appv1.Application) error {
+	appCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		return fmt.Errorf("error getting application cluster: %w", err)
+	}
+	clusterRESTConfig, err := appCluster.RESTConfig()
+	if err != nil {
+		return fmt.Errorf("error getting application cluster config: %w", err)
+	}
+	appManagedResources := make([]*appv1.ResourceDiff, 0)
+	if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &appManagedResources); err != nil {
+		return fmt.Errorf("error getting application cluster resources: %w", err)
+	}
+
+	tree, err := ctrl.getResourceTree(appCluster, app, appManagedResources)
+	if err != nil {
+		return fmt.Errorf("error getting application resource tree: %w", err)
+	}
+
+	if err = kube.RunAllAsync(len(tree.Nodes), func(i int) error {
+		node := tree.Nodes[i]
+		if err := ctrl.kubectl.DeleteResource(
+			context.Background(), clusterRESTConfig, node.GroupKindVersion(), node.Name, node.Namespace, metav1.DeleteOptions{PropagationPolicy: ptr.To(metav1.DeletePropagationBackground)},
+		); err != nil {
+			return err
+		}
+		message := fmt.Sprintf("deleted resource %s/%s '%s'", node.Group, node.Kind, node.Name)
+		ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonResourceDeleted, Type: corev1.EventTypeNormal}, message)
+		return nil
+	}); err != nil {
+		return fmt.Errorf("error deleting application resources: %w", err)
+	}
+
+	return nil
 }
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {
