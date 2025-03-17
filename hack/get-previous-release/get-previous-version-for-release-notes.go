@@ -61,10 +61,10 @@ func removeInvalidTags(tags []string) []string {
 	return validTags
 }
 
-func removeNewerTags(proposedTag string, tags []string) []string {
+func removeNewerOrEqualTags(proposedTag string, tags []string) []string {
 	var validTags []string
 	for _, tag := range tags {
-		if semver.Compare(tag, proposedTag) <= 0 {
+		if semver.Compare(tag, proposedTag) < 0 {
 			validTags = append(validTags, tag)
 		}
 	}
@@ -99,7 +99,7 @@ func findPreviousTag(proposedTag string, tags []string) (string, error) {
 	}
 
 	tags = removeInvalidTags(tags)
-	tags = removeNewerTags(proposedTag, tags)
+	tags = removeNewerOrEqualTags(proposedTag, tags)
 
 	if proposedRC == "0" && proposedPatch == "0" {
 		// If we're cutting the first patch of a new minor release series, don't consider tags in the same minor release
