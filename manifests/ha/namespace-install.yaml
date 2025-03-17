@@ -2130,6 +2130,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   strategy:
+    rollingUpdate:
+      maxUnavailable: 1
     type: RollingUpdate
   template:
     metadata:
