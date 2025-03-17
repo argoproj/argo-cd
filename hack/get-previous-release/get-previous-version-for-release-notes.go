@@ -51,50 +51,59 @@ func extractPatchAndRC(tag string) (string, string, error) {
 	return patch, rc, nil
 }
 
-func findPreviousTag(proposedTag string, tags []string) (string, error) {
-	var previousTag string
-	proposedMinor := semver.MajorMinor(proposedTag)
-
-	proposedPatch, proposedRC, err := extractPatchAndRC(proposedTag)
-	if err != nil {
-		return "", err
-	}
-
+func removeInvalidTags(tags []string) []string {
+	var validTags []string
 	for _, tag := range tags {
-		// If this tag is newer than the proposed tag, skip it.
-		if semver.Compare(tag, proposedTag) > 0 {
-			continue
-		}
-
-		// If this tag is older than a tag we've already decided is a candidate, skip it.
-		if semver.Compare(tag, previousTag) <= 0 {
-			continue
-		}
-		tagPatch, tagRC, err := extractPatchAndRC(tag)
-		if err != nil {
-			continue
-		}
-
-		// If it's a non-RC release...
-		if proposedRC == "0" {
-			if proposedPatch == "0" {
-				// ...and we're cutting the first patch of a new minor release series, don't consider tags in the same
-				// minor release series.
-				if semver.MajorMinor(tag) != proposedMinor {
-					previousTag = tag
-				}
-			} else {
-
-				previousTag = tag
-			}
-		} else {
-			if tagRC != "0" && tagPatch == proposedPatch {
-				previousTag = tag
-			} else if tagRC == "0" {
-				previousTag = tag
-			}
+		if _, _, err := extractPatchAndRC(tag); err == nil {
+			validTags = append(validTags, tag)
 		}
 	}
+	return validTags
+}
+
+func removeNewerOrEqualTags(proposedTag string, tags []string) []string {
+	var validTags []string
+	for _, tag := range tags {
+		if semver.Compare(tag, proposedTag) < 0 {
+			validTags = append(validTags, tag)
+		}
+	}
+	return validTags
+}
+
+func removeTagsFromSameMinorSeries(proposedTag string, tags []string) []string {
+	var validTags []string
+	proposedMinor := semver.MajorMinor(proposedTag)
+	for _, tag := range tags {
+		if semver.MajorMinor(tag) != proposedMinor {
+			validTags = append(validTags, tag)
+		}
+	}
+	return validTags
+}
+
+func getMostRecentTag(tags []string) string {
+	var mostRecentTag string
+	for _, tag := range tags {
+		if mostRecentTag == "" || semver.Compare(tag, mostRecentTag) > 0 {
+			mostRecentTag = tag
+		}
+	}
+	return mostRecentTag
+}
+
+func findPreviousTag(proposedTag string, tags []string) (string, error) {
+	tags = removeInvalidTags(tags)
+	tags = removeNewerOrEqualTags(proposedTag, tags)
+
+	proposedPatch, proposedRC, _ := extractPatchAndRC(proposedTag) // Ignore the error, we already filtered out invalid tags.
+	if proposedRC == "0" && proposedPatch == "0" {
+		// If we're cutting the first patch of a new minor release series, don't consider tags in the same minor release
+		// series. We want to compare to the latest tag in the previous minor release series.
+		tags = removeTagsFromSameMinorSeries(proposedTag, tags)
+	}
+
+	previousTag := getMostRecentTag(tags)
 	if previousTag == "" {
 		return "", fmt.Errorf("no matching tag found for tags: " + strings.Join(tags, ", "))
 	}
