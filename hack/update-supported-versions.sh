@@ -28,7 +28,7 @@ for _ in {1..3}; do
   if [ "$argocd_minor_version_num" -eq 0 ]; then
     argocd_major_version_num=$((argocd_major_version_num - 1))
     # Get the latest minor version in the previous series.
-    argocd_minor_version_num=$(git branch -l "release-$argocd_major_version_num.*" | sort -V | tail -n 1 | sed -E 's/release-[0-9]+\.//')
+    argocd_minor_version_num=$(git tag -l "v$argocd_major_version_num.*" | sort -V | tail -n 1 | sed -E 's/\.[0-9]+$//' | sed -E 's/^v[0-9]+\.//')
 
     # Don't decrement the minor version, since we're switching to the previous major release series. We want the latest
     # minor version in that series.
