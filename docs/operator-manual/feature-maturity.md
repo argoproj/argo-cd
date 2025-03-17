@@ -17,7 +17,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | Feature                                   | Introduced | Status |
 |-------------------------------------------|------------|--------|
 | [AppSet Progressive Syncs][2]             | v2.6.0     | Alpha  |
-| [Proxy Extensions][3]                     | v2.7.0     | Alpha  |
+| [Proxy Extensions][3]                     | v2.7.0     | Beta   |
 | [Skip Application Reconcile][4]           | v2.7.0     | Alpha  |
 | [AppSets in any Namespace][5]             | v2.8.0     | Beta   |
 | [Cluster Sharding: round-robin][6]        | v2.8.0     | Alpha  |
