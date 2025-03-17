@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
-import {cloneDeep} from 'lodash-es';
+import {cloneDeep, merge, isEqual} from 'lodash-es';
 import {
     ArrayInputField,
     ArrayValueField,
@@ -140,6 +140,15 @@ function getParamsEditableItems(
             }
         }))
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
+}
+
+function mergeAndFormatHelmValues(valuesObject: any, values: string) {
+    if (!valuesObject && !values) {
+        return '';
+    }
+    //Order of precedence: valuesObject > values
+    const mergedValueObject = merge(jsYaml.load(values || ''), valuesObject || {});
+    return jsYaml.dump(mergedValueObject);
 }
 
 export const ApplicationParameters = (props: {
@@ -381,8 +390,12 @@ export const ApplicationParameters = (props: {
                                 input.spec.source.plugin.parameters = params;
                             }
                             if (input.spec.source && input.spec.source.helm?.valuesObject) {
-                                input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
-                                input.spec.source.helm.values = '';
+                                try {
+                                    input.spec.source.helm.values = mergeAndFormatHelmValues(input.spec.source.helm.valuesObject, input.spec.source.helm.values);
+                                    delete input.spec.source.helm.valuesObject;
+                                } catch (e) {
+                                    console.error('Error processing helm values:', e);
+                                }
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
@@ -523,8 +536,12 @@ export const ApplicationParameters = (props: {
                             appSrc.plugin.parameters = params;
                         }
                         if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            appSrc.helm.values = '';
+                            try {
+                                appSrc.helm.values = mergeAndFormatHelmValues(appSrc.helm.valuesObject, appSrc.helm.values);
+                                delete appSrc.helm.valuesObject;
+                            } catch (e) {
+                                console.error('Error processing helm values:', e);
+                            }
                         }
 
                         await props.save(input, {});
@@ -790,7 +807,7 @@ function gatherDetails(
             ),
             edit: (formApi: FormApi) => {
                 // In case source.helm.valuesObject is set, set source.helm.values to its value
-                if (source.helm) {
+                if (source.helm && helmValues && !isEqual(helmValues, source.helm.values)) {
                     source.helm.values = helmValues;
                 }
 
