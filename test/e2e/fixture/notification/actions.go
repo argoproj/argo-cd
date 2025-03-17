@@ -26,8 +26,7 @@ func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	// Account for batch events processing (set to 1ms in e2e tests)
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 

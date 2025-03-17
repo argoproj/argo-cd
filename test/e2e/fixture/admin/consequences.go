@@ -3,6 +3,7 @@ package admin
 import (
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/admin/utils"
 )
 
@@ -35,7 +36,6 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	// Account for batch events processing (set to 1ms in e2e tests)
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

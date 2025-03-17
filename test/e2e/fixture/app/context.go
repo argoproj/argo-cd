@@ -349,8 +349,7 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	// Account for batch events processing (set to 1ms in e2e tests)
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
 
