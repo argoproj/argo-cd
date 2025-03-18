@@ -1434,12 +1434,10 @@ type SyncPolicy struct {
 
 // IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
 func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
-	var isEnabled bool
-
 	if p.Automated != nil && (p.Automated.Enable == nil || *p.Automated.Enable) {
-		isEnabled = true
+		return true
 	}
-	return isEnabled
+	return false
 }
 
 // IsZero returns true if the sync policy is empty
