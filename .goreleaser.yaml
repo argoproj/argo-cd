@@ -45,11 +45,11 @@ builds:
 
 archives:
   - id: argocd-archive
-    builds:
+    ids:
     - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    format: binary
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
@@ -92,7 +92,7 @@ release:
 
 
 snapshot: #### To be removed for PR
-  name_template: "2.6.0"
+  version_template: "2.6.0"
 
 changelog:
   use:
