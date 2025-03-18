@@ -871,17 +871,21 @@ func AddTagWithForce(t *testing.T, name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	_, err := Run(repoDirectory(), "git", "tag", "-f", name)
+	errors.CheckError(err)
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		_, err := Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master")
+		errors.CheckError(err)
 	}
 }
 
 func AddAnnotatedTag(t *testing.T, name string, message string) {
 	t.Helper()
-	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
+	_, err := Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message)
+	errors.CheckError(err)
 	if IsRemote() {
-		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+		_, err := Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master")
+		errors.CheckError(err)
 	}
 }
 
