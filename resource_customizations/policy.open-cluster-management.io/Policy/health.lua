@@ -1,5 +1,4 @@
 hs = {}
-
 if obj.status == nil then
   hs.status = "Progressing"
   hs.message = "Waiting for the status to be reported"
@@ -8,7 +7,7 @@ end
 
 -- A policy will not have a compliant field but will have a placement key set if
 -- it is not being applied to any clusters
-if obj.status.compliant == nil and obj.status.status == nil and obj.status.placement ~= nil and #obj.status.placement > 0 then
+if obj.status.compliant == nil and #obj.status.placement > 0 and obj.status.status == nil then
   hs.status = "Healthy"
   hs.message = "No clusters match this policy"
   return hs
@@ -25,8 +24,6 @@ if obj.status.compliant == "Compliant" then
 else
   hs.status = "Degraded"
 end
-
--- Collect NonCompliant clusters for the policy
 noncompliants = {}
 if obj.status.status ~= nil then
   -- "root" policy
@@ -53,5 +50,4 @@ elseif obj.status.details ~= nil then
     hs.message = "NonCompliant templates: " .. table.concat(noncompliants, ", ")
   end
 end
-
 return hs

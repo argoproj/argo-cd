@@ -55,11 +55,10 @@ argocd-server [flags]
       --enable-proxy-extension                          Enable Proxy Extension feature
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
-      --hydrator-enabled                                Feature flag to enable Hydrator. Default ("false")
       --insecure                                        Run server without TLS
       --insecure-skip-tls-verify                        If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                               Path to a kube config. Only required if out-of-cluster
-      --logformat string                                Set the logging format. One of: json|text (default "json")
+      --logformat string                                Set the logging format. One of: text|json (default "text")
       --login-attempts-expiration duration              Cache expiration for failed login attempts (default 24h0m0s)
       --loglevel string                                 Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-address string                          Listen for metrics on given address (default "0.0.0.0")
@@ -105,7 +104,6 @@ argocd-server [flags]
       --sentinelmaster string                           Redis sentinel master group name. (default "master")
       --server string                                   The address and port of the Kubernetes API server
       --staticassets string                             Directory path that contains additional static assets (default "/shared/app")
-      --sync-with-replace-allowed                       Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")

@@ -5,7 +5,6 @@ import {Base} from '../base';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationsSyncPanel, SYNC_PANEL_SYNCHRONIZE_BUTTON} from '../applications-sync-panel/applications-sync-panel';
 import {PopupManager} from '../popup/popup-manager';
-import Configuration from '../Configuration';
 
 const NEW_APP_BUTTON: By = By.xpath('.//button[@qe-id="applications-list-button-new-app"]');
 // Uncomment to use:
@@ -27,7 +26,7 @@ export class ApplicationsList extends Base {
         try {
             const tile = await UiTestUtilities.findUiElement(this.driver, this.getApplicationTileLocator(appName));
             await tile.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -39,7 +38,7 @@ export class ApplicationsList extends Base {
         try {
             const newAppButton = await UiTestUtilities.findUiElement(this.driver, NEW_APP_BUTTON);
             await newAppButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.applicationCreatePanel;
@@ -57,7 +56,7 @@ export class ApplicationsList extends Base {
             // Wait until the Synchronize sliding panel appears
             const synchronizeButton = await this.driver.wait(until.elementLocated(SYNC_PANEL_SYNCHRONIZE_BUTTON), Const.TEST_TIMEOUT);
             await this.driver.wait(until.elementIsVisible(synchronizeButton), Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.applicationsSyncPanel;
@@ -72,7 +71,7 @@ export class ApplicationsList extends Base {
         try {
             const deleteButton = await UiTestUtilities.findUiElement(this.driver, this.getDeleteButtonLocatorForApp(appName));
             await deleteButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
         return this.popupManager;
@@ -95,7 +94,7 @@ export class ApplicationsList extends Base {
             const refreshButton = await UiTestUtilities.findUiElement(this.driver, this.getRefreshButtonLocatorForApp(appName));
             await this.driver.wait(until.elementIsVisible(refreshButton), Const.TEST_TIMEOUT);
             await refreshButton.click();
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -111,7 +110,7 @@ export class ApplicationsList extends Base {
             await this.driver.wait(async () => {
                 return UiTestUtilities.untilAttributeIs(healthStatusElement, 'title', 'Healthy');
             }, Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -127,7 +126,7 @@ export class ApplicationsList extends Base {
             await this.driver.wait(async () => {
                 return UiTestUtilities.untilAttributeIs(statusElement, 'title', 'Synced');
             }, Const.TEST_TIMEOUT);
-        } catch (err: any) {
+        } catch (err) {
             throw new Error(err);
         }
     }
@@ -156,39 +155,45 @@ export class ApplicationsList extends Base {
 
     // Locators
 
-    // By.css('#app .applications-tiles .applications-list-argocd_" + appName + "'');
-
-    private getApplicationTileSelector(appName: string): string {
-        return './/div[contains(@class,"qe-applications-list-' + Configuration.ARGOCD_NAMESPACE + '_' + appName + '")]';
-    }
+    // By.css('#app .applications-tiles .applications-list-" + appName + "'');
 
     private getApplicationTileLocator(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName));
+        return By.xpath('.//div[contains(@class,"qe-applications-list-"' + appName + ')');
     }
 
     private getSyncButtonLocatorForApp(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName) + '//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-sync"]');
+        return By.xpath('.//div[contains(@class, "qe-applications-list-' + appName + '")]//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-sync"]');
     }
 
     private getDeleteButtonLocatorForApp(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName) + '//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-delete"]');
+        return By.xpath('.//div[contains(@class, "qe-applications-list-' + appName + '")]//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-delete"]');
     }
 
     private getRefreshButtonLocatorForApp(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName) + '//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-refresh"]');
+        return By.xpath('.//div[contains(@class, "qe-applications-list-' + appName + '")]//div[@class="row"]//ancestor::a[@qe-id="applications-tiles-button-refresh"]');
     }
 
     private getApplicationHealthTitle(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName) + '//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-health-status-title"]');
+        return By.xpath(
+            './/div[contains(@class, "qe-applications-list-' +
+                appName +
+                '")]//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-health-status-title"]'
+        );
     }
 
     private getApplicationSyncTitle(appName: string): By {
-        return By.xpath(this.getApplicationTileSelector(appName) + '//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-sync-status-title"]');
+        return By.xpath(
+            './/div[contains(@class, "qe-applications-list-' +
+                appName +
+                '")]//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-sync-status-title"]'
+        );
     }
 
     private getApplicationOperationsTitle(appName: string): By {
         return By.xpath(
-            this.getApplicationTileSelector(appName) + '//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-operations-status-title"]'
+            './/div[contains(@class, "qe-applications-list-' +
+                appName +
+                '")]//div[@class="row"]//div[@qe-id="applications-tiles-health-status"]//i[@qe-id="utils-operations-status-title"]'
         );
     }
 }

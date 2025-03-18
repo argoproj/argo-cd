@@ -12,8 +12,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 
-	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
@@ -170,7 +170,7 @@ func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...st
 }
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)

@@ -408,14 +408,14 @@ spec:
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
 AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both.
 
-When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group than the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
+When using an ALB, you'll want to create a second service for argocd-server. This is necessary because we need to tell the ALB to send the GRPC traffic to a different target group then the UI traffic, since the backend protocol is HTTP2 instead of HTTP1.
 
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    alb.ingress.kubernetes.io/backend-protocol-version: GRPC # This tells AWS to send traffic from the ALB using GRPC. Plain HTTP2 can be used, but the health checks wont be available because argo currently downgrade non-grpc calls to HTTP1
+    alb.ingress.kubernetes.io/backend-protocol-version: HTTP2 #This tells AWS to send traffic from the ALB using HTTP2. Can use GRPC as well if you want to leverage GRPC specific features
   labels:
     app: argogrpc
   name: argogrpc
@@ -454,7 +454,7 @@ Once we create this service, we can configure the Ingress to conditionally route
         - path: /
           backend:
             service:
-              name: argogrpc # The grpc service must be placed before the argocd-server for the listening rules to be created in the correct order
+              name: argogrpc
               port:
                 number: 443
           pathType: Prefix
@@ -471,7 +471,7 @@ Once we create this service, we can configure the Ingress to conditionally route
 ```
 
 ## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achieve both serving Argo CD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
 
 First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 

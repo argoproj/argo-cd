@@ -53,12 +53,6 @@ spec:
                 key: dexserver.log.level
                 name: argocd-cmd-params-cm
                 optional: true
-          - name: ARGOCD_LOG_FORMAT_TIMESTAMP
-            valueFrom:
-              configMapKeyRef:
-                name: argocd-cmd-params-cm
-                key: log.format.timestamp
-                optional: true
           - name: ARGOCD_DEX_SERVER_DISABLE_TLS
             valueFrom:
               configMapKeyRef:
@@ -110,5 +104,3 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
-      nodeSelector:
-        kubernetes.io/os: linux

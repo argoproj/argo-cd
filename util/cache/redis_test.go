@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"strconv"
 	"testing"
@@ -89,7 +90,8 @@ func TestRedisSetCache(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
-		assert.ErrorContains(t, err, "cache: key is missing")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cache: key is missing")
 	})
 }
 
@@ -107,7 +109,7 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 	testValue := "my-value"
 	require.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
 
-	compressedData, err := redisClient.Get(t.Context(), "my-key.gz").Bytes()
+	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
 	require.NoError(t, err)
 
 	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
@@ -135,8 +137,8 @@ func TestRedisMetrics(t *testing.T) {
 	ms := NewMockMetricsServer()
 	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	faultyRedisClient := redis.NewClient(&redis.Options{Addr: "invalidredishost.invalid:12345"})
-	CollectMetrics(redisClient, ms, nil)
-	CollectMetrics(faultyRedisClient, ms, nil)
+	CollectMetrics(redisClient, ms)
+	CollectMetrics(faultyRedisClient, ms)
 
 	client := NewRedisCache(redisClient, 60*time.Second, RedisCompressionNone)
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)

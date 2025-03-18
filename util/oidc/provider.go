@@ -11,8 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
-	"github.com/argoproj/argo-cd/v3/util/security"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:
@@ -82,7 +82,7 @@ func (t tokenVerificationError) Error() string {
 	for aud, err := range t.errorsByAudience {
 		errorStrings = append(errorStrings, fmt.Sprintf("error for aud %q: %v", aud, err))
 	}
-	return "token verification failed for all audiences: " + strings.Join(errorStrings, ", ")
+	return fmt.Sprintf("token verification failed for all audiences: %s", strings.Join(errorStrings, ", "))
 }
 
 func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error) {

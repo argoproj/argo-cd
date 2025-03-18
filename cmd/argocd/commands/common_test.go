@@ -16,7 +16,7 @@ baz: foo
 foo: bar
 `
 
-const expectJSONSingle = `{
+const expectJsonSingle = `{
   "bar": "",
   "baz": "foo",
   "foo": "bar"
@@ -33,7 +33,7 @@ two:
   foo: bar
 `
 
-const expectJSONList = `{
+const expectJsonList = `{
   "one": {
     "bar": "",
     "baz": "foo",
@@ -88,7 +88,7 @@ func Test_PrintResource(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJSONSingle, str)
+	assert.JSONEq(t, expectJsonSingle, str)
 
 	err = PrintResource(testResource, "unknown")
 	require.Error(t, err)
@@ -123,7 +123,7 @@ func Test_PrintResourceList(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJSONList, str)
+	assert.JSONEq(t, expectJsonList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
@@ -137,7 +137,7 @@ func Test_PrintResourceList(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJSONSingle, str)
+	assert.JSONEq(t, expectJsonSingle, str)
 
 	err = PrintResourceList(testResource, "unknown", false)
 	require.Error(t, err)

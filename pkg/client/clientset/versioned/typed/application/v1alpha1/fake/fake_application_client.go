@@ -3,7 +3,7 @@
 package fake
 
 import (
-	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
@@ -13,15 +13,15 @@ type FakeArgoprojV1alpha1 struct {
 }
 
 func (c *FakeArgoprojV1alpha1) AppProjects(namespace string) v1alpha1.AppProjectInterface {
-	return newFakeAppProjects(c, namespace)
+	return &FakeAppProjects{c, namespace}
 }
 
 func (c *FakeArgoprojV1alpha1) Applications(namespace string) v1alpha1.ApplicationInterface {
-	return newFakeApplications(c, namespace)
+	return &FakeApplications{c, namespace}
 }
 
 func (c *FakeArgoprojV1alpha1) ApplicationSets(namespace string) v1alpha1.ApplicationSetInterface {
-	return newFakeApplicationSets(c, namespace)
+	return &FakeApplicationSets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

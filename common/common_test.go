@@ -1,8 +1,9 @@
 package common
 
 import (
+	"context"
 	"fmt"
-	"strconv"
+	"os"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ func Test_GRPCKeepAliveMinNotSet(t *testing.T) {
 // Test valid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 	numSeconds := 15
-	t.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
+	os.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%ds", numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := time.Duration(numSeconds) * time.Second
@@ -40,7 +41,7 @@ func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 // Test invalid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIncorrectlySet(t *testing.T) {
 	numSeconds := 15
-	t.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
+	os.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%d", numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := defaultGRPCKeepAliveEnforcementMinimum
@@ -62,24 +63,24 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			expectedPassword: "password123",
 			expectedErr:      "",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
-				Data:       map[string][]byte{RedisInitialCredentialsKey: []byte("password123")},
+				ObjectMeta: metav1.ObjectMeta{Name: DefaultRedisInitialPasswordSecretName},
+				Data:       map[string][]byte{DefaultRedisInitialPasswordKey: []byte("password123")},
 			},
 		},
 		{
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      "failed to get secret default/" + RedisInitialCredentials,
+			expectedErr:      fmt.Sprintf("failed to get secret default/%s", DefaultRedisInitialPasswordSecretName),
 			secret:           nil,
 		},
 		{
 			name:             "Secret exists without correct key",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("secret default/%s does not contain key %s", RedisInitialCredentials, RedisInitialCredentialsKey),
+			expectedErr:      fmt.Sprintf("secret default/%s does not contain key %s", DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey),
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
+				ObjectMeta: metav1.ObjectMeta{Name: DefaultRedisInitialPasswordSecretName},
 				Data:       map[string][]byte{},
 			},
 		},
@@ -89,17 +90,19 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var (
-				ctx          = t.Context()
-				kubeClient   = kubefake.NewClientset()
+				ctx          = context.TODO()
+				kubeClient   = kubefake.NewSimpleClientset()
 				redisOptions = &redis.Options{}
 			)
 			if tc.secret != nil {
-				_, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{})
-				require.NoErrorf(t, err, "Failed to create secret")
+				if _, err := kubeClient.CoreV1().Secrets(tc.namespace).Create(ctx, tc.secret, metav1.CreateOptions{}); err != nil {
+					t.Fatalf("Failed to create secret: %v", err)
+				}
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
 			if tc.expectedErr != "" {
-				require.ErrorContains(t, err, tc.expectedErr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
 			} else {
 				require.NoError(t, err)
 			}
