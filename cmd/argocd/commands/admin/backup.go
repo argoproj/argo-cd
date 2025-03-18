@@ -114,6 +114,9 @@ func NewExportCommand() *cobra.Command {
 			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
+				fmt.Println()
+				fmt.Println()
+				fmt.Printf("app.GetNamespace()-%s, namespace-%s, applicationNamespaces-%s", app.GetNamespace(), namespace, applicationNamespaces)
 				// Export application only if it is in one of the enabled namespaces
 				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
 					export(writer, app, namespace)
