@@ -38,7 +38,7 @@ func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alph
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(_ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
+func (g *generatorMock) GenerateParams(_ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ map[string]any, _ client.Client) ([]map[string]any, error) {
 	return []map[string]any{}, nil
 }
 
