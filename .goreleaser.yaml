@@ -45,11 +45,11 @@ builds:
 
 archives:
   - id: argocd-archive
-    builds:
+    ids:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    format: binary
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
@@ -91,7 +91,7 @@ release:
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
 
 snapshot: #### To be removed for PR
-  name_template: '2.6.0'
+  version_template: '2.6.0'
 
 changelog:
   use: github

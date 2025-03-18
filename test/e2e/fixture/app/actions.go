@@ -6,16 +6,17 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"time"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
@@ -54,7 +55,7 @@ func (a *Actions) DeleteFile(file string) *Actions {
 
 func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 	a.context.t.Helper()
-	fixture.WriteFile(a.context.path+"/"+fileName, fileContents)
+	fixture.WriteFile(a.context.t, a.context.path+"/"+fileName, fileContents)
 	return a
 }
 
@@ -91,9 +92,9 @@ func (a *Actions) RemoveSubmodule() *Actions {
 func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.context.t.Helper()
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write([]byte(data))
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -155,9 +156,9 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	handler(app)
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -192,9 +193,9 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	_, err = tmpFile.Write(data)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 
 	args := append([]string{
 		"app", "create",
@@ -322,7 +323,7 @@ func (a *Actions) DeclarativeWithCustomRepo(filename string, repoURL string) *Ac
 		"Project":             a.context.project,
 		"RepoURL":             repoURL,
 	}
-	a.lastOutput, a.lastError = fixture.Declarative(filename, values)
+	a.lastOutput, a.lastError = fixture.Declarative(a.context.t, filename, values)
 	a.verifyAction()
 	return a
 }
@@ -346,12 +347,12 @@ func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(
 		AppNamespace: &appNamespace,
 	}
 	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	err = fixture.DoHttpJsonRequest("PATCH",
 		fmt.Sprintf("/api/v1/applications/%v", appName),
 		&application,
 		jsonBytes...)
-	errors.CheckError(err)
+	require.NoError(a.context.t, err)
 	return a
 }
 
@@ -479,7 +480,8 @@ func (a *Actions) Wait(args ...string) *Actions {
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -491,6 +493,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a, 15}
 }
 
@@ -508,30 +511,35 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	errors.CheckError(fixture.SetInstallationID(installationID))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetTrackingLabel(trackingLabel))
 	return a
 }
 
 func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRules []rbacv1.PolicyRule) *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("true"))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("true"))
 	if serviceAccountName == "" || policyRules == nil {
 		return a
 	}
-	errors.CheckError(fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
+	require.NoError(a.context.t, fixture.CreateRBACResourcesForImpersonation(serviceAccountName, policyRules))
 	return a
 }
 
 func (a *Actions) WithImpersonationDisabled() *Actions {
-	errors.CheckError(fixture.SetImpersonationEnabled("false"))
+	a.context.t.Helper()
+	require.NoError(a.context.t, fixture.SetImpersonationEnabled("false"))
 	return a
 }
