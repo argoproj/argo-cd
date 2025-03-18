@@ -93,7 +93,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: argocd-notifications-secret
+  name: argo-cd-notification-secret
 type: Opaque
 data:
   pagerduty-key-my-service: <pd-integration-key>
@@ -112,4 +112,4 @@ metadata:
     When the same notification service and trigger are defined in controller level configuration and application level configuration,
     both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

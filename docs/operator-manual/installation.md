@@ -21,9 +21,6 @@ Not recommended for production use. This type of installation is typically used 
   in (i.e. kubernetes.svc.default). It will still be able to deploy to external clusters with inputted
   credentials.
 
-  > Note: The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace. 
-  > Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
-
 * [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
@@ -31,10 +28,6 @@ Not recommended for production use. This type of installation is typically used 
   Argo CD instances for different teams, where each instance will be deploying applications to
   external clusters. It will still be possible to deploy to the same cluster (kubernetes.svc.default)
   with inputted credentials (i.e. `argocd cluster add <CONTEXT> --in-cluster --namespace <YOUR NAMESPACE>`).
-  With the default roles included, you will only be able to deploy Argo CD resources (Applications, ApplicationSets
-  and AppProjects)  in the same cluster, as it's only supporting the GitOps mode with real deployments being
-  done to external clusters.
-  You can modify that by defining new roles and binding them to the `argocd-application-controller` service account.
 
   > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml).
   > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/master/manifests/crds) directory.
@@ -84,29 +77,6 @@ resources:
 
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
 used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
-
-#### Installing Argo CD in a Custom Namespace
-If you want to install Argo CD in a namespace other than the default argocd, you can use Kustomize to apply a patch that updates the ClusterRoleBinding to reference the correct namespace for the ServiceAccount. This ensures that the necessary permissions are correctly set in your custom namespace.
-
-Below is an example of how to configure your kustomization.yaml to install Argo CD in a custom namespace:
-```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-namespace: <your-custom-namespace>
-resources:
-  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
-
-patches:
-  - patch: |-
-      - op: replace
-        path: /subjects/0/namespace
-        value: <your-custom-namespace>
-    target:
-      kind: ClusterRoleBinding
-```
-
-This patch ensures that the ClusterRoleBinding correctly maps to the ServiceAccount in your custom namespace, preventing any permission-related issues during the deployment.
 
 ## Helm
 

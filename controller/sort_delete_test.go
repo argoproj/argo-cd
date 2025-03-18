@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,8 +22,9 @@ func TestFilterObjectsForDeletion(t *testing.T) {
 	for _, tt := range tests {
 		in := sliceOfObjectsWithSyncWaves(tt.input)
 		need := sliceOfObjectsWithSyncWaves(tt.want)
-		got := FilterObjectsForDeletion(in)
-		assert.True(t, reflect.DeepEqual(got, need), "Received unexpected objects for deletion")
+		if got := FilterObjectsForDeletion(in); !reflect.DeepEqual(got, need) {
+			t.Errorf("Received unexpected objects for deletion = %v, want %v", got, need)
+		}
 	}
 }
 

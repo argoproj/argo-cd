@@ -42,7 +42,7 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using Helm there are multiple ways to provide values"
+!!! note "When using multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
 See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
@@ -233,8 +233,11 @@ source:
   helm:
     fileParameters:
       - name: some.key
-        path: path/to/file.ext
+        value: path/to/file.ext
 ```
+
+!!! warning "Reference in multiple sources not supported"
+    Please note that using a multiple sources application will not let you load the file by reference. See [argoproj/argo-cd#13220](https://github.com/argoproj/argo-cd/issues/13220)
 
 ## Helm Release Name
 
@@ -418,7 +421,7 @@ repoServer:
       value: /helm-working-dir
   initContainers:
     - name: helm-gcp-authentication
-      image: alpine/helm:3.16.1
+      image: alpine/helm:3.8.1
       volumeMounts:
         - name: helm-working-dir
           mountPath: /helm-working-dir
@@ -497,44 +500,4 @@ spec:
   source:
     helm:
       skipCrds: true
-```
-
-## Helm `--skip-schema-validation`
-
-Helm validates the values.yaml file using a values.schema.json file. See [Schema files](https://helm.sh/docs/topics/charts/#schema-files) for details.
-
-If needed, it is possible to skip the schema validation step with the `helm-skip-schema-validation` flag on the cli:
-
-```bash
-argocd app set helm-guestbook --helm-skip-schema-validation
-```
-
-Or using declarative syntax:
-
-```yaml
-spec:
-  source:
-    helm:
-      skipSchemaValidation: true
-```
-
-
-
-## Helm `--skip-tests`
-
-By default, Helm includes test manifests when rendering templates. Argo CD currently skips manifests that include hooks not supported by Argo CD, including [Helm test hooks](https://helm.sh/docs/topics/chart_tests/). While this feature covers many testing use cases, it is not totally congruent with --skip-tests, so the --skip-tests option can be used.
-
-If needed, it is possible to skip the test manifests installation step with the `helm-skip-tests` flag on the cli:
-
-```bash
-argocd app set helm-guestbook --helm-skip-tests
-```
-
-Or using declarative syntax:
-
-```yaml
-spec:
-  source:
-    helm:
-      skipTests: true # or false
 ```

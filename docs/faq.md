@@ -147,14 +147,14 @@ See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default maximum polling interval is 3 minutes (120 seconds + 60 seconds jitter).
+The default polling interval is 3 minutes (180 seconds) with a configurable jitter.
 You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
 
 
-## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
+## Why Are My Resource Limits `Out Of Sync`?
 
-Kubernetes has normalized your resource limits when they are applied, and then Argo CD has compared the version in
-your generated manifests from git to the normalized ones in the Kubernetes cluster - they may not match.
+Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
+your generated manifests to the normalized one is Kubernetes - they won't match.
 
 E.g.
 
@@ -162,9 +162,9 @@ E.g.
 * `'0.1'` normalized to `'100m'`
 * `'3072Mi'` normalized to `'3Gi'`
 * `3072` normalized to `'3072'` (quotes added)
-* `8760h` normalized to `8760h0m0s`
 
-To fix this use [diffing customizations](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
+To fix this use diffing
+customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
 ## How Do I Fix `invalid cookie, longer than max length 4093`?
 
@@ -323,46 +323,3 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 Doing a hard refresh (ignoring the cached error) can overcome transient issues. But if there's an ongoing reason manifest generation is failing, a hard refresh will not help.
 
 Instead, try searching the repo-server logs for the app name in order to identify the error that is causing manifest generation to fail.
-
-## How do I fix `field not declared in schema`?
-
-For certain features, Argo CD relies on a static (hard-coded) set of schemas for built-in Kubernetes resource types.
-
-If your manifests use fields which are not present in the hard-coded schemas, you may get an error like `field not 
-declared in schema`.
-
-The schema version is based on the Kubernetes libraries version that Argo CD is built against. To find the Kubernetes 
-version for a given Argo CD version, navigate to this page, where `X.Y.Z` is the Argo CD version:
-
-```
-https://github.com/argoproj/argo-cd/blob/vX.Y.Z/go.mod
-```
-
-Then find the Kubernetes version in the `go.mod` file. For example, for Argo CD v2.11.4, the Kubernetes libraries 
-version is v0.26.11
-
-```
-	k8s.io/api => k8s.io/api v0.26.11
-```
-
-### How do I fix the issue?
-
-To completely resolve the issue, upgrade to an Argo CD version which contains a static schema supporting all the needed
-fields.
-
-### How do I work around the issue?
-
-As mentioned above, only certain Argo CD features rely on the static schema: 1) `ignoreDifferences` with 
-`managedFieldManagers`, 2) server-side apply _without_ server-side diff, and 3) server-side diff _with_ mutation 
-webhooks. 
-
-If you can avoid using these features, you can avoid triggering the error. The options are as follows:
-
-1. **Disable `ignoreDifferences` which have `managedFieldsManagers`**: see [diffing docs](user-guide/diffing.md) for
-   details about that feature. Removing this config could cause undesired diffing behavior.
-2. **Disable server-side apply**: see [server-side apply docs](user-guide/sync-options.md#server-side-apply) for details about that
-   feature. Disabling server-side apply may have undesired effects on sync behavior. Note that you can bypass this issue 
-   if you use server-side diff and [exclude mutation webhooks from the diff](user-guide/diff-strategies.md#mutation-webhooks).
-   Excluding mutation webhooks from the diff could cause undesired diffing behavior.
-3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
-   for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.

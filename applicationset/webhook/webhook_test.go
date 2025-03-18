@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,26 +24,26 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/generators"
-	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type generatorMock struct {
 	mock.Mock
 }
 
-func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
+func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(_ *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
-	return []map[string]any{}, nil
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
 }
 
-func (g *generatorMock) GetRequeueAfter(_ *v1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *generatorMock) GetRequeueAfter(appSetGenerator *v1alpha1.ApplicationSetGenerator) time.Duration {
 	d, _ := time.ParseDuration("10s")
 	return d
 }
@@ -62,16 +63,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
 			payloadFile:        "github-commit-event.json",
-			effectedAppSets:    []string{"git-github", "git-github-ssh", "git-github-alt-ssh", "matrix-git-github", "merge-git-github", "matrix-scm-git-github", "matrix-nested-git-github", "merge-nested-git-github", "plugin", "matrix-pull-request-github-plugin"},
-			expectedStatusCode: http.StatusOK,
-			expectedRefresh:    true,
-		},
-		{
-			desc:               "WebHook from a GitHub repository via Commit shorthand",
-			headerKey:          "X-GitHub-Event",
-			headerValue:        "push",
-			payloadFile:        "github-commit-event-feature-branch.json",
-			effectedAppSets:    []string{"github-shorthand", "matrix-pull-request-github-plugin", "plugin"},
+			effectedAppSets:    []string{"git-github", "matrix-git-github", "merge-git-github", "matrix-scm-git-github", "matrix-nested-git-github", "merge-nested-git-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -80,7 +72,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
 			payloadFile:        "github-commit-branch-event.json",
-			effectedAppSets:    []string{"git-github", "git-github-ssh", "git-github-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
+			effectedAppSets:    []string{"git-github", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -89,7 +81,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "ping",
 			payloadFile:        "github-ping-event.json",
-			effectedAppSets:    []string{"git-github", "git-github-ssh", "git-github-alt-ssh", "plugin"},
+			effectedAppSets:    []string{"git-github", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -98,16 +90,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
-			expectedStatusCode: http.StatusOK,
-			expectedRefresh:    true,
-		},
-		{
-			desc:               "WebHook from a System Hook via Commit",
-			headerKey:          "X-Gitlab-Event",
-			headerValue:        "System Hook",
-			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
+			effectedAppSets:    []string{"git-gitlab", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -116,7 +99,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
-			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
+			effectedAppSets:    []string{"git-gitlab", "plugin"},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -125,7 +108,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Random-Event",
 			headerValue:        "Push Hook",
 			payloadFile:        "invalid-event.json",
-			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
+			effectedAppSets:    []string{"git-gitlab", "plugin"},
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -195,7 +178,6 @@ func TestWebhookHandler(t *testing.T) {
 	}
 
 	namespace := "test"
-	webhookParallelism := 10
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -207,14 +189,8 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
-				fakeAppWithGitGenerator("git-github-copy", namespace, "https://github.com/org/repo-copy"),
-				fakeAppWithGitGenerator("git-github-ssh", namespace, "ssh://git@github.com/org/repo"),
-				fakeAppWithGitGenerator("git-github-alt-ssh", namespace, "ssh://git@ssh.github.com:443/org/repo"),
-				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab.com/group/name"),
-				fakeAppWithGitGenerator("git-gitlab-ssh", namespace, "ssh://git@gitlab.com/group/name"),
-				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
+				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
-				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
@@ -229,8 +205,8 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
-			set := argosettings.NewSettingsManager(t.Context(), fakeClient, namespace)
-			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
+			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
+			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
@@ -241,12 +217,10 @@ func TestWebhookHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
-			err = fc.List(t.Context(), list)
+			err = fc.List(context.TODO(), list)
 			require.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
 			for _, appSetName := range test.effectedAppSets {
@@ -255,8 +229,9 @@ func TestWebhookHandler(t *testing.T) {
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
 				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
-					expected, got := test.expectedRefresh, gotAppSet.RefreshRequired()
-					require.Equalf(t, expected, got, "unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
+						t.Errorf("unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					}
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
 					assert.False(t, gotAppSet.RefreshRequired())
@@ -324,62 +299,14 @@ func mockGenerators() map[string]generators.Generator {
 }
 
 func TestGenRevisionHasChanged(t *testing.T) {
-	type args struct {
-		gen         *v1alpha1.GitGenerator
-		revision    string
-		touchedHead bool
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{name: "touchedHead", args: args{
-			gen:         &v1alpha1.GitGenerator{},
-			revision:    "main",
-			touchedHead: true,
-		}, want: true},
-		{name: "didntTouchHead", args: args{
-			gen:         &v1alpha1.GitGenerator{},
-			revision:    "main",
-			touchedHead: false,
-		}, want: false},
-		{name: "foundEqualShort", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "dev"},
-			revision:    "dev",
-			touchedHead: true,
-		}, want: true},
-		{name: "foundEqualLongGen", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "refs/heads/dev"},
-			revision:    "dev",
-			touchedHead: true,
-		}, want: true},
-		{name: "foundNotEqualLongGen", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "refs/heads/dev"},
-			revision:    "main",
-			touchedHead: true,
-		}, want: false},
-		{name: "foundNotEqualShort", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "dev"},
-			revision:    "main",
-			touchedHead: false,
-		}, want: false},
-		{name: "foundEqualTag", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "v3.14.1"},
-			revision:    "v3.14.1",
-			touchedHead: false,
-		}, want: true},
-		{name: "foundEqualTagLongGen", args: args{
-			gen:         &v1alpha1.GitGenerator{Revision: "refs/tags/v3.14.1"},
-			revision:    "v3.14.1",
-			touchedHead: false,
-		}, want: true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
-		})
-	}
+	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{}, "master", true))
+	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{}, "master", false))
+
+	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "dev"}, "dev", true))
+	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "dev"}, "master", false))
+
+	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "refs/heads/dev"}, "dev", true))
+	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "refs/heads/dev"}, "master", false))
 }
 
 func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
@@ -399,12 +326,6 @@ func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.Application
 			},
 		},
 	}
-}
-
-func fakeAppWithGitGeneratorWithRevision(name, namespace, repo, revision string) *v1alpha1.ApplicationSet {
-	appSet := fakeAppWithGitGenerator(name, namespace, repo)
-	appSet.Spec.Generators[0].Git.Revision = revision
-	return appSet
 }
 
 func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v1alpha1.ApplicationSet {
@@ -787,7 +708,7 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 func newFakeClient(ns string) *kubefake.Clientset {
 	s := runtime.NewScheme()
 	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
-	return kubefake.NewClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
+	return kubefake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
 	}}}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

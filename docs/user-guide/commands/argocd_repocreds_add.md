@@ -14,9 +14,6 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
   argocd repocreds add https://git.example.com/repos/ --username git --password secret
 
-  # Add credentials with bearer token authentication to use for all BitBucket Data Center repositories under https://bitbucket.example.com/scm
-  argocd repocreds add https://bitbucket.example.com/scm/ --bearer-token secret-token
-
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 
@@ -37,7 +34,6 @@ argocd repocreds add REPOURL [flags]
 ### Options
 
 ```
-      --bearer-token string                     bearer token to the Git repository
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --force-http-basic-auth                   whether to force basic auth when connecting via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
@@ -47,21 +43,18 @@ argocd repocreds add REPOURL [flags]
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --password string                         password to the repository
-      --proxy-url string                        If provided, this URL will be used to connect via proxy
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
       --type string                             type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
-      --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -73,13 +66,11 @@ argocd repocreds add REPOURL [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: json|text (default "json")
+      --logformat string                Set the logging format. One of: text|json (default "text")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
-      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")
@@ -90,5 +81,5 @@ argocd repocreds add REPOURL [flags]
 
 ### SEE ALSO
 
-* [argocd repocreds](argocd_repocreds.md)	 - Manage credential templates for repositories
+* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
 

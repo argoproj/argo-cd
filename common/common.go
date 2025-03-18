@@ -2,33 +2,30 @@ package common
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // Component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	ApplicationSetController = "argocd-applicationset-controller"
+	ApplicationController = "argocd-application-controller"
 )
 
 // Default service addresses and URLS of Argo CD internal services
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
-	// DefaultCommitServerAddr is the gRPC address of the Argo CD commit server
-	DefaultCommitServerAddr = "argocd-commit-server:8086"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
@@ -49,7 +46,6 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
-	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"
 )
 
 // Some default configurables
@@ -65,19 +61,15 @@ const (
 	DefaultPortArgoCDMetrics          = 8082
 	DefaultPortArgoCDAPIServerMetrics = 8083
 	DefaultPortRepoServerMetrics      = 8084
-	DefaultPortCommitServer           = 8086
-	DefaultPortCommitServerMetrics    = 8087
 )
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAdminDashboard      = "localhost"
-	DefaultAddressAPIServer           = "0.0.0.0"
-	DefaultAddressAPIServerMetrics    = "0.0.0.0"
-	DefaultAddressRepoServer          = "0.0.0.0"
-	DefaultAddressRepoServerMetrics   = "0.0.0.0"
-	DefaultAddressCommitServer        = "0.0.0.0"
-	DefaultAddressCommitServerMetrics = "0.0.0.0"
+	DefaultAddressAdminDashboard    = "localhost"
+	DefaultAddressAPIServer         = "0.0.0.0"
+	DefaultAddressAPIServerMetrics  = "0.0.0.0"
+	DefaultAddressRepoServer        = "0.0.0.0"
+	DefaultAddressRepoServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system
@@ -159,8 +151,6 @@ const (
 	ArgoCDCLIClientAppName = "Argo CD CLI"
 	// ArgoCDCLIClientAppID is the Oauth client ID we will use when registering our CLI to dex
 	ArgoCDCLIClientAppID = "argo-cd-cli"
-	// DexFederatedScope allows to receive the federated_claims from Dex. https://dexidp.io/docs/configuration/custom-scopes-claims-clients/
-	DexFederatedScope = "federated:id"
 )
 
 // Resource metadata labels and annotations (keys and values) used by Argo CD components
@@ -184,10 +174,6 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
-	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
-	LabelValueSecretTypeRepositoryWrite = "repository-write"
-	// LabelValueSecretTypeSCMCreds indicates a secret type of SCM credentials
-	LabelValueSecretTypeSCMCreds = "scm-creds"
 
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
@@ -195,10 +181,6 @@ const (
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
-
-	// AnnotationIgnoreHealthCheck when set on an Application's immediate child indicates that its health check
-	// can be disregarded.
-	AnnotationIgnoreHealthCheck = "argocd.argoproj.io/ignore-healthcheck"
 
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
@@ -240,7 +222,7 @@ const (
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor specifies factor of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
@@ -272,16 +254,12 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
-	// EnvAuthToken is the environment variable name for the auth token used by the CLI
-	EnvAuthToken = "ARGOCD_AUTH_TOKEN"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
 	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
 	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
-	// EnvLogFormatTimestamp is the timestamp format used in logs
-	EnvLogFormatTimestamp = "ARGOCD_LOG_FORMAT_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
@@ -292,8 +270,6 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
-	// EnvServer is the server address of the Argo CD API server.
-	EnvServer = "ARGOCD_SERVER"
 	// EnvServerName is the name of the Argo CD server component, as specified by the value under the LabelKeyAppName label key.
 	EnvServerName = "ARGOCD_SERVER_NAME"
 	// EnvRepoServerName is the name of the Argo CD repo server component, as specified by the value under the LabelKeyAppName label key.
@@ -337,10 +313,7 @@ const (
 // Constants used by util/clusterauth package
 const (
 	ClusterAuthRequestTimeout = 10 * time.Second
-)
-
-const (
-	BearerTokenTimeout = 30 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
 )
 
 const (
@@ -361,20 +334,20 @@ const (
 
 // GetGnuPGHomePath retrieves the path to use for GnuPG home directory, which is either taken from GNUPGHOME environment or a default value
 func GetGnuPGHomePath() string {
-	gnuPgHome := os.Getenv(EnvGnuPGHome)
-	if gnuPgHome == "" {
+	if gnuPgHome := os.Getenv(EnvGnuPGHome); gnuPgHome == "" {
 		return DefaultGnuPgHomePath
+	} else {
+		return gnuPgHome
 	}
-	return gnuPgHome
 }
 
 // GetPluginSockFilePath retrieves the path of plugin sock file, which is either taken from PluginSockFilePath environment or a default value
 func GetPluginSockFilePath() string {
-	pluginSockFilePath := os.Getenv(EnvPluginSockFilePath)
-	if pluginSockFilePath == "" {
+	if pluginSockFilePath := os.Getenv(EnvPluginSockFilePath); pluginSockFilePath == "" {
 		return DefaultPluginSockFilePath
+	} else {
+		return pluginSockFilePath
 	}
-	return pluginSockFilePath
 }
 
 // GetCMPChunkSize will return the env var EnvCMPChunkSize value if defined or DefaultCMPChunkSize otherwise.
@@ -450,10 +423,8 @@ var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission 
 
 // Redis password consts
 const (
-	// RedisInitialCredentials is the name for the argocd kubernetes secret which will have the redis password
-	RedisInitialCredentials = "argocd-redis"
-	// RedisInitialCredentialsKey is the key for the argocd kubernetes secret that maps to the redis password
-	RedisInitialCredentialsKey = "auth"
+	DefaultRedisInitialPasswordSecretName = "argocd-redis"
+	DefaultRedisInitialPasswordKey        = "auth"
 )
 
 /*
@@ -462,17 +433,17 @@ SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it ex
 We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, metav1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, DefaultRedisInitialPasswordSecretName, err)
 	}
 	if secret == nil {
-		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, RedisInitialCredentials)
+		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, DefaultRedisInitialPasswordSecretName)
 	}
-	_, ok := secret.Data[RedisInitialCredentialsKey]
+	_, ok := secret.Data[DefaultRedisInitialPasswordKey]
 	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, RedisInitialCredentials, RedisInitialCredentialsKey)
+		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey)
 	}
-	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
+	redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
 	return nil
 }

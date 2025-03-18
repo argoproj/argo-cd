@@ -19,12 +19,6 @@ spec:
     automated: {}
 ```
 
-## Temporarily toggling auto-sync for applications managed by ApplicationSets
-
-For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
-Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
-
-
 ## Automatic Pruning
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
@@ -81,8 +75,6 @@ spec:
       selfHeal: true
 ```
 
-Disabling self-heal does not guarantee that live cluster changes won't be reverted in multi-source applications. Even if a resource's source remains unchanged, changes in one of the sources can trigger `autosync`. To handle such cases, consider disabling `autosync`.
-
 ## Automated Sync Semantics
 
 * An automated sync will only be performed if the application is OutOfSync. Applications in a
@@ -96,4 +88,4 @@ which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application
   and parameters had failed.
 
 * Rollback cannot be performed against an application with automated sync enabled.
-* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `120s` with added jitter of `60s` for a maximum period of 3 minutes.
+* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `180s` (3 minutes).

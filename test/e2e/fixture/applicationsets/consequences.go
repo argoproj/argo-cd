@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 
+	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
 // this implements the "then" part of given/when/then
@@ -30,21 +31,7 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 	c.context.t.Helper()
 	var message string
 	var state state
-	sleepIntervals := []time.Duration{
-		10 * time.Millisecond,
-		20 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		200 * time.Millisecond,
-		300 * time.Millisecond,
-		500 * time.Millisecond,
-		1 * time.Second,
-	}
-	sleepIntervalsIdx := -1
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		switch state {
 		case succeeded:
@@ -71,7 +58,6 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
 
@@ -88,7 +74,6 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 }
 
 func (c *Consequences) apps() []v1alpha1.Application {
-	c.context.t.Helper()
 	var namespace string
 	if c.context.switchToNamespace != "" {
 		namespace = string(c.context.switchToNamespace)
@@ -96,7 +81,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 		namespace = fixture.TestNamespace()
 	}
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient()
 	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
@@ -108,8 +93,7 @@ func (c *Consequences) apps() []v1alpha1.Application {
 }
 
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
-	c.context.t.Helper()
-	fixtureClient := utils.GetE2EFixtureK8sClient(c.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient()
 
 	var appSetClientSet dynamic.ResourceInterface
 

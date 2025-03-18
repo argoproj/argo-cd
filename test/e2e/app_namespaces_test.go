@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"testing"
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -9,11 +10,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v2/util/argo"
+	. "github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func TestAppCreationInOtherNamespace(t *testing.T) {
@@ -49,7 +50,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		When().
 		// ensure that update replaces spec and merge labels and annotations
 		And(func() {
-			errors.NewHandler(t).FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(t.Context(),
+			FailOnErr(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).Patch(context.Background(),
 				ctx.AppName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
@@ -76,11 +77,11 @@ func TestForbiddenNamespace(t *testing.T) {
 func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 	ctx := Given(t)
 	ctx.And(func() {
-		require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
+		SetResourceOverrides(map[string]ResourceOverride{
 			"ConfigMap": {
 				HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 			},
-		}))
+		})
 	}).
 		Async(true).
 		SetAppNamespace(AppNamespace()).
