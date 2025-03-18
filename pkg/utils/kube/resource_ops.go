@@ -306,7 +306,7 @@ func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, ob
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	k.log.WithValues(
+	k.log.V(1).WithValues(
 		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
 		"manager", manager,
 		"serverSideApply", serverSideApply).Info(fmt.Sprintf("Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
@@ -332,7 +332,11 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	span.SetBaggageItem("kind", obj.GetKind())
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	k.log.WithValues(
+	logWithLevel := k.log
+	if dryRunStrategy != cmdutil.DryRunNone {
+		logWithLevel = logWithLevel.V(1)
+	}
+	logWithLevel.WithValues(
 		"dry-run", [...]string{"none", "client", "server"}[dryRunStrategy],
 		"manager", manager,
 		"serverSideApply", serverSideApply,
