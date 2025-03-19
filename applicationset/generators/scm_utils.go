@@ -1,5 +1,5 @@
 package generators
 
-type SCMGeneratorWithCustomApiUrl interface { //nolint:revive //FIXME(var-naming)
+type SCMGeneratorWithCustomApiUrl interface {
 	CustomApiUrl() string
 }

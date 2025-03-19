@@ -10,13 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 )
 
 func TestWriteForPaths(t *testing.T) {
 	dir := t.TempDir()
 
-	repoURL := "https://github.com/example/repo"
+	repoUrl := "https://github.com/example/repo"
 	drySha := "abc123"
 	paths := []*apiclient.PathDetails{
 		{
@@ -35,7 +35,7 @@ func TestWriteForPaths(t *testing.T) {
 		},
 	}
 
-	err := WriteForPaths(dir, repoURL, drySha, paths)
+	err := WriteForPaths(dir, repoUrl, drySha, paths)
 	require.NoError(t, err)
 
 	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
@@ -46,7 +46,7 @@ func TestWriteForPaths(t *testing.T) {
 	var topMetadata hydratorMetadataFile
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
-	assert.Equal(t, repoURL, topMetadata.RepoURL)
+	assert.Equal(t, repoUrl, topMetadata.RepoURL)
 	assert.Equal(t, drySha, topMetadata.DrySHA)
 
 	for _, p := range paths {
@@ -64,13 +64,13 @@ func TestWriteForPaths(t *testing.T) {
 		var readMetadata hydratorMetadataFile
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
-		assert.Equal(t, repoURL, readMetadata.RepoURL)
+		assert.Equal(t, repoUrl, readMetadata.RepoURL)
 
 		// Check if each path contains a README.md file and contains the repo URL
 		readmePath := path.Join(fullHydratePath, "README.md")
 		readmeBytes, err := os.ReadFile(readmePath)
 		require.NoError(t, err)
-		assert.Contains(t, string(readmeBytes), repoURL)
+		assert.Contains(t, string(readmeBytes), repoUrl)
 
 		// Check if each path contains a manifest.yaml file and contains the word Pod
 		manifestPath := path.Join(fullHydratePath, "manifest.yaml")

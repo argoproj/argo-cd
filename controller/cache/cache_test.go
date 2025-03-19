@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -8,12 +9,11 @@ import (
 	"testing"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -24,13 +24,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/controller/metrics"
-	"github.com/argoproj/argo-cd/v3/controller/sharding"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
-	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 type netError string
@@ -39,7 +39,7 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func TestHandleModEvent_HasChanges(_ *testing.T) {
+func TestHandleModEvent_HasChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
 	clusterCache.On("EnsureSynced").Return(nil).Once()
@@ -71,7 +71,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
+		onObjectUpdated: func(managedByApp map[string]bool, ref v1.ObjectReference) {
 		},
 		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
@@ -96,7 +96,7 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(_ *testing.T) {
+func TestHandleModEvent_NoChanges(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
 	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
@@ -141,7 +141,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
+	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
@@ -151,7 +151,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
 		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
+		// nolint We need to overwrite here to have access to the lock
 		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
@@ -173,7 +173,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -187,7 +187,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -238,15 +238,15 @@ func TestIsRetryableError(t *testing.T) {
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
+		assert.False(t, isRetryableError(apierr.NewConflict(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierr.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
+		assert.False(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
-		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
+		assert.True(t, isRetryableError(apierr.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
 		assert.True(t, isRetryableError(&net.DNSError{}))
@@ -278,7 +278,7 @@ func TestIsRetryableError(t *testing.T) {
 func Test_asResourceNode_owner_refs(t *testing.T) {
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
-		Ref: corev1.ObjectReference{
+		Ref: v1.ObjectReference{
 			APIVersion: "v1",
 		},
 		OwnerRefs: []metav1.OwnerReference{
@@ -334,7 +334,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->app1",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -354,7 +354,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->cm2->app1",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -363,7 +363,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -382,7 +382,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cm1->cm2->app1 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -392,7 +392,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -400,7 +400,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -421,7 +421,7 @@ func Test_getAppRecursive(t *testing.T) {
 			// Issue #11699, fixed #12667.
 			name: "ok: cm1->cm2 & cm1->cm3->cm2 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -431,12 +431,12 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm2",
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -456,7 +456,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1<->cm2",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -465,7 +465,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -473,7 +473,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -487,7 +487,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1->cm2->cm3->cm1",
 			r: &cache.Resource{
-				Ref: corev1.ObjectReference{
+				Ref: v1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -496,7 +496,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -504,7 +504,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -512,7 +512,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: corev1.ObjectReference{
+					Ref: v1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -535,12 +535,12 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1X = "x"
-		hash2Y = "y"
-		hash3X = "x"
+		hash1_x string = "x"
+		hash2_y string = "y"
+		hash3_x string = "x"
 	)
 	info := &ResourceInfo{
-		manifestHash: hash1X,
+		manifestHash: hash1_x,
 		Health: &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "default",
@@ -560,51 +560,51 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 		}, &ResourceInfo{
-			manifestHash: hash2Y,
+			manifestHash: hash2_y,
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health:       &health.HealthStatus{},
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health:       nil,
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
@@ -612,13 +612,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
@@ -627,13 +627,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: "same",
@@ -642,13 +642,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1X,
+			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3X,
+			manifestHash: hash3_x,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "different",
@@ -726,21 +726,9 @@ func TestShouldHashManifest(t *testing.T) {
 				test.un.SetAnnotations(test.annotations)
 			}
 			got := shouldHashManifest(test.appName, test.gvk, test.un)
-			require.Equalf(t, test.want, got, "test=%v", test.name)
+			if test.want != got {
+				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
+			}
 		})
 	}
-}
-
-func Test_GetVersionsInfo_error_redacted(t *testing.T) {
-	c := liveStateCache{}
-	cluster := &appv1.Cluster{
-		Server: "https://localhost:1234",
-		Config: appv1.ClusterConfig{
-			Username: "admin",
-			Password: "password",
-		},
-	}
-	_, _, err := c.GetVersionsInfo(cluster)
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "password")
 }
