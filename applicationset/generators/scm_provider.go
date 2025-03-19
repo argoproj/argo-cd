@@ -253,6 +253,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		params := map[string]any{
 			"organization":     repo.Organization,
 			"repository":       repo.Repository,
+			"repository_id":    repo.RepositoryId,
 			"url":              repo.URL,
 			"branch":           repo.Branch,
 			"sha":              repo.SHA,
