@@ -1199,7 +1199,7 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-* Adding a resource that is not directly managed by ArgoCD (e.g., a ReplicaSet from a Deployment) requires restarting the controller for the changes to take effect - `kubectl rollout restart sts argocd-application-controller`.
+* Adding a resource that is not directly managed by ArgoCD (e.g., a ReplicaSet from a Deployment) requires restarting the controller for the changes to take effect - `kubectl rollout restart sts argocd-application-controller -n argocd`.
 
 ## Mask sensitive Annotations on Secrets
 
