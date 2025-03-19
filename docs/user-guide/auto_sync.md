@@ -18,7 +18,7 @@ spec:
   syncPolicy:
     automated: {}
 ```
-Application CRD now also support explicitly setting automated sync to be turn on or off  by using `spec.syncPolicy.automated.enable` flag to true or false
+Application CRD now also support explicitly setting automated sync to be turn on or off by using `spec.syncPolicy.automated.enable` flag to true or false. When `enable` field is set to true, Automated Sync is active and when set to false controller will skip automated sync even if `prune`, `self-heal` and `allowEmpty` are set.
 ```yaml
 spec:
   syncPolicy:
@@ -27,7 +27,7 @@ spec:
 ```
 
 !!!note 
-  **Note:** Setting `spec.syncPolicy.automated.enable` flag to null will be treated as automated sync as enabled.
+  Setting `spec.syncPolicy.automated.enable` flag to null will be treated as automated sync as enabled. When using `enable` field set to false, fields like `prune`, `self-heal` and `allowEmpty` can be set without enabling them.
 
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
