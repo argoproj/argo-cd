@@ -2122,7 +2122,7 @@ func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 		app,
 		appModified)
 	require.NoError(t, err)
-	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
+	assert.JSONEq(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
 }
 
 func TestAppStatusIsReplaced(t *testing.T) {
