@@ -79,4 +79,10 @@ func TestEntries_MaxVersion(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, semver.MustParse("0.7.2"), version)
 	})
+	t.Run("Constraint", func(t *testing.T) {
+		constraints, _ := semver.NewConstraint("x")
+		version, err := entries.MaxVersion(constraints)
+		require.NoError(t, err)
+		assert.Equal(t, semver.MustParse("0.7.2"), version)
+	})
 }
