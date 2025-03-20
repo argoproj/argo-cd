@@ -16,26 +16,26 @@ recent minor releases.
 | [go.mod](master/argocd-test.html) | 0 | 0 | 6 | 0 |
 | [ui/yarn.lock](master/argocd-test.html) | 0 | 1 | 1 | 2 |
 | [dex:v2.41.1](master/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 0 | 0 | 5 |
-| [haproxy:2.9.14-alpine](master/public.ecr.aws_docker_library_haproxy_2.9.14-alpine.html) | 0 | 0 | 0 | 0 |
+| [haproxy:3.0.8-alpine](master/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 0 | 0 | 0 | 0 |
 | [redis:7.2.7-alpine](master/public.ecr.aws_docker_library_redis_7.2.7-alpine.html) | 0 | 0 | 0 | 0 |
 | [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 4 | 8 |
 | [redis:7.2.7-alpine](master/redis_7.2.7-alpine.html) | 0 | 0 | 0 | 0 |
 | [install.yaml](master/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](master/argocd-iac-namespace-install.html) | - | - | - | - |
 
-### v2.14.4
+### v2.14.5
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](v2.14.4/argocd-test.html) | 0 | 4 | 9 | 0 |
-| [ui/yarn.lock](v2.14.4/argocd-test.html) | 0 | 1 | 1 | 2 |
-| [dex:v2.41.1](v2.14.4/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 0 | 0 | 5 |
-| [haproxy:2.6.17-alpine](v2.14.4/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 0 | 2 | 7 |
-| [redis:7.0.15-alpine](v2.14.4/public.ecr.aws_docker_library_redis_7.0.15-alpine.html) | 0 | 0 | 0 | 4 |
-| [argocd:v2.14.4](v2.14.4/quay.io_argoproj_argocd_v2.14.4.html) | 0 | 0 | 4 | 8 |
-| [redis:7.0.15-alpine](v2.14.4/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 4 |
-| [install.yaml](v2.14.4/argocd-iac-install.html) | - | - | - | - |
-| [namespace-install.yaml](v2.14.4/argocd-iac-namespace-install.html) | - | - | - | - |
+| [go.mod](v2.14.5/argocd-test.html) | 0 | 4 | 9 | 0 |
+| [ui/yarn.lock](v2.14.5/argocd-test.html) | 0 | 1 | 1 | 2 |
+| [dex:v2.41.1](v2.14.5/ghcr.io_dexidp_dex_v2.41.1.html) | 0 | 0 | 0 | 5 |
+| [haproxy:2.6.17-alpine](v2.14.5/public.ecr.aws_docker_library_haproxy_2.6.17-alpine.html) | 0 | 0 | 2 | 7 |
+| [redis:7.0.15-alpine](v2.14.5/public.ecr.aws_docker_library_redis_7.0.15-alpine.html) | 0 | 0 | 0 | 4 |
+| [argocd:v2.14.5](v2.14.5/quay.io_argoproj_argocd_v2.14.5.html) | 0 | 0 | 4 | 8 |
+| [redis:7.0.15-alpine](v2.14.5/redis_7.0.15-alpine.html) | 0 | 0 | 0 | 4 |
+| [install.yaml](v2.14.5/argocd-iac-install.html) | - | - | - | - |
+| [namespace-install.yaml](v2.14.5/argocd-iac-namespace-install.html) | - | - | - | - |
 
 ### v2.13.5
 

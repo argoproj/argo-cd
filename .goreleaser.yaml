@@ -45,11 +45,11 @@ builds:
 
 archives:
   - id: argocd-archive
-    builds:
-    - argocd-cli
+    ids:
+      - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    format: binary
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
@@ -80,26 +80,27 @@ release:
     All Argo CD container images are signed by cosign.  A Provenance is generated for container images and CLI binaries which meet the SLSA Level 3 specifications. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets) on how to verify.
 
     ## Release Notes Blog Post
-    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v2-14-release-candidate-57a664791e2a)  
+    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v2-14-release-candidate-57a664791e2a)
 
     ## Upgrading
 
     If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
   footer: |
     **Full Changelog**: https://github.com/argoproj/argo-cd/compare/{{ .PreviousTag }}...{{ .Tag }}
-    
+
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
 
-
 snapshot: #### To be removed for PR
-  name_template: "2.6.0"
+  version_template: '2.6.0'
 
 changelog:
-  use:
-    github
+  use: github
   sort: asc
   abbrev: 0
   groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
+    - title: 'Breaking Changes'
+      regexp: '^.*?(\([[:word:]]+\))??!:.+$'
+      order: 0
     - title: 'Features'
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
       order: 100
@@ -119,7 +120,4 @@ changelog:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
       - '^.*?\[Bot\](\([[:word:]]+\))?.+$'
-
-
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-

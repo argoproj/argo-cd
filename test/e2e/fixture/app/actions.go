@@ -6,7 +6,6 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"time"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -80,6 +79,18 @@ func (a *Actions) AddSignedTag(name string) *Actions {
 func (a *Actions) AddTag(name string) *Actions {
 	a.context.t.Helper()
 	fixture.AddTag(a.context.t, name)
+	return a
+}
+
+func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
+	a.context.t.Helper()
+	fixture.AddAnnotatedTag(a.context.t, name, message)
+	return a
+}
+
+func (a *Actions) AddTagWithForce(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTagWithForce(a.context.t, name)
 	return a
 }
 
@@ -493,7 +504,6 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.t.Helper()
-	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a, 15}
 }
 

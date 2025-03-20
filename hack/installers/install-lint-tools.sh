@@ -2,6 +2,6 @@
 set -eux -o pipefail
 
 # renovate: datasource=go packageName=github.com/golangci/golangci-lint
-GOLANGCI_LINT_VERSION=1.64.7
+GOLANGCI_LINT_VERSION=1.64.8
 
 GO111MODULE=on go install "github.com/golangci/golangci-lint/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}"
