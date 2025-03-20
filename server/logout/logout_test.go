@@ -328,7 +328,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			tt.handler.ServeHTTP(tt.responseRecorder, tt.request)
 			if status := tt.responseRecorder.Code; status != http.StatusSeeOther {
 				if !tt.wantErr {
-					t.Errorf(tt.responseRecorder.Body.String())
+					t.Error(tt.responseRecorder.Body.String())
 					t.Errorf("handler returned wrong status code: " + fmt.Sprintf("%d", tt.responseRecorder.Code))
 				}
 			} else {
