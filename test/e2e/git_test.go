@@ -19,6 +19,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
+const WaitDuration = 10 * time.Second
+
 func TestGitSemverResolutionNotUsingConstraint(t *testing.T) {
 	Given(t).
 		Path("deployment").
@@ -109,15 +111,13 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
-
-				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
-				return revisionHistoryLimit != nil && *revisionHistoryLimit != 9, nil
+				return app.Status.Sync.Status != SyncStatusCodeSynced, nil
 			})
-			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
+			require.Error(t, waitErr, "A timeout error should occur, indicating that sync status remained synced")
 		}).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
@@ -145,6 +145,7 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false. It should remain at 9.
 		And(func() {
+			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {
@@ -172,15 +173,13 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
-				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
-
-				revisionHistoryLimit := deployment.Spec.RevisionHistoryLimit
-				return revisionHistoryLimit != nil && *revisionHistoryLimit != 9, nil
+				return app.Status.Sync.Status != SyncStatusCodeSynced, nil
 			})
-			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
+			require.Error(t, waitErr, "A timeout error should occur, indicating that sync status remained synced")
 		}).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
@@ -208,6 +207,7 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		}).
 		// The revisionHistoryLimit should NOT be self-healed, because selfHealing: false
 		And(func() {
+			// Wait up to 10 seconds to ensure that deployment revisionHistoryLimit does NOT should switch to 10, it should remain at 9.
 			waitErr := wait.PollUntilContextTimeout(context.Background(), 1*time.Second, 10*time.Second, true, func(context.Context) (done bool, err error) {
 				deployment, err := fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 				if err != nil {

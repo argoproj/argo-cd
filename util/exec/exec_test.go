@@ -32,7 +32,7 @@ func TestRun(t *testing.T) {
 
 func TestHideUsernamePassword(t *testing.T) {
 	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	redactor := func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
