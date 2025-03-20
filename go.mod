@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v3
 
-go 1.24.1
+go 1.24.2
 
 require (
 	code.gitea.io/sdk/gitea v0.20.0
@@ -293,6 +293,7 @@ require (
 )
 
 replace (
+	github.com/argoproj/gitops-engine => github.com/sivchari/gitops-engine v0.0.0-20250311160727-70181af58e7f
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
