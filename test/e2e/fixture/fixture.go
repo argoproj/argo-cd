@@ -66,6 +66,9 @@ const (
 	PluginSockFilePath = "/app/config/plugin"
 
 	E2ETestPrefix = "e2e-test-"
+
+	// Account for batch events processing (set to 1ms in e2e tests)
+	WhenThenSleepInterval = 5 * time.Millisecond
 )
 
 const (
@@ -1137,6 +1140,25 @@ func AddTag(t *testing.T, name string) {
 	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddTagWithForce(t *testing.T, name string) {
+	t.Helper()
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddAnnotatedTag(t *testing.T, name string, message string) {
+	t.Helper()
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
 	if IsRemote() {
 		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
