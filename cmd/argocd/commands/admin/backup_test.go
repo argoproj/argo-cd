@@ -2,11 +2,14 @@ package admin
 
 import (
 	"bufio"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
@@ -124,11 +127,14 @@ func newAppProject() *unstructured.Unstructured {
 	return kube.MustToUnstructured(&appProject)
 }
 
-func newApplication() *unstructured.Unstructured {
+func newApplication(namespace string) *unstructured.Unstructured {
 	app := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "Application",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
-			Namespace: "default",
+			Namespace: namespace,
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Source:  &v1alpha1.ApplicationSource{},
@@ -143,11 +149,14 @@ func newApplication() *unstructured.Unstructured {
 	return kube.MustToUnstructured(&app)
 }
 
-func newApplicationSet() *unstructured.Unstructured {
+func newApplicationSet(namespace string) *unstructured.Unstructured {
 	appSet := v1alpha1.ApplicationSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind: "ApplicationSet",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-appset",
-			Namespace: "default",
+			Namespace: namespace,
 		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
@@ -169,12 +178,16 @@ func Test_exportResources(t *testing.T) {
 		name                string
 		object              *unstructured.Unstructured
 		out                 string
+		namespace           string
+		enabledNamespaces   []string
 		expectedFileContent string
+		expectExport        bool
 	}{
 		{
-			name:   "ConfigMap should be in the exported manifest",
-			object: newConfigmapObject(),
-			out:    "test.yaml",
+			name:         "ConfigMap should be in the exported manifest",
+			object:       newConfigmapObject(),
+			out:          "test.yaml",
+			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 kind: ""
 metadata:
@@ -185,9 +198,10 @@ metadata:
 `,
 		},
 		{
-			name:   "Secret should be in the exported manifest",
-			object: newSecretsObject(),
-			out:    "test.yaml",
+			name:         "Secret should be in the exported manifest",
+			object:       newSecretsObject(),
+			out:          "test.yaml",
+			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 data:
   admin.password: null
@@ -202,9 +216,10 @@ metadata:
 `,
 		},
 		{
-			name:   "App Project should be in the exported manifest",
-			object: newAppProject(),
-			out:    "test.yaml",
+			name:         "App Project should be in the exported manifest",
+			object:       newAppProject(),
+			out:          "test.yaml",
+			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 kind: ""
 metadata:
@@ -223,14 +238,15 @@ status: {}
 `,
 		},
 		{
-			name:   "Application should be in the exported manifest",
-			object: newApplication(),
-			out:    "test.yaml",
+			name:         "Application should be in the exported manifest when created in the default 'argocd' namespace",
+			object:       newApplication("argocd"),
+			out:          "test.yaml",
+			namespace:    "argocd",
+			expectExport: true,
 			expectedFileContent: `apiVersion: ""
-kind: ""
+kind: Application
 metadata:
   name: test
-  namespace: default
 spec:
   destination:
     namespace: default
@@ -252,14 +268,56 @@ status:
 `,
 		},
 		{
-			name:   "ApplicationSet should be in the exported manifest",
-			object: newApplicationSet(),
-			out:    "test.yaml",
+			name:              "Application should be in the exported manifest when created in the enabled namespaces",
+			object:            newApplication("dev"),
+			out:               "test.yaml",
+			namespace:         "dev",
+			enabledNamespaces: []string{"dev", "prod"},
+			expectExport:      true,
 			expectedFileContent: `apiVersion: ""
-kind: ""
+kind: Application
+metadata:
+  name: test
+  namespace: dev
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: ""
+status:
+  health: {}
+  sourceHydrator: {}
+  summary: {}
+  sync:
+    comparedTo:
+      destination: {}
+      source:
+        repoURL: ""
+    status: ""
+---
+`,
+		},
+		{
+			name:                "Application should not be in the exported manifest when it's neither created in the default argod namespace nor in enabled namespace",
+			object:              newApplication("staging"),
+			out:                 "test.yaml",
+			namespace:           "stagin",
+			enabledNamespaces:   []string{"dev", "prod"},
+			expectExport:        false,
+			expectedFileContent: ``,
+		},
+		{
+			name:         "ApplicationSet should be in the exported manifest when created in the default 'argocd' namespace",
+			object:       newApplicationSet("argocd"),
+			out:          "test.yaml",
+			namespace:    "argocd",
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+kind: ApplicationSet
 metadata:
   name: test-appset
-  namespace: default
 spec:
   generators:
   - git:
@@ -279,18 +337,70 @@ status: {}
 ---
 `,
 		},
+		{
+			name:              "ApplicationSet should be in the exported manifest when created in the enabled namespaces",
+			object:            newApplicationSet("dev"),
+			out:               "test.yaml",
+			namespace:         "dev",
+			enabledNamespaces: []string{"dev", "prod"},
+			expectExport:      true,
+			expectedFileContent: `apiVersion: ""
+kind: ApplicationSet
+metadata:
+  name: test-appset
+  namespace: dev
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/org/repo
+      revision: ""
+      template:
+        metadata: {}
+        spec:
+          destination: {}
+          project: ""
+  template:
+    metadata: {}
+    spec:
+      destination: {}
+      project: ""
+status: {}
+---
+`,
+		},
+		{
+			name:                "ApplicationSet should not be in the exported manifest when neither created in the default 'argocd' namespace nor in enabled namespaces",
+			object:              newApplicationSet("staging"),
+			out:                 "test.yaml",
+			namespace:           "staging",
+			enabledNamespaces:   []string{"dev", "prod"},
+			expectExport:        false,
+			expectedFileContent: ``,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			w, cleanup := createTestWriter(t, tt.out)
-			export(w, *tt.object, ArgoCDNamespace)
+			kind := tt.object.GetKind()
+			if kind == "Application" || kind == "ApplicationSet" {
+				if security.IsNamespaceEnabled(tt.namespace, "argocd", tt.enabledNamespaces) {
+					export(w, *tt.object, ArgoCDNamespace)
+				}
+			} else {
+				export(w, *tt.object, ArgoCDNamespace)
+			}
+
 			if bw, ok := w.(*bufio.Writer); ok {
 				require.NoError(t, bw.Flush())
 			}
-			actualContent, err := os.ReadFile(tt.out)
+			content, err := os.ReadFile(tt.out)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedFileContent, string(actualContent))
+			if tt.expectExport {
+				assert.Equal(t, tt.expectedFileContent, string(content))
+			} else {
+				assert.Empty(t, string(content))
+			}
 			cleanup()
 		})
 	}
