@@ -3,12 +3,12 @@
 ## Overview
 
 This guide demonstrates how to write plugins for the
-`argocd` CLI tool. Plugins are a mean to extend `argocd` CLI with new sub-commands,
-allowing for new and custom features which are not included in the main distribution
-of `argocd` CLI.
+`argocd` CLI tool. Plugins are a way to extend `argocd` CLI with new sub-commands,
+allowing for custom features which are not part of the default distribution
+of the `argocd` CLI..
 
-If you are interested to take a look at the proposal, head over to this [enhancement proposal](../proposals/argocd-cli-pluin.md).
-It covers how the plugin mechanism works, its benefits, motivation, and the goals it aims to achieve.
+If you would like to take a look at the original proposal, head over to this [enhancement proposal](../../docs/proposals/argocd-cli-pluin.md).
+It covers how the plugin mechanism works, its benefits, motivations, and the goals it aims to achieve.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ Any binary that you would want to execute as an `argocd` plugin need to satisfy 
    `argocd-demo-plugin` or `argocd-demo_plugin` is a valid binary name but not
    `argocd_demo-plugin` or `argocd_demo_plugin`.
 2. The binary should have executable permissions otherwise it will be ignored.
-3. The binary should reside anywhere in the system's PATH except relative path.
+3. The binary should reside anywhere in the system's absolute PATH.
 
 ## Writing `argocd` plugins
 
@@ -70,7 +70,7 @@ A plugin can be written in any programming language or script that allows you to
 
 A plugin determines which command path it wishes to implement based on its name.
 
-For example, If a binary named `argocd-demo-plugin` is available in your system's PATH, and the user runs the following command:
+For example, If a binary named `argocd-demo-plugin` is available in your system's absolute PATH, and the user runs the following command:
 
 ```bash
 argocd demo-plugin subcommand1 --flag=true
@@ -82,7 +82,7 @@ Argo CD will translate and execute the corresponding plugin with the following c
 argocd-demo-plugin subcommand1 --flag=true
 ```
 
-Similarly, if a plugin named `argocd-demo-demo-plugin` is found in the PATH, and the user invokes:
+Similarly, if a plugin named `argocd-demo-demo-plugin` is found in the absolute PATH, and the user invokes:
 
 ```bash
 argocd demo-demo-plugin subcommand2 subcommand3 --flag=true
