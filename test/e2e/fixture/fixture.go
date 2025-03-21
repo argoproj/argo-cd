@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
@@ -1111,6 +1112,29 @@ func AddTag(name string) {
 	FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
 		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddTagWithForce(t *testing.T, name string) {
+	t.Helper()
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	_, err := Run(repoDirectory(), "git", "tag", "-f", name)
+	errors.CheckError(err)
+	if IsRemote() {
+		_, err := Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master")
+		errors.CheckError(err)
+	}
+}
+
+func AddAnnotatedTag(t *testing.T, name string, message string) {
+	t.Helper()
+	_, err := Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message)
+	errors.CheckError(err)
+	if IsRemote() {
+		_, err := Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master")
+		errors.CheckError(err)
 	}
 }
 
