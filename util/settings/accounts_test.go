@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -153,13 +152,13 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 	err := settingsManager.AddAccount("test", addedAccount)
 	require.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "login", cm.Data["accounts.test"])
 	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -193,13 +192,13 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
+	cm, err := clientset.CoreV1().ConfigMaps("default").Get(t.Context(), common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "login", cm.Data["accounts.test"])
 	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
@@ -218,7 +217,7 @@ func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "newPassword", string(secret.Data["admin.password"]))

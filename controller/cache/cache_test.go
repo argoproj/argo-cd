@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"errors"
 	"net"
 	"net/url"
@@ -142,7 +141,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
 	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
+	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
@@ -152,7 +151,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
 		// Set the lock here so we can reference it later
-		// nolint We need to overwrite here to have access to the lock
+		//nolint:govet // We need to overwrite here to have access to the lock
 		lock: liveStateCacheLock,
 	}
 	channel := make(chan string)
@@ -536,12 +535,12 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x = "x"
-		hash2_y = "y"
-		hash3_x = "x"
+		hash1X = "x"
+		hash2Y = "y"
+		hash3X = "x"
 	)
 	info := &ResourceInfo{
-		manifestHash: hash1_x,
+		manifestHash: hash1X,
 		Health: &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "default",
@@ -561,51 +560,51 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash2_y,
+			manifestHash: hash2Y,
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       &health.HealthStatus{},
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       nil,
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
@@ -613,13 +612,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
@@ -628,13 +627,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: "same",
@@ -643,13 +642,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "different",
@@ -730,4 +729,18 @@ func TestShouldHashManifest(t *testing.T) {
 			require.Equalf(t, test.want, got, "test=%v", test.name)
 		})
 	}
+}
+
+func Test_GetVersionsInfo_error_redacted(t *testing.T) {
+	c := liveStateCache{}
+	cluster := &appv1.Cluster{
+		Server: "https://localhost:1234",
+		Config: appv1.ClusterConfig{
+			Username: "admin",
+			Password: "password",
+		},
+	}
+	_, _, err := c.GetVersionsInfo(cluster)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "password")
 }

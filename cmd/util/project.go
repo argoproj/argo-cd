@@ -202,13 +202,14 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 			APIVersion: application.Group + "/v1alpha1",
 		},
 	}
-	if fileURL == "-" {
+	switch {
+	case fileURL == "-":
 		// read stdin
 		err := readProjFromStdin(&proj)
 		if err != nil {
 			return nil, err
 		}
-	} else if fileURL != "" {
+	case fileURL != "":
 		// read uri
 		err := readProjFromURI(fileURL, &proj)
 		if err != nil {
@@ -218,7 +219,7 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		if len(args) == 1 && args[0] != proj.Name {
 			return nil, fmt.Errorf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 		}
-	} else {
+	default:
 		// read arguments
 		if len(args) == 0 {
 			c.HelpFunc()(c, args)

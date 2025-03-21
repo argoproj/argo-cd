@@ -34,7 +34,7 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 
 	// TODO: switch to grpc.NewClient.
-	// nolint:staticcheck
+	//nolint:staticcheck
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to commit service with address %s", address)

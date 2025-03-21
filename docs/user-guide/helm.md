@@ -42,7 +42,7 @@ spec:
     namespace: nginx
 ```
 
-!!! note "When using multiple ways to provide values"
+!!! note "When using Helm there are multiple ways to provide values"
     Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
 
 See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.

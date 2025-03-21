@@ -2,7 +2,7 @@
 
 Argo CD provides three inbound TLS endpoints that can be configured:
 
-* The user-facing endpoint of the `argocd-server` workload which serves the UI
+* The user-facing endpoint of the `argocd-server` workload, which serves the UI
   and the API
 * The endpoint of the `argocd-repo-server`, which is accessed by `argocd-server`
   and `argocd-application-controller` workloads to request repository
@@ -11,7 +11,7 @@ Argo CD provides three inbound TLS endpoints that can be configured:
   to handle OIDC authentication.
 
 By default, and without further configuration, these endpoints will be
-set-up to use an automatically generated, self-signed certificate. However,
+set up to use an automatically generated, self-signed certificate. However,
 most users will want to explicitly configure the certificates for these TLS
 endpoints, possibly using automated means such as `cert-manager` or using
 their own dedicated Certificate Authority.
@@ -39,7 +39,7 @@ There are two ways to configure the TLS certificates used by `argocd-server`:
   `argocd-server-tls` secret may be of type `tls`, but does not have to be.
 * Setting the `tls.crt` and `tls.key` keys in the `argocd-secret` secret to
   hold PEM data of the certificate and the corresponding private key. This
-  method is considered deprecated, and only exists for purposes of backwards
+  method is considered deprecated and only exists for purposes of backwards
   compatibility. Changing `argocd-secret` should not be used to override the
   TLS certificate anymore.
 
@@ -50,7 +50,7 @@ Argo CD decides which TLS certificate to use for the endpoint of
   `tls.crt` and `tls.key` keys, this will be used for the certificate of the
   endpoint of `argocd-server`.
 * Otherwise, if the `argocd-secret` secret contains a valid key pair in the
- `tls.crt` and `tls.key` keys, this will be used as certificate for the
+ `tls.crt` and `tls.key` keys, this will be used as the certificate for the
   endpoint of `argocd-server`.
 * If no `tls.crt` and `tls.key` keys are found in neither of the two mentioned
   secrets, Argo CD will generate a self-signed certificate and persist it in
@@ -69,7 +69,7 @@ kubectl create -n argocd secret tls argocd-server-tls \
 ```
 
 Argo CD will pick up changes to the `argocd-server-tls` secret automatically
-and will not require restart of the pods to use a renewed certificate.
+and will not require restarting to use a renewed certificate.
 
 ## Configuring inbound TLS for argocd-repo-server
 
@@ -83,7 +83,7 @@ setting command line parameters. The following parameters are available:
 |`--disable-tls`|`false`|Disables TLS completely|
 |`--tlsminversion`|`1.2`|The minimum TLS version to be offered to clients|
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
-|`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
+|`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon-separated list of TLS cipher suites to be offered to clients|
 
 ### Inbound TLS certificates used by argocd-repo-server
 
@@ -158,10 +158,10 @@ on how your workloads connect to the repository server.
 
 Both `argocd-server` and `argocd-application-controller` communicate with the
 `argocd-repo-server` using a gRPC API over TLS. By default,
-`argocd-repo-server` generates a non-persistent, self signed certificate
+`argocd-repo-server` generates a non-persistent, self-signed certificate
 to use for its gRPC endpoint on startup. Because the `argocd-repo-server` has
-no means to connect to the K8s control plane API, this certificate is not
-being available to outside consumers for verification. Both, the
+no means to connect to the K8s control plane API, this certificate is not available 
+to outside consumers for verification. Both,
 `argocd-server` and `argocd-application-server` will use a non-validating
 connection to the `argocd-repo-server` for this reason.
 
@@ -181,19 +181,18 @@ validate the TLS certificate of the `argocd-repo-server` by using the
 certificate stored in the `argocd-repo-server-tls` secret.
 
 !!!note "Certificate expiry"
-    Please make sure that the certificate has a proper life time. Keep in
-    mind that when you have to replace the certificate, all workloads have
-    to be restarted in order to properly work again.
+    Please make sure that the certificate has a proper lifetime. Remember, 
+    when replacing certificates, all workloads must be restarted to pick up
+    the certificate and work properly.
 
 ### Configuring TLS to argocd-dex-server
 
 `argocd-server` communicates with the `argocd-dex-server` using an HTTPS API
-over TLS. By default, `argocd-dex-server` generates a non-persistent, self
-signed certificate to use for its HTTPS endpoint on startup. Because the 
-`argocd-dex-server` has no means to connect to the K8s control plane API,
-this certificate is not being available to outside consumers for verification.
-The `argocd-server` will use a non-validating connection to the `argocd-dex-server`
-for this reason.
+over TLS. By default, `argocd-dex-server` generates a non-persistent, self-signed 
+certificate for its HTTPS endpoint on startup. Because `argocd-dex-server` 
+has no means to connect to the K8s control plane API, this certificate is not 
+available to outside consumers for verification. `argocd-server` will use a 
+non-validating connection to `argocd-dex-server` for this reason.
 
 To change this behavior to be more secure by having the `argocd-server` validate 
 the TLS certificate of the `argocd-dex-server` endpoint, the following steps need
@@ -210,14 +209,14 @@ The `argocd-server` workload will now validate the TLS certificate of the
 secret.
 
 !!!note "Certificate expiry"
-    Please make sure that the certificate has a proper life time. Keep in
-    mind that when you have to replace the certificate, all workloads have
-    to be restarted in order to properly work again.
+    Please make sure that the certificate has a proper lifetime. Remember, 
+    when replacing certificates, all workloads must be restarted to pick up
+    the certificate and work properly.
 
 ### Disabling TLS to argocd-repo-server
 
-In some scenarios where mTLS through side-car proxies is involved (e.g.
-in a service mesh), you may want configure the connections between the
+In some scenarios where mTLS through sidecar proxies is involved (e.g.
+in a service mesh), you may want to configure the connections between the
 `argocd-server` and `argocd-application-controller` to `argocd-repo-server`
 to not use TLS at all.
 
@@ -226,36 +225,36 @@ In this case, you will need to:
 * Configure `argocd-repo-server` with TLS on the gRPC API disabled by specifying
   the `--disable-tls` parameter to the pod container's startup arguments.
   Also, consider restricting listening addresses to the loopback interface by specifying
-  `--listen 127.0.0.1` parameter, so that insecure endpoint is not exposed on
-  the pod's network interfaces, but still available to the side-car container.
+  `--listen 127.0.0.1` parameter, so that the insecure endpoint is not exposed on
+  the pod's network interfaces, but still available to the sidecar container.
 * Configure `argocd-server` and `argocd-application-controller` to not use TLS
   for connections to the `argocd-repo-server` by specifying the parameter
   `--repo-server-plaintext` to the pod container's startup arguments
 * Configure `argocd-server` and `argocd-application-controller` to connect to
-  the side-car instead of directly to the `argocd-repo-server` service by
+  the sidecar instead of directly to the `argocd-repo-server` service by
   specifying its address via the `--repo-server <address>` parameter
 
-After this change, the `argocd-server` and `argocd-application-controller` will
-use a plain text connection to the side-car proxy, that will handle all aspects
-of TLS to the `argocd-repo-server`'s TLS side-car proxy.
+After this change, `argocd-server` and `argocd-application-controller` will
+use a plain text connection to the sidecar proxy, which will handle all aspects
+of TLS to `argocd-repo-server`'s TLS sidecar proxy.
 
 ### Disabling TLS to argocd-dex-server
 
-In some scenarios where mTLS through side-car proxies is involved (e.g.
-in a service mesh), you may want configure the connections between
+In some scenarios where mTLS through sidecar proxies is involved (e.g.
+in a service mesh), you may want to configure the connections between
 `argocd-server` to `argocd-dex-server` to not use TLS at all.
 
 In this case, you will need to:
 
 * Configure `argocd-dex-server` with TLS on the HTTPS API disabled by specifying
   the `--disable-tls` parameter to the pod container's startup arguments
-* Configure `argocd-server` to not use TLS for connections to the `argocd-dex-server` 
+* Configure `argocd-server` to not use TLS for connections to `argocd-dex-server` 
   by specifying the parameter `--dex-server-plaintext` to the pod container's startup
   arguments
-* Configure `argocd-server` to connect to the side-car instead of directly to the 
+* Configure `argocd-server` to connect to the sidecar instead of directly to the 
   `argocd-dex-server` service by specifying its address via the `--dex-server <address>`
   parameter
 
-After this change, the `argocd-server` will use a plain text connection to the side-car 
-proxy, that will handle all aspects of TLS to the `argocd-dex-server`'s TLS side-car proxy.
+After this change, `argocd-server` will use a plain text connection to the sidecar 
+proxy, that will handle all aspects of TLS to the `argocd-dex-server`'s TLS sidecar proxy.
 

@@ -149,6 +149,12 @@ branch to the `syncSource` branch.
 
 ## Limitations
 
+### Signature Verification
+
+The source hydrator **does not currently support signature verification of the DRY sources it hydrates/commits**. It
+also does not sign the commits it pushes to git, so if signature verification is enabled, the commits will fail
+verification when Argo CD attempts to sync the hydrated manifests.
+
 ### Project-Scoped Push Secrets
 
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any
@@ -159,6 +165,17 @@ hydrator will not be able to use a project-scoped push secret and will require a
 
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
 currently support credential templates. You will need a separate credential for each repository.
+
+### `manifest-generate-paths` Annotation Support
+
+The source hydrator does not currently support the [manifest-generate-paths annotation](../operator-manual/high_availability.md#manifest-paths-annotation) 
+for work avoidance on hydration of dry commits. In other words, the source hydrator is not able to skip hydration of dry 
+commits that have not changed relevant files.
+
+The application controller _does_ honor the `manifest-generate-paths` annotation when syncing the hydrated manifests.
+So if your application hydrates to the `foo` directory, and the `manifest-generate-paths` annotation is set to `foo`, 
+then the application controller will not re-hydrate the manifests after a commit that only affects files in the `bar`
+directory.
 
 ## Prerequisites
 
@@ -188,5 +205,5 @@ Examples of non-deterministic hydration:
 Argo CD should be the only thing pushing hydrated manifests to the hydrated branches. To prevent other tools or users
 from pushing to the hydrated branches, enable branch protection in your SCM.
 
-It is best practice to prefix the hydrated branches with a common prefix, such as `environment/`. This makes it easier
+It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.

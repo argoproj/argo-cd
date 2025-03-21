@@ -1029,11 +1029,10 @@ func TestTargetObjects_invalid(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCheckForDeleteEvent(_ *testing.T) {
-	ctx := context.Background()
+func TestCheckForDeleteEvent(t *testing.T) {
 	fakeClient := new(fakeAcdClient)
 
-	checkForDeleteEvent(ctx, fakeClient, "testApp")
+	checkForDeleteEvent(t.Context(), fakeClient, "testApp")
 }
 
 func TestPrintApplicationNames(t *testing.T) {
@@ -1053,9 +1052,10 @@ func TestPrintApplicationNames(t *testing.T) {
 func Test_unset(t *testing.T) {
 	kustomizeSource := &v1alpha1.ApplicationSource{
 		Kustomize: &v1alpha1.ApplicationSourceKustomize{
-			NamePrefix: "some-prefix",
-			NameSuffix: "some-suffix",
-			Version:    "123",
+			IgnoreMissingComponents: true,
+			NamePrefix:              "some-prefix",
+			NameSuffix:              "some-suffix",
+			Version:                 "123",
 			Images: v1alpha1.KustomizeImages{
 				"old1=new:tag",
 				"old2=new:tag",
@@ -1152,6 +1152,15 @@ func Test_unset(t *testing.T) {
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
+	assert.False(t, updated)
+	assert.False(t, nothingToUnset)
+
+	assert.True(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
+	assert.False(t, kustomizeSource.Kustomize.IgnoreMissingComponents)
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{ignoreMissingComponents: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
@@ -1862,7 +1871,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{}}
-	ctx := context.Background()
+	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
 	watch := watchOpts{
 		sync:      false,
