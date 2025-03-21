@@ -2483,6 +2483,12 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 		return nil, err
 	}
 
+	// Validate the destination, which has the side effect of populating the cluster name and server URL in the app
+	// spec. This ensures that calls to `verifyResourcePermitted` below act on a fully-populated app spec.
+	if err = argo.ValidateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
+		return nil, fmt.Errorf("error validating destination cluster: %w", err)
+	}
+
 	// First, make sure all the returned resources are permitted, for each operation.
 	// Also perform create with dry-runs for all create-operation resources.
 	// This is performed separately to reduce the risk of only some of the resources being successfully created later.

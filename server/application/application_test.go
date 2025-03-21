@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -32,6 +30,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
@@ -3460,5 +3459,172 @@ func Test_DeepCopyInformers(t *testing.T) {
 			spList[i].Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotSame(t, p, &spList[i])
+	}
+}
+
+func Test_RunResourceActionDestinationInference(t *testing.T) {
+	t.Parallel()
+	deployment := k8sappsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+	}
+
+	testServer := newTestApp(func(app *appsv1.Application) {
+		app.ObjectMeta.Namespace = "default"
+		app.Name = "test-server"
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 0,
+				Source: appsv1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+		app.Spec.Destination = appsv1.ApplicationDestination{
+			Server:    "https://cluster-api.example.com",
+			Namespace: "default",
+			Name:      "",
+		}
+	})
+	testName := newTestApp(func(app *appsv1.Application) {
+		app.ObjectMeta.Namespace = "default"
+		app.Name = "test-name"
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 0,
+				Source: appsv1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+		app.Spec.Destination = appsv1.ApplicationDestination{
+			Server:    "",
+			Namespace: "default",
+			Name:      "fake-cluster",
+		}
+	})
+	testBoth := newTestApp(func(app *appsv1.Application) {
+		app.ObjectMeta.Namespace = "default"
+		app.Name = "test-both"
+		app.Status.Resources = []appsv1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []appsv1.RevisionHistory{
+			{
+				ID: 0,
+				Source: appsv1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+		app.Spec.Destination = appsv1.ApplicationDestination{
+			Server:    "https://cluster-api.example.com",
+			Namespace: "default",
+			Name:      "fake-cluster",
+		}
+	})
+	testDeployment := kube.MustToUnstructured(&deployment)
+	server := newTestAppServer(t, testServer, testName, testBoth, testDeployment)
+	adminCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+
+	type fields struct {
+		Server
+	}
+	type args struct {
+		q *application.ResourceActionRunRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *application.ApplicationResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "InferServerUrl", fields: fields{*server}, args: args{
+				q: &application.ResourceActionRunRequest{
+					Name:         ptr.To(testName.Name),
+					Namespace:    ptr.To(testName.Namespace),
+					ResourceName: ptr.To(deployment.Name),
+					Group:        ptr.To(deployment.GroupVersionKind().Group),
+					Kind:         ptr.To(deployment.GroupVersionKind().Kind),
+					Version:      ptr.To(deployment.GroupVersionKind().Version),
+					Action:       ptr.To("restart"),
+				},
+			},
+			want: &application.ApplicationResponse{}, wantErr: assert.NoError,
+		},
+		{
+			name: "InferName", fields: fields{*server}, args: args{
+				q: &application.ResourceActionRunRequest{
+					Name:         ptr.To(testServer.Name),
+					Namespace:    ptr.To(testServer.Namespace),
+					ResourceName: ptr.To(deployment.Name),
+					Group:        ptr.To(deployment.GroupVersionKind().Group),
+					Kind:         ptr.To(deployment.GroupVersionKind().Kind),
+					Version:      ptr.To(deployment.GroupVersionKind().Version),
+					Action:       ptr.To("restart"),
+				},
+			},
+			want: &application.ApplicationResponse{}, wantErr: assert.NoError,
+		},
+		{
+			name: "ErrorOnBoth", fields: fields{*server}, args: args{
+				q: &application.ResourceActionRunRequest{
+					Name:         ptr.To(testBoth.Name),
+					Namespace:    ptr.To(testBoth.Namespace),
+					ResourceName: ptr.To(deployment.Name),
+					Group:        ptr.To(deployment.GroupVersionKind().Group),
+					Kind:         ptr.To(deployment.GroupVersionKind().Kind),
+					Version:      ptr.To(deployment.GroupVersionKind().Version),
+					Action:       ptr.To("restart"),
+				},
+			},
+			want: nil, wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
+				return assert.ErrorContains(t, err, "application destination can't have both name and server defined")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.fields.Server.RunResourceAction(adminCtx, tt.args.q)
+			if !tt.wantErr(t, err, fmt.Sprintf("RunResourceAction(%v)", tt.args.q)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "RunResourceAction(%v)", tt.args.q)
+		})
 	}
 }
