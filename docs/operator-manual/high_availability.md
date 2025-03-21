@@ -132,8 +132,8 @@ stringData:
 
 * `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
   for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of resources,
-  and the controller is overwhelmed by the number of events. The default value is `false`, which means that the controller
-  processes events one by one.
+  and the controller is overwhelmed by the number of events. The default value is `true`. `false` would mean that the controller
+  would process events one by one.
 
 * `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing events in a batch.
   The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`.
@@ -189,8 +189,7 @@ Argo CD repo server maintains one repository clone locally and uses it for appli
 Argo CD determines if manifest generation might change local files in the local repository clone based on the config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without a performance penalty. The following are known cases that might cause slowness and their workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** for historical reasons Argo CD generates Helm manifests sequentially.  To enable parallel generation set `ARGOCD_HELM_ALLOW_CONCURRENCY=true` to `argocd-repo-server` deployment or create `.argocd-allow-concurrency` file.
-    Future versions of Argo CD will enable this by default.
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** for historical reasons Argo CD used to generate Helm manifests sequentially. Starting v3.0, Argo CD performs a parallel generation of Helm manifests by default.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each application using a temporary copy of the repository.
 

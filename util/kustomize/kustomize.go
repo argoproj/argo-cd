@@ -24,9 +24,11 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+
+	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
-// represents a Docker image in the format NAME[:TAG].
+// Image represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 type BuildOpts struct {
@@ -70,7 +72,29 @@ type kustomize struct {
 	noProxy string
 }
 
-var _ Kustomize = &kustomize{}
+var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+
+// IsKustomization checks if the given file name matches any known kustomization file names.
+func IsKustomization(path string) bool {
+	for _, kustomization := range KustomizationNames {
+		if path == kustomization {
+			return true
+		}
+	}
+	return false
+}
+
+// findKustomizeFile looks for any known kustomization file in the path
+func findKustomizeFile(dir string) string {
+	for _, file := range KustomizationNames {
+		path := filepath.Join(dir, file)
+		if _, err := os.Stat(path); err == nil {
+			return file
+		}
+	}
+
+	return ""
+}
 
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
@@ -123,13 +147,14 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			log.Warnf("Could not parse URL %s: %v", k.repo, err)
 		} else {
 			caPath, err := certutil.GetCertBundlePathForRepository(parsedURL.Host)
-			if err != nil {
+			switch {
+			case err != nil:
 				// Some error while getting CA bundle
 				log.Warnf("Could not get CA bundle path for %s: %v", parsedURL.Host, err)
-			} else if caPath == "" {
+			case caPath == "":
 				// No cert configured
 				log.Debugf("No caCert found for repo %s", parsedURL.Host)
-			} else {
+			default:
 				// Make Git use CA bundle
 				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
 			}
@@ -205,6 +230,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.LabelWithoutSelector {
 				args = append(args, "--without-selector")
 			}
+			if opts.LabelIncludeTemplates {
+				args = append(args, "--include-templates")
+			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)
@@ -253,7 +281,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.Patches) > 0 {
-			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			kustFile := findKustomizeFile(k.path)
+			// If the kustomization file is not found, return early.
+			// There is no point reading the kustomization path if it doesn't exist.
+			if kustFile == "" {
+				return nil, nil, nil, errors.New("kustomization file not found in the path")
+			}
+			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
@@ -309,8 +343,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				for _, c := range opts.Components {
+					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+					}
+					_, err = os.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
@@ -370,17 +420,6 @@ func isHelmEnabled(buildOptions string) bool {
 	return strings.Contains(buildOptions, "--enable-helm")
 }
 
-var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
-}
-
 // semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
 // here.
 // https://github.com/Masterminds/semver/blob/49c09bfed6adcffa16482ddc5e5588cffff9883a/version.go#L42
@@ -397,7 +436,7 @@ var (
 
 // getSemver returns parsed kustomize version
 func getSemver() (*semver.Version, error) {
-	verStr, err := Version(true)
+	verStr, err := Version()
 	if err != nil {
 		return nil, err
 	}
@@ -428,33 +467,25 @@ func getSemverSafe() *semver.Version {
 	return semVer
 }
 
-func Version(shortForm bool) (string, error) {
-	executable := "kustomize"
-	cmdArgs := []string{"version"}
-	if shortForm {
-		cmdArgs = append(cmdArgs, "--short")
-	}
-	cmd := exec.Command(executable, cmdArgs...)
+func Version() (string, error) {
+	cmd := exec.Command("kustomize", "version", "--short")
 	// example version output:
-	// long: "{Version:kustomize/v3.8.1 GitCommit:0b359d0ef0272e6545eda0e99aacd63aef99c4d0 BuildDate:2020-07-16T00:58:46Z GoOs:linux GoArch:amd64}"
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
 		return "", fmt.Errorf("could not get kustomize version: %w", err)
 	}
 	version = strings.TrimSpace(version)
-	if shortForm {
-		// trim the curly braces
-		version = strings.TrimPrefix(version, "{")
-		version = strings.TrimSuffix(version, "}")
-		version = strings.TrimSpace(version)
+	// trim the curly braces
+	version = strings.TrimPrefix(version, "{")
+	version = strings.TrimSuffix(version, "}")
+	version = strings.TrimSpace(version)
 
-		// remove double space in middle
-		version = strings.ReplaceAll(version, "  ", " ")
+	// remove double space in middle
+	version = strings.ReplaceAll(version, "  ", " ")
 
-		// remove extra 'kustomize/' before version
-		version = strings.TrimPrefix(version, "kustomize/")
-	}
+	// remove extra 'kustomize/' before version
+	version = strings.TrimPrefix(version, "kustomize/")
 	return version, nil
 }
 

@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -629,7 +628,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 	}
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -691,11 +690,11 @@ func TestPluginGenerateParams(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				expectedJson, err := json.Marshal(testCase.expected)
+				expectedJSON, err := json.Marshal(testCase.expected)
 				require.NoError(t, err)
-				gotJson, err := json.Marshal(got)
+				gotJSON, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.JSONEq(t, string(expectedJson), string(gotJson))
+				assert.JSONEq(t, string(expectedJSON), string(gotJSON))
 			}
 		})
 	}

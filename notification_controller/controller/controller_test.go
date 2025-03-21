@@ -127,7 +127,7 @@ func TestInit(t *testing.T) {
 
 		assert.NotNil(t, nc)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 		defer cancel()
 
 		err = nc.Init(ctx)
@@ -160,14 +160,13 @@ func TestInitTimeout(t *testing.T) {
 	assert.NotNil(t, nc)
 
 	// Use a short timeout to simulate a timeout during cache synchronization
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
 	defer cancel()
 
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	require.Error(t, err)
-	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
+	assert.EqualError(t, err, "Timed out waiting for caches to sync")
 }
 
 func TestCheckAppNotInAdditionalNamespaces(t *testing.T) {

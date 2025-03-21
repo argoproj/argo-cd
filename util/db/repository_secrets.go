@@ -306,6 +306,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		Repo:                       string(secret.Data["url"]),
 		Username:                   string(secret.Data["username"]),
 		Password:                   string(secret.Data["password"]),
+		BearerToken:                string(secret.Data["bearerToken"]),
 		SSHPrivateKey:              string(secret.Data["sshPrivateKey"]),
 		TLSClientCertData:          string(secret.Data["tlsClientCertData"]),
 		TLSClientCertKey:           string(secret.Data["tlsClientCertKey"]),
@@ -379,6 +380,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "url", repository.Repo)
 	updateSecretString(secret, "username", repository.Username)
 	updateSecretString(secret, "password", repository.Password)
+	updateSecretString(secret, "bearerToken", repository.BearerToken)
 	updateSecretString(secret, "sshPrivateKey", repository.SSHPrivateKey)
 	updateSecretBool(secret, "enableOCI", repository.EnableOCI)
 	updateSecretString(secret, "tlsClientCertData", repository.TLSClientCertData)
@@ -404,6 +406,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		URL:                        string(secret.Data["url"]),
 		Username:                   string(secret.Data["username"]),
 		Password:                   string(secret.Data["password"]),
+		BearerToken:                string(secret.Data["bearerToken"]),
 		SSHPrivateKey:              string(secret.Data["sshPrivateKey"]),
 		TLSClientCertData:          string(secret.Data["tlsClientCertData"]),
 		TLSClientCertKey:           string(secret.Data["tlsClientCertKey"]),
@@ -456,6 +459,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "url", repoCreds.URL)
 	updateSecretString(secret, "username", repoCreds.Username)
 	updateSecretString(secret, "password", repoCreds.Password)
+	updateSecretString(secret, "bearerToken", repoCreds.BearerToken)
 	updateSecretString(secret, "sshPrivateKey", repoCreds.SSHPrivateKey)
 	updateSecretBool(secret, "enableOCI", repoCreds.EnableOCI)
 	updateSecretString(secret, "tlsClientCertData", repoCreds.TLSClientCertData)
@@ -526,13 +530,13 @@ func (s *secretsRepositoryBackend) getRepositoryCredentialIndex(repoCredentials 
 	max, idx := 0, -1
 	repoURL = git.NormalizeGitURL(repoURL)
 	for i, cred := range repoCredentials {
-		credUrl := git.NormalizeGitURL(string(cred.Data["url"]))
-		if strings.HasPrefix(repoURL, credUrl) {
-			if len(credUrl) == max {
+		credURL := git.NormalizeGitURL(string(cred.Data["url"]))
+		if strings.HasPrefix(repoURL, credURL) {
+			if len(credURL) == max {
 				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
-			if len(credUrl) > max {
-				max = len(credUrl)
+			if len(credURL) > max {
+				max = len(credURL)
 				idx = i
 			}
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/r3labs/diff"
+	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -22,6 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
@@ -66,8 +68,8 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
-func getAPIResourceInfo(group, kind string, getApiResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-	apiResources, err := getApiResourceInfo()
+func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+	apiResources, err := getAPIResourceInfo()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -227,15 +229,18 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
-				argoappv1.AnnotationKeyHydrate: "normal",
 			},
 		},
 	}
+	if hydrate {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	}
+
 	var err error
 	patch, err := json.Marshal(metadata)
 	if err != nil {
@@ -245,7 +250,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
-			return app, nil
+			return app.DeepCopy(), nil
 		}
 		if !apierrors.IsConflict(err) {
 			return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
@@ -322,7 +327,7 @@ func ValidateRepo(
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
 	}
 
-	destCluster, err := GetDestinationCluster(context.Background(), spec.Destination, db)
+	destCluster, err := GetDestinationCluster(ctx, spec.Destination, db)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -334,7 +339,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	// nolint:staticcheck
+	//nolint:staticcheck
 	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -437,7 +442,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		// nolint:staticcheck
+		//nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -549,7 +554,8 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
 	conditions := make([]argoappv1.ApplicationCondition, 0)
 
-	if spec.SourceHydrator != nil {
+	switch {
+	case spec.SourceHydrator != nil:
 		condition := validateSourceHydrator(spec.SourceHydrator)
 		if len(condition) > 0 {
 			conditions = append(conditions, condition...)
@@ -561,7 +567,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
 			})
 		}
-	} else if spec.HasMultipleSources() {
+	case spec.HasMultipleSources():
 		for _, source := range spec.Sources {
 			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
@@ -576,7 +582,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 				})
 			}
 		}
-	} else {
+	default:
 		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
@@ -757,6 +763,21 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+
+		appLabelKey, err := settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting app label key ID: %v", err),
+			})
+			continue
+		}
+
+		verifySignature := false
+		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
+			verifySignature = true
+		}
+
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -765,11 +786,13 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
+			VerifySignature:                 verifySignature,
 			Repos:                           helmRepos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
+			AppLabelKey:                     appLabelKey,
 			KustomizeOptions:                kustomizeOptions,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
@@ -810,6 +833,7 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
+		a = a.DeepCopy()
 		if a.Operation != nil {
 			return nil, ErrAnotherOperationInProgress
 		}
@@ -910,13 +934,14 @@ func NormalizeSource(source *argoappv1.ApplicationSource) *argoappv1.Application
 		source.Helm = nil
 	}
 	if source.Directory != nil && source.Directory.IsZero() {
-		if source.Directory.Exclude != "" && source.Directory.Include != "" {
+		switch {
+		case source.Directory.Exclude != "" && source.Directory.Include != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: source.Directory.Exclude, Include: source.Directory.Include}
-		} else if source.Directory.Exclude != "" {
+		case source.Directory.Exclude != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Exclude: source.Directory.Exclude}
-		} else if source.Directory.Include != "" {
+		case source.Directory.Include != "":
 			source.Directory = &argoappv1.ApplicationSourceDirectory{Include: source.Directory.Include}
-		} else {
+		default:
 			source.Directory = nil
 		}
 	}
