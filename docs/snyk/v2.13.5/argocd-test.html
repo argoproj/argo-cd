@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="12 known vulnerabilities found in 38 vulnerable dependency paths.">
+  <meta name="description" content="18 known vulnerabilities found in 71 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 16th 2025, 12:25:04 am (UTC+00:00)</p>
+                <p class="timestamp">March 16th 2025, 12:26:23 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -467,8 +467,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>12</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>38 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>18</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>71 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2141</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -640,6 +640,711 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-REDOC-8664933">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/oauth2/jws
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, golang.org/x/oauth2/google@0.23.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/api@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#0802cd427621
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/chat/v1@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/transport/http@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/option@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/api/internal@0.132.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/google@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jwt@0.23.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/oauth2/jws@0.23.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to improper parsing of malformed tokens which can lead to memory consumption.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/oauth2/jws</code> to version 0.27.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/oauth2/commit/681b4d8edca1bcfea5bce685d77ea7b82ed3e7b3">GitHub Commit</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/commit/d0bb4610154d45b7dce7d706a8068ea72586d249">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71490">GitHub Issue</a></li>
+        <li><a href="https://github.com/lestrrat-go/jwx/pull/1308">GitHub PR</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3488">Go Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXOAUTH2JWS-8749594">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http/httpproxy
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and golang.org/x/net/http/httpproxy@0.33.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http/httpproxy@0.33.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http/httpproxy">golang.org/x/net/http/httpproxy</a> is a package for HTTP proxy determination based on environment variables, as provided by net/http&#39;s ProxyFromEnvironment function</p>
+        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) in <code>proxy.go</code>, because hostname matching against proxy patterns may treat an IPv6 zone ID as a hostname component. An environment variable value like <code>*.example.com</code> could be matched to a request intended for <code>[::1%25.example.com]:80</code>.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http/httpproxy</code> to version 0.36.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://go-review.googlesource.com/c/go/+/654717/4/src/vendor/golang.org/x/net/http/httpproxy/proxy.go">Git Commit</a></li>
+        <li><a href="https://github.com/golang/go/commit/3705a6f1f0a66e70916bb09f50f4fcd1c520df53">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/net/commit/76f9bf3279eff2e596db4960a78a2665d0ff9405">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71984">GitHub Issue</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTPHTTPPROXY-9058601">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/crypto/ssh
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and golang.org/x/crypto/ssh@0.31.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        code.gitea.io/sdk/gitea@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        code.gitea.io/sdk/gitea@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-fed/httpsig@1.1.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        code.gitea.io/sdk/gitea@0.19.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/xanzy/ssh-agent@0.3.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/agent@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/client@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/transport/ssh@5.13.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/skeema/knownhosts@1.3.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh/knownhosts@0.31.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/crypto/ssh@0.31.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in <code>handshakeTransport</code> in <code>handshake.go</code>. An internal queue gets populated with received packets during the key exchange process, while waiting for the client to send a <code>SSH_MSG_KEXINIT</code>. An attacker can cause the server to become unresponsive to new connections by delaying or withholding this message, or by causing the queue to consume all available memory.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.35.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://go.dev/cl/652135">Git Commit</a></li>
+        <li><a href="https://go.dev/issue/71931">Go Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2025-3487">Vulnerability Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8747056">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1276,6 +1981,148 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/coreos/go-oidc/v3/oidc@3.11.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.0.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-8745975">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@0.0.0 and github.com/go-jose/go-jose/v3@3.0.3
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v3</code> to version 3.0.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-8754524">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Concurrent Execution using Shared Resource with Improper Synchronization (&#x27;Race Condition&#x27;)</h2>
             <div class="card__section">
         
@@ -1508,6 +2355,81 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FOUNDATIONSITES-8310364">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Arbitrary Code Injection</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            prismjs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.0.0-rc.64 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.0.0-rc.64
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        prismjs@1.27.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="http://prismjs.com/">prismjs</a> is a lightweight, robust, elegant syntax highlighting library.</p>
+        <p>Affected versions of this package are vulnerable to Arbitrary Code Injection via the <code>document.currentScript</code> lookup process. An attacker can manipulate the web page content and execute unintended actions by injecting HTML elements that overshadow legitimate DOM elements.</p>
+        <p><strong>Note:</strong></p>
+        <p>This is only exploitable if the application accepts untrusted input containing HTML but not direct JavaScript.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>prismjs</code> to version 1.30.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/PrismJS/prism/commit/8e8b9352dac64457194dd9e51096b4772532e53d">GitHub Commit</a></li>
+        <li><a href="https://gist.github.com/jackfromeast/aeb128e44f05f95828a1a824708df660">GitHub Gist</a></li>
+        <li><a href="https://github.com/PrismJS/prism/pull/3863">GitHub PR</a></li>
+        <li><a href="https://github.com/PrismJS/prism/blob/59e5a3471377057de1f401ba38337aca27b80e03/prism.js#L226-L259">Vulnerable Code</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-PRISMJS-9055448">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

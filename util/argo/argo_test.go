@@ -41,7 +41,7 @@ func TestRefreshApp(t *testing.T) {
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
+	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, true)
 	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
@@ -71,7 +71,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	testApp.Name = "test-app"
 	testApp.Namespace = namespace
 	appClientset := appclientset.NewSimpleClientset(testProj)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, indexers)
@@ -79,7 +79,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
 	require.NoError(t, err)
@@ -297,7 +297,7 @@ func TestNilOutZerValueAppSources(t *testing.T) {
 }
 
 func TestValidatePermissionsEmptyDestination(t *testing.T) {
-	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
+	conditions, err := ValidatePermissions(t.Context(), &argoappv1.ApplicationSpec{
 		Source: &argoappv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd", Path: "."},
 	}, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
@@ -318,7 +318,7 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 	}
 	cluster := &argoappv1.Cluster{Server: "https://kubernetes.default.svc"}
 	db := &dbmocks.ArgoDB{}
-	ctx := context.Background()
+	ctx := t.Context()
 	db.On("GetCluster", ctx, appSpec.Destination.Server).Return(cluster, nil)
 
 	conditions, err := ValidatePermissions(ctx, appSpec, &argoappv1.AppProject{
@@ -389,7 +389,7 @@ func TestValidateRepo(t *testing.T) {
 
 	repoClient := &mocks.RepoServerServiceClient{}
 	source := app.Spec.GetSource()
-	repoClient.On("GetAppDetails", context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	repoClient.On("GetAppDetails", t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &source,
 		Repos:            helmRepos,
@@ -399,7 +399,7 @@ func TestValidateRepo(t *testing.T) {
 	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 
 	repo.Type = "git"
-	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+	repoClient.On("TestRepository", t.Context(), &apiclient.TestRepositoryRequest{
 		Repo: repo,
 	}).Return(&apiclient.TestRepositoryResponse{
 		VerifiedRepository: true,
@@ -409,14 +409,14 @@ func TestValidateRepo(t *testing.T) {
 
 	db := &dbmocks.ArgoDB{}
 
-	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL, "").Return(repo, nil)
-	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
-	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
-	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
+	db.On("GetRepository", t.Context(), app.Spec.Source.RepoURL, "").Return(repo, nil)
+	db.On("ListHelmRepositories", t.Context()).Return(helmRepos, nil)
+	db.On("GetCluster", t.Context(), app.Spec.Destination.Server).Return(cluster, nil)
+	db.On("GetAllHelmRepositoryCredentials", t.Context()).Return(nil, nil)
 
 	var receivedRequest *apiclient.ManifestRequest
 
-	repoClient.On("GenerateManifest", context.Background(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+	repoClient.On("GenerateManifest", t.Context(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
 		receivedRequest = req
 		return true
 	})).Return(nil, nil)
@@ -446,9 +446,9 @@ func TestValidateRepo(t *testing.T) {
 	}
 
 	kubeClient := fake.NewClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
 	require.NoError(t, err)
 	assert.Empty(t, conditions)
@@ -636,7 +636,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -653,7 +653,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -670,7 +670,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -703,8 +703,8 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
@@ -736,8 +736,8 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application destination")
@@ -768,8 +768,8 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "Cluster does not exist")
@@ -800,8 +800,8 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "does-not-exist").Return(nil, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetClusterServersByName", t.Context(), "does-not-exist").Return(nil, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "there are no clusters with this name: does-not-exist")
@@ -832,8 +832,8 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, errors.New("Unknown error occurred"))
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(nil, errors.New("Unknown error occurred"))
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "Unknown error occurred")
@@ -868,9 +868,9 @@ func TestValidatePermissions(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
 	})
@@ -934,9 +934,9 @@ func TestGetDestinationCluster(t *testing.T) {
 
 		expectedCluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
+		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(expectedCluster, nil)
 
-		destCluster, err := GetDestinationCluster(context.Background(), dest, db)
+		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
 		require.NotNil(t, expectedCluster)
 		assert.Equal(t, expectedCluster, destCluster)
@@ -948,10 +948,10 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
+		db.On("GetClusterServersByName", t.Context(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil)
 
-		destCluster, err := GetDestinationCluster(context.Background(), dest, db)
+		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
 		assert.Equal(t, "https://127.0.0.1:6443", destCluster.Server)
 	})
@@ -963,7 +963,7 @@ func TestGetDestinationCluster(t *testing.T) {
 			Namespace: "default",
 		}
 
-		_, err := GetDestinationCluster(context.Background(), dest, nil)
+		_, err := GetDestinationCluster(t.Context(), dest, nil)
 		assert.EqualError(t, err, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443")
 	})
 
@@ -973,9 +973,9 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, errors.New("an error occurred"))
+		db.On("GetClusterServersByName", t.Context(), mock.Anything).Return(nil, errors.New("an error occurred"))
 
-		_, err := GetDestinationCluster(context.Background(), dest, db)
+		_, err := GetDestinationCluster(t.Context(), dest, db)
 		require.ErrorContains(t, err, "an error occurred")
 	})
 
@@ -985,9 +985,9 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "minikube").Return(nil, nil)
+		db.On("GetClusterServersByName", t.Context(), "minikube").Return(nil, nil)
 
-		_, err := GetDestinationCluster(context.Background(), dest, db)
+		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are no clusters with this name: minikube")
 	})
 
@@ -997,9 +997,9 @@ func TestGetDestinationCluster(t *testing.T) {
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
+		db.On("GetClusterServersByName", t.Context(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
-		_, err := GetDestinationCluster(context.Background(), dest, db)
+		_, err := GetDestinationCluster(t.Context(), dest, db)
 		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
 	})
 }
@@ -1143,7 +1143,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 		informer := v1alpha1.NewAppProjectInformer(projClientset, namespace, 0, indexers)
@@ -1151,7 +1151,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 		kubeClient := fake.NewSimpleClientset(&cm)
-		settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 
 		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
 
@@ -1302,7 +1302,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return repo, nil
 		}, []string{}, false)
 
@@ -1322,7 +1322,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.Background(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, errors.New("repo does not exist")
 		}, []string{}, false)
 
@@ -1336,7 +1336,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
@@ -1350,7 +1350,7 @@ func Test_GetRefSources(t *testing.T) {
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
 			return nil, err
 		}, []string{}, false)
 
@@ -1369,7 +1369,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -1389,7 +1389,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
@@ -1424,8 +1424,8 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		}
 		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetCluster", t.Context(), spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
@@ -1462,9 +1462,9 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		db.On("GetClusterServersByName", t.Context(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.On("GetCluster", t.Context(), "https://127.0.0.1:6443").Return(&cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
 	})
@@ -1687,7 +1687,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			app.Namespace = test.FakeArgoCDNamespace
 			app.Labels = tt.appLabels
 			appClientset := appclientset.NewSimpleClientset(proj)
-			ctx, cancel := context.WithCancel(context.Background())
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 			informer := v1alpha1.NewAppProjectInformer(appClientset, test.FakeArgoCDNamespace, 0, indexers)
@@ -1695,7 +1695,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 			kubeClient := fake.NewSimpleClientset(&cm)
-			settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+			settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
 			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)

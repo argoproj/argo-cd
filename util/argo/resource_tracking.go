@@ -55,7 +55,7 @@ func NewResourceTracking() ResourceTracking {
 func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
 	if err != nil || tm == "" {
-		return TrackingMethodLabel
+		return TrackingMethodAnnotation
 	}
 	return v1alpha1.TrackingMethod(tm)
 }
@@ -100,11 +100,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 	case TrackingMethodAnnotation:
 		return retrieveAppInstanceValue()
 	default:
-		label, err := kube.GetAppInstanceLabel(un, key)
-		if err != nil {
-			return ""
-		}
-		return label
+		return retrieveAppInstanceValue()
 	}
 }
 
@@ -185,11 +181,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return nil
 	default:
-		err := kube.SetAppInstanceLabel(un, key, val)
-		if err != nil {
-			return fmt.Errorf("failed to set app instance label: %w", err)
-		}
-		return nil
+		return setAppInstanceAnnotation()
 	}
 }
 

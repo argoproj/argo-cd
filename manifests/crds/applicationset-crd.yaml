@@ -279,6 +279,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -553,6 +555,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -955,6 +959,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -1229,6 +1235,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -1630,6 +1638,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -1904,6 +1914,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -2285,6 +2297,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -2559,6 +2573,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -2965,6 +2981,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -3239,6 +3257,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -3641,6 +3661,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -3915,6 +3937,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4316,6 +4340,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -4590,6 +4616,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -4971,6 +4999,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -5245,6 +5275,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -5634,6 +5666,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -5908,6 +5942,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -6516,6 +6552,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -6790,6 +6828,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -6944,6 +6984,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               scmProvider:
@@ -7393,6 +7437,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -7667,6 +7713,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8065,6 +8113,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -8339,6 +8389,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -8747,6 +8799,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9021,6 +9075,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9423,6 +9479,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9697,6 +9755,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10098,6 +10158,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10372,6 +10434,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10753,6 +10817,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11027,6 +11093,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11416,6 +11484,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11690,6 +11760,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12298,6 +12370,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12572,6 +12646,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12726,6 +12802,10 @@ spec:
                                     required:
                                     - metadata
                                     - spec
+                                    type: object
+                                  values:
+                                    additionalProperties:
+                                      type: string
                                     type: object
                                 type: object
                               scmProvider:
@@ -13175,6 +13255,8 @@ spec:
                                                     type: array
                                                   kubeVersion:
                                                     type: string
+                                                  labelIncludeTemplates:
+                                                    type: boolean
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13449,6 +13531,8 @@ spec:
                                                       type: array
                                                     kubeVersion:
                                                       type: string
+                                                    labelIncludeTemplates:
+                                                      type: boolean
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -13851,6 +13935,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -14125,6 +14211,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -14513,6 +14601,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -14787,6 +14877,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -15395,6 +15487,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -15669,6 +15763,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -15823,6 +15919,10 @@ spec:
                           required:
                           - metadata
                           - spec
+                          type: object
+                        values:
+                          additionalProperties:
+                            type: string
                           type: object
                       type: object
                     scmProvider:
@@ -16272,6 +16372,8 @@ spec:
                                           type: array
                                         kubeVersion:
                                           type: string
+                                        labelIncludeTemplates:
+                                          type: boolean
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -16546,6 +16648,8 @@ spec:
                                             type: array
                                           kubeVersion:
                                             type: string
+                                          labelIncludeTemplates:
+                                            type: boolean
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -17019,6 +17123,8 @@ spec:
                                 type: array
                               kubeVersion:
                                 type: string
+                              labelIncludeTemplates:
+                                type: boolean
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -17293,6 +17399,8 @@ spec:
                                   type: array
                                 kubeVersion:
                                   type: string
+                                labelIncludeTemplates:
+                                  type: boolean
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:

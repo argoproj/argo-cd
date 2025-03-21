@@ -25,6 +25,9 @@ import (
 const (
 	// YamlSeparator separates sections of a YAML file
 	yamlSeparator = "---\n"
+
+	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
+	applicationNamespacesCmdParamsKey    = "application.namespaces"
 )
 
 var (
@@ -34,6 +37,19 @@ var (
 	appprojectsResource     = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.AppProjectPlural}
 	appplicationSetResource = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationSetPlural}
 )
+
+type argocdAdditionalNamespaces struct {
+	applicationNamespaces    []string
+	applicationsetNamespaces []string
+}
+
+type argoCDClientsets struct {
+	configMaps      dynamic.ResourceInterface
+	secrets         dynamic.ResourceInterface
+	applications    dynamic.ResourceInterface
+	projects        dynamic.ResourceInterface
+	applicationSets dynamic.ResourceInterface
+}
 
 // NewAdminCommand returns a new instance of an argocd command
 func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -71,24 +87,16 @@ $ argocd admin initial-password reset
 	return command
 }
 
-type argoCDClientsets struct {
-	configMaps      dynamic.ResourceInterface
-	secrets         dynamic.ResourceInterface
-	applications    dynamic.ResourceInterface
-	projects        dynamic.ResourceInterface
-	applicationSets dynamic.ResourceInterface
-}
-
 func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientsets {
 	dynamicIf, err := dynamic.NewForConfig(config)
 	errors.CheckError(err)
+
 	return &argoCDClientsets{
-		configMaps: dynamicIf.Resource(configMapResource).Namespace(namespace),
-		secrets:    dynamicIf.Resource(secretResource).Namespace(namespace),
-		// To support applications and applicationsets in any namespace we will watch all namespaces and filter them afterwards
-		applications:    dynamicIf.Resource(applicationsResource),
+		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
+		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
+		applications:    dynamicIf.Resource(applicationsResource).Namespace(namespace),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
-		applicationSets: dynamicIf.Resource(appplicationSetResource),
+		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(namespace),
 	}
 }
 
@@ -161,22 +169,12 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 	return false
 }
 
-type argocdAdditonalNamespaces struct {
-	applicationNamespaces    []string
-	applicationsetNamespaces []string
-}
-
-const (
-	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
-	applicationNamespacesCmdParamsKey    = "application.namespaces"
-)
-
 // Get additional namespaces from argocd-cmd-params
-func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
+func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.ResourceInterface) *argocdAdditionalNamespaces {
 	applicationNamespaces := make([]string, 0)
 	applicationsetNamespaces := make([]string, 0)
 
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	un, err := configMapsClient.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
 	errors.CheckError(err)
 	var cm corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
@@ -204,7 +202,7 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 		applicationsetNamespaces = namespacesListFromString(strNamespaces)
 	}
 
-	return &argocdAdditonalNamespaces{
+	return &argocdAdditionalNamespaces{
 		applicationNamespaces:    applicationNamespaces,
 		applicationsetNamespaces: applicationsetNamespaces,
 	}

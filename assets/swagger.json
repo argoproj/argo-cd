@@ -920,6 +920,11 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1152,6 +1157,11 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
             "in": "query"
           }
         ],
@@ -3777,6 +3787,12 @@
             "description": "Whether to use azure workload identity for authentication.",
             "name": "useAzureWorkloadIdentity",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
+            "name": "bearerToken",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4608,6 +4624,12 @@
             "type": "boolean",
             "description": "Whether to use azure workload identity for authentication.",
             "name": "useAzureWorkloadIdentity",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
+            "name": "bearerToken",
             "in": "query"
           }
         ],
@@ -6417,6 +6439,7 @@
     },
     "v1PortStatus": {
       "type": "object",
+      "title": "PortStatus represents the error condition of a service port",
       "properties": {
         "error": {
           "type": "string",
@@ -7299,6 +7322,10 @@
         "kubeVersion": {
           "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
           "type": "string"
+        },
+        "labelIncludeTemplates": {
+          "type": "boolean",
+          "title": "LabelIncludeTemplates specifies whether to apply common labels to resource templates or not"
         },
         "labelWithoutSelector": {
           "type": "boolean",
@@ -8714,6 +8741,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -8912,6 +8946,10 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "bearerToken": {
+          "type": "string",
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
+        },
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
@@ -9003,6 +9041,10 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "bearerToken": {
+          "type": "string",
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },

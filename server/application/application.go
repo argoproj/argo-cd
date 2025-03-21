@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/gitops-engine/pkg/health"
+
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
@@ -76,22 +78,23 @@ var (
 
 // Server provides an Application service
 type Server struct {
-	ns                string
-	kubeclientset     kubernetes.Interface
-	appclientset      appclientset.Interface
-	appLister         applisters.ApplicationLister
-	appInformer       cache.SharedIndexInformer
-	appBroadcaster    Broadcaster
-	repoClientset     apiclient.Clientset
-	kubectl           kube.Kubectl
-	db                db.ArgoDB
-	enf               *rbac.Enforcer
-	projectLock       sync.KeyLock
-	auditLogger       *argo.AuditLogger
-	settingsMgr       *settings.SettingsManager
-	cache             *servercache.Cache
-	projInformer      cache.SharedIndexInformer
-	enabledNamespaces []string
+	ns                     string
+	kubeclientset          kubernetes.Interface
+	appclientset           appclientset.Interface
+	appLister              applisters.ApplicationLister
+	appInformer            cache.SharedIndexInformer
+	appBroadcaster         Broadcaster
+	repoClientset          apiclient.Clientset
+	kubectl                kube.Kubectl
+	db                     db.ArgoDB
+	enf                    *rbac.Enforcer
+	projectLock            sync.KeyLock
+	auditLogger            *argo.AuditLogger
+	settingsMgr            *settings.SettingsManager
+	cache                  *servercache.Cache
+	projInformer           cache.SharedIndexInformer
+	enabledNamespaces      []string
+	syncWithReplaceAllowed bool
 }
 
 // NewServer returns a new instance of the Application service
@@ -112,6 +115,7 @@ func NewServer(
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
 	enableK8sEvent []string,
+	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -121,22 +125,23 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                namespace,
-		appclientset:      appclientset,
-		appLister:         appLister,
-		appInformer:       appInformer,
-		appBroadcaster:    appBroadcaster,
-		kubeclientset:     kubeclientset,
-		cache:             cache,
-		db:                db,
-		repoClientset:     repoClientset,
-		kubectl:           kubectl,
-		enf:               enf,
-		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
-		settingsMgr:       settingsMgr,
-		projInformer:      projInformer,
-		enabledNamespaces: enabledNamespaces,
+		ns:                     namespace,
+		appclientset:           &deepCopyAppClientset{appclientset},
+		appLister:              &deepCopyApplicationLister{appLister},
+		appInformer:            appInformer,
+		appBroadcaster:         appBroadcaster,
+		kubeclientset:          kubeclientset,
+		cache:                  cache,
+		db:                     db,
+		repoClientset:          repoClientset,
+		kubectl:                kubectl,
+		enf:                    enf,
+		projectLock:            projectLock,
+		auditLogger:            argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		settingsMgr:            settingsMgr,
+		projInformer:           projInformer,
+		enabledNamespaces:      enabledNamespaces,
+		syncWithReplaceAllowed: syncWithReplaceAllowed,
 	}
 	return s, s.getAppResources
 }
@@ -249,9 +254,13 @@ func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, pr
 		if !s.isNamespaceEnabled(namespaceOrDefault) {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
-		return s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
+		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
 			ResourceVersion: resourceVersion,
 		})
+		if err != nil {
+			return nil, err
+		}
+		return app, nil
 	})
 }
 
@@ -476,7 +485,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		sources := make([]v1alpha1.ApplicationSource, 0)
-		appSpec := a.Spec.DeepCopy()
+		appSpec := a.Spec
 		if a.Spec.HasMultipleSources() {
 			numOfSources := int64(len(a.Spec.GetSources()))
 			for i, pos := range q.SourcePositions {
@@ -745,7 +754,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType)
+	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -805,7 +814,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 					annotations = make(map[string]string)
 				}
 				if _, ok := annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-					return &event.Application, nil
+					return event.Application.DeepCopy(), nil
 				}
 			}
 		}
@@ -873,7 +882,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list, nil
+	return list.DeepCopy(), nil
 }
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
@@ -1724,19 +1733,8 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return err
 	}
 
-	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
-	// is defined and has a "true" value
-	// Otherwise, no RBAC enforcement for logs will take place (meaning, PodLogs will return the logs,
-	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
-	if err != nil {
-		return fmt.Errorf("error getting RBAC log enforce enable: %w", err)
-	}
-
-	if serverRBACLogEnforceEnable {
-		if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbac.ResourceLogs, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
-			return err
-		}
+	if err := s.enf.EnforceErr(ws.Context().Value("claims"), rbac.ResourceLogs, rbac.ActionGet, a.RBACName(s.ns)); err != nil {
+		return err
 	}
 
 	tree, err := s.getAppResources(ws.Context(), a)
@@ -1810,7 +1808,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				return
 			}
 			if q.Filter != nil {
-				lineContainsFilter := strings.Contains(entry.line, literal)
+				var lineContainsFilter bool
+				if q.GetMatchCase() {
+					lineContainsFilter = strings.Contains(entry.line, literal)
+				} else {
+					lineContainsFilter = strings.Contains(strings.ToLower(entry.line), strings.ToLower(literal))
+				}
+
 				if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
 					continue
 				}
@@ -1961,6 +1965,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 	if syncReq.SyncOptions != nil {
 		syncOptions = syncReq.SyncOptions.Items
+	}
+
+	if syncOptions.HasOption(common.SyncOptionReplace) && !s.syncWithReplaceAllowed {
+		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
 	// We cannot use local manifests if we're only allowed to sync to signed commits
@@ -2315,7 +2323,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		}
 		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
 		time.Sleep(100 * time.Millisecond)
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		_, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application by name: %w", err)
 		}
@@ -2661,7 +2669,14 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 		if err := s.cache.GetAppResourcesTree(app.Name, tree); err == nil {
 			healthByKey := map[kube.ResourceKey]*v1alpha1.HealthStatus{}
 			for _, node := range tree.Nodes {
-				healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
+				if node.Health != nil {
+					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = node.Health
+				} else if node.ResourceVersion == "" && node.ResourceRef.UID == "" && node.CreatedAt == nil {
+					healthByKey[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusMissing,
+						Message: "Resource has not been created",
+					}
+				}
 			}
 			for i, res := range app.Status.Resources {
 				res.Health = healthByKey[kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)]
