@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -391,12 +390,8 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	shardForCluster1 := distributionFunction(&cluster1)
 	shardForCluster2 := distributionFunction(&cluster2)
 
-	if shardForCluster1 != expectedShardForCluster1 {
-		t.Errorf("Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
-	}
-	if shardForCluster2 != expectedShardForCluster2 {
-		t.Errorf("Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
-	}
+	assert.Equal(t, expectedShardForCluster1, shardForCluster1, "Expected shard for cluster1 to be %d but got %d", expectedShardForCluster1, shardForCluster1)
+	assert.Equal(t, expectedShardForCluster2, shardForCluster2, "Expected shard for cluster2 to be %d but got %d", expectedShardForCluster2, shardForCluster2)
 }
 
 func TestInferShard(t *testing.T) {
@@ -821,7 +816,7 @@ func TestGetClusterSharding(t *testing.T) {
 	objects := append([]runtime.Object{}, deployment, deploymentMultiReplicas)
 	kubeclientset := kubefake.NewSimpleClientset(objects...)
 
-	settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd", settings.WithRepoOrClusterChangedHandler(func() {
 	}))
 
 	testCases := []struct {
@@ -975,11 +970,7 @@ func TestGetClusterSharding(t *testing.T) {
 			}
 
 			if tc.expectedErr != nil {
-				if err != nil {
-					assert.Equal(t, tc.expectedErr.Error(), err.Error())
-				} else {
-					t.Errorf("Expected error %v but got nil", tc.expectedErr)
-				}
+				assert.EqualError(t, err, tc.expectedErr.Error())
 			} else {
 				require.NoError(t, err)
 			}

@@ -135,8 +135,8 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				os.Exit(1)
 			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			fileUrl := args[0]
-			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
+			fileURL := args[0]
+			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
 			errors.CheckError(err)
 
 			if len(appsets) == 0 {
@@ -228,8 +228,8 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				os.Exit(1)
 			}
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
-			fileUrl := args[0]
-			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
+			fileURL := args[0]
+			appsets, err := cmdutil.ConstructApplicationSet(fileURL)
 			errors.CheckError(err)
 
 			if len(appsets) != 1 {
@@ -460,7 +460,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 		syncPolicyStr string
 		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
 	)
-	if syncPolicy != nil && syncPolicy.Automated != nil {
+	if syncPolicy != nil && syncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicyStr = "Automated"
 		if syncPolicy.Automated.Prune {
 			syncPolicyStr += " (Prune)"

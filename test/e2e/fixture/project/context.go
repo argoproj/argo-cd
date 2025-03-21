@@ -2,6 +2,7 @@ package project
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -11,11 +12,12 @@ import (
 type Context struct {
 	t *testing.T
 	// seconds
-	timeout          int
-	name             string
-	destination      string
-	repos            []string
-	sourceNamespaces []string
+	timeout                    int
+	name                       string
+	destination                string
+	destinationServiceAccounts []string
+	repos                      []string
+	sourceNamespaces           []string
 }
 
 func Given(t *testing.T) *Context {
@@ -46,6 +48,11 @@ func (c *Context) Destination(destination string) *Context {
 	return c
 }
 
+func (c *Context) DestinationServiceAccounts(destinationServiceAccounts []string) *Context {
+	c.destinationServiceAccounts = destinationServiceAccounts
+	return c
+}
+
 func (c *Context) SourceRepositories(repos []string) *Context {
 	c.repos = repos
 	return c
@@ -62,5 +69,6 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }

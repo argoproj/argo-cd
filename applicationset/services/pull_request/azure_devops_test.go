@@ -61,20 +61,20 @@ func (m *AzureClientFactoryMock) GetClient(ctx context.Context) (git.Client, err
 func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
-	pr_id := 123
-	pr_title := "feat(123)"
-	pr_head_sha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
-	ctx := context.Background()
+	prID := 123
+	prTitle := "feat(123)"
+	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	ctx := t.Context()
 	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{
 		{
-			PullRequestId: createIntPtr(pr_id),
-			Title:         createStringPtr(pr_title),
+			PullRequestId: createIntPtr(prID),
+			Title:         createStringPtr(prTitle),
 			SourceRefName: createStringPtr("refs/heads/feature-branch"),
 			TargetRefName: createStringPtr("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(pr_head_sha),
+				CommitId: createStringPtr(prHeadSha),
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
@@ -108,9 +108,9 @@ func TestListPullRequest(t *testing.T) {
 	assert.Len(t, list, 1)
 	assert.Equal(t, "feature-branch", list[0].Branch)
 	assert.Equal(t, "main", list[0].TargetBranch)
-	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
+	assert.Equal(t, prHeadSha, list[0].HeadSHA)
 	assert.Equal(t, "feat(123)", list[0].Title)
-	assert.Equal(t, pr_id, list[0].Number)
+	assert.Equal(t, prID, list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 

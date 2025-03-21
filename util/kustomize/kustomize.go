@@ -24,9 +24,11 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+
+	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
-// represents a Docker image in the format NAME[:TAG].
+// Image represents a Docker image in the format NAME[:TAG].
 type Image = string
 
 type BuildOpts struct {
@@ -70,7 +72,29 @@ type kustomize struct {
 	noProxy string
 }
 
-var _ Kustomize = &kustomize{}
+var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+
+// IsKustomization checks if the given file name matches any known kustomization file names.
+func IsKustomization(path string) bool {
+	for _, kustomization := range KustomizationNames {
+		if path == kustomization {
+			return true
+		}
+	}
+	return false
+}
+
+// findKustomizeFile looks for any known kustomization file in the path
+func findKustomizeFile(dir string) string {
+	for _, file := range KustomizationNames {
+		path := filepath.Join(dir, file)
+		if _, err := os.Stat(path); err == nil {
+			return file
+		}
+	}
+
+	return ""
+}
 
 func (k *kustomize) getBinaryPath() string {
 	if k.binaryPath != "" {
@@ -206,6 +230,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if opts.LabelWithoutSelector {
 				args = append(args, "--without-selector")
 			}
+			if opts.LabelIncludeTemplates {
+				args = append(args, "--include-templates")
+			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
 				commonLabels[name] = envVars.Envsubst(value)
@@ -254,7 +281,13 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		}
 
 		if len(opts.Patches) > 0 {
-			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
+			kustFile := findKustomizeFile(k.path)
+			// If the kustomization file is not found, return early.
+			// There is no point reading the kustomization path if it doesn't exist.
+			if kustFile == "" {
+				return nil, nil, nil, errors.New("kustomization file not found in the path")
+			}
+			kustomizationPath := filepath.Join(k.path, kustFile)
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
@@ -310,8 +343,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 
 			// add components
+			foundComponents := opts.Components
+			if opts.IgnoreMissingComponents {
+				foundComponents = make([]string, 0)
+				for _, c := range opts.Components {
+					resolvedPath, err := securejoin.SecureJoin(k.path, c)
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("Kustomize components path failed: %w", err)
+					}
+					_, err = os.Stat(resolvedPath)
+					if err != nil {
+						log.Debugf("%s component directory does not exist", resolvedPath)
+						continue
+					}
+					foundComponents = append(foundComponents, c)
+				}
+			}
 			args := []string{"edit", "add", "component"}
-			args = append(args, opts.Components...)
+			args = append(args, foundComponents...)
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
@@ -369,17 +418,6 @@ func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *Bui
 
 func isHelmEnabled(buildOptions string) bool {
 	return strings.Contains(buildOptions, "--enable-helm")
-}
-
-var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
 }
 
 // semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to

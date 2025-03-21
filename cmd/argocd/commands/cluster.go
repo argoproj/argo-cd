@@ -8,6 +8,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -280,7 +283,12 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					},
 				}
 				_, err := clusterIf.Update(ctx, &clusterUpdateRequest)
-				errors.CheckError(err)
+				if err != nil {
+					if status.Code(err) == codes.PermissionDenied {
+						log.Error("Ensure that the cluster is present and you have the necessary permissions to update the cluster")
+					}
+					errors.CheckError(err)
+				}
 				fmt.Printf("Cluster '%s' updated.\n", clusterName)
 			} else {
 				fmt.Print("Specify the cluster field to be updated.\n")
