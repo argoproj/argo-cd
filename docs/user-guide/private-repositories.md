@@ -113,10 +113,16 @@ Private repositories that are hosted on GitHub.com or GitHub Enterprise can be a
 
 You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.
 
-Using the CLI:
+Add a private Git repository on GitHub.com using the CLI:
 
 ```
 argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
+```
+
+Add a private Git repository on GitHub Enterprise using the CLI:
+
+```
+argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 ```
 
 Using the UI:
@@ -125,7 +131,7 @@ Using the UI:
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, GitHub Enterprise Base URL, App Id, Installation Id, and the app's private key.
 
     ![connect repo](../assets/repo-add-github-app.png)
 
