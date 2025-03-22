@@ -10,7 +10,6 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang-jwt/jwt/v5"
-	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
@@ -83,7 +82,7 @@ func reportable(entry *logrus.Entry, callType string, logClaims bool) intercepto
 	return func(ctx context.Context, c interceptors.CallMeta) (interceptors.Reporter, context.Context) {
 		return &reporter{
 			ctx:       ctx,
-			entry:     entry.WithFields(ctx_logrus.Extract(ctx).Data),
+			entry:     entry,
 			info:      fmt.Sprintf("received %s call %s", callType, c.FullMethod()),
 			logClaims: logClaims,
 		}, ctx
