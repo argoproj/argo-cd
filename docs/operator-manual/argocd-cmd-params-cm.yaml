@@ -93,7 +93,7 @@ data:
   controller.profile.enabled: "false"
   # Enables batch-processing mode in the controller's cluster cache. This can help improve performance for clusters that
   # have high "churn," i.e. lots of resource modifications.
-  controller.cluster.cache.batch.events.processing: "false"
+  controller.cluster.cache.batch.events.processing: "true"
   # This sets the interval at which the controller's cluster cache processes a batch of cluster events. A lower value
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
   # cache lock contention and better handle high-churn clusters.

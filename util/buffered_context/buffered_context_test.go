@@ -11,7 +11,7 @@ import (
 )
 
 func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(ctx, 100*time.Millisecond)
 	defer cancel()
@@ -23,7 +23,7 @@ func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
 }
 
 func TestWithEarlierDeadline_WithDeadline(t *testing.T) {
-	ctx, cancel := context.WithDeadline(context.Background(), time.Now())
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 
 	buffer := 100 * time.Millisecond

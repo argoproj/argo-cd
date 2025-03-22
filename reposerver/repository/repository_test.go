@@ -217,13 +217,13 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
 	const countOfManifests = 50
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
 }
@@ -282,7 +282,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 				Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 				ProjectSourceRepos: []string{"*"},
 			}
-			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+			res, err := GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			require.ErrorContains(t, err, "illegal filepath")
@@ -300,7 +300,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	_, err = GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 }
 
@@ -321,12 +321,12 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "")
 	require.NoError(t, err)
 
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Equal(t, cachedFakeResponse, res)
 
 	q.KubeVersion = "v1.17.0"
-	res, err = service.GenerateManifest(context.Background(), &q)
+	res, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.NotEqual(t, cachedFakeResponse, res)
 	assert.Greater(t, len(res.Manifests), 1)
@@ -346,7 +346,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "")
 	require.NoError(t, err)
 
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.Manifests)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -403,7 +403,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 		ProjectName:        "default",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
@@ -474,7 +474,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	}
 	err = cacheMocks.cacheutilCache.SetItem("git-refs|"+repoRemote, [][2]string{{"HEAD", revision}}, nil)
 	require.NoError(t, err)
-	_, err = service.GenerateManifest(context.Background(), &q)
+	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
@@ -491,7 +491,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -519,7 +519,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
@@ -529,7 +529,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -561,14 +561,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		}, nil
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 
@@ -576,14 +576,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-	refSources, err = argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err = service.GenerateManifest(context.Background(), request)
+	response, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 
@@ -592,14 +592,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{}, false)
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err = service.GenerateManifest(context.Background(), request)
+	response, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 }
@@ -628,14 +628,14 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
 	}, []string{}, false)
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
-	_, err = service.GenerateManifest(context.Background(), request)
+	_, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 }
 
@@ -649,7 +649,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 	assert.Equal(t, "abc", gitClient.Calls[0].Arguments[0])
@@ -665,7 +665,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -677,7 +677,7 @@ func TestInvalidManifestsInDir(t *testing.T) {
 
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
 
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.Error(t, err)
 }
 
@@ -686,7 +686,7 @@ func TestInvalidMetadata(t *testing.T) {
 
 	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	assert.ErrorContains(t, err, "contains non-string value in the map under key \"invalid\"")
 }
 
@@ -696,7 +696,7 @@ func TestNilMetadataAccessors(t *testing.T) {
 
 	src := v1alpha1.ApplicationSource{Path: "./testdata/nil-metadata-accessors", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res.Manifests, 1)
 	assert.Equal(t, expected, res.Manifests[0])
@@ -720,7 +720,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -743,7 +743,7 @@ func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -764,7 +764,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
@@ -842,7 +842,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					},
 				}
 
-				res, err := service.GenerateManifest(context.Background(), manifestRequest)
+				res, err := service.GenerateManifest(t.Context(), manifestRequest)
 
 				// Verify invariant: res != nil xor err != nil
 				if err != nil {
@@ -917,7 +917,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -975,7 +975,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 
 			// 1) Put the cache into the failure state
 			for x := 0; x < 2; x++ {
-				res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+				res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 					Repo:    &v1alpha1.Repository{},
 					AppName: "test",
 					ApplicationSource: &v1alpha1.ApplicationSource{
@@ -993,7 +993,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 
 			// 2) Jump forward X-1 minutes in time, where X is the expiration boundary
 			currentTime = currentTime.Add(time.Duration(tt.PauseGenerationOnFailureForMinutes-1) * time.Minute)
-			res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:    &v1alpha1.Repository{},
 				AppName: "test",
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1008,7 +1008,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			// 4) Jump forward 2 minutes in time, such that the pause generation time has elapsed and we should return to normal state
 			currentTime = currentTime.Add(2 * time.Minute)
 
-			res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			res, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:    &v1alpha1.Repository{},
 				AppName: "test",
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1035,7 +1035,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 
 	// 1) Put the cache into the failure state
 	for x := 0; x < 2; x++ {
-		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1052,7 +1052,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	}
 
 	// 2) Call generateManifest with NoCache enabled
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1066,7 +1066,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 	// 4) Call generateManifest
-	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1082,7 +1082,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 func TestGenerateHelmWithValues(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1133,19 +1133,19 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	}
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
-	_, err := service.GenerateManifest(context.Background(), req)
+	_, err := service.GenerateManifest(t.Context(), req)
 	require.ErrorContains(t, err, missingValuesFile+": no such file or directory")
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
-	_, err = service.GenerateManifest(context.Background(), req)
+	_, err = service.GenerateManifest(t.Context(), req)
 	require.NoError(t, err)
 }
 
 func TestGenerateHelmWithEnvVars(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "production",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1181,7 +1181,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 // since the requested value is still under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata")
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1198,7 +1198,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 
 	// Test the case where the path is "."
 	service = newService(t, "./testdata")
-	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1214,7 +1214,7 @@ func TestChartRepoWithOutOfBoundsSymlink(t *testing.T) {
 	service := newService(t, ".")
 	source := &v1alpha1.ApplicationSource{Chart: "out-of-bounds-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true}
-	_, err := service.GenerateManifest(context.Background(), request)
+	_, err := service.GenerateManifest(t.Context(), request)
 	assert.ErrorContains(t, err, "chart contains out-of-bounds symlinks")
 }
 
@@ -1236,7 +1236,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -1261,7 +1261,7 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 		},
 	}
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true}
-	_, err := service.GenerateManifest(context.Background(), request)
+	_, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 }
 
@@ -1279,7 +1279,7 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 			Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 			ProjectSourceRepos: []string{"*"},
 		}
-		_, err := service.GenerateManifest(context.Background(), request)
+		_, err := service.GenerateManifest(t.Context(), request)
 		require.NoError(t, err)
 	})
 }
@@ -1287,7 +1287,7 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 func TestGenerateHelmWithURL(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1309,7 +1309,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 	t.Run("Values file with relative path pointing outside repo root", func(t *testing.T) {
 		service := newService(t, "../../util/helm/testdata/redis")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1327,7 +1327,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1345,7 +1345,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with absolute path stays within repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1363,7 +1363,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with absolute path using back-references outside repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1381,7 +1381,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1399,7 +1399,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1434,7 +1434,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		}
 	}()
 
-	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1461,7 +1461,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 func TestGenerateHelmWithFileParameter(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1487,7 +1487,7 @@ func TestGenerateNullList(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("null list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/null-list"},
 			NoCache:            true,
@@ -1500,7 +1500,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 
 	t.Run("empty list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/empty-list"},
 			NoCache:            true,
@@ -1513,7 +1513,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 
 	t.Run("weird list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/weird-list"},
 			NoCache:            true,
@@ -1526,15 +1526,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err := GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err = GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err = GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -1546,7 +1546,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res1, err := GenerateManifests(t.Context(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -1554,7 +1554,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 func TestListApps(t *testing.T) {
 	service := newService(t, "./testdata")
 
-	res, err := service.ListApps(context.Background(), &apiclient.ListAppsRequest{Repo: &v1alpha1.Repository{}})
+	res, err := service.ListApps(t.Context(), &apiclient.ListAppsRequest{Repo: &v1alpha1.Repository{}})
 	require.NoError(t, err)
 
 	expectedApps := map[string]string{
@@ -1585,7 +1585,7 @@ func TestListApps(t *testing.T) {
 func TestGetAppDetailsHelm(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/dependency")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1602,7 +1602,7 @@ func TestGetAppDetailsHelm(t *testing.T) {
 func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/dependency")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1619,7 +1619,7 @@ func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/api-versions")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1637,7 +1637,7 @@ func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 func TestGetAppDetailsKustomize(t *testing.T) {
 	service := newService(t, "../../util/kustomize/testdata/kustomization_yaml")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1653,7 +1653,7 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 
 func TestGetHelmCharts(t *testing.T) {
 	service := newService(t, "../..")
-	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &v1alpha1.Repository{}})
+	res, err := service.GetHelmCharts(t.Context(), &apiclient.HelmChartsRequest{Repo: &v1alpha1.Repository{}})
 
 	// fix flakiness
 	sort.Slice(res.Items, func(i, j int) bool {
@@ -1683,7 +1683,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 		Tags:    []string{"tag1", "tag2"},
 	}, nil)
 
-	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
 		CheckSignature: true,
@@ -1697,7 +1697,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.NotEmpty(t, res.SignatureInfo)
 
 	// Check for truncated revision value
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400f",
 		CheckSignature: true,
@@ -1711,7 +1711,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.NotEmpty(t, res.SignatureInfo)
 
 	// Cache hit - signature info should not be in result
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
 		CheckSignature: false,
@@ -1720,7 +1720,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Empty(t, res.SignatureInfo)
 
 	// Enforce cache miss - signature info should not be in result
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: false,
@@ -1729,7 +1729,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Empty(t, res.SignatureInfo)
 
 	// Cache hit on previous entry that did not have signature info
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: true,
@@ -1752,7 +1752,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Equal(t, testSignature, res.VerifyResult)
 	}
@@ -1766,7 +1766,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1780,7 +1780,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1794,7 +1794,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1841,7 +1841,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1855,7 +1855,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1870,7 +1870,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1885,7 +1885,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1900,7 +1900,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1915,7 +1915,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			_, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1958,7 +1958,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
 			t.Helper()
 			service := newService(t, ".")
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1988,7 +1988,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
 			t.Helper()
 			service := newService(t, ".")
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2018,7 +2018,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2049,7 +2049,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, _ string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path:  "",
@@ -2071,7 +2071,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2106,7 +2106,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 				Path: path,
 			}
 			sourceCopy := source.DeepCopy() // make a copy in case GenerateManifest mutates it.
-			_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:               &v1alpha1.Repository{},
 				ApplicationSource:  sourceCopy,
 				AppName:            "test",
@@ -2139,7 +2139,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 	}{
 		{
 			name: "Case: Git tag hash matches latest commit SHA (regular tag)",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2155,7 +2155,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		{
 			name: "Case: Git tag hash does not match latest commit SHA (annotated tag)",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2171,7 +2171,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		{
 			name: "Case: Git tag hash is invalid",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2226,7 +2226,7 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 		RefSources:         refSources,
 	}
 
-	response, err := service.GenerateManifest(context.Background(), manifestRequest)
+	response, err := service.GenerateManifest(t.Context(), manifestRequest)
 	require.NoError(t, err)
 	assert.Equalf(t, response.Revision, annotatedGitTaghash, "returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
 }
@@ -2280,7 +2280,7 @@ func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
 				RefSources:         tc.refSources,
 			}
 
-			res, err := service.GenerateManifest(context.Background(), manifestRequest)
+			res, err := service.GenerateManifest(t.Context(), manifestRequest)
 
 			if !tc.expectedErr {
 				require.NoError(t, err)
@@ -2632,10 +2632,13 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
 		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
@@ -2732,10 +2735,13 @@ func Test_findManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
 		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
@@ -2846,7 +2852,7 @@ func Test_findManifests(t *testing.T) {
 
 func TestTestRepoOCI(t *testing.T) {
 	service := newService(t, ".")
-	_, err := service.TestRepository(context.Background(), &apiclient.TestRepositoryRequest{
+	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
 		Repo: &v1alpha1.Repository{
 			Repo:      "https://demo.goharbor.io",
 			Type:      "helm",
@@ -2871,7 +2877,7 @@ func TestResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
-	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: "v2.2.2",
@@ -2891,7 +2897,7 @@ func TestResolveRevisionNegativeScenarios(t *testing.T) {
 	service := newService(t, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
-	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: "v2.a.2",
@@ -3438,7 +3444,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             nil,
 				SubmoduleEnabled: false,
@@ -3455,7 +3461,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3473,7 +3479,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3512,13 +3518,13 @@ func TestGetGitDirectories(t *testing.T) {
 		SubmoduleEnabled: false,
 		Revision:         "HEAD",
 	}
-	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
-	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3546,13 +3552,13 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		SubmoduleEnabled: false,
 		Revision:         "HEAD",
 	}
-	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
-	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3580,7 +3586,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitFilesRequest{
 				Repo:             nil,
 				SubmoduleEnabled: false,
@@ -3597,7 +3603,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitFilesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3649,13 +3655,13 @@ func TestGetGitFiles(t *testing.T) {
 		expected[filePath] = fileContents
 	}
 
-	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
+	fileResponse, err := s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock
-	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
+	fileResponse, err = s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3683,7 +3689,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           nil,
 				Revision:       "HEAD",
@@ -3700,7 +3706,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				Revision:       "sadfsadf",
@@ -3719,7 +3725,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				Revision:       "HEAD",
@@ -3770,7 +3776,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:  &v1alpha1.Repository{Repo: "a-url.com"},
 				Paths: []string{},
@@ -3789,7 +3795,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
@@ -3821,7 +3827,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
@@ -3854,7 +3860,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
@@ -3895,7 +3901,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
 				Revision:       "HEAD",
@@ -4100,7 +4106,7 @@ func TestGetRevisionChartDetails(t *testing.T) {
 	t.Run("Test revision semver", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
-		_, err := service.GetRevisionChartDetails(context.Background(), &apiclient.RepoServerRevisionChartDetailsRequest{
+		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "file://" + root,
 				Name: "test-repo-name",
@@ -4122,7 +4128,7 @@ func TestGetRevisionChartDetails(t *testing.T) {
 			Maintainers: []string{"test-maintainer"},
 		})
 		require.NoError(t, err)
-		chartDetails, err := service.GetRevisionChartDetails(context.Background(), &apiclient.RepoServerRevisionChartDetailsRequest{
+		chartDetails, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "file://" + root,
 				Name: "test-repo-name",
@@ -4233,7 +4239,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
@@ -4245,7 +4251,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			q.ApplicationSource.Helm.Namespace = "different-namespace"
 			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
 
-			res, err = service.GenerateManifest(context.Background(), &q)
+			res, err = service.GenerateManifest(t.Context(), &q)
 
 			require.NoError(t, err)
 			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
@@ -4276,7 +4282,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
@@ -4353,7 +4359,7 @@ images:
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{
@@ -4385,7 +4391,7 @@ func Test_SkipSchemaValidation(t *testing.T) {
 			},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
@@ -4404,7 +4410,7 @@ func Test_SkipSchemaValidation(t *testing.T) {
 			},
 		}
 
-		_, err := service.GenerateManifest(context.Background(), &q)
+		_, err := service.GenerateManifest(t.Context(), &q)
 
 		require.ErrorContains(t, err, "values don't meet the specifications of the schema(s)")
 	})
