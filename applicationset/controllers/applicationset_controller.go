@@ -1358,7 +1358,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 				updateReason = fmt.Sprintf("application '%s' message changed: '%s' -> '%s'", appStatus.Application, currentStatus.Message, appStatus.Message)
 				logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
 				break
-			} 
+			}
 			if currentStatus.Status != appStatus.Status {
 				needToUpdateStatus = true
 				updateReason = fmt.Sprintf("application '%s' status changed: '%s' -> '%s'", appStatus.Application, currentStatus.Status, appStatus.Status)
