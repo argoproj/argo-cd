@@ -43,3 +43,20 @@ i.utils-health-status-icon {
         background-color: $argo-color-gray-4;
     }
 }
+
+.icon.spin {
+    animation: spin 2s linear infinite; 
+    width: 0.5em;
+    height: 0.5em;
+    vertical-align: -0.05em;
+    overflow: visible;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
