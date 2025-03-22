@@ -2415,6 +2415,11 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
 
+	// Note: This check runs the risk of returning a version which is not found in the helm registry.
+	if versions.IsVersion(revision) {
+		return helmClient, revision, nil
+	}
+
 	var tags []string
 	if enableOCI {
 		var err error
