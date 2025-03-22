@@ -1336,20 +1336,39 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 // with any new/changed Application statuses.
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus) error {
 	needToUpdateStatus := false
+	updateReason := ""
 
 	if len(applicationStatuses) != len(applicationSet.Status.ApplicationStatus) {
 		needToUpdateStatus = true
+		updateReason = fmt.Sprintf("status length changed: current=%d, new=%d", len(applicationSet.Status.ApplicationStatus), len(applicationStatuses))
+		logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
 	} else {
 		for i := range applicationStatuses {
 			appStatus := applicationStatuses[i]
 			idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appStatus.Application)
 			if idx == -1 {
 				needToUpdateStatus = true
+				updateReason = fmt.Sprintf("application '%s' not found in current status", appStatus.Application)
+				logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
 				break
 			}
 			currentStatus := applicationSet.Status.ApplicationStatus[idx]
-			if currentStatus.Message != appStatus.Message || currentStatus.Status != appStatus.Status || currentStatus.Step != appStatus.Step {
+			if currentStatus.Message != appStatus.Message {
 				needToUpdateStatus = true
+				updateReason = fmt.Sprintf("application '%s' message changed: '%s' -> '%s'", appStatus.Application, currentStatus.Message, appStatus.Message)
+				logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
+				break
+			} 
+			if currentStatus.Status != appStatus.Status {
+				needToUpdateStatus = true
+				updateReason = fmt.Sprintf("application '%s' status changed: '%s' -> '%s'", appStatus.Application, currentStatus.Status, appStatus.Status)
+				logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
+				break
+			}
+			if currentStatus.Step != appStatus.Step {
+				needToUpdateStatus = true
+				updateReason = fmt.Sprintf("application '%s' step changed: '%s' -> '%s'", appStatus.Application, currentStatus.Step, appStatus.Step)
+				logCtx.Debugf("ApplicationSet status update needed: %s", updateReason)
 				break
 			}
 		}
@@ -1357,6 +1376,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 
 	if needToUpdateStatus {
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
+		logCtx.Infof("Updating ApplicationSet '%s' status: %s", applicationSet.Name, updateReason)
 
 		// rebuild ApplicationStatus from scratch, we don't need any previous status history
 		applicationSet.Status.ApplicationStatus = []argov1alpha1.ApplicationSetApplicationStatus{}
@@ -1387,6 +1407,8 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			logCtx.Errorf("unable to set application set status: %v", err)
 			return fmt.Errorf("unable to set application set status: %w", err)
 		}
+	} else {
+		logCtx.Debugf("No ApplicationSet status update needed for '%s'", applicationSet.Name)
 	}
 
 	return nil
