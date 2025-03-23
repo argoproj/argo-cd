@@ -235,6 +235,14 @@ spec:
                               recursively for manifests
                             type: boolean
                         type: object
+                      extraConfigFiles:
+                        description: |-
+                          Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                          Applied in the order they are defined.
+                          Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                        items:
+                          type: string
+                        type: array
                       helm:
                         description: Helm holds helm specific options
                         properties:
@@ -544,6 +552,7 @@ spec:
                           In case of Helm, this is a semver tag for the Chart's version.
                         type: string
                     required:
+                    - extraConfigFiles
                     - repoURL
                     type: object
                   sources:
@@ -621,6 +630,14 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        extraConfigFiles:
+                          description: |-
+                            Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                            Applied in the order they are defined.
+                            Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                          items:
+                            type: string
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -933,6 +950,7 @@ spec:
                             In case of Helm, this is a semver tag for the Chart's version.
                           type: string
                       required:
+                      - extraConfigFiles
                       - repoURL
                       type: object
                     type: array
@@ -1126,6 +1144,14 @@ spec:
                           recursively for manifests
                         type: boolean
                     type: object
+                  extraConfigFiles:
+                    description: |-
+                      Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                      Applied in the order they are defined.
+                      Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                    items:
+                      type: string
+                    type: array
                   helm:
                     description: Helm holds helm specific options
                     properties:
@@ -1428,6 +1454,7 @@ spec:
                       In case of Helm, this is a semver tag for the Chart's version.
                     type: string
                 required:
+                - extraConfigFiles
                 - repoURL
                 type: object
               sourceHydrator:
@@ -1438,6 +1465,14 @@ spec:
                     description: DrySource specifies where the dry "don't repeat yourself"
                       manifest source lives.
                     properties:
+                      extraConfigFiles:
+                        description: |-
+                          Lists of extra config files to be used when hydrating.
+                          Applied in the order they are defined.
+                          Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                        items:
+                          type: string
+                        type: array
                       path:
                         description: Path is a directory path within the Git repository
                           where the manifests are located
@@ -1451,6 +1486,7 @@ spec:
                           to hydrate
                         type: string
                     required:
+                    - extraConfigFiles
                     - path
                     - repoURL
                     - targetRevision
@@ -1560,6 +1596,14 @@ spec:
                             recursively for manifests
                           type: boolean
                       type: object
+                    extraConfigFiles:
+                      description: |-
+                        Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                        Applied in the order they are defined.
+                        Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                      items:
+                        type: string
+                      type: array
                     helm:
                       description: Helm holds helm specific options
                       properties:
@@ -1868,6 +1912,7 @@ spec:
                         In case of Helm, this is a semver tag for the Chart's version.
                       type: string
                   required:
+                  - extraConfigFiles
                   - repoURL
                   type: object
                 type: array
@@ -2111,6 +2156,14 @@ spec:
                                 recursively for manifests
                               type: boolean
                           type: object
+                        extraConfigFiles:
+                          description: |-
+                            Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                            Applied in the order they are defined.
+                            Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                          items:
+                            type: string
+                          type: array
                         helm:
                           description: Helm holds helm specific options
                           properties:
@@ -2423,6 +2476,7 @@ spec:
                             In case of Helm, this is a semver tag for the Chart's version.
                           type: string
                       required:
+                      - extraConfigFiles
                       - repoURL
                       type: object
                     sources:
@@ -2499,6 +2553,14 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          extraConfigFiles:
+                            description: |-
+                              Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                              Applied in the order they are defined.
+                              Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                            items:
+                              type: string
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -2819,6 +2881,7 @@ spec:
                               In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
+                        - extraConfigFiles
                         - repoURL
                         type: object
                       type: array
@@ -3036,6 +3099,14 @@ spec:
                                       a directory recursively for manifests
                                     type: boolean
                                 type: object
+                              extraConfigFiles:
+                                description: |-
+                                  Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                                  Applied in the order they are defined.
+                                  Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                                items:
+                                  type: string
+                                type: array
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
@@ -3364,6 +3435,7 @@ spec:
                                   In case of Helm, this is a semver tag for the Chart's version.
                                 type: string
                             required:
+                            - extraConfigFiles
                             - repoURL
                             type: object
                           sources:
@@ -3446,6 +3518,14 @@ spec:
                                         a directory recursively for manifests
                                       type: boolean
                                   type: object
+                                extraConfigFiles:
+                                  description: |-
+                                    Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                                    Applied in the order they are defined.
+                                    Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                                  items:
+                                    type: string
+                                  type: array
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
@@ -3779,6 +3859,7 @@ spec:
                                     In case of Helm, this is a semver tag for the Chart's version.
                                   type: string
                               required:
+                              - extraConfigFiles
                               - repoURL
                               type: object
                             type: array
@@ -3979,6 +4060,14 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          extraConfigFiles:
+                            description: |-
+                              Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                              Applied in the order they are defined.
+                              Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                            items:
+                              type: string
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -4299,6 +4388,7 @@ spec:
                               In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
+                        - extraConfigFiles
                         - repoURL
                         type: object
                       sources:
@@ -4378,6 +4468,14 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            extraConfigFiles:
+                              description: |-
+                                Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                                Applied in the order they are defined.
+                                Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                              items:
+                                type: string
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -4704,6 +4802,7 @@ spec:
                                 In case of Helm, this is a semver tag for the Chart's version.
                               type: string
                           required:
+                          - extraConfigFiles
                           - repoURL
                           type: object
                         type: array
@@ -4833,6 +4932,14 @@ spec:
                             description: DrySource specifies where the dry "don't
                               repeat yourself" manifest source lives.
                             properties:
+                              extraConfigFiles:
+                                description: |-
+                                  Lists of extra config files to be used when hydrating.
+                                  Applied in the order they are defined.
+                                  Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                                items:
+                                  type: string
+                                type: array
                               path:
                                 description: Path is a directory path within the Git
                                   repository where the manifests are located
@@ -4846,6 +4953,7 @@ spec:
                                   the source to hydrate
                                 type: string
                             required:
+                            - extraConfigFiles
                             - path
                             - repoURL
                             - targetRevision
@@ -4912,6 +5020,14 @@ spec:
                             description: DrySource specifies where the dry "don't
                               repeat yourself" manifest source lives.
                             properties:
+                              extraConfigFiles:
+                                description: |-
+                                  Lists of extra config files to be used when hydrating.
+                                  Applied in the order they are defined.
+                                  Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                                items:
+                                  type: string
+                                type: array
                               path:
                                 description: Path is a directory path within the Git
                                   repository where the manifests are located
@@ -4925,6 +5041,7 @@ spec:
                                   the source to hydrate
                                 type: string
                             required:
+                            - extraConfigFiles
                             - path
                             - repoURL
                             - targetRevision
@@ -5125,6 +5242,14 @@ spec:
                                   recursively for manifests
                                 type: boolean
                             type: object
+                          extraConfigFiles:
+                            description: |-
+                              Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                              Applied in the order they are defined.
+                              Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                            items:
+                              type: string
+                            type: array
                           helm:
                             description: Helm holds helm specific options
                             properties:
@@ -5445,6 +5570,7 @@ spec:
                               In case of Helm, this is a semver tag for the Chart's version.
                             type: string
                         required:
+                        - extraConfigFiles
                         - repoURL
                         type: object
                       sources:
@@ -5524,6 +5650,14 @@ spec:
                                     directory recursively for manifests
                                   type: boolean
                               type: object
+                            extraConfigFiles:
+                              description: |-
+                                Lists of extra config files to be used when hydrating. Used only for applications using hydration
+                                Applied in the order they are defined.
+                                Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+                              items:
+                                type: string
+                              type: array
                             helm:
                               description: Helm holds helm specific options
                               properties:
@@ -5850,6 +5984,7 @@ spec:
                                 In case of Helm, this is a semver tag for the Chart's version.
                               type: string
                           required:
+                          - extraConfigFiles
                           - repoURL
                           type: object
                         type: array

@@ -459,6 +459,11 @@ message ApplicationSource {
 
   // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
   optional string name = 14;
+
+  // Lists of extra config files to be used when hydrating. Used only for applications using hydration
+  // Applied in the order they are defined.
+  // Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+  repeated string extraConfigFiles = 15;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -984,6 +989,11 @@ message DrySource {
 
   // Path is a directory path within the Git repository where the manifests are located
   optional string path = 3;
+
+  // Lists of extra config files to be used when hydrating.
+  // Applied in the order they are defined.
+  // Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+  repeated string extraConfigFiles = 4;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.

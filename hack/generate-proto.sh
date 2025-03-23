@@ -151,7 +151,7 @@ EOF
         jq '.definitions.v1alpha1ResourceNode.allOf = [{"$ref": "#/definitions/v1alpha1ResourceRef"}] | del(.definitions.v1alpha1ResourceNode.properties.resourceRef) ' \
             >"${SWAGGER_OUT}"
 
-    /bin/rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
+    rm "${PRIMARY_SWAGGER}" "${COMBINED_SWAGGER}"
 }
 
 # clean up generated swagger files (should come after collect_swagger)

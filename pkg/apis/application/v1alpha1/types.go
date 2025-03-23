@@ -201,7 +201,7 @@ type ApplicationSource struct {
 	// Lists of extra config files to be used when hydrating. Used only for applications using hydration
 	// Applied in the order they are defined.
 	// Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
-	ExtraConfigFiles []string `json:"extraConfigFiles" protobuf:"bytes,4,name=extraConfigFiles"`
+	ExtraConfigFiles []string `json:"extraConfigFiles" protobuf:"bytes,15,name=extraConfigFiles"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application

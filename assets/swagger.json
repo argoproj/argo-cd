@@ -7108,6 +7108,13 @@
         "directory": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
         },
+        "extraConfigFiles": {
+          "type": "array",
+          "title": "Lists of extra config files to be used when hydrating. Used only for applications using hydration\nApplied in the order they are defined.\nApplied after .argocd-source.yaml but before .argocd-source-<app>.yaml",
+          "items": {
+            "type": "string"
+          }
+        },
         "helm": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
         },
@@ -7938,6 +7945,13 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "extraConfigFiles": {
+          "type": "array",
+          "title": "Lists of extra config files to be used when hydrating.\nApplied in the order they are defined.\nApplied after .argocd-source.yaml but before .argocd-source-<app>.yaml",
+          "items": {
+            "type": "string"
+          }
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"

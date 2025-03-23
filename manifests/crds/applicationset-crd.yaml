@@ -193,6 +193,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -382,12 +386,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -395,6 +404,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -469,6 +479,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -658,6 +672,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -875,6 +890,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -1064,12 +1083,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -1077,6 +1101,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -1151,6 +1176,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -1340,6 +1369,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -1556,6 +1586,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -1745,12 +1779,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -1758,6 +1797,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -1832,6 +1872,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -2021,6 +2065,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -2217,6 +2262,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -2406,12 +2455,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -2419,6 +2473,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -2493,6 +2548,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -2682,6 +2741,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -2903,6 +2963,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -3092,12 +3156,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -3105,6 +3174,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -3179,6 +3249,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -3368,6 +3442,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -3585,6 +3660,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -3774,12 +3853,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -3787,6 +3871,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -3861,6 +3946,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -4050,6 +4139,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -4266,6 +4356,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -4455,12 +4549,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -4468,6 +4567,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -4542,6 +4642,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -4731,6 +4835,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -4927,6 +5032,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -5116,12 +5225,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -5129,6 +5243,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -5203,6 +5318,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -5392,6 +5511,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -5596,6 +5716,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -5785,12 +5909,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -5798,6 +5927,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -5872,6 +6002,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -6061,6 +6195,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -6484,6 +6619,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -6673,12 +6812,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -6686,6 +6830,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -6760,6 +6905,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -6949,6 +7098,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -7371,6 +7521,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -7560,12 +7714,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -7573,6 +7732,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -7647,6 +7807,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -7836,6 +8000,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -8049,6 +8214,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -8238,12 +8407,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -8251,6 +8425,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -8325,6 +8500,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -8514,6 +8693,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -8737,6 +8917,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -8926,12 +9110,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -8939,6 +9128,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -9013,6 +9203,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -9202,6 +9396,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -9419,6 +9614,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -9608,12 +9807,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -9621,6 +9825,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -9695,6 +9900,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -9884,6 +10093,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -10100,6 +10310,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -10289,12 +10503,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -10302,6 +10521,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -10376,6 +10596,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -10565,6 +10789,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -10761,6 +10986,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -10950,12 +11179,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -10963,6 +11197,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -11037,6 +11272,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -11226,6 +11465,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -11430,6 +11670,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -11619,12 +11863,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -11632,6 +11881,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -11706,6 +11956,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -11895,6 +12149,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -12318,6 +12573,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -12507,12 +12766,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -12520,6 +12784,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -12594,6 +12859,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -12783,6 +13052,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -13205,6 +13475,10 @@ spec:
                                                   recurse:
                                                     type: boolean
                                                 type: object
+                                              extraConfigFiles:
+                                                items:
+                                                  type: string
+                                                type: array
                                               helm:
                                                 properties:
                                                   apiVersions:
@@ -13394,12 +13668,17 @@ spec:
                                               targetRevision:
                                                 type: string
                                             required:
+                                            - extraConfigFiles
                                             - repoURL
                                             type: object
                                           sourceHydrator:
                                             properties:
                                               drySource:
                                                 properties:
+                                                  extraConfigFiles:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   path:
                                                     type: string
                                                   repoURL:
@@ -13407,6 +13686,7 @@ spec:
                                                   targetRevision:
                                                     type: string
                                                 required:
+                                                - extraConfigFiles
                                                 - path
                                                 - repoURL
                                                 - targetRevision
@@ -13481,6 +13761,10 @@ spec:
                                                     recurse:
                                                       type: boolean
                                                   type: object
+                                                extraConfigFiles:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 helm:
                                                   properties:
                                                     apiVersions:
@@ -13670,6 +13954,7 @@ spec:
                                                 targetRevision:
                                                   type: string
                                               required:
+                                              - extraConfigFiles
                                               - repoURL
                                               type: object
                                             type: array
@@ -13887,6 +14172,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -14076,12 +14365,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -14089,6 +14383,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -14163,6 +14458,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -14352,6 +14651,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -14555,6 +14855,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -14744,12 +15048,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -14757,6 +15066,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -14831,6 +15141,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -15020,6 +15334,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -15443,6 +15758,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -15632,12 +15951,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -15645,6 +15969,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -15719,6 +16044,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -15908,6 +16237,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -16330,6 +16660,10 @@ spec:
                                         recurse:
                                           type: boolean
                                       type: object
+                                    extraConfigFiles:
+                                      items:
+                                        type: string
+                                      type: array
                                     helm:
                                       properties:
                                         apiVersions:
@@ -16519,12 +16853,17 @@ spec:
                                     targetRevision:
                                       type: string
                                   required:
+                                  - extraConfigFiles
                                   - repoURL
                                   type: object
                                 sourceHydrator:
                                   properties:
                                     drySource:
                                       properties:
+                                        extraConfigFiles:
+                                          items:
+                                            type: string
+                                          type: array
                                         path:
                                           type: string
                                         repoURL:
@@ -16532,6 +16871,7 @@ spec:
                                         targetRevision:
                                           type: string
                                       required:
+                                      - extraConfigFiles
                                       - path
                                       - repoURL
                                       - targetRevision
@@ -16606,6 +16946,10 @@ spec:
                                           recurse:
                                             type: boolean
                                         type: object
+                                      extraConfigFiles:
+                                        items:
+                                          type: string
+                                        type: array
                                       helm:
                                         properties:
                                           apiVersions:
@@ -16795,6 +17139,7 @@ spec:
                                       targetRevision:
                                         type: string
                                     required:
+                                    - extraConfigFiles
                                     - repoURL
                                     type: object
                                   type: array
@@ -17083,6 +17428,10 @@ spec:
                               recurse:
                                 type: boolean
                             type: object
+                          extraConfigFiles:
+                            items:
+                              type: string
+                            type: array
                           helm:
                             properties:
                               apiVersions:
@@ -17272,12 +17621,17 @@ spec:
                           targetRevision:
                             type: string
                         required:
+                        - extraConfigFiles
                         - repoURL
                         type: object
                       sourceHydrator:
                         properties:
                           drySource:
                             properties:
+                              extraConfigFiles:
+                                items:
+                                  type: string
+                                type: array
                               path:
                                 type: string
                               repoURL:
@@ -17285,6 +17639,7 @@ spec:
                               targetRevision:
                                 type: string
                             required:
+                            - extraConfigFiles
                             - path
                             - repoURL
                             - targetRevision
@@ -17359,6 +17714,10 @@ spec:
                                 recurse:
                                   type: boolean
                               type: object
+                            extraConfigFiles:
+                              items:
+                                type: string
+                              type: array
                             helm:
                               properties:
                                 apiVersions:
@@ -17548,6 +17907,7 @@ spec:
                             targetRevision:
                               type: string
                           required:
+                          - extraConfigFiles
                           - repoURL
                           type: object
                         type: array
