@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux -o pipefail
 
 # renovate: datasource=go packageName=github.com/golangci/golangci-lint

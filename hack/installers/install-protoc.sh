@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux -o pipefail
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)

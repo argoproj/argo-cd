@@ -198,6 +198,10 @@ type ApplicationSource struct {
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
+	// Lists of extra config files to be used when hydrating. Used only for applications using hydration
+	// Applied in the order they are defined.
+	// Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+	ExtraConfigFiles []string `json:"extraConfigFiles" protobuf:"bytes,4,name=extraConfigFiles"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -414,7 +418,7 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 
 // DeepEquals returns true if the SourceHydrator is deeply equal to the given SourceHydrator.
 func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
-	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
+	return reflect.DeepEqual(s.DrySource, hydrator.DrySource) && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
 }
 
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
@@ -425,6 +429,10 @@ type DrySource struct {
 	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
 	// Path is a directory path within the Git repository where the manifests are located
 	Path string `json:"path" protobuf:"bytes,3,name=path"`
+	// Lists of extra config files to be used when hydrating.
+	// Applied in the order they are defined.
+	// Applied after .argocd-source.yaml but before .argocd-source-<app>.yaml
+	ExtraConfigFiles []string `json:"extraConfigFiles" protobuf:"bytes,4,name=extraConfigFiles"`
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the

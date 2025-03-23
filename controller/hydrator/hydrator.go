@@ -251,9 +251,10 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application) (string
 		}
 		projects[project.Name] = true
 		drySource := appv1.ApplicationSource{
-			RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-			Path:           app.Spec.SourceHydrator.DrySource.Path,
-			TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+			RepoURL:          app.Spec.SourceHydrator.DrySource.RepoURL,
+			Path:             app.Spec.SourceHydrator.DrySource.Path,
+			TargetRevision:   app.Spec.SourceHydrator.DrySource.TargetRevision,
+			ExtraConfigFiles: app.Spec.SourceHydrator.DrySource.ExtraConfigFiles,
 		}
 		if targetRevision == "" {
 			targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision

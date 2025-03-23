@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux -o pipefail
 
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/../.." && pwd -P )"

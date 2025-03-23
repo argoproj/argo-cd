@@ -1540,6 +1540,7 @@ func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v
 func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName string) error {
 	repoFilePath := filepath.Join(path, repoSourceFile)
 	overrides := []string{repoFilePath}
+	overrides = append(overrides, source.ExtraConfigFiles...)
 	if appName != "" {
 		overrides = append(overrides, filepath.Join(path, fmt.Sprintf(appSourceFile, appName)))
 	}

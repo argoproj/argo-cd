@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux -o pipefail
 
 . $(dirname $0)/../tool-versions.sh

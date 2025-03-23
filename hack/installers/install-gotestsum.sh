@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -eux -o pipefail
 
 # Code from: https://github.com/argoproj/argo-rollouts/blob/f650a1fd0ba7beb2125e1598410515edd572776f/hack/installers/install-dev-tools.sh
