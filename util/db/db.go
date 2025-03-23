@@ -106,9 +106,14 @@ type ArgoDB interface {
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
+	// GetAllOCIRepositoryCredentials gets all repo credentials
+	GetAllOCIRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
+
+	// ListOCIRepositories lists repositories
+	ListOCIRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)

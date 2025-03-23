@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -322,9 +323,25 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting helm repo creds: %w", err)
 	}
+	ociRepos, err := db.ListOCIRepositories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list oci repositories: %w", err)
+	}
+	permittedOCIRepos, err := GetPermittedRepos(proj, ociRepos)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permitted oci repositories for project %q: %w", proj.Name, err)
+	}
 	permittedHelmCredentials, err := GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
 		return nil, fmt.Errorf("error getting permitted repo creds: %w", err)
+	}
+	ociRepositoryCredentials, err := db.GetAllOCIRepositoryCredentials(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OCI credentials: %w", err)
+	}
+	permittedOCICredentials, err := GetPermittedReposCredentials(proj, ociRepositoryCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
 	destCluster, err := GetDestinationCluster(ctx, spec.Destination, db)
@@ -360,11 +377,13 @@ func ValidateRepo(
 		app.Spec.GetSources(),
 		repoClient,
 		permittedHelmRepos,
+		permittedOCIRepos,
 		helmOptions,
 		destCluster,
 		apiGroups,
 		proj,
 		permittedHelmCredentials,
+		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr)
 	if err != nil {
@@ -381,11 +400,13 @@ func validateRepo(ctx context.Context,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
 	permittedHelmRepos []*argoappv1.Repository,
+	permittedOCIRepos []*argoappv1.Repository,
 	helmOptions *argoappv1.HelmOptions,
 	cluster *argoappv1.Cluster,
 	apiGroups []kube.APIResourceInfo,
 	proj *argoappv1.AppProject,
 	permittedHelmCredentials []*argoappv1.RepoCreds,
+	permittedOCICredentials []*argoappv1.RepoCreds,
 	enabledSourceTypes map[string]bool,
 	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
@@ -437,6 +458,7 @@ func validateRepo(ctx context.Context,
 		ctx,
 		db,
 		permittedHelmRepos,
+		permittedOCIRepos,
 		helmOptions,
 		app,
 		proj,
@@ -446,6 +468,7 @@ func validateRepo(ctx context.Context,
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
+		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr,
 		refSources)...)
@@ -715,6 +738,7 @@ func verifyGenerateManifests(
 	ctx context.Context,
 	db db.ArgoDB,
 	helmRepos argoappv1.Repositories,
+	ociRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
 	app *argoappv1.Application,
 	proj *argoappv1.AppProject,
@@ -723,6 +747,7 @@ func verifyGenerateManifests(
 	kubeVersion string,
 	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
+	ociRepositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
 	refSources argoappv1.RefTargetRevisionMapping,
@@ -778,6 +803,18 @@ func verifyGenerateManifests(
 			verifySignature = true
 		}
 
+		repos := helmRepos
+		helmRepoCreds := repositoryCredentials
+		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+		// list.
+		if source.IsOCI() {
+			repos = slices.Clone(helmRepos)
+			helmRepoCreds = slices.Clone(repositoryCredentials)
+			repos = append(repos, ociRepos...)
+			helmRepoCreds = append(helmRepoCreds, ociRepositoryCredentials...)
+		}
+
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -787,7 +824,7 @@ func verifyGenerateManifests(
 				NoProxy: repoRes.NoProxy,
 			},
 			VerifySignature:                 verifySignature,
-			Repos:                           helmRepos,
+			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
 			Namespace:                       app.Spec.Destination.Namespace,
@@ -797,7 +834,7 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
-			HelmRepoCreds:                   repositoryCredentials,
+			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  string(GetTrackingMethod(settingsMgr)),
 			EnabledSourceTypes:              enableGenerateManifests,
 			NoRevisionCache:                 true,

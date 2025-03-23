@@ -300,6 +300,28 @@ func (s *secretsRepositoryBackend) GetAllHelmRepoCreds(_ context.Context) ([]*ap
 	return helmRepoCreds, nil
 }
 
+func (s *secretsRepositoryBackend) GetAllOCIRepoCreds(_ context.Context) ([]*appsv1.RepoCreds, error) {
+	var ociRepoCreds []*appsv1.RepoCreds
+
+	secrets, err := s.db.listSecretsByType(common.LabelValueSecretTypeRepoCreds)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, secret := range secrets {
+		if strings.EqualFold(string(secret.Data["type"]), "oci") {
+			repoCreds, err := s.secretToRepoCred(secret)
+			if err != nil {
+				return nil, err
+			}
+
+			ociRepoCreds = append(ociRepoCreds, repoCreds)
+		}
+	}
+
+	return ociRepoCreds, nil
+}
+
 func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	repository := &appsv1.Repository{
 		Name:                       string(secret.Data["name"]),
