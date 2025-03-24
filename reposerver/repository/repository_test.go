@@ -340,7 +340,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 	res, err := service.GenerateManifest(context.Background(), &q)
 	require.NoError(t, err)
-	assert.Positive(t, len(res.Manifests))
+	assert.NotEmpty(t, res.Manifests)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets:    2,
 		ExternalGets:    2,

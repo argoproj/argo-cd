@@ -164,21 +164,21 @@ func TestAddProjectDestination(t *testing.T) {
 		"test1",
 	)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "already defined"))
+	assert.Contains(t, err.Error(), "already defined")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"!*",
 		"test1",
 	)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "server has an invalid format, '!*'"))
+	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"https://192.168.99.100:8443",
 		"!*",
 	)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "namespace has an invalid format, '!*'"))
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!*'")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -383,7 +383,7 @@ func TestUseJWTToken(t *testing.T) {
 
 	roleGetResult, err = fixture.RunCli("proj", "role", "get", projectName, roleName)
 	require.NoError(t, err)
-	assert.True(t, strings.Contains(roleGetResult, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10)))
+	assert.Contains(t, roleGetResult, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10))
 
 	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10))
 	require.NoError(t, err)
@@ -420,7 +420,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"name",
 	)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "already defined"))
+	assert.Contains(t, err.Error(), "already defined")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
