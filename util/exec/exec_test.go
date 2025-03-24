@@ -146,7 +146,7 @@ func TestRunCommandSignal(t *testing.T) {
 	log.SetLevel(log.DebugLevel)
 	defer log.SetLevel(log.InfoLevel)
 
-	var timeoutBehavior = TimeoutBehavior{Signal: syscall.SIGTERM, ShouldWait: true}
+	timeoutBehavior := TimeoutBehavior{Signal: syscall.SIGTERM, ShouldWait: true}
 	output, err := RunCommand("sh", CmdOpts{Timeout: 200 * time.Millisecond, TimeoutBehavior: timeoutBehavior}, "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2")
 	assert.Equal(t, "captured", output)
 	require.EqualError(t, err, "`sh -c trap 'trap - 15 && echo captured && exit' 15 && sleep 2` failed timeout after 200ms")

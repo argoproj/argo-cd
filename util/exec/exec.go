@@ -19,7 +19,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rand"
 )
 
-var timeout time.Duration
+var (
+	timeout    time.Duration
+	Unredacted = Redact(nil)
+)
 
 type ExecRunOpts struct {
 	// Redactor redacts tokens from the output
@@ -93,10 +96,6 @@ func GetCommandArgsToLog(cmd *exec.Cmd) string {
 	return args
 }
 
-var (
-	Unredacted = Redact(nil)
-)
-
 type CmdError struct {
 	Args   string
 	Stderr string
@@ -152,7 +151,7 @@ var DefaultCmdOpts = CmdOpts{
 func Redact(items []string) func(text string) string {
 	return func(text string) string {
 		for _, item := range items {
-			text = strings.Replace(text, item, "******", -1)
+			text = strings.ReplaceAll(text, item, "******")
 		}
 		return text
 	}

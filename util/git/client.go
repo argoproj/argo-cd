@@ -35,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
@@ -1013,7 +1012,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
 	opts := executil.ExecRunOpts{
-		TimeoutBehavior: argoexec.TimeoutBehavior{
+		TimeoutBehavior: executil.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
 			ShouldWait: true,
 		},
