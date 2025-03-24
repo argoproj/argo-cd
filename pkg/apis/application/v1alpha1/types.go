@@ -1434,7 +1434,7 @@ type SyncPolicy struct {
 
 // IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
 func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
-	if p.Automated != nil && (p.Automated.Enable == nil || *p.Automated.Enable) {
+	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
 		return true
 	}
 	return false
@@ -1516,7 +1516,7 @@ type SyncPolicyAutomated struct {
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
-	Enable *bool `json:"enable,omitempty" protobuf:"bytes,4,opt,name=enable"`
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
