@@ -605,7 +605,7 @@ func TestAutoSync(t *testing.T) {
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	app := newFakeApp()
 	enable := true
-	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enable: &enable}
+	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -733,7 +733,7 @@ func TestSkipAutoSync(t *testing.T) {
 	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
 		app := newFakeApp()
 		enable := false
-		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enable: &enable}
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
 		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
