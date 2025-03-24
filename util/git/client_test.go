@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -125,6 +126,19 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	// We moved on, so tag doesn't point to HEAD anymore
 	atag = client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
+}
+
+func Test_resolveTagReference(t *testing.T) {
+	// Setup
+	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
+	tagRef := plumbing.NewReferenceFromStrings("refs/tags/v1.0.0", "sometaghash")
+
+	// Test single function
+	resolvedRef := plumbing.NewHashReference(tagRef.Name(), commitHash)
+
+	// Verify
+	assert.Equal(t, commitHash, resolvedRef.Hash())
+	assert.Equal(t, tagRef.Name(), resolvedRef.Name())
 }
 
 func Test_ChangedFiles(t *testing.T) {

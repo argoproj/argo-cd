@@ -80,6 +80,18 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
+func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
+	a.context.t.Helper()
+	fixture.AddAnnotatedTag(a.context.t, name, message)
+	return a
+}
+
+func (a *Actions) AddTagWithForce(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTagWithForce(a.context.t, name)
+	return a
+}
+
 func (a *Actions) RemoveSubmodule() *Actions {
 	a.context.t.Helper()
 	fixture.RemoveSubmodule()
