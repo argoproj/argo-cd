@@ -101,6 +101,52 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Repos with and without id",
+			repos: []*scm_provider.Repository{
+				{
+					Organization: "myorg",
+					Repository:   "repo4",
+					RepositoryId: "idaz09",
+					URL:          "git@github.com:myorg/repo4.git",
+					Branch:       "main",
+					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
+				},
+				{
+					Organization: "myorg",
+					Repository:   "repo5",
+					URL:          "git@github.com:myorg/repo5.git",
+					Branch:       "main",
+					SHA:          "0bc57212c3cbbec69d20b34c507284bd300def5b",
+				},
+			},
+			expected: []map[string]any{
+				{
+					"organization":     "myorg",
+					"repository":       "repo4",
+					"repository_id":    "idaz09",
+					"url":              "git@github.com:myorg/repo4.git",
+					"branch":           "main",
+					"branchNormalized": "main",
+					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha":        "0bc57212",
+					"short_sha_7":      "0bc5721",
+					"labels":           "",
+				},
+				{
+					"organization":     "myorg",
+					"repository":       "repo5",
+					"repository_id":    nil,
+					"url":              "git@github.com:myorg/repo5.git",
+					"branch":           "main",
+					"branchNormalized": "main",
+					"sha":              "0bc57212c3cbbec69d20b34c507284bd300def5b",
+					"short_sha":        "0bc57212",
+					"short_sha_7":      "0bc5721",
+					"labels":           "",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {
