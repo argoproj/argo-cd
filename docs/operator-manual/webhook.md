@@ -32,9 +32,6 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 
 ![Add Webhook](../assets/azure-devops-webhook-config.png "Add Webhook")
 
-
-
-
 Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
 `webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
 
