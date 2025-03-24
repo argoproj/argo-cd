@@ -2105,7 +2105,7 @@ func TestSplitStatusPatch(t *testing.T) {
 		otherFields := `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"},"status":{"ccc":"ddd"}}`
 		nonStatus, status, err := splitStatusPatch([]byte(otherFields))
 		require.NoError(t, err)
-		assert.Equal(t, `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"}}`, string(nonStatus))
+		assert.JSONEq(t, `{"operation":{"eee":"fff"},"spec":{"aaa":"bbb"}}`, string(nonStatus))
 		assert.Equal(t, statusPatch, string(status))
 	}
 }

@@ -505,7 +505,7 @@ func TestLsFiles(t *testing.T) {
 func TestAnnotatedTagHandling(t *testing.T) {
 	dir := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()

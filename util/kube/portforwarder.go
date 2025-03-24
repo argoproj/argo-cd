@@ -3,6 +3,7 @@ package kube
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -100,7 +101,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	case <-readyChan:
 	}
 	if len(errOut.String()) != 0 {
-		return -1, fmt.Errorf(errOut.String())
+		return -1, errors.New(errOut.String())
 	}
 	return port, nil
 }
