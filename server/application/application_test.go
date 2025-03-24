@@ -3558,6 +3558,7 @@ func Test_RunResourceActionDestinationInference(t *testing.T) {
 	})
 	testDeployment := kube.MustToUnstructured(&deployment)
 	server := newTestAppServer(t, testServer, testName, testBoth, testDeployment)
+	// nolint:staticcheck
 	adminCtx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	type fields struct {
