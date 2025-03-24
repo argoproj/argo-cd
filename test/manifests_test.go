@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 )
 
 func TestKustomizeVersion(t *testing.T) {
