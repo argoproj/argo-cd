@@ -3513,6 +3513,8 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
 	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applicationsets, *, some-project/*, allow")
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")

@@ -15,12 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
 	"github.com/argoproj/argo-cd/v2/server/extension/mocks"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -274,8 +275,8 @@ func TestCallExtension(t *testing.T) {
 
 	getApp := func(destName, destServer, projName string) *v1alpha1.Application {
 		return &v1alpha1.Application{
-			TypeMeta:   v1.TypeMeta{},
-			ObjectMeta: v1.ObjectMeta{},
+			TypeMeta:   metav1.TypeMeta{},
+			ObjectMeta: metav1.ObjectMeta{},
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Name:   destName,
@@ -312,7 +313,7 @@ func TestCallExtension(t *testing.T) {
 			destinations = append(destinations, destination)
 		}
 		return &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: prjName,
 			},
 			Spec: v1alpha1.AppProjectSpec{
@@ -339,8 +340,8 @@ func TestCallExtension(t *testing.T) {
 		if !allowExt {
 			extAccessError = errors.New("no extension permission")
 		}
-		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, mock.Anything).Return(appAccessError)
-		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, mock.Anything).Return(extAccessError)
+		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceApplications, rbac.ActionGet, mock.Anything).Return(appAccessError)
+		f.rbacMock.On("EnforceErr", mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
 	withUser := func(f *fixture, username string, groups []string) {

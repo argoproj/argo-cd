@@ -6,7 +6,6 @@ import (
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
@@ -37,7 +36,7 @@ func NewServer(
 
 // Returns a list of configured certificates that match the query
 func (s *Server) ListCertificates(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionGet, ""); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceCertificates, rbac.ActionGet, ""); err != nil {
 		return nil, err
 	}
 	certList, err := s.db.ListRepoCertificates(ctx, &db.CertificateListSelector{
@@ -53,7 +52,7 @@ func (s *Server) ListCertificates(ctx context.Context, q *certificatepkg.Reposit
 
 // Batch creates certificates for verifying repositories
 func (s *Server) CreateCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateCreateRequest) (*appsv1.RepositoryCertificateList, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionCreate, ""); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceCertificates, rbac.ActionCreate, ""); err != nil {
 		return nil, err
 	}
 	certs, err := s.db.CreateRepoCertificate(ctx, q.Certificates, q.Upsert)
@@ -66,7 +65,7 @@ func (s *Server) CreateCertificate(ctx context.Context, q *certificatepkg.Reposi
 
 // Batch deletes a list of certificates that match the query
 func (s *Server) DeleteCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateQuery) (*appsv1.RepositoryCertificateList, error) {
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceCertificates, rbacpolicy.ActionDelete, ""); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceCertificates, rbac.ActionDelete, ""); err != nil {
 		return nil, err
 	}
 	certs, err := s.db.RemoveRepoCertificates(ctx, &db.CertificateListSelector{
