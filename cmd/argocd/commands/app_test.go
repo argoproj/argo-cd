@@ -356,7 +356,7 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 
 	require.Error(t, err, "Find revision history should fail with errors")
 	require.Nil(t, history, "History should be not found")
-	require.EqualError(t, err, "application '' does not have deployment id '4' in history\n", "Find revision history should fail with correct error message")
+	require.EqualError(t, err, "application '' does not have deployment id '4' in history", "Find revision history should fail with correct error message")
 }
 
 func Test_groupObjsByKey(t *testing.T) {
