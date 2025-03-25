@@ -85,7 +85,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {
 				fmt.Println("Password secret is configured properly.")
 			} else {
-				errors.Fatal(errors.ErrorGeneric, "key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials)
+				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials))
 			}
 		},
 	}

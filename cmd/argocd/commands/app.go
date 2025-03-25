@@ -3302,7 +3302,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
-				errors.Fatal(errors.ErrorGeneric, "Cannot add source: application %s does not have spec.sources defined", appName)
+				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Cannot add source: application %s does not have spec.sources defined", appName))
 			}
 		},
 	}

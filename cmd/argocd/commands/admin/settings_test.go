@@ -68,7 +68,6 @@ func newSettingsManager(data map[string]string) *settings.SettingsManager {
 
 type fakeCmdContext struct {
 	mgr *settings.SettingsManager
-	//nolint:unused,structcheck
 	out bytes.Buffer
 }
 
