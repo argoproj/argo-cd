@@ -1,5 +1,5 @@
 /* eslint-disable no-prototype-builtins */
-import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
+import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
@@ -381,7 +381,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal};
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: true};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
@@ -529,6 +529,39 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-12'>
+                                            <div className='checkbox-container'>
+                                                <Checkbox
+                                                    onChange={async (val: boolean) => {
+                                                        const confirmed = await ctx.popup.confirm(
+                                                            val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
+                                                            val
+                                                                ? 'If checked, application will automatically sync when changes are detected'
+                                                                : 'Are you sure you want to disable automated application synchronization'
+                                                        );
+                                                        if (confirmed) {
+                                                            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                                                            const currentAutomated = updatedApp.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
+
+                                                            updatedApp.spec.syncPolicy = updatedApp.spec.syncPolicy || {};
+                                                            updatedApp.spec.syncPolicy.automated = {
+                                                                prune: currentAutomated.prune,
+                                                                selfHeal: currentAutomated.selfHeal,
+                                                                enabled: val
+                                                            };
+
+                                                            await updateApp(updatedApp, {validate: false});
+                                                        }
+                                                    }}
+                                                    checked={!!app.spec.syncPolicy?.automated?.enabled}
+                                                    id='enable-auto-sync'
+                                                />
+                                                <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
+                                                <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>PRUNE RESOURCES</div>
                                         <div className='columns small-9'>
