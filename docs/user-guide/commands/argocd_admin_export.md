@@ -11,8 +11,8 @@ argocd admin export [flags]
 ### Options
 
 ```
-      --application-namespaces strings      Comma separated list of namespace globs to export applications from. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applications from Argo CD namespace will be exported
-      --applicationset-namespaces strings   Comma separated list of namespace globs to export applicationsets from. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applicationsets from Argo CD namespace will be exported
+      --application-namespaces strings      Comma separated list of namespace globs to export applications from. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applications from Argo CD namespace will be exported
+      --applicationset-namespaces strings   Comma separated list of namespace globs to export applicationsets from. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applicationsets from Argo CD namespace will be exported
       --as string                           Username to impersonate for the operation
       --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                       UID to impersonate for the operation

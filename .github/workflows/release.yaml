@@ -77,7 +77,8 @@ jobs:
       - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
         run: |
           set -xue
-          echo "GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }})" >> $GITHUB_ENV
+          GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }}) || exit 1
+          echo "GORELEASER_PREVIOUS_TAG=$GORELEASER_PREVIOUS_TAG" >> $GITHUB_ENV
 
       - name: Set environment variables for ldflags
         id: set_ldflag
