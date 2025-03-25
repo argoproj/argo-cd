@@ -1492,7 +1492,7 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
-		require.EqualError(t, err, "expected helm parameter of the form: param=value but received: garbage")
+		require.EqualError(t, err, "expected helm parameter of the form param=value but received: garbage")
 	})
 	t.Run("NonString", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)

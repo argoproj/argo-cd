@@ -93,7 +93,7 @@ func Test_getRestConfig(t *testing.T) {
 			},
 			nil,
 			true,
-			"Context not-exist does not exist in kubeconfig",
+			"context not-exist does not exist in kubeconfig",
 		},
 	}
 	for _, tt := range tests {
