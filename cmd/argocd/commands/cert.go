@@ -167,13 +167,13 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
 			} else {
-				err = stderrors.New("You need to specify --batch or specify --help for usage instructions")
+				err = stderrors.New("you need to specify --batch or specify --help for usage instructions")
 			}
 
 			errors.CheckError(err)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckError(stderrors.New("No valid SSH known hosts data found."))
+				errors.Fatal(errors.ErrorGeneric, "No valid SSH known hosts data found.")
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
@@ -234,8 +234,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// remove all certificates, but it's less likely that it happens by
 			// accident.
 			if hostNamePattern == "*" {
-				err := stderrors.New("A single wildcard is not allowed as REPOSERVER name.")
-				errors.CheckError(err)
+				errors.Fatal(errors.ErrorGeneric, "A single wildcard is not allowed as REPOSERVER name.")
 			}
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -318,11 +317,12 @@ func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
 
-	if sortOrder == "hostname" || sortOrder == "" {
+	switch sortOrder {
+	case "hostname", "":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].ServerName < certs[j].ServerName
 		})
-	} else if sortOrder == "type" {
+	case "type":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].CertType < certs[j].CertType
 		})

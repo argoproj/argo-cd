@@ -197,7 +197,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 					action = "updated"
 				}
 
-				fmt.Printf("application '%s' %s\n", created.ObjectMeta.Name, action)
+				fmt.Printf("application '%s' %s\n", created.Name, action)
 			}
 		},
 	}
@@ -267,7 +267,7 @@ func hasAppChanged(appReq, appRes *argoappv1.Application, upsert bool) bool {
 
 	if reflect.DeepEqual(appRes.Spec, appReq.Spec) &&
 		reflect.DeepEqual(appRes.Labels, appReq.Labels) &&
-		reflect.DeepEqual(appRes.ObjectMeta.Annotations, appReq.Annotations) &&
+		reflect.DeepEqual(appRes.Annotations, appReq.Annotations) &&
 		reflect.DeepEqual(appRes.Finalizers, appReq.Finalizers) {
 		return false
 	}
@@ -401,7 +401,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
 
 			if sourceName != "" {
@@ -416,10 +416,10 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			// check for source position if --show-params is set
 			if app.Spec.HasMultipleSources() && showParams {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
 				}
 			}
 
@@ -841,7 +841,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			sourceName = appOpts.SourceName
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
 
 			if sourceName != "" {
@@ -855,10 +855,10 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if app.Spec.HasMultipleSources() {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
 				}
 			}
 
@@ -956,7 +956,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			sourceName = appOpts.SourceName
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
 
 			if sourceName != "" {
@@ -970,10 +970,10 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			if app.Spec.HasMultipleSources() {
 				if sourcePosition <= 0 {
-					errors.CheckError(stderrors.New("Source position should be specified and must be greater than 0 for applications with multiple sources"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
 				}
 				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.CheckError(stderrors.New("Source position should be less than the number of sources in the application"))
+					errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
 				}
 			}
 
@@ -1214,7 +1214,7 @@ func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructu
 	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	for i := range localObs {
 		obj := localObs[i]
-		if !(hook.IsHook(obj) || ignore.Ignore(obj)) {
+		if !hook.IsHook(obj) && !ignore.Ignore(obj) {
 			objByKey[kube.GetResourceKey(obj)] = obj
 		}
 	}
@@ -1259,15 +1259,15 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
-				errors.CheckError(stderrors.New("Only one of source-positions and source-names can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-positions and source-names can be specified.")
 			}
 
 			if len(sourcePositions) > 0 && len(revisions) != len(sourcePositions) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-positions, length of values for both flags should be same."))
+				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-positions, length of values for both flags should be same.")
 			}
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-names, length of values for both flags should be same."))
+				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -1548,7 +1548,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
-			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
+			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
@@ -1779,7 +1779,7 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 		}
 		nameFields := strings.Split(resourceName, resourceFieldNamespaceDelimiter)
 		if len(nameFields) != resourceFieldNameWithNamespaceCount {
-			return "", "", fmt.Errorf("Resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, resource)
+			return "", "", fmt.Errorf("resource with namespace should have GROUP%sKIND%sNAMESPACE%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resourceFieldNamespaceDelimiter, resource)
 		}
 		namespace := nameFields[0]
 		name := nameFields[1]
@@ -1800,7 +1800,7 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 		}
 		fields := strings.Split(resource, resourceFieldDelimiter)
 		if len(fields) != resourceFieldCount {
-			return nil, fmt.Errorf("Resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resource)
+			return nil, fmt.Errorf("resource should have GROUP%sKIND%sNAME, but instead got: %s", resourceFieldDelimiter, resourceFieldDelimiter, resource)
 		}
 		name, namespace, err := nameRetriever(fields[2], resource)
 		if err != nil {
@@ -2852,7 +2852,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 	if historyId == -1 {
 		l := len(application.Status.History)
 		if l < 2 {
-			return nil, fmt.Errorf("Application '%s' should have at least two successful deployments", application.ObjectMeta.Name)
+			return nil, fmt.Errorf("application '%s' should have at least two successful deployments", application.Name)
 		}
 		return &application.Status.History[l-2], nil
 	}
@@ -2861,7 +2861,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 			return &di, nil
 		}
 	}
-	return nil, fmt.Errorf("Application '%s' does not have deployment id '%d' in history\n", application.ObjectMeta.Name, historyId)
+	return nil, fmt.Errorf("application '%s' does not have deployment id '%d' in history", application.Name, historyId)
 }
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
@@ -2989,15 +2989,15 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
-				errors.CheckError(stderrors.New("Only one of source-positions and source-names can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-positions and source-names can be specified.")
 			}
 
 			if len(sourcePositions) > 0 && len(revisions) != len(sourcePositions) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-positions, length of values for both flags should be same."))
+				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-positions, length of values for both flags should be same.")
 			}
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
-				errors.CheckError(stderrors.New("While using --revisions and --source-names, length of values for both flags should be same."))
+				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
 			}
 
 			for _, pos := range sourcePositions {
@@ -3280,7 +3280,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 
 			if c.Flags() == nil {
-				errors.CheckError(stderrors.New("ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add."))
+				errors.Fatal(errors.ErrorGeneric, "ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add.")
 			}
 
 			if len(app.Spec.Sources) > 0 {
@@ -3300,9 +3300,9 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 				})
 				errors.CheckError(err)
 
-				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
-				errors.CheckError(fmt.Errorf("Cannot add source: application %s does not have spec.sources defined", appName))
+				errors.Fatal(errors.ErrorGeneric, "Cannot add source: application %s does not have spec.sources defined", appName)
 			}
 		},
 	}
@@ -3335,7 +3335,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 
 			if sourceName == "" && sourcePosition <= 0 {
-				errors.CheckError(stderrors.New("Value of source-position must be greater than 0"))
+				errors.Fatal(errors.ErrorGeneric, "Value of source-position must be greater than 0")
 			}
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
@@ -3352,7 +3352,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			errors.CheckError(err)
 
 			if sourceName != "" && sourcePosition != -1 {
-				errors.CheckError(stderrors.New("Only one of source-position and source-name can be specified."))
+				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
 
 			if sourceName != "" {
@@ -3365,15 +3365,15 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 			}
 
 			if !app.Spec.HasMultipleSources() {
-				errors.CheckError(stderrors.New("Application does not have multiple sources configured"))
+				errors.Fatal(errors.ErrorGeneric, "Application does not have multiple sources configured")
 			}
 
 			if len(app.Spec.GetSources()) == 1 {
-				errors.CheckError(stderrors.New("Cannot remove the only source remaining in the app"))
+				errors.Fatal(errors.ErrorGeneric, "Cannot remove the only source remaining in the app")
 			}
 
 			if len(app.Spec.GetSources()) < sourcePosition {
-				errors.CheckError(fmt.Errorf("Application does not have source at %d\n", sourcePosition))
+				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Application does not have source at %d\n", sourcePosition))
 			}
 
 			app.Spec.Sources = append(app.Spec.Sources[:sourcePosition-1], app.Spec.Sources[sourcePosition:]...)
@@ -3388,7 +3388,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 				})
 				errors.CheckError(err)
 
-				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.Name)
 			} else {
 				fmt.Println("The command to delete the source was cancelled")
 			}
@@ -3440,7 +3440,7 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 			})
 			errors.CheckError(err)
 
-			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+			fmt.Printf("Application '%s' updated successfully\n", app.Name)
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")

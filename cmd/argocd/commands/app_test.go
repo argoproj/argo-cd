@@ -1112,7 +1112,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-prefix", kustomizeSource.Kustomize.NamePrefix)
 	updated, nothingToUnset := unset(kustomizeSource, unsetOpts{namePrefix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NamePrefix)
+	assert.Empty(t, kustomizeSource.Kustomize.NamePrefix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{namePrefix: true})
@@ -1121,7 +1121,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some-suffix", kustomizeSource.Kustomize.NameSuffix)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.NameSuffix)
+	assert.Empty(t, kustomizeSource.Kustomize.NameSuffix)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{nameSuffix: true})
@@ -1130,7 +1130,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "123", kustomizeSource.Kustomize.Version)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
-	assert.Equal(t, "", kustomizeSource.Kustomize.Version)
+	assert.Empty(t, kustomizeSource.Kustomize.Version)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeVersion: true})
@@ -1184,7 +1184,7 @@ func Test_unset(t *testing.T) {
 
 	assert.Equal(t, "some: yaml", helmSource.Helm.ValuesString())
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
-	assert.Equal(t, "", helmSource.Helm.ValuesString())
+	assert.Empty(t, helmSource.Helm.ValuesString())
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesLiteral: true})
