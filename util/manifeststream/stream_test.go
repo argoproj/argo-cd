@@ -1,7 +1,6 @@
 package manifeststream_test
 
 import (
-	"context"
 	"errors"
 	"io"
 	"math"
@@ -89,7 +88,7 @@ func TestManifestStream(t *testing.T) {
 	appDir := filepath.Join(getTestDataDir(t), "app")
 
 	go func() {
-		err := manifeststream.SendApplicationManifestQueryWithFiles(context.Background(), appStreamMock, "test", "test", appDir, nil)
+		err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), appStreamMock, "test", "test", appDir, nil)
 		assert.NoError(t, err)
 		appStreamMock.done <- true
 	}()
@@ -106,7 +105,7 @@ func TestManifestStream(t *testing.T) {
 		repoStreamMock.done <- true
 	}()
 
-	req2, meta, err := manifeststream.ReceiveManifestFileStream(context.Background(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
+	req2, meta, err := manifeststream.ReceiveManifestFileStream(t.Context(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
 	require.NoError(t, err)
 	require.NotNil(t, req2)
 	require.NotNil(t, meta)

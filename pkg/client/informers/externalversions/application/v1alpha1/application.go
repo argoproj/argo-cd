@@ -3,13 +3,13 @@
 package v1alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apisapplicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	versioned "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/internalinterfaces"
-	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -20,7 +20,7 @@ import (
 // Applications.
 type ApplicationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.ApplicationLister
+	Lister() applicationv1alpha1.ApplicationLister
 }
 
 type applicationInformer struct {
@@ -55,7 +55,7 @@ func NewFilteredApplicationInformer(client versioned.Interface, namespace string
 				return client.ArgoprojV1alpha1().Applications(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&applicationv1alpha1.Application{},
+		&apisapplicationv1alpha1.Application{},
 		resyncPeriod,
 		indexers,
 	)
@@ -66,9 +66,9 @@ func (f *applicationInformer) defaultInformer(client versioned.Interface, resync
 }
 
 func (f *applicationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&applicationv1alpha1.Application{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisapplicationv1alpha1.Application{}, f.defaultInformer)
 }
 
-func (f *applicationInformer) Lister() v1alpha1.ApplicationLister {
-	return v1alpha1.NewApplicationLister(f.Informer().GetIndexer())
+func (f *applicationInformer) Lister() applicationv1alpha1.ApplicationLister {
+	return applicationv1alpha1.NewApplicationLister(f.Informer().GetIndexer())
 }

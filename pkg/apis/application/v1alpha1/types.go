@@ -465,6 +465,13 @@ const (
 	RefreshTypeHard   RefreshType = "hard"
 )
 
+type HydrateType string
+
+const (
+	// HydrateTypeNormal is a normal hydration
+	HydrateTypeNormal HydrateType = "normal"
+)
+
 type RefTarget struct {
 	Repo           Repository `protobuf:"bytes,1,opt,name=repo"`
 	TargetRevision string     `protobuf:"bytes,2,opt,name=targetRevision"`
@@ -664,6 +671,8 @@ type ApplicationSourceKustomize struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
+	// LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+	LabelIncludeTemplates bool `json:"labelIncludeTemplates,omitempty" protobuf:"bytes,18,opt,name=labelIncludeTemplates"`
 }
 
 type KustomizeReplica struct {
@@ -1423,6 +1432,14 @@ type SyncPolicy struct {
 	// If you add a field here, be sure to update IsZero.
 }
 
+// IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
+func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
+	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
+		return true
+	}
+	return false
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
@@ -1498,6 +1515,8 @@ type SyncPolicyAutomated struct {
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	// Enable allows apps to explicitly control automated sync
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1629,7 +1648,8 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 // PruningRequired returns a positive integer containing the number of resources that require pruning after an operation has been completed
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
-		if res.Status == synccommon.ResultCodePruneSkipped {
+		// find all resources that require pruning but ignore resources marked for no pruning using sync-option Prune=false
+		if res.Status == synccommon.ResultCodePruneSkipped && !strings.Contains(res.Message, "no prune") {
 			num++
 		}
 	}
@@ -3122,7 +3142,7 @@ func (app *Application) IsHydrateRequested() bool {
 	if !ok {
 		return false
 	}
-	if typeStr == "normal" {
+	if typeStr == string(HydrateTypeNormal) {
 		return true
 	}
 	return false

@@ -22,7 +22,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -531,6 +531,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		filter       string
 		container    string
 		previous     bool
+		matchCase    bool
 	)
 	command := &cobra.Command{
 		Use:   "logs APPNAME",
@@ -566,6 +567,9 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   # Filter logs to show only those containing a specific string
   argocd app logs my-app --filter "error"
 
+  # Filter logs to show only those containing a specific string and match case
+  argocd app logs my-app --filter "error" --match-case
+
   # Get logs for a specific container within the pods
   argocd app logs my-app -c my-container
 
@@ -599,6 +603,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					SinceSeconds: ptr.To(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
+					MatchCase:    ptr.To(matchCase),
 					Container:    ptr.To(container),
 					Previous:     ptr.To(previous),
 					AppNamespace: &appNs,
@@ -643,6 +648,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&filter, "filter", "", "Show logs contain this string")
 	command.Flags().StringVarP(&container, "container", "c", "", "Optional container name")
 	command.Flags().BoolVarP(&previous, "previous", "p", false, "Specify if the previously terminated container logs should be returned")
+	command.Flags().BoolVarP(&matchCase, "match-case", "m", false, "Specify if the filter should be case-sensitive")
 
 	return command
 }
@@ -703,7 +709,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	}
 
 	var syncPolicy string
-	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicy = "Automated"
 		if app.Spec.SyncPolicy.Automated.Prune {
 			syncPolicy += " (Prune)"
@@ -1765,7 +1771,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 func formatSyncPolicy(app argoappv1.Application) string {
-	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		return "Manual"
 	}
 	policy := "Auto"
@@ -2197,7 +2203,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				if local != "" {
-					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && !dryRun {
+					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 

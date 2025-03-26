@@ -555,7 +555,14 @@ tlsClientConfig:
 disableCompression: boolean
 ```
 
-Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
+!!! important
+    When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause
+    the Application controller to exceed the maximum number of idle connections allowed for the Kubernetes API server.
+    To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
+    Application controller.
+
+!!! important 
+    Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
 Cluster secret example:
 
@@ -784,7 +791,7 @@ The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPo
 assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
 associated EKS cluster.
 
-**AWS Auth (Depreciated)**
+**AWS Auth (Deprecated)**
 
 Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
 
@@ -1192,6 +1199,7 @@ Notes:
 * Quote globs in your YAML to avoid parsing errors.
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
+* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
 
 ## Mask sensitive Annotations on Secrets
 
