@@ -1949,7 +1949,7 @@ apps   Deployment  default    test           Synced  Healthy
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
-	ctx := context.Background()
+	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
 	watch := watchOpts{
 		sync:      false,
