@@ -61,6 +61,7 @@ argocd-application-controller [flags]
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                                   Path to Redis client key (e.g. /etc/certs/redis/client.crt).
       --redis-compress string                                     Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --redis-connection-max-idle-time duration                   Redis client connection max idle time (default 30m0s)
       --redis-insecure-skip-tls-verify                            Skip Redis server certificate validation.
       --redis-use-tls                                             Use TLS when connecting to Redis. 
       --redisdb int                                               Redis database.
