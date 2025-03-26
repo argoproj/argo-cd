@@ -398,7 +398,12 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			if timeout != 0 {
 				time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-					cancel()
+					if ctx.Err() != nil {
+						fmt.Println("Timeout function: context already cancelled:", ctx.Err())
+					} else {
+						fmt.Println("Timeout function: cancelling context manually")
+						cancel()
+					}
 				})
 			}
 			getAppStateWithRetry := func() (*argoappv1.Application, error) {
