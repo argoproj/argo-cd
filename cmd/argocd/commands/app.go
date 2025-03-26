@@ -2559,7 +2559,7 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 // AppWithLock encapsulates the application and its lock
 type AppWithLock struct {
-	mu  sync.RWMutex
+	mu  sync.Mutex
 	app *argoappv1.Application
 }
 
@@ -2577,8 +2577,8 @@ func (a *AppWithLock) SetApp(app *argoappv1.Application) {
 
 // GetApp safely retrieves the application
 func (a *AppWithLock) GetApp() *argoappv1.Application {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	return a.app
 }
 
