@@ -592,13 +592,13 @@ install-test-tools-local:
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
-	./hack/install.sh goreman
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+	./hack/install.sh goreman
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
