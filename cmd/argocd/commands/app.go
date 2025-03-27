@@ -1274,9 +1274,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+			refreshType := getRefreshType(refresh, hardRefresh)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
-				Refresh:      getRefreshType(refresh, hardRefresh),
+				Refresh:      refreshType,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
@@ -1314,6 +1315,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace:    &appNs,
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
+					NoCache:         ptr.To(refreshType != nil),
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1326,6 +1328,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Name:         &appName,
 					Revision:     &revision,
 					AppNamespace: &appNs,
+					NoCache:      ptr.To(refreshType != nil),
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
