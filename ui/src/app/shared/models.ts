@@ -538,10 +538,6 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
-        issuer: string;
-        clientID: string;
-        scopes: string[];
-        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
