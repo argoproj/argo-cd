@@ -14,6 +14,7 @@ import (
 
 	bb "github.com/ktrysmt/go-bitbucket"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -491,11 +492,33 @@ func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
 		if strings.HasPrefix(source.TargetRevision, prefix) {
-			return revision == targetRev
+			return compareRevisions(revision, targetRev)
 		}
 	}
 
-	return source.TargetRevision == revision
+	return compareRevisions(revision, source.TargetRevision)
+}
+
+func compareRevisions(revision string, targetRevision string) bool {
+	if revision == targetRevision {
+		return true
+	}
+
+	// If basic equality checking fails, it might be that the target revision is
+	// a semver version constraint
+	constraint, err := semver.NewConstraint(targetRevision)
+	if err != nil {
+		// The target revision is not a constraint
+		return false
+	}
+
+	version, err := semver.NewVersion(revision)
+	if err != nil {
+		// The new revision is not a valid semver version, so it can't match the constraint.
+		return false
+	}
+
+	return constraint.Check(version)
 }
 
 func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
