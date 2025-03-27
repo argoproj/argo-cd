@@ -11,12 +11,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	accountFixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 func TestCreateAndUseAccount(t *testing.T) {
@@ -26,20 +26,49 @@ func TestCreateAndUseAccount(t *testing.T) {
 		When().
 		Create().
 		Then().
-		And(func(account *account.Account, _ error) {
+		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
 			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
 		Then().
-		CurrentUser(func(user *session.GetUserInfoResponse, _ error) {
+		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
 			assert.True(t, user.LoggedIn)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
 }
 
-func TestCanIGetLogsAllow(t *testing.T) {
+func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		When().
+		Create().
+		Login().
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Contains(t, output, "yes")
+		})
+}
+
+func TestCanIGetLogsDenySwitchOn(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		When().
+		Create().
+		Login().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.Contains(t, output, "no")
+		})
+}
+
+func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
@@ -59,24 +88,26 @@ func TestCanIGetLogsAllow(t *testing.T) {
 				Scope:    ProjectName + "/*",
 			},
 		}, "log-viewer").
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
+		AndCLIOutput(func(output string, err error) {
 			assert.Contains(t, output, "yes")
 		})
 }
 
-func TestCanIGetLogsDeny(t *testing.T) {
+func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
 		Name("test").
 		When().
 		Create().
 		Login().
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "false").
 		CanIGetLogs().
 		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "no")
+		AndCLIOutput(func(output string, err error) {
+			assert.Contains(t, output, "yes")
 		})
 }
 
@@ -89,9 +120,9 @@ func TestCreateAndUseAccountCLI(t *testing.T) {
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
 
-	errors.CheckError(SetAccounts(map[string][]string{
+	SetAccounts(map[string][]string{
 		"test": {"login", "apiKey"},
-	}))
+	})
 
 	output, err = RunCli("account", "list")
 	errors.CheckError(err)

@@ -1,4 +1,4 @@
-PACKAGE=github.com/argoproj/argo-cd/v3/common
+PACKAGE=github.com/argoproj/argo-cd/v2/common
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
@@ -355,6 +355,11 @@ mod-vendor: test-tools-image
 mod-vendor-local: mod-download-local
 	go mod vendor
 
+# Deprecated - replace by install-tools-local
+.PHONY: install-lint-tools
+install-lint-tools:
+	./hack/install.sh lint-tools
+
 # Run linter on the code
 .PHONY: lint
 lint: test-tools-image
@@ -430,7 +435,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -467,7 +472,6 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/coverage/repo-server
 	mkdir -p /tmp/coverage/applicationset-controller
 	mkdir -p /tmp/coverage/notification
-	mkdir -p /tmp/coverage/commit-server
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
@@ -482,10 +486,8 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
 	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE=true \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
-	ARGOCD_HYDRATOR_ENABLED=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -594,7 +596,6 @@ install-codegen-tools-local:
 .PHONY: install-go-tools-local
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
-	./hack/install.sh lint-tools
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
@@ -675,6 +676,7 @@ help:
 	@echo 'debug:'
 	@echo '  list -- list all make targets'
 	@echo '  install-tools-local -- install all the tools below'
+	@echo '  install-lint-tools(-local)'
 	@echo
 	@echo 'codegen:'
 	@echo '  codegen(-local) -- if using -local, run the following targets first'

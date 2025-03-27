@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 	"time"
 
-	ioutil "github.com/argoproj/argo-cd/v3/util/io"
+	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 
 	rediscache "github.com/go-redis/cache/v9"
 	"github.com/redis/go-redis/v9"
@@ -63,7 +62,7 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
-func (r *redisCache) marshal(obj any) ([]byte, error) {
+func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
 	if r.redisCompressionType == RedisCompressionGZip {
@@ -87,15 +86,15 @@ func (r *redisCache) marshal(obj any) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (r *redisCache) unmarshal(data []byte, obj any) error {
+func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	buf := bytes.NewReader(data)
 	var reader io.Reader = buf
 	if r.redisCompressionType == RedisCompressionGZip {
-		gzipReader, err := gzip.NewReader(buf)
-		if err != nil {
+		if gzipReader, err := gzip.NewReader(buf); err != nil {
 			return err
+		} else {
+			reader = gzipReader
 		}
-		reader = gzipReader
 	}
 	if err := json.NewDecoder(reader).Decode(obj); err != nil {
 		return fmt.Errorf("failed to decode cached data: %w", err)
@@ -131,7 +130,7 @@ func (r *redisCache) Set(item *Item) error {
 	})
 }
 
-func (r *redisCache) Get(key string, obj any) error {
+func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
 	if errors.Is(err, rediscache.ErrCacheMiss) {
@@ -196,16 +195,11 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	}
 }
 
-func (redisHook) ProcessPipelineHook(_ redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return nil
 }
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
-// Lock should be shared between functions that can add/process a Redis hook.
-func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
-	if lock != nil {
-		lock.Lock()
-		defer lock.Unlock()
-	}
+func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
 	client.AddHook(&redisHook{registry: registry})
 }

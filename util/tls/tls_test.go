@@ -116,7 +116,9 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 	certChain := decodePem(chain)
 	cert, _ := EncodeX509KeyPairString(certChain)
 
-	assert.Equal(t, strings.TrimSpace(chain), strings.TrimSpace(cert))
+	if strings.TrimSpace(chain) != strings.TrimSpace(cert) {
+		t.Errorf("Incorrect, got: %s, want: %s", cert, chain)
+	}
 }
 
 func TestGetTLSVersionByString(t *testing.T) {
@@ -143,7 +145,7 @@ func TestGetTLSVersionByString(t *testing.T) {
 func TestGetTLSCipherSuitesByString(t *testing.T) {
 	suites := make([]string, 0)
 	for _, s := range tls.CipherSuites() {
-		t.Run("Test for valid suite "+s.Name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("Test for valid suite %s", s.Name), func(t *testing.T) {
 			ids, err := getTLSCipherSuitesByString(s.Name)
 			require.NoError(t, err)
 			assert.Len(t, ids, 1)
@@ -185,23 +187,26 @@ func TestGenerate(t *testing.T) {
 	t.Run("Invalid: No hosts specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "hosts not supplied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hosts not supplied")
 	})
 
 	t.Run("Invalid: No organization specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "organization not supplied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organization not supplied")
 	})
 
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "Unrecognized elliptic curve")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Unrecognized elliptic curve")
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {
-		t.Run("Create certificate with curve "+curve, func(t *testing.T) {
+		t.Run(fmt.Sprintf("Create certificate with curve %s", curve), func(t *testing.T) {
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
 			_, _, err := generate(opts)
 			require.NoError(t, err)

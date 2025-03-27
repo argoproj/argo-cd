@@ -123,7 +123,7 @@ argocd app set guestbook-default --project myproject
 
 ## Project Roles
 
-Projects include a feature called roles that can be used to determine who and what can be done to the applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
+Projects include a feature called roles that can be used to determine who and what can be done applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
 
 Projects can have multiple roles, and those roles can have different access granted to them. These permissions are called policies which follows the same [RBAC pattern used in Argo CD configuration](../operator-manual/rbac.md). They are stored within the role as a list of policy strings. A role's policy can only grant access to that role. Users are associated with roles based on the groups list. Consider the hypothetical AppProject definition below:
 
@@ -135,20 +135,20 @@ metadata:
 spec:
   ...
   roles:
-  - name: custom-project-role
-    description: The "custom-project-role" will be applied to the `some-user` group.
+  - description: some-role
     groups:
     - some-user
+    name: admin
     policies:
-    - p, proj:sample-test-project:custom-project-role, applications, *, *, allow
+    - p, proj:sample-test-project:some-role, applications, *, *, allow
   ...
 ```
 
 Argo CD will use the policies defined in the AppProject roles while authorizing users actions. To determine which role a given users is associated with, it will dynamically create groups based on the role name in runtime. The project definition above will generate the following Casbin RBAC rules:
 
 ```
-    p, proj:sample-test-project:custom-project-role, applications, *, *, allow
-    g, some-user, proj:sample-test-project:custom-project-role
+    p, proj:sample-test-project:some-role, applications, *, *, allow
+    g, some-user, proj:sample-test-project:some-role
 ```
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
@@ -315,10 +315,9 @@ stringData:
 ```
 
 !!! warning
-Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
-name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
-(i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
-that do _not_ have a `project` set).
+Please keep in mind when using a project-scoped repository, only applications from the same project can make use of
+it. When using applicationsets with the Git generator, only non-scoped repositories can be used (i.e. repositories that
+do _not_ have a `project` set).
 
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
 

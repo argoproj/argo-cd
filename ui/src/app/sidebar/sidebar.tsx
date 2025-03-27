@@ -54,19 +54,13 @@ export const Sidebar = (props: SidebarProps) => {
                     </div>
                     {!props.pref.hideSidebar && (
                         <div className='sidebar__logo-container'>
-                            <img
-                                onClick={() => context.history.push('/')}
-                                title={'Go to start page'}
-                                src='assets/images/argologo.svg'
-                                alt='Argo'
-                                className='sidebar__logo__text-logo'
-                            />
+                            <img src='assets/images/argologo.svg' alt='Argo' className='sidebar__logo__text-logo' />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
                                 {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
                             </div>
                         </div>
                     )}
-                    <img onClick={() => context.history.push('/')} title={'Go to start page'} src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
+                    <img src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
                 </div>
 
                 {(props.navItems || []).map(item => (

@@ -9,29 +9,12 @@ import {MonacoEditor} from '../monaco-editor';
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
 
-const formatYamlWithArrays = (input: any): string => {
-    // First, get the basic YAML
-    let yaml = jsYaml.dump(input, {
-        indent: 2,
-        lineWidth: -1,
-        noArrayIndent: false
-    });
-
-    // Format nested arrays to improve readability when collapsed
-    yaml = yaml.replace(/(\s+)(-\s*)(\w+):/g, (match, indent, dash, key) => {
-        return `${indent}-${indent}  ${key}:`;
-    });
-
-    return yaml;
-};
-
 export class YamlEditor<T> extends React.Component<
     {
         input: T;
         hideModeButtons?: boolean;
         initialEditMode?: boolean;
         vScrollbar?: boolean;
-        enableWordWrap?: boolean;
         onSave?: (patch: string, patchType: string) => Promise<any>;
         onCancel?: () => any;
         minHeight?: number;
@@ -49,7 +32,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? formatYamlWithArrays(props.input) : '';
+        const yaml = props.input ? jsYaml.dump(props.input) : '';
 
         return (
             <div className='yaml-editor'>
@@ -115,11 +98,7 @@ export class YamlEditor<T> extends React.Component<
                     vScrollBar={props.vScrollbar}
                     editor={{
                         input: {text: yaml, language: 'yaml'},
-                        options: {
-                            readOnly: !this.state.editing,
-                            minimap: {enabled: false},
-                            wordWrap: props.enableWordWrap ? 'on' : 'off'
-                        },
+                        options: {readOnly: !this.state.editing, minimap: {enabled: false}},
                         getApi: api => {
                             this.model = api.getModel() as monacoEditor.editor.ITextModel;
                         }
