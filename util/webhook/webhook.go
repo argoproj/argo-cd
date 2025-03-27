@@ -14,8 +14,6 @@ import (
 
 	bb "github.com/ktrysmt/go-bitbucket"
 
-	azv7 "github.com/Microsoft/azure-devops-go-api/azuredevops/v7"
-	azv7git "github.com/Microsoft/azure-devops-go-api/azuredevops/v7/git"
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -23,6 +21,8 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	azv7 "github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	azv7git "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
