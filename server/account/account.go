@@ -74,7 +74,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 			return nil, fmt.Errorf("failed to get issue time: %w", err)
 		}
 		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
-			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
+			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token")
 		}
 	}
 
@@ -90,7 +90,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	}
 
 	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
-		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
+		err := fmt.Errorf("new password does not match the following expression: %s", passwordPattern)
 		return nil, err
 	}
 
