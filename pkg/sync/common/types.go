@@ -136,6 +136,10 @@ func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
 type ResourceSyncResult struct {
 	// holds associated resource key
 	ResourceKey kube.ResourceKey
+	// Images holds the images associated with the resource. These images are collected on a best-effort basis
+	// from fields used by known workload resources. This does not necessarily reflect the exact list of images
+	// used by workloads in the application.
+	Images []string
 	// holds resource version
 	Version string
 	// holds the execution order

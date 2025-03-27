@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -2088,4 +2090,51 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodePruned, result[0].Status)
 	assert.Equal(t, synccommon.ResultCodePruned, result[1].Status)
 	assert.Equal(t, synccommon.ResultCodePruned, result[2].Status)
+}
+
+func BenchmarkSync(b *testing.B) {
+	podManifest := `{
+	  "apiVersion": "v1",
+	  "kind": "Pod",
+	  "metadata": {
+		"name": "my-pod"
+	  },
+	  "spec": {
+		"containers": [
+		${containers}
+		]
+	  }
+	}`
+	container := `{
+			"image": "nginx:1.7.9",
+			"name": "nginx",
+			"resources": {
+			  "requests": {
+				"cpu": "0.2"
+			  }
+			}
+		  }`
+
+	maxContainers := 10
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		containerCount := min(i+1, maxContainers)
+
+		containerStr := strings.Repeat(container+",", containerCount)
+		containerStr = containerStr[:len(containerStr)-1]
+
+		manifest := strings.ReplaceAll(podManifest, "${containers}", containerStr)
+		pod := testingutils.Unstructured(manifest)
+		pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+		syncCtx.log = logr.Discard()
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, pod},
+			Target: []*unstructured.Unstructured{testingutils.NewService(), nil},
+		})
+
+		b.StartTimer()
+		syncCtx.Sync()
+	}
 }

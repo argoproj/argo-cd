@@ -178,6 +178,169 @@ spec:
 	assert.Nil(t, GetDeploymentReplicas(&noDeployment))
 }
 
+func TestGetResourceImages(t *testing.T) {
+	testCases := []struct {
+		manifest    []byte
+		expected    []string
+		description string
+	}{
+		{
+			manifest: []byte(`
+apiVersion: extensions/v1beta2
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    foo: bar
+spec:
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+          - containerPort: 80
+      - name: agent
+        image: agent:1.0.0`),
+			expected:    []string{"nginx:1.7.9", "agent:1.0.0"},
+			description: "deployment with two containers",
+		},
+		{
+			manifest: []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+  labels:
+    app: my-app
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+  - name: sidecar-container
+    image: busybox:1.35
+    command: ["sh", "-c", "echo Hello from the sidecar; sleep 3600"]
+`),
+			expected:    []string{"nginx:1.21", "busybox:1.35"},
+			description: "pod with containers",
+		},
+		{
+			manifest: []byte(`
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+`),
+			expected:    []string{"busybox:1.28"},
+			description: "cronjob with containers",
+		},
+		{
+			manifest: []byte(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example-config
+  namespace: default
+  labels:
+    app: my-app
+data:
+  app.properties: |
+    key1=value1
+    key2=value2
+    key3=value3
+  log.level: debug
+`),
+			expected:    nil,
+			description: "configmap without containers",
+		},
+		{
+			manifest: []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-no-containers
+  labels:
+    foo: bar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      volumes:
+      - name: config-volume
+        configMap:
+          name: config
+`),
+			expected:    nil,
+			description: "deployment without containers",
+		},
+		{
+			manifest: []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-without-image
+spec:
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: text-service
+          command: ["echo", "hello"]
+`),
+			expected:    nil,
+			description: "deployment with container without image",
+		},
+		{
+			manifest: []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: example-pod
+  labels:
+    app: my-app
+spec:
+  containers:
+  - name: no-image-container
+    command: ["echo", "hello"]
+`),
+			expected:    nil,
+			description: "pod with container without image",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			resource := unstructured.Unstructured{}
+			err := yaml.Unmarshal(tc.manifest, &resource)
+			require.NoError(t, err)
+			images := GetResourceImages(&resource)
+			require.Equal(t, tc.expected, images)
+		})
+	}
+}
+
 func TestSplitYAML_SingleObject(t *testing.T) {
 	objs, err := SplitYAML([]byte(depWithLabel))
 	require.NoError(t, err)
