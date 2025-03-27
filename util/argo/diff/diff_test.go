@@ -201,7 +201,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
 		assert.Equal(t, f.noCache, diffConfig.NoCache())
 		assert.Equal(t, f.ignoreRoles, diffConfig.IgnoreAggregatedRoles())
-		assert.Equal(t, "", diffConfig.AppName())
+		assert.Empty(t, diffConfig.AppName())
 		assert.Nil(t, diffConfig.StateCache())
 	})
 	t.Run("will initialize ignore differences if nil is passed", func(t *testing.T) {

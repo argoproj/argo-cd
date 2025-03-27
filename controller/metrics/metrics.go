@@ -308,7 +308,7 @@ func (m *MetricsServer) HasExpiration() bool {
 // SetExpiration reset Prometheus metrics based on time duration interval
 func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	if m.HasExpiration() {
-		return errors.New("Expiration is already set")
+		return errors.New("expiration is already set")
 	}
 
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {

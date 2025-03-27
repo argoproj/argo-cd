@@ -2348,9 +2348,9 @@ spec:
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(NoConditions()).
 		And(func(app *Application) {
-			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.ObjectMeta.Labels)
-			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.ObjectMeta.Annotations)
-			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.ObjectMeta.Finalizers)
+			assert.Equal(t, map[string]string{"labels.local/from-file": "file", "labels.local/from-args": "args"}, app.Labels)
+			assert.Equal(t, map[string]string{"annotations.local/from-file": "file"}, app.Annotations)
+			assert.Equal(t, []string{"resources-finalizer.argocd.argoproj.io"}, app.Finalizers)
 			assert.Equal(t, path, app.Spec.GetSource().Path)
 			assert.Equal(t, []HelmParameter{{Name: "foo", Value: "foo"}}, app.Spec.GetSource().Helm.Parameters)
 		})
@@ -2846,7 +2846,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked
 			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.DeploymentNamespace()).Get(t.Context(), "other-configmap", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Equal(t, "", cm.Name)
+			require.Empty(t, cm.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -2898,7 +2898,7 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// The extra configmap must be pruned now, because it's tracked and does not exist in git
 			cr, err := fixture.KubeClientset.RbacV1().ClusterRoles().Get(t.Context(), "e2e-other-clusterrole", metav1.GetOptions{})
 			require.Error(t, err)
-			require.Equal(t, "", cr.Name)
+			require.Empty(t, cr.Name)
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
