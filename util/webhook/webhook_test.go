@@ -566,8 +566,15 @@ func TestAppRevisionHasChanged(t *testing.T) {
 		{"dev target revision, dev, did not touch head", getSource("dev"), "dev", false, true},
 		{"refs/heads/dev target revision, master, touched head", getSource("refs/heads/dev"), "master", true, false},
 		{"refs/heads/dev target revision, dev, did not touch head", getSource("refs/heads/dev"), "dev", false, true},
+		{"refs/tags/dev target revision, dev, did not touch head", getSource("refs/tags/dev"), "dev", false, true},
 		{"env/test target revision, env/test, did not touch head", getSource("env/test"), "env/test", false, true},
 		{"refs/heads/env/test target revision, env/test, did not touch head", getSource("refs/heads/env/test"), "env/test", false, true},
+		{"refs/tags/env/test target revision, env/test, did not touch head", getSource("refs/tags/env/test"), "env/test", false, true},
+		{"three/part/rev target revision, rev, did not touch head", getSource("three/part/rev"), "rev", false, false},
+		{"1.* target revision (matching), 1.1.0, did not touch head", getSource("1.*"), "1.1.0", false, true},
+		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", getSource("refs/tags/1.*"), "1.1.0", false, true},
+		{"1.* target revision (not matching), 2.0.0, did not touch head", getSource("1.*"), "2.0.0", false, false},
+		{"1.* target revision, dev (not semver), did not touch head", getSource("1.*"), "dev", false, false},
 	}
 
 	for _, tc := range testCases {
