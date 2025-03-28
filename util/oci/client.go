@@ -480,30 +480,52 @@ func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, allowedMed
 	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize, allowedMediaTypes}, nil
 }
 
+func isHelmOCI(mediaType string) bool {
+	return mediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+}
+
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
 func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
 	if isCompressedLayer(desc.MediaType) {
-		tempDir, err := files.CreateTempDir(os.TempDir())
+		srcDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(tempDir)
+		defer os.RemoveAll(srcDir)
 
 		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
-			err = files.Untgz(tempDir, content, s.maxSize, false)
+			err = files.Untgz(srcDir, content, s.maxSize, false)
 		} else {
-			err = files.Untar(tempDir, content, s.maxSize, false)
+			err = files.Untar(srcDir, content, s.maxSize, false)
 		}
 
 		if err != nil {
 			return fmt.Errorf("could not decompress layer: %w", err)
 		}
 
-		return filepath.WalkDir(tempDir, func(path string, d fs.DirEntry, _ error) error {
-			if path != tempDir {
+		if isHelmOCI(desc.MediaType) {
+			infos, err := os.ReadDir(srcDir)
+			if err != nil {
+				return err
+			}
+
+			// For a Helm chart we expect a single directory
+			if len(infos) != 1 || !infos[0].IsDir() {
+				return fmt.Errorf("expected 1 directory, found %v", len(infos))
+			}
+
+			// For Helm charts, we will move the contents of the unpacked directory to the root of its final destination
+			srcDir, err = securejoin.SecureJoin(srcDir, infos[0].Name())
+			if err != nil {
+				return err
+			}
+		}
+
+		return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, _ error) error {
+			if path != srcDir {
 				// Calculate the relative path from srcDir
-				relPath, err := filepath.Rel(tempDir, path)
+				relPath, err := filepath.Rel(srcDir, path)
 				if err != nil {
 					return err
 				}
