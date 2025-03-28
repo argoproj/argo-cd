@@ -127,8 +127,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}()
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
-	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
-		appsetName := applicationSetInfo.ObjectMeta.Name
+	if applicationSetInfo.DeletionTimestamp != nil {
+		appsetName := applicationSetInfo.Name
 		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
 		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
@@ -314,7 +314,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if applicationSetInfo.RefreshRequired() {
 		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
-		err := r.Client.Update(ctx, &applicationSetInfo)
+		err := r.Update(ctx, &applicationSetInfo)
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -488,7 +488,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		namesSet[app.Name] = true
 
 		appProject := &argov1alpha1.AppProject{}
-		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
+		err := r.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -624,7 +624,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			preservedAnnotations = append(preservedAnnotations, defaultPreservedAnnotations...)
 
 			for _, key := range preservedAnnotations {
-				if state, exists := found.ObjectMeta.Annotations[key]; exists {
+				if state, exists := found.Annotations[key]; exists {
 					if generatedApp.Annotations == nil {
 						generatedApp.Annotations = map[string]string{}
 					}
@@ -633,7 +633,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 
 			for _, key := range preservedLabels {
-				if state, exists := found.ObjectMeta.Labels[key]; exists {
+				if state, exists := found.Labels[key]; exists {
 					if generatedApp.Labels == nil {
 						generatedApp.Labels = map[string]string{}
 					}
@@ -643,7 +643,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 
 			// Preserve post-delete finalizers:
 			//   https://github.com/argoproj/argo-cd/issues/17181
-			for _, finalizer := range found.ObjectMeta.Finalizers {
+			for _, finalizer := range found.Finalizers {
 				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
 					if generatedApp.Finalizers == nil {
 						generatedApp.Finalizers = []string{}
@@ -652,10 +652,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				}
 			}
 
-			found.ObjectMeta.Annotations = generatedApp.Annotations
+			found.Annotations = generatedApp.Annotations
 
-			found.ObjectMeta.Finalizers = generatedApp.Finalizers
-			found.ObjectMeta.Labels = generatedApp.Labels
+			found.Finalizers = generatedApp.Finalizers
+			found.Labels = generatedApp.Labels
 
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
@@ -709,7 +709,7 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 
 func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.Application, error) {
 	var current argov1alpha1.ApplicationList
-	err := r.Client.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
+	err := r.List(ctx, &current, client.MatchingFields{".metadata.controller": applicationSet.Name}, client.InNamespace(applicationSet.Namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving applications: %w", err)
 	}
@@ -754,7 +754,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				continue
 			}
 
-			err = r.Client.Delete(ctx, &app)
+			err = r.Delete(ctx, &app)
 			if err != nil {
 				logCtx.WithError(err).Error("failed to delete Application")
 				if firstError != nil {
@@ -823,7 +823,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 			if log.IsLevelEnabled(log.DebugLevel) {
 				utils.LogPatch(appLog, patch, updated)
 			}
-			if err := r.Client.Patch(ctx, updated, patch); err != nil {
+			if err := r.Patch(ctx, updated, patch); err != nil {
 				return fmt.Errorf("error updating finalizers: %w", err)
 			}
 			// Application must have updated list of finalizers
@@ -845,7 +845,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 
 	for _, app := range applications {
 		app.SetOwnerReferences([]metav1.OwnerReference{})
-		err := r.Client.Update(ctx, &app)
+		err := r.Update(ctx, &app)
 		if err != nil {
 			return fmt.Errorf("error updating application: %w", err)
 		}
@@ -1521,9 +1521,9 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 	// https://pkg.go.dev/reflect#DeepEqual
 	// ApplicationDestination has an unexported field so we can just use the == for comparison
 	if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
-		!cmp.Equal(appOld.ObjectMeta.GetAnnotations(), appNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appOld.ObjectMeta.GetLabels(), appNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appOld.ObjectMeta.GetFinalizers(), appNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+		!cmp.Equal(appOld.GetAnnotations(), appNew.GetAnnotations(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.GetLabels(), appNew.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.GetFinalizers(), appNew.GetFinalizers(), cmpopts.EquateEmpty()) {
 		return true
 	}
 
@@ -1601,14 +1601,14 @@ func shouldRequeueForApplicationSet(appSetOld, appSetNew *argov1alpha1.Applicati
 	// NB: the ApplicationDestination comes from the ApplicationSpec being embedded
 	// in the ApplicationSetTemplate from the generators
 	if !cmp.Equal(appSetOld.Spec, appSetNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
-		!cmp.Equal(appSetOld.ObjectMeta.GetLabels(), appSetNew.ObjectMeta.GetLabels(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appSetOld.ObjectMeta.GetFinalizers(), appSetNew.ObjectMeta.GetFinalizers(), cmpopts.EquateEmpty()) {
+		!cmp.Equal(appSetOld.GetLabels(), appSetNew.GetLabels(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appSetOld.GetFinalizers(), appSetNew.GetFinalizers(), cmpopts.EquateEmpty()) {
 		return true
 	}
 
 	// Requeue only when the refresh annotation is newly added to the ApplicationSet.
 	// Changes to other annotations made simultaneously might be missed, but such cases are rare.
-	if !cmp.Equal(appSetOld.ObjectMeta.GetAnnotations(), appSetNew.ObjectMeta.GetAnnotations(), cmpopts.EquateEmpty()) {
+	if !cmp.Equal(appSetOld.GetAnnotations(), appSetNew.GetAnnotations(), cmpopts.EquateEmpty()) {
 		_, oldHasRefreshAnnotation := appSetOld.Annotations[common.AnnotationApplicationSetRefresh]
 		_, newHasRefreshAnnotation := appSetNew.Annotations[common.AnnotationApplicationSetRefresh]
 

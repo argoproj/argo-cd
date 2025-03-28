@@ -21,7 +21,7 @@ func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 
 	adminAccount, ok := accounts[common.ArgoCDAdminUsername]
 	assert.True(t, ok)
-	assert.EqualValues(t, []AccountCapability{AccountCapabilityLogin}, adminAccount.Capabilities)
+	assert.Equal(t, []AccountCapability{AccountCapabilityLogin}, adminAccount.Capabilities)
 }
 
 func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
@@ -113,7 +113,7 @@ func TestFormatPasswordMtime_SuccessfullyFormatted(t *testing.T) {
 
 func TestFormatPasswordMtime_NoMtime(t *testing.T) {
 	acc := Account{}
-	assert.Equal(t, "", acc.FormatPasswordMtime())
+	assert.Empty(t, acc.FormatPasswordMtime())
 }
 
 func TestHasCapability(t *testing.T) {

@@ -12,7 +12,7 @@ func Test_parseHeaders(t *testing.T) {
 		headerString := []string{"foo:", "foo1:bar1", "foo2:bar2:bar2"}
 		headers, err := parseHeaders(headerString)
 		require.NoError(t, err)
-		assert.Equal(t, "", headers.Get("foo"))
+		assert.Empty(t, headers.Get("foo"))
 		assert.Equal(t, "bar1", headers.Get("foo1"))
 		assert.Equal(t, "bar2:bar2", headers.Get("foo2"))
 	})

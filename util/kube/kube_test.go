@@ -73,9 +73,10 @@ func TestSetLabels(t *testing.T) {
 		require.NoError(t, err)
 
 		// the following makes sure we are not falling into legacy code which injects labels
-		if yamlStr == depWithoutSelector {
+		switch yamlStr {
+		case depWithoutSelector:
 			assert.Nil(t, depV1Beta1.Spec.Selector)
-		} else if yamlStr == depWithSelector {
+		case depWithSelector:
 			assert.Len(t, depV1Beta1.Spec.Selector.MatchLabels, 1)
 			assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
 		}
@@ -153,7 +154,7 @@ func TestSetSvcLabel(t *testing.T) {
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
-	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelKeyAppInstance])
+	assert.Equal(t, "my-app", s.Labels[common.LabelKeyAppInstance])
 }
 
 func TestIsValidResourceName(t *testing.T) {
@@ -182,7 +183,7 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
-	assert.Equal(t, "my-app", s.ObjectMeta.Annotations[common.LabelKeyAppInstance])
+	assert.Equal(t, "my-app", s.Annotations[common.LabelKeyAppInstance])
 }
 
 func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {

@@ -48,7 +48,7 @@ func TestHelmTemplateParams(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
-			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
+			assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
 		}
 	}
 }
@@ -137,7 +137,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "my-release-redis-master", stateful.Name)
 		}
 	}
 }
@@ -154,7 +154,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "test-redis-master", stateful.Name)
 		}
 	}
 }

@@ -17,12 +17,10 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 		deniedClusterResources:     []string{"rbac.authorization.k8s.io/ClusterRole"},
 	}
 
-	assert.ElementsMatch(t,
-		[]metav1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources(),
-		[]metav1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources(),
-		[]metav1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources(),
-		[]metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources(),
-	)
+	assert.ElementsMatch(t, []metav1.GroupKind{{Kind: "ConfigMap"}}, opts.GetAllowedNamespacedResources())
+	assert.ElementsMatch(t, []metav1.GroupKind{{Group: "apps", Kind: "DaemonSet"}}, opts.GetDeniedNamespacedResources())
+	assert.ElementsMatch(t, []metav1.GroupKind{{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}}, opts.GetAllowedClusterResources())
+	assert.ElementsMatch(t, []metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}}, opts.GetDeniedClusterResources())
 }
 
 func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {

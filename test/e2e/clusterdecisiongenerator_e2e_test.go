@@ -255,11 +255,11 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
+	expectedAppCluster1.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
+	expectedAppCluster2.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{
@@ -350,11 +350,11 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
+	expectedAppCluster1.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
+	expectedAppCluster2.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{
@@ -447,11 +447,11 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 
 	expectedAppCluster1 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster1.Spec.Destination.Name = "cluster1"
-	expectedAppCluster1.ObjectMeta.Name = "cluster1-guestbook"
+	expectedAppCluster1.Name = "cluster1-guestbook"
 
 	expectedAppCluster2 := *expectedAppTemplate.DeepCopy()
 	expectedAppCluster2.Spec.Destination.Name = "cluster2"
-	expectedAppCluster2.ObjectMeta.Name = "cluster2-guestbook"
+	expectedAppCluster2.Name = "cluster2-guestbook"
 
 	clusterList := []any{
 		map[string]any{

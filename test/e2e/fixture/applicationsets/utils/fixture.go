@@ -183,7 +183,7 @@ func EnsureCleanState(t *testing.T) {
 		}
 		if list != nil && len(list.Items) > 0 {
 			// Fail
-			return fmt.Errorf("Waiting for list of ApplicationSets to be size zero: %d", len(list.Items))
+			return fmt.Errorf("waiting for list of ApplicationSets to be size zero: %d", len(list.Items))
 		}
 
 		return nil // Pass
@@ -241,7 +241,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 		}
 		if list != nil && len(list.Items) > 0 {
 			// Fail
-			return fmt.Errorf("Waiting for list of ApplicationSets to be size zero: %d", len(list.Items))
+			return fmt.Errorf("waiting for list of ApplicationSets to be size zero: %d", len(list.Items))
 		}
 
 		return nil // Pass
@@ -257,7 +257,7 @@ func waitForExpectedClusterState(t *testing.T) error {
 		}
 		if appList != nil && len(appList.Items) > 0 {
 			// Fail
-			return fmt.Errorf("Waiting for list of Applications to be size zero: %d", len(appList.Items))
+			return fmt.Errorf("waiting for list of Applications to be size zero: %d", len(appList.Items))
 		}
 		return nil // Pass
 	}, time.Now().Add(60*time.Second)); err != nil {
@@ -325,11 +325,7 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 	}
 	sleepIntervalsIdx := -1
 
-	for {
-		if time.Now().After(expireTime) {
-			break
-		}
-
+	for !time.Now().After(expireTime) {
 		conditionErr := condition()
 		if conditionErr == nil {
 			// Pass!

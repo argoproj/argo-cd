@@ -83,10 +83,10 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 
 func ValidatePluginConfig(config PluginConfig) error {
 	if config.Metadata.Name == "" {
-		return errors.New("invalid plugin configuration file. metadata.name should be non-empty.")
+		return errors.New("invalid plugin configuration file. metadata.name should be non-empty")
 	}
-	if config.TypeMeta.Kind != ConfigManagementPluginKind {
-		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.TypeMeta.Kind)
+	if config.Kind != ConfigManagementPluginKind {
+		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.Kind)
 	}
 	if len(config.Spec.Generate.Command) == 0 {
 		return errors.New("invalid plugin configuration file. spec.generate command should be non-empty")

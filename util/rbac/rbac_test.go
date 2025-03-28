@@ -52,7 +52,7 @@ func TestPolicyCSV(t *testing.T) {
 		policy := PolicyCSV(data)
 
 		// then
-		assert.Equal(t, "", policy)
+		assert.Empty(t, policy)
 	})
 	t.Run("will return just policy defined with default key", func(t *testing.T) {
 		// given

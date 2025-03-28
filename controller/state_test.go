@@ -73,12 +73,12 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	require.EqualError(t, err, CompareStateRepoError.Error())
+	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	// expect to still get compare state error to as inside grace period
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	require.EqualError(t, err, CompareStateRepoError.Error())
+	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown

@@ -121,7 +121,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 		grpc.UnknownServiceHandler(func(_ any, stream grpc.ServerStream) error {
 			fullMethodName, ok := grpc.MethodFromServerStream(stream)
 			if !ok {
-				return errors.New("Unable to get method name from stream context.")
+				return errors.New("unable to get method name from stream context")
 			}
 			msg := make([]byte, 0)
 			err := stream.RecvMsg(&msg)

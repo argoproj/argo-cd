@@ -204,7 +204,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; !(ok && strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
 			svgWidth = svgWidthWithRevision
 		} else {

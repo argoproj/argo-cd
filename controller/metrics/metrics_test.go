@@ -81,6 +81,7 @@ status:
     status: Healthy
 operation:
   sync:
+    dryRun: true
     revision: 041eab7439ece92c99b043f0e171788185b8fc1d
     syncStrategy:
       hook: {}
@@ -408,9 +409,9 @@ func TestMetricsSyncCounter(t *testing.T) {
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
 # TYPE argocd_app_sync_total counter
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
 	fakeApp := newFakeApp(fakeApp)
@@ -519,9 +520,9 @@ func TestMetricsReset(t *testing.T) {
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
 # TYPE argocd_app_sync_total counter
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
-argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Error",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Failed",project="important-project"} 1
+argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name="my-app",namespace="argocd",phase="Succeeded",project="important-project"} 2
 `
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
