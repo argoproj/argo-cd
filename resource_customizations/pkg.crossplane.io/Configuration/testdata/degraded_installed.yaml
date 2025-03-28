@@ -1,0 +1,28 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  creationTimestamp: '2025-01-16T13:43:00Z'
+  generation: 1
+  name: my-config
+  resourceVersion: '72037'
+  uid: 89844b59-99f2-467e-8851-faa5fde64728
+  selfLink: /apis/pkg.crossplane.io/v1/configurations/my-config
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-16T13:43:03Z'
+      reason: UnknownPackageRevisionHealth
+      status: Unknown
+      type: Healthy
+    - lastTransitionTime: '2025-01-16T13:43:03Z'
+      reason: ActivePackageRevision
+      status: 'True'
+      type: Installed
+  currentIdentifier: crossplane/my-config:latest
+  currentRevision: my-config-74384878d6b9
+spec:
+  ignoreCrossplaneConstraints: false
+  package: crossplane/my-config:latest
+  packagePullPolicy: Always
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  skipDependencyResolution: true
