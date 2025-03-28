@@ -14,7 +14,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250314164314-7258614f5041
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
-	github.com/argoproj/pkg/v2 v2.0.0
+	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
@@ -90,7 +90,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/oauth2 v0.28.0
 	golang.org/x/sync v0.12.0
 	golang.org/x/term v0.30.0
