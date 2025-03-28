@@ -84,9 +84,9 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
-    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
-        if (type === 'git') {
+        if (type === 'git' || type === 'oci') {
             source.path = source.chart;
             delete source.chart;
             source.targetRevision = 'HEAD';
@@ -334,7 +334,7 @@ export const ApplicationCreatePanel = (props: {
                                                                         </p>
                                                                     )}
                                                                     qeId='application-create-dropdown-source-repository'
-                                                                    items={['git', 'helm'].map((type: 'git' | 'helm') => ({
+                                                                    items={['git', 'helm', 'oci'].map((type: 'git' | 'helm' | 'oci') => ({
                                                                         title: type.toUpperCase(),
                                                                         action: () => {
                                                                             if (repoType !== type) {
