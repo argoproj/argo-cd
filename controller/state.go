@@ -47,7 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
 
-var CompareStateRepoError = errors.New("failed to get repo objects")
+var ErrCompareStateRepo = errors.New("failed to get repo objects")
 
 type resourceInfoProviderStub struct{}
 
@@ -562,10 +562,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := false
-	if len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-		verifySignature = true
-	}
+	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
 
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
@@ -607,12 +604,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
-					return nil, CompareStateRepoError
+					return nil, ErrCompareStateRepo
 				}
 			} else if !noRevisionCache {
 				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
-				return nil, CompareStateRepoError
+				return nil, ErrCompareStateRepo
 			}
 			failedToLoadObjs = true
 		} else {
@@ -902,7 +899,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			// we ignore the status if the obj needs pruning AND we have the annotation
 			needsPruning := targetObj == nil && liveObj != nil
-			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
+			if !needsPruning || !resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		default:

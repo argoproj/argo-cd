@@ -61,7 +61,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		assert.Equal(t, "", signed)
+		assert.Empty(t, signed)
 	})
 }
 

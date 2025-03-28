@@ -132,7 +132,7 @@ func (a *EnvEntry) IsZero() bool {
 func NewEnvEntry(text string) (*EnvEntry, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected env entry of the form: param=value. Received: %s", text)
+		return nil, fmt.Errorf("expected env entry of the form: param=value but received: %s", text)
 	}
 	return &EnvEntry{
 		Name:  parts[0],
@@ -546,7 +546,7 @@ var helmParameterRx = regexp.MustCompile(`([^\\]),`)
 func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected helm parameter of the form: param=value. Received: %s", text)
+		return nil, fmt.Errorf("expected helm parameter of the form param=value but received: %s", text)
 	}
 	return &HelmParameter{
 		Name:        parts[0],
@@ -559,7 +559,7 @@ func NewHelmParameter(text string, forceString bool) (*HelmParameter, error) {
 func NewHelmFileParameter(text string) (*HelmFileParameter, error) {
 	parts := strings.SplitN(text, "=", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Expected helm file parameter of the form: param=path. Received: %s", text)
+		return nil, fmt.Errorf("expected helm file parameter of the form param=path but received: %s", text)
 	}
 	return &HelmFileParameter{
 		Name: parts[0],
@@ -972,21 +972,21 @@ func (p ApplicationSourcePluginParameter) MarshalJSON() ([]byte, error) {
 		out["string"] = p.String_
 	}
 	if p.OptionalMap != nil {
-		if p.OptionalMap.Map == nil {
+		if p.Map == nil {
 			// Nil is not the same as a nil map. Nil means the field was not set, while a nil map means the field was set to an empty map.
 			// Either way, we want to marshal it as "{}".
 			out["map"] = map[string]string{}
 		} else {
-			out["map"] = p.OptionalMap.Map
+			out["map"] = p.Map
 		}
 	}
 	if p.OptionalArray != nil {
-		if p.OptionalArray.Array == nil {
+		if p.Array == nil {
 			// Nil is not the same as a nil array. Nil means the field was not set, while a nil array means the field was set to an empty array.
 			// Either way, we want to marshal it as "[]".
 			out["array"] = []string{}
 		} else {
-			out["array"] = p.OptionalArray.Array
+			out["array"] = p.Array
 		}
 	}
 	bytes, err := json.Marshal(out)
@@ -1033,12 +1033,12 @@ func (p ApplicationSourcePluginParameters) Environ() ([]string, error) {
 			env = append(env, fmt.Sprintf("%s=%s", envBaseName, *param.String_))
 		}
 		if param.OptionalMap != nil {
-			for key, value := range param.OptionalMap.Map {
+			for key, value := range param.Map {
 				env = append(env, fmt.Sprintf("%s_%s=%s", envBaseName, escaped(key), value))
 			}
 		}
 		if param.OptionalArray != nil {
-			for i, value := range param.OptionalArray.Array {
+			for i, value := range param.Array {
 				env = append(env, fmt.Sprintf("%s_%d=%s", envBaseName, i, value))
 			}
 		}
@@ -1438,7 +1438,7 @@ type SyncPolicy struct {
 
 // IsAutomatedSyncEnabled checks if the automated sync is enabled or disabled
 func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
-	if p.Automated != nil && (p.Automated.Enable == nil || *p.Automated.Enable) {
+	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
 		return true
 	}
 	return false
@@ -1520,7 +1520,7 @@ type SyncPolicyAutomated struct {
 	// AllowEmpty allows apps have zero live resources (default: false)
 	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
-	Enable *bool `json:"enable,omitempty" protobuf:"bytes,4,opt,name=enable"`
+	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enable"`
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -3121,7 +3121,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.ObjectMeta.Finalizers {
+	for _, finalizer := range app.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return true
 		}
@@ -3209,7 +3209,7 @@ func isPropagationPolicyFinalizer(finalizer string) bool {
 
 // GetPropagationPolicy returns the value of propagation policy finalizer
 func (app *Application) GetPropagationPolicy() string {
-	for _, finalizer := range app.ObjectMeta.Finalizers {
+	for _, finalizer := range app.Finalizers {
 		if isPropagationPolicyFinalizer(finalizer) {
 			return finalizer
 		}
@@ -3454,7 +3454,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	switch u.Scheme {
 	case "http", "https", "socks5":
 	default:
-		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+		return nil, fmt.Errorf("failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
 }
@@ -3489,11 +3489,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	default:
 		tlsClientConfig := rest.TLSClientConfig{
-			Insecure:   c.Config.TLSClientConfig.Insecure,
-			ServerName: c.Config.TLSClientConfig.ServerName,
-			CertData:   c.Config.TLSClientConfig.CertData,
-			KeyData:    c.Config.TLSClientConfig.KeyData,
-			CAData:     c.Config.TLSClientConfig.CAData,
+			Insecure:   c.Config.Insecure,
+			ServerName: c.Config.ServerName,
+			CertData:   c.Config.CertData,
+			KeyData:    c.Config.KeyData,
+			CAData:     c.Config.CAData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -3547,12 +3547,12 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+		return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
 	}
 	if c.Config.ProxyUrl != "" {
 		u, err := ParseProxyUrl(c.Config.ProxyUrl)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
+			return nil, fmt.Errorf("unable to create K8s REST config, can`t parse proxy url: %w", err)
 		}
 		config.Proxy = http.ProxyURL(u)
 	}
@@ -3567,11 +3567,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	config, err := c.RawRestConfig()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
 	err = SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
+		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}
 	return config, nil
 }

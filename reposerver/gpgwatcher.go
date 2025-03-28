@@ -86,5 +86,5 @@ func StartGPGWatcher(sourcePath string) error {
 		return fmt.Errorf("failed to add a new source to the watcher: %w", err)
 	}
 	<-done
-	return errors.New("Abnormal termination of GPG watcher, refusing to continue.")
+	return errors.New("abnormal termination of GPG watcher, refusing to continue")
 }

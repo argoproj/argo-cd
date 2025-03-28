@@ -1208,9 +1208,10 @@ func CreateSubmoduleRepos(t *testing.T, repoType string) {
 		t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	}
-	if repoType == "ssh" {
+	switch repoType {
+	case "ssh":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
-	} else if repoType == "https" {
+	case "https":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
 	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
