@@ -442,6 +442,7 @@ spec:
 
 * `organization`: The name of the organization the repository is in.
 * `repository`: The name of the repository.
+* `repository_id`: The id of the repository.
 * `url`: The clone URL for the repository.
 * `branch`: The default branch of the repository.
 * `sha`: The Git commit SHA for the branch.
