@@ -1,7 +1,6 @@
 module github.com/argoproj/argo-cd/v3
 
 go 1.24.1
-
 require (
 	code.gitea.io/sdk/gitea v0.20.0
 	dario.cat/mergo v1.0.1
@@ -90,7 +89,7 @@ require (
 	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/oauth2 v0.28.0
 	golang.org/x/sync v0.12.0
 	golang.org/x/term v0.30.0
