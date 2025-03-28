@@ -215,8 +215,8 @@ export class ReposList extends React.Component<
                 return {
                     url:
                         (!validURLValues.url && 'Repository URL is required') ||
-                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && 'Not a valid HTTP/HTTPS URL') ||
-                        (this.credsTemplate && !this.isOCIUrl(validURLValues.url) && 'Not a valid OCI URL'),
+                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && params.type != 'oci' && 'Not a valid HTTP/HTTPS URL') ||
+                        (this.credsTemplate && !this.isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
                     password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
