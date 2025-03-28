@@ -118,8 +118,8 @@ github.com/argoproj/gitops-engine v0.7.1-0.20250314164314-7258614f5041 h1:2QuxuG
 github.com/argoproj/gitops-engine v0.7.1-0.20250314164314-7258614f5041/go.mod h1:4KL2HCRSGA/yLM8nOCcv+NbFsYohxmT9Lb47kWFhWYw=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872 h1:ADGAdyN9ty0+RmTT/yn+xV9vwkqvLn9O1ccqeP0Zeas=
 github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872/go.mod h1:d1RazGXWvKRFv9//rg4MRRR7rbvbE7XLgTSMT5fITTE=
-github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5 h1:YBoLSjpoaJXaXAldVvBRKJuOPvIXz9UOv6S96gMJM/Q=
-github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5/go.mod h1:ebVOzFJphdN1p6EG2mIMECv/3Rk/almSaxIYuFAmsSw=
+github.com/argoproj/pkg/v2 v2.0.0 h1:CKIrLckRKlJka/kC45iES9q8vtruPCdrKKLjs0bxjjI=
+github.com/argoproj/pkg/v2 v2.0.0/go.mod h1:Llls4hwJeRXRibYbO0Jra7l8rru531lrt1J7z9qu5dU=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3dyBCFEj5IhUbnKptjxatkF07cF2ak3yi77so=
