@@ -1075,6 +1075,8 @@ metadata:
     chart: redis-ha-4.33.2
 spec:
   strategy:
+    rollingUpdate:
+      maxUnavailable: 1
     type: RollingUpdate
   revisionHistoryLimit: 1
   replicas: 3
