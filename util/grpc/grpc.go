@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -21,29 +22,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 )
 
-// PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
-func PanicLoggerUnaryServerInterceptor(log *logrus.Entry) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ any, err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-				err = status.Errorf(codes.Internal, "%s", r)
-			}
-		}()
-		return handler(ctx, req)
-	}
-}
-
-// PanicLoggerStreamServerInterceptor returns a new streaming server interceptor for recovering from panics and returning error
-func PanicLoggerStreamServerInterceptor(log *logrus.Entry) grpc.StreamServerInterceptor {
-	return func(srv any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
-				err = status.Errorf(codes.Internal, "%s", r)
-			}
-		}()
-		return handler(srv, stream)
+// LoggerRecoveryHandler return a handler for recovering from panics and returning error
+func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
+	return func(p any) (err error) {
+		log.Errorf("Recovered from panic: %+v\n%s", p, debug.Stack())
+		return status.Errorf(codes.Internal, "%s", p)
 	}
 }
 
@@ -166,13 +149,4 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 		return &testResult, nil
 	}
 	return nil, err
-}
-
-func WithTimeout(duration time.Duration) grpc.UnaryClientInterceptor {
-	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		clientDeadline := time.Now().Add(duration)
-		ctx, cancel := context.WithDeadline(ctx, clientDeadline)
-		defer cancel()
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
 }

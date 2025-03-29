@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="30 known vulnerabilities found in 74 vulnerable dependency paths.">
+  <meta name="description" content="31 known vulnerabilities found in 76 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 2nd 2025, 12:19:59 am (UTC+00:00)</p>
+                <p class="timestamp">March 16th 2025, 12:21:05 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -469,8 +469,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>30</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>74 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>31</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>76 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>969</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -630,6 +630,86 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXOAUTH2JWS-8749594">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/http/httpproxy
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/net/http/httpproxy@v0.26.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http/httpproxy@v0.26.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/http/httpproxy@v0.27.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/http/httpproxy">golang.org/x/net/http/httpproxy</a> is a package for HTTP proxy determination based on environment variables, as provided by net/http&#39;s ProxyFromEnvironment function</p>
+        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) in <code>proxy.go</code>, because hostname matching against proxy patterns may treat an IPv6 zone ID as a hostname component. An environment variable value like <code>*.example.com</code> could be matched to a request intended for <code>[::1%25.example.com]:80</code>.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/http/httpproxy</code> to version 0.36.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://go-review.googlesource.com/c/go/+/654717/4/src/vendor/golang.org/x/net/http/httpproxy/proxy.go">Git Commit</a></li>
+        <li><a href="https://github.com/golang/go/commit/3705a6f1f0a66e70916bb09f50f4fcd1c520df53">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/net/commit/76f9bf3279eff2e596db4960a78a2665d0ff9405">GitHub Commit</a></li>
+        <li><a href="https://github.com/golang/go/issues/71984">GitHub Issue</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTPHTTPPROXY-9058601">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v3/util/test"
+
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +52,7 @@ func TestPolicyCSV(t *testing.T) {
 		policy := PolicyCSV(data)
 
 		// then
-		assert.Equal(t, "", policy)
+		assert.Empty(t, policy)
 	})
 	t.Run("will return just policy defined with default key", func(t *testing.T) {
 		// given
@@ -271,6 +273,44 @@ func TestNoPolicy(t *testing.T) {
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 
+// TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity adds a hook into logrus.StandardLogger and validates
+// policies with and without referential integrity issues.  Log entries are searched to verify expected outcomes.
+func TestValidatePolicyCheckUserDefinedPolicyReferentialIntegrity(t *testing.T) {
+	// Policy with referential integrity
+	policy := `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depA, role:depA
+g, depB, role:depB
+`
+	hook := test.LogHook{}
+	log.AddHook(&hook)
+	t.Cleanup(func() {
+		log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+	})
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which transitively associates to policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+g, role:depC, role:depA
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
+	// Policy with a role reference which has no associated policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Len(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies: role:depC"), 1)
+}
+
 // TestClaimsEnforcerFunc tests
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewClientset()
@@ -360,21 +400,21 @@ func TestEnforceErrorMessage(t *testing.T) {
 	require.EqualError(t, enf.EnforceErr(), "rpc error: code = PermissionDenied desc = permission denied")
 
 	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
+	ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin"})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 
 	iat := time.Unix(int64(1593035962), 0).Format(time.RFC3339)
 	exp := "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin, iat: " + iat
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: jwt.NewNumericDate(time.Unix(int64(1593035962), 0))})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), exp)
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now())})
 	require.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project")
 
 	//nolint:staticcheck
-	ctx = context.WithValue(context.Background(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
+	ctx = context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "proj:default:admin", IssuedAt: nil})
 	assert.EqualError(t, enf.EnforceErr(ctx.Value("claims"), "project"), "rpc error: code = PermissionDenied desc = permission denied: project, sub: proj:default:admin")
 }
 

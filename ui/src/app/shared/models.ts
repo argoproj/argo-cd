@@ -129,6 +129,7 @@ export interface ResourceResult {
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
+    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';

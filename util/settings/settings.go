@@ -584,7 +584,7 @@ const (
 	// IgnoreResourceStatusInAll ignores status changes for all resources
 	IgnoreResourceStatusInAll IgnoreStatus = "all"
 	// IgnoreResourceStatusInNone ignores status changes for no resources
-	IgnoreResourceStatusInNone IgnoreStatus = "off"
+	IgnoreResourceStatusInNone IgnoreStatus = "none"
 )
 
 type ArgoCDDiffOptions struct {
@@ -780,7 +780,7 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SecretCopy(secrets)
+	secrets = util.SliceCopy(secrets)
 	return secrets, nil
 }
 
@@ -977,31 +977,30 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 
-	var diffOptions ArgoCDDiffOptions
-	if value, ok := argoCDCM.Data[resourceCompareOptionsKey]; ok {
-		err := yaml.Unmarshal([]byte(value), &diffOptions)
-		if err != nil {
-			return nil, err
-		}
+	diffOptions, err := mgr.GetResourceCompareOptions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
 
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 	crdPrsvUnkn := "/spec/preserveUnknownFields"
 
 	switch diffOptions.IgnoreResourceStatusField {
-	case "", "crd":
-		addStatusOverrideToGK(resourceOverrides, crdGK)
-		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
-	case "all":
+	case "", IgnoreResourceStatusInAll:
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Info("Ignore status for all objects")
-
-	case "off", "false":
-		log.Info("Not ignoring status for any object")
-
-	default:
+	case IgnoreResourceStatusInCRD:
 		addStatusOverrideToGK(resourceOverrides, crdGK)
-		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for CustomResourceDefinitions", diffOptions.IgnoreResourceStatusField)
+		addIgnoreDiffItemOverrideToGK(resourceOverrides, crdGK, crdPrsvUnkn)
+	case IgnoreResourceStatusInNone, "off", "false":
+		// Yaml 'off' non-string value can be converted to 'false'
+		// Support these cases because compareoptions is a yaml string in the config
+		// and this misconfiguration can be hard to catch for users.
+		// To prevent this, the default value has been changed to none
+		log.Info("Not ignoring status for any object")
+	default:
+		addStatusOverrideToGK(resourceOverrides, "*/*")
+		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for all resources", diffOptions.IgnoreResourceStatusField)
 	}
 
 	return resourceOverrides, nil
@@ -1110,7 +1109,7 @@ func convertToOverrideKey(groupKind string) (string, error) {
 }
 
 func GetDefaultDiffOptions() ArgoCDDiffOptions {
-	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreDifferencesOnResourceUpdates: false}
+	return ArgoCDDiffOptions{IgnoreAggregatedRoles: false, IgnoreResourceStatusField: IgnoreResourceStatusInAll, IgnoreDifferencesOnResourceUpdates: true}
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
@@ -1265,7 +1264,7 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
-		return &settings, errs[0]
+		return &settings, errors.Join(errs...)
 	}
 
 	return &settings, nil
@@ -1329,7 +1328,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("Timed out waiting for settings cache to sync")
+		return errors.New("timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1480,7 +1479,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("Failed to parse URL: %w", err)
+		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")
@@ -1534,7 +1533,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	}
 	settings.Secrets = secretValues
 	if len(errs) > 0 {
-		return errs[0]
+		return errors.Join(errs...)
 	}
 
 	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)

@@ -482,9 +482,6 @@ export class ApplicationsService {
         if (tail) {
             search.set('tailLines', tail.toString());
         }
-        if (sinceSeconds) {
-            search.set('sinceSeconds', sinceSeconds.toString());
-        }
         if (untilTime) {
             search.set('untilTime', untilTime);
         }
@@ -498,7 +495,11 @@ export class ApplicationsService {
             search.set('matchCase', matchCase.toString());
         }
         // The API requires that this field be set to a non-empty string.
-        search.set('sinceSeconds', '0');
+        if (sinceSeconds) {
+            search.set('sinceSeconds', sinceSeconds.toString());
+        } else {
+            search.set('sinceSeconds', '0');
+        }
         return search;
     }
 

@@ -109,7 +109,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 		return nil
 	}
 	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %w", err)
+		return fmt.Errorf("local config invalid: %w", err)
 	}
 	return nil
 }
@@ -135,7 +135,7 @@ func DeleteLocalConfig(configPath string) error {
 func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 	if name == "" {
 		if l.CurrentContext == "" {
-			return nil, errors.New("Local config: current-context unset")
+			return nil, errors.New("local config: current-context unset")
 		}
 		name = l.CurrentContext
 	}

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("will return signed request on first attempt", func(t *testing.T) {
 		// given
@@ -62,7 +61,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 
 		// then
 		require.Error(t, err)
-		assert.Equal(t, "", signed)
+		assert.Empty(t, signed)
 	})
 }
 

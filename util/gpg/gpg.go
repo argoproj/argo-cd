@@ -400,7 +400,7 @@ func SetPGPTrustLevelById(kids []string, trustLevel string) error {
 func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
 	if !ok {
-		return fmt.Errorf("Unknown trust level: %s", trustLevel)
+		return fmt.Errorf("unknown trust level: %s", trustLevel)
 	}
 
 	// We need to store ownertrust specification in a temp file. Format is <fingerprint>:<level>
@@ -412,7 +412,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	defer os.Remove(f.Name())
 
 	for _, k := range pgpKeys {
-		_, err := f.WriteString(fmt.Sprintf("%s:%d\n", k.KeyID, trust))
+		_, err := fmt.Fprintf(f, "%s:%d\n", k.KeyID, trust)
 		if err != nil {
 			return err
 		}
@@ -509,18 +509,18 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 			// Second field in pub output denotes key sub type (cipher and length)
 			token := subTypeMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, fmt.Errorf("Invalid line: %s (len=%d)", scanner.Text(), len(token))
+				return nil, fmt.Errorf("invalid line: %s (len=%d)", scanner.Text(), len(token))
 			}
 			key.SubType = token[1]
 
 			// Next line should be the key ID, no prefix
 			if !scanner.Scan() {
-				return nil, errors.New("Invalid output from gpg, end of text after primary key")
+				return nil, errors.New("invalid output from gpg, end of text after primary key")
 			}
 
 			token = keyIdMatch.FindStringSubmatch(scanner.Text())
 			if len(token) != 2 {
-				return nil, errors.New("Invalid output from gpg, no key ID for primary key")
+				return nil, errors.New("invalid output from gpg, no key ID for primary key")
 			}
 
 			key.Fingerprint = token[1]
@@ -533,17 +533,17 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 
 			// Next line should be UID
 			if !scanner.Scan() {
-				return nil, errors.New("Invalid output from gpg, end of text after key ID")
+				return nil, errors.New("invalid output from gpg, end of text after key ID")
 			}
 
 			if !strings.HasPrefix(scanner.Text(), "uid ") {
-				return nil, errors.New("Invalid output from gpg, no identity for primary key")
+				return nil, errors.New("invalid output from gpg, no identity for primary key")
 			}
 
 			token = uidMatch.FindStringSubmatch(scanner.Text())
 
 			if len(token) < 3 {
-				return nil, fmt.Errorf("Malformed identity line: %s (len=%d)", scanner.Text(), len(token))
+				return nil, fmt.Errorf("malformed identity line: %s (len=%d)", scanner.Text(), len(token))
 			}
 
 			// Store trust level

@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/utils/ptr"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 )
@@ -29,7 +29,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 	path := "dir/subdir/item.yaml"
 	branchName := "my/featurebranch"
 
-	ctx := context.Background()
+	ctx := t.Context()
 	uuid := uuid.New().String()
 
 	testCases := []struct {
@@ -115,7 +115,7 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 	repoName := "myorg_project_repo"
 	defaultBranch := "main"
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testCases := []struct {
 		name              string
@@ -174,7 +174,7 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 	repoName := "myorg_project_repo"
 	defaultBranch := "main"
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	testCases := []struct {
 		name              string
@@ -233,7 +233,7 @@ func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
 		teamProject := "myorg_project"
 		repoName := "myorg_project_repo"
 
-		ctx := context.Background()
+		ctx := t.Context()
 		uuid := uuid.New().String()
 		strippedBranchName := "somebranch"
 		defaultBranch := fmt.Sprintf("refs/heads/%v", strippedBranchName)
@@ -264,7 +264,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 
-	ctx := context.Background()
+	ctx := t.Context()
 	uuid := uuid.New().String()
 
 	defaultBranch := "main"
@@ -335,7 +335,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 
-	ctx := context.Background()
+	ctx := t.Context()
 	uuid := uuid.New().String()
 
 	testCases := []struct {
@@ -427,7 +427,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 	teamProject := "myorg_project"
 
 	uuid := uuid.New()
-	ctx := context.Background()
+	ctx := t.Context()
 
 	repoId := &uuid
 

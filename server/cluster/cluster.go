@@ -201,11 +201,11 @@ func (s *Server) Get(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clust
 }
 
 func (s *Server) getClusterWith403IfNotExist(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Cluster, error) {
-	repo, err := s.getCluster(ctx, q)
-	if err != nil || repo == nil {
+	c, err := s.getCluster(ctx, q)
+	if err != nil || c == nil {
 		return nil, common.PermissionDeniedAPIError
 	}
-	return repo, nil
+	return c, nil
 }
 
 func (s *Server) getClusterAndVerifyAccess(ctx context.Context, q *cluster.ClusterQuery, action string) (*appv1.Cluster, error) {
@@ -475,7 +475,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 
 	clust.Config.Password = ""
 	clust.Config.BearerToken = ""
-	clust.Config.TLSClientConfig.KeyData = nil
+	clust.Config.KeyData = nil
 	if clust.Config.ExecProviderConfig != nil {
 		// We can't know what the user has put into args or
 		// env vars on the exec provider that might be sensitive

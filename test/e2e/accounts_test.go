@@ -1,10 +1,8 @@
 package e2e
 
 import (
-	"context"
 	"testing"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -110,7 +109,7 @@ test   true     login, apiKey`, output)
 	closer, client := testAccountClientset.NewSessionClientOrDie()
 	defer io.Close(closer)
 
-	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
+	info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", info.Username)
@@ -129,7 +128,7 @@ func TestLoginBadCredentials(t *testing.T) {
 	}}
 
 	for _, r := range requests {
-		_, err := sessionClient.Create(context.Background(), &r)
+		_, err := sessionClient.Create(t.Context(), &r)
 		require.Error(t, err)
 		errStatus, ok := status.FromError(err)
 		if !assert.True(t, ok) {
