@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -77,6 +76,14 @@ func createGzippedTarWithContent(t *testing.T, filename, content string) []byte 
 	require.NoError(t, gzw.Close())
 
 	return buf.Bytes()
+}
+
+func addFileToDirectory(t *testing.T, dir, filename, content string) {
+	t.Helper()
+
+	filePath := filepath.Join(dir, filename)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
+	require.NoError(t, err)
 }
 
 func Test_nativeOCIClient_Extract(t *testing.T) {
@@ -168,9 +175,29 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
-					helmBlob := createGzippedTarWithContent(t, "Chart.yaml", "some content")
-					layerBlob := createGzippedTarWithContent(t, "chart.tar.gz", string(helmBlob))
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", layerBlob), layerBlob})
+					chartDir := t.TempDir()
+					chartName := "mychart"
+
+					parent := filepath.Join(chartDir, "parent")
+					require.NoError(t, os.Mkdir(parent, 0o755))
+
+					chartPath := filepath.Join(parent, chartName)
+					require.NoError(t, os.Mkdir(chartPath, 0o755))
+
+					addFileToDirectory(t, chartPath, "Chart.yaml", "some content")
+
+					temp, err := os.CreateTemp(t.TempDir(), "")
+					require.NoError(t, err)
+					defer temp.Close()
+					_, err = files.Tgz(parent, nil, nil, temp)
+					require.NoError(t, err)
+					_, err = temp.Seek(0, io.SeekStart)
+					require.NoError(t, err)
+					all, err := io.ReadAll(temp)
+
+					require.NoError(t, err)
+
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", all), all})
 				},
 				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
 					tempDir, err := files.CreateTempDir(os.TempDir())
@@ -179,22 +206,14 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					chartDir, err := os.ReadDir(path)
 					require.NoError(t, err)
 					require.Len(t, chartDir, 1)
-					require.Equal(t, "chart.tar.gz", chartDir[0].Name())
-					tarBall, err := os.Open(filepath.Join(path, chartDir[0].Name()))
-					require.NoError(t, err)
-					err = files.Untgz(tempDir, tarBall, math.MaxInt64, false)
-					require.NoError(t, err)
-					unpacked, err := os.ReadDir(tempDir)
-					require.NoError(t, err)
-					require.Len(t, unpacked, 1)
-					require.Equal(t, "Chart.yaml", unpacked[0].Name())
-					chartYaml, err := os.Open(filepath.Join(tempDir, unpacked[0].Name()))
+					require.Equal(t, "Chart.yaml", chartDir[0].Name())
+					chartYaml, err := os.Open(filepath.Join(path, chartDir[0].Name()))
 					require.NoError(t, err)
 					contents, err := io.ReadAll(chartYaml)
 					require.NoError(t, err)
 					require.Equal(t, "some content", string(contents))
 				},
-				manifestMaxExtractedSize:        1000,
+				manifestMaxExtractedSize:        10000,
 				disableManifestMaxExtractedSize: false,
 			},
 		},
