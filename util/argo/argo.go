@@ -263,11 +263,12 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 
 func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool, isOCI bool) error {
 	repo = repo.DeepCopy()
-	if isHelm {
+	switch {
+	case isHelm:
 		repo.Type = "helm"
-	} else if isOCI {
+	case isOCI:
 		repo.Type = "oci"
-	} else if repo.Type != "oci" {
+	case repo.Type != "oci":
 		repo.Type = "git"
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci
