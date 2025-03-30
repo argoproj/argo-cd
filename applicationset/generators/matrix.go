@@ -34,7 +34,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator) Generator {
 
 func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Matrix == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if len(appSetGenerator.Matrix.Generators) < 2 {
