@@ -444,11 +444,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
-	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
-		if err != nil {
-			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
+	if !syncOp.DryRun && state.Phase.Successful() {
+		app.Status.LastCompletedNonDryRunOperation = state
+		if len(syncOp.Resources) == 0 {
+			err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
+			if err != nil {
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
+			}
 		}
 	}
 }

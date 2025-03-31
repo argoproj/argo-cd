@@ -44,6 +44,7 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		}
 		return nil
 	},
+	"status.lastNonDryRunOperationState": func(app *v1alpha1.Application) any { return app.GetLastNonDryRunOperationState() },
 	"status.resources": func(app *v1alpha1.Application) any {
 		if len(app.Status.Resources) > 0 {
 			return app.Status.Resources

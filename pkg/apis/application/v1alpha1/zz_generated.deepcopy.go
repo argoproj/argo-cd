@@ -1416,6 +1416,11 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		copy(*out, *in)
 	}
 	in.SourceHydrator.DeepCopyInto(&out.SourceHydrator)
+	if in.LastCompletedNonDryRunOperation != nil {
+		in, out := &in.LastCompletedNonDryRunOperation, &out.LastCompletedNonDryRunOperation
+		*out = new(OperationState)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

@@ -1157,6 +1157,8 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 	// SourceHydrator stores information about the current state of source hydration
 	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
+	// OperationState contains information about the last non dryrun completed operation
+	LastCompletedNonDryRunOperation *OperationState `json:"lastCompletedNonDryRunOperation,omitempty" protobuf:"bytes,15,opt,name=lastCompletedNonDryRunOperation"`
 }
 
 // SourceHydratorStatus contains information about the current state of source hydration
@@ -3212,6 +3214,15 @@ func (app *Application) HasChangedManagedNamespaceMetadata() bool {
 // IsFinalizerPresent checks if the app has a given finalizer
 func (app *Application) IsFinalizerPresent(finalizer string) bool {
 	return getFinalizerIndex(app.ObjectMeta, finalizer) > -1
+}
+
+// GetLastNonDryRunOperationState returns the last complete or ongoing non dryrun operation if exists or nil in other case
+func (app *Application) GetLastNonDryRunOperationState() *OperationState {
+	if app.Status.OperationState != nil && app.Status.OperationState.Operation.DryRun() {
+		return app.Status.LastCompletedNonDryRunOperation
+	}
+
+	return app.Status.OperationState
 }
 
 // SetConditions updates the application status conditions for a subset of evaluated types.
