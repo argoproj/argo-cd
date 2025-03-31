@@ -2892,7 +2892,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -2977,7 +2977,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -3095,7 +3095,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_memstats_heap_alloc_bytes{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
@@ -3188,7 +3188,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_goroutines{job=\"argocd-repo-server-metrics\",namespace=~\"$namespace\"}",
+              "expr": "go_goroutines{job=\"argocd-server-metrics\",namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{pod}}",
