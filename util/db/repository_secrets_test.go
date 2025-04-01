@@ -75,7 +75,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		assert.Equal(t, repo.Repo, string(secret.Data["url"]))
 		assert.Equal(t, repo.Username, string(secret.Data["username"]))
 		assert.Equal(t, repo.Password, string(secret.Data["password"]))
-		assert.Equal(t, "", string(secret.Data["insecureIgnoreHostKey"]))
+		assert.Empty(t, string(secret.Data["insecureIgnoreHostKey"]))
 		assert.Equal(t, strconv.FormatBool(repo.EnableLFS), string(secret.Data["enableLfs"]))
 	})
 	t.Run("will return proper error if secret does not have expected label", func(t *testing.T) {
@@ -294,12 +294,12 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		switch {
-		case repository.Name == "ArgoCD":
+		switch repository.Name {
+		case "ArgoCD":
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		case repository.Name == "UserManagedRepo":
+		case "UserManagedRepo":
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)

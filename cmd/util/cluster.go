@@ -70,24 +70,24 @@ func PrintKubeContexts(ca clientcmd.ConfigAccess) {
 
 func NewCluster(name string, namespaces []string, clusterResources bool, conf *rest.Config, managerBearerToken string, awsAuthConf *argoappv1.AWSAuthConfig, execProviderConf *argoappv1.ExecProviderConfig, labels, annotations map[string]string) *argoappv1.Cluster {
 	tlsClientConfig := argoappv1.TLSClientConfig{
-		Insecure:   conf.TLSClientConfig.Insecure,
-		ServerName: conf.TLSClientConfig.ServerName,
-		CAData:     conf.TLSClientConfig.CAData,
-		CertData:   conf.TLSClientConfig.CertData,
-		KeyData:    conf.TLSClientConfig.KeyData,
+		Insecure:   conf.Insecure,
+		ServerName: conf.ServerName,
+		CAData:     conf.CAData,
+		CertData:   conf.CertData,
+		KeyData:    conf.KeyData,
 	}
-	if len(conf.TLSClientConfig.CAData) == 0 && conf.TLSClientConfig.CAFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.CAFile)
+	if len(conf.CAData) == 0 && conf.CAFile != "" {
+		data, err := os.ReadFile(conf.CAFile)
 		errors.CheckError(err)
 		tlsClientConfig.CAData = data
 	}
-	if len(conf.TLSClientConfig.CertData) == 0 && conf.TLSClientConfig.CertFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.CertFile)
+	if len(conf.CertData) == 0 && conf.CertFile != "" {
+		data, err := os.ReadFile(conf.CertFile)
 		errors.CheckError(err)
 		tlsClientConfig.CertData = data
 	}
-	if len(conf.TLSClientConfig.KeyData) == 0 && conf.TLSClientConfig.KeyFile != "" {
-		data, err := os.ReadFile(conf.TLSClientConfig.KeyFile)
+	if len(conf.KeyData) == 0 && conf.KeyFile != "" {
+		data, err := os.ReadFile(conf.KeyFile)
 		errors.CheckError(err)
 		tlsClientConfig.KeyData = data
 	}

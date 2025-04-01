@@ -59,11 +59,11 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {
 	logCtx := log.WithField("applicationset", appSet.GetName()).WithField("namespace", appSet.GetNamespace())
 	if appSetGenerator == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if appSetGenerator.Clusters == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	// Do not include the local cluster in the cluster parameters IF there is a non-empty selector
@@ -139,20 +139,20 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		if appSet.Spec.GoTemplate {
 			meta := map[string]any{}
 
-			if len(cluster.ObjectMeta.Annotations) > 0 {
-				meta["annotations"] = cluster.ObjectMeta.Annotations
+			if len(cluster.Annotations) > 0 {
+				meta["annotations"] = cluster.Annotations
 			}
-			if len(cluster.ObjectMeta.Labels) > 0 {
-				meta["labels"] = cluster.ObjectMeta.Labels
+			if len(cluster.Labels) > 0 {
+				meta["labels"] = cluster.Labels
 			}
 
 			params["metadata"] = meta
 		} else {
-			for key, value := range cluster.ObjectMeta.Annotations {
+			for key, value := range cluster.Annotations {
 				params["metadata.annotations."+key] = value
 			}
 
-			for key, value := range cluster.ObjectMeta.Labels {
+			for key, value := range cluster.Labels {
 				params["metadata.labels."+key] = value
 			}
 		}
@@ -188,7 +188,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
-	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err := g.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))

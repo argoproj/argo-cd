@@ -72,7 +72,7 @@ var (
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase"),
+		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
 	)
 
 	k8sRequestCounter = prometheus.NewCounterVec(
@@ -80,7 +80,7 @@ var (
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace"),
+		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
 	)
 
 	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -239,7 +239,8 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, state *argoappv1.Ope
 	if !state.Phase.Completed() {
 		return
 	}
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase)).Inc()
+	isDryRun := app.Operation != nil && app.Operation.DryRun()
+	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), app.Spec.Destination.Server, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
@@ -266,14 +267,16 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
 	var namespace, name, project string
+	isDryRun := false
 	if app != nil {
 		namespace = app.Namespace
 		name = app.Name
 		project = app.Spec.GetProject()
+		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
 	m.k8sRequestCounter.WithLabelValues(
 		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace,
+		verb, resourceKind, resourceNamespace, strconv.FormatBool(isDryRun),
 	).Inc()
 }
 
@@ -305,7 +308,7 @@ func (m *MetricsServer) HasExpiration() bool {
 // SetExpiration reset Prometheus metrics based on time duration interval
 func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	if m.HasExpiration() {
-		return errors.New("Expiration is already set")
+		return errors.New("expiration is already set")
 	}
 
 	_, err := m.cron.AddFunc(fmt.Sprintf("@every %s", cacheExpiration), func() {
@@ -412,7 +415,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		healthStatus = health.HealthStatusUnknown
 	}
 
-	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
+	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
 	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), app.Spec.Destination.Server, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
 
