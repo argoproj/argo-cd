@@ -381,6 +381,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Volvo Cars](https://www.volvocars.com/)
 1. [Voyager Digital](https://www.investvoyager.com/)
 1. [VSHN - The DevOps Company](https://vshn.ch/)
+1. [Wakacje.pl](https://www.wakacje.pl/)
 1. [Walkbase](https://www.walkbase.com/)
 1. [Webstores](https://www.webstores.nl)
 1. [Wehkamp](https://www.wehkamp.nl/)
