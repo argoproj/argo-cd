@@ -378,7 +378,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             try {
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                if (!updatedApp.spec.syncPolicy) {  
+                if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
                 //preserve the current enabled state when modifying prune or self heal
@@ -556,7 +556,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             await updateApp(updatedApp, {validate: false});
                                                         }
                                                     }}
-                                                    checked={app.spec.syncPolicy?.automated ? (app.spec.syncPolicy.automated.enabled !== false) : false}                                                    id='enable-auto-sync'
+                                                    checked={app.spec.syncPolicy?.automated ? app.spec.syncPolicy.automated.enabled !== false : false}
+                                                    id='enable-auto-sync'
                                                 />
                                                 <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
                                                 <HelpIcon title='If checked, application will automatically sync when changes are detected' />
@@ -575,7 +576,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Prune Resources?',
                                                             'Are you sure you want to disable resource pruning during automated application synchronization?',
                                                             false,
-                                                            app.spec.syncPolicy.automated.selfHeal
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Disable
@@ -589,7 +591,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Prune Resources?',
                                                             'Are you sure you want to enable resource pruning during automated application synchronization?',
                                                             true,
-                                                            app.spec.syncPolicy.automated.selfHeal
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Enable
@@ -609,7 +612,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Disable Self Heal?',
                                                             'Are you sure you want to disable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            false
+                                                            false,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Disable
@@ -623,7 +627,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             'Enable Self Heal?',
                                                             'Are you sure you want to enable automated self healing?',
                                                             app.spec.syncPolicy.automated.prune,
-                                                            true
+                                                            true,
+                                                            app.spec.syncPolicy.automated.enabled
                                                         )
                                                     }>
                                                     Enable
