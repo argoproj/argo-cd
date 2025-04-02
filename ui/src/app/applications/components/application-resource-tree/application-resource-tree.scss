@@ -412,6 +412,10 @@
 
     }
 
+    &__fullname {
+        white-space: normal
+    }
+
     &__node-status-icon {
         font-size: 0.8em;
         i {
