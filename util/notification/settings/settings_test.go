@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 )
 
 const (
@@ -66,12 +66,12 @@ func TestInitGetVars(t *testing.T) {
 	testDestination := services.Destination{
 		Service: "webhook",
 	}
-	emptyAppData := map[string]interface{}{}
+	emptyAppData := map[string]any{}
 
 	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
-		appData := map[string]interface{}{
+		appData := map[string]any{
 			"name": "app-name",
 		}
 		result := varsProvider(appData, testDestination)

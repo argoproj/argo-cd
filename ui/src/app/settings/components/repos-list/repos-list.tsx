@@ -33,6 +33,7 @@ export interface NewHTTPSRepoParams {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     insecure: boolean;
@@ -44,6 +45,7 @@ export interface NewHTTPSRepoParams {
     enableOCI: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -88,6 +90,7 @@ interface NewHTTPSRepoCredsParams {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
@@ -96,6 +99,7 @@ interface NewHTTPSRepoCredsParams {
     enableOCI: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -121,7 +125,7 @@ interface NewGoogleCloudSourceRepoCredsParams {
 
 export enum ConnectionMethod {
     SSH = 'via SSH',
-    HTTPS = 'via HTTPS',
+    HTTPS = 'via HTTP/HTTPS',
     GITHUBAPP = 'via GitHub App',
     GOOGLECLOUD = 'via Google Cloud'
 }
@@ -204,20 +208,25 @@ export class ReposList extends React.Component<
                     url: !sshValues.url && 'Repository URL is required'
                 };
             case ConnectionMethod.HTTPS:
-                const httpsValues = params as NewHTTPSRepoParams;
+                const validURLValues = params as NewHTTPSRepoParams;
                 return {
                     url:
-                        (!httpsValues.url && 'Repository URL is required') ||
-                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && 'Not a valid HTTPS URL'),
-                    name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
-                    username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
-                    password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
-                    tlsClientCertKey: !httpsValues.tlsClientCertKey && httpsValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.'
+                        (!validURLValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && 'Not a valid HTTP/HTTPS URL'),
+                    name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
+                    username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
+                    password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
+                    tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
+                    bearerToken:
+                        (validURLValues.password && validURLValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
+                        (validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.')
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
-                    url: (!githubAppValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(githubAppValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!githubAppValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
                     githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
@@ -225,7 +234,8 @@ export class ReposList extends React.Component<
             case ConnectionMethod.GOOGLECLOUD:
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
-                    url: (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!googleCloudValues.url && 'Repo URL is required') || (this.credsTemplate && !this.isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
                 };
         }
@@ -639,7 +649,7 @@ export class ReposList extends React.Component<
                                             )}
                                             {this.state.method === ConnectionMethod.HTTPS && (
                                                 <div className='white-box'>
-                                                    <p>CONNECT REPO USING HTTPS</p>
+                                                    <p>CONNECT REPO USING HTTP/HTTPS</p>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
@@ -679,18 +689,29 @@ export class ReposList extends React.Component<
                                                             componentProps={{type: 'password'}}
                                                         />
                                                     </div>
+                                                    {formApi.getFormState().values.type === 'git' && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label='Bearer token (optional, for BitBucket Data Center only)'
+                                                                field='bearerToken'
+                                                                component={Text}
+                                                                componentProps={{type: 'password'}}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                    </div>
                                                     {formApi.getFormState().values.type === 'git' && (
                                                         <React.Fragment>
-                                                            <div className='argo-form-row'>
-                                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                            </div>
                                                             <div className='argo-form-row'>
                                                                 <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
                                                             </div>
@@ -708,6 +729,14 @@ export class ReposList extends React.Component<
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Use Azure Workload Identity'
+                                                            field='useAzureWorkloadIdentity'
+                                                            component={CheckboxField}
+                                                        />
                                                     </div>
                                                 </div>
                                             )}
@@ -834,9 +863,9 @@ export class ReposList extends React.Component<
         this.setState({displayEditPanel: true});
     }
 
-    // Whether url is a https url (simple version)
-    private isHTTPSUrl(url: string) {
-        if (url.match(/^https:\/\/.*$/gi)) {
+    // Whether url is a http or https url
+    private isHTTPOrHTTPSUrl(url: string) {
+        if (url.match(/^https?:\/\/.*$/gi)) {
             return true;
         } else {
             return false;
@@ -849,7 +878,7 @@ export class ReposList extends React.Component<
 
     // only connections of git type which is not via GitHub App are updatable
     private isRepoUpdatable(repo: models.Repository) {
-        return this.isHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
+        return this.isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
     }
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -910,13 +939,15 @@ export class ReposList extends React.Component<
                 url: params.url,
                 username: params.username,
                 password: params.password,
+                bearerToken: params.bearerToken,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
                 proxy: params.proxy,
                 noProxy: params.noProxy,
                 forceHttpBasicAuth: params.forceHttpBasicAuth,
                 enableOCI: params.enableOCI,
-                write: params.write
+                write: params.write,
+                useAzureWorkloadIdentity: params.useAzureWorkloadIdentity
             });
         } else {
             this.setState({connecting: true});

@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.4.1@sha256:05f99264e2928ad472f2751b3a8d1f65c9c2cc1819be04548b2261c08e2e026b as redis
+FROM docker.io/library/redis:7.4.2@sha256:ca65ea36ae16e709b0f1c7534bc7e5b5ac2e5bb3c97236e4fec00e3625eb678d AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,15 +6,15 @@ FROM docker.io/library/redis:7.4.1@sha256:05f99264e2928ad472f2751b3a8d1f65c9c2cc
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 as node
+FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 AS node
 
-FROM docker.io/library/golang:1.23.4@sha256:70031844b8c225351d0bb63e2c383f80db85d92ba894e3da7e13bcf80efa9a37 as golang
+FROM docker.io/library/golang:1.24.1@sha256:c5adecdb7b3f8c5ca3c88648a861882849cc8b02fed68ece31e25de88ad13418 AS golang
 
-FROM docker.io/library/registry:2.8@sha256:543dade69668e02e5768d7ea2b0aa4fae6aa7384c9a5a8dbecc2be5136079ddb as registry
+FROM docker.io/library/registry:2.8@sha256:543dade69668e02e5768d7ea2b0aa4fae6aa7384c9a5a8dbecc2be5136079ddb AS registry
 
-FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 as kubectl
+FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
 
-FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
+FROM docker.io/library/ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -41,9 +41,9 @@ COPY --from=golang /usr/local/go /usr/local/go
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
 
-ENV PATH /dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
-ENV GOROOT /usr/local/go
-ENV GOPATH /go
+ENV PATH=/dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dist:$PATH
+ENV GOROOT=/usr/local/go
+ENV GOPATH=/go
 
 # Install build and test dependencies
 COPY hack/install.sh hack/tool-versions.sh go.* ./
@@ -54,6 +54,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
+    ./install.sh gotestsum && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
     go install github.com/jstemmer/go-junit-report@latest && \
@@ -94,22 +95,27 @@ ARG UID
 
 # Prepare user configuration & build environments
 RUN userdel -r ubuntu && \
-	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+    useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
+    mkdir -p /go/src/github.com/gogo && \
+    mkdir -p /go/src/k8s.io && \
+    chown -R user /go && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     HOME=/home/user git config --global --add safe.directory '*' && \
+    mkdir -p /go/src && \
     mkdir -p /go/pkg && \
+    chown -R user:user /go && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
-    mkdir -p /go && \
     chown root /etc/ssh/ssh_host_*_key* && \
     chmod 0600 /etc/ssh/ssh_host_*_key && \
     mkdir -p /tmp/go-build-cache && \
+    chown -R user:user /tmp/go-build-cache && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \

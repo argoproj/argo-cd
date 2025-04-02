@@ -8,14 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	appclient "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
@@ -97,16 +97,16 @@ func getModification(modification string, resource string, scope string, permiss
 	switch modification {
 	case "set":
 		if scope == "" {
-			return nil, stderrors.New("Flag --group cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --group cannot be empty if permission should be set in role")
 		}
 		if permission == "" {
-			return nil, stderrors.New("Flag --permission cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
 		return func(proj string, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
 	case "remove":
-		return func(proj string, action string) string {
+		return func(_ string, _ string) string {
 			return ""
 		}, nil
 	}
@@ -223,13 +223,14 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 				break
 			}
 			policyPermission := modification(proj.Name, action)
-			if actionPolicyIndex == -1 && policyPermission != "" {
+			switch {
+			case actionPolicyIndex == -1 && policyPermission != "":
 				updated = true
 				role.Policies = append(role.Policies, formatPolicy(proj.Name, role.Name, policyPermission))
-			} else if actionPolicyIndex > -1 && policyPermission == "" {
+			case actionPolicyIndex > -1 && policyPermission == "":
 				updated = true
 				role.Policies = append(role.Policies[:actionPolicyIndex], role.Policies[actionPolicyIndex+1:]...)
-			} else if actionPolicyIndex > -1 && policyPermission != "" {
+			case actionPolicyIndex > -1 && policyPermission != "":
 				updated = true
 				role.Policies[actionPolicyIndex] = formatPolicy(proj.Name, role.Name, policyPermission)
 			}

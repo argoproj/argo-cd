@@ -7,9 +7,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	configUtil "github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	configUtil "github.com/argoproj/argo-cd/v3/util/config"
 )
 
 const (
@@ -83,10 +83,10 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 
 func ValidatePluginConfig(config PluginConfig) error {
 	if config.Metadata.Name == "" {
-		return errors.New("invalid plugin configuration file. metadata.name should be non-empty.")
+		return errors.New("invalid plugin configuration file. metadata.name should be non-empty")
 	}
-	if config.TypeMeta.Kind != ConfigManagementPluginKind {
-		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.TypeMeta.Kind)
+	if config.Kind != ConfigManagementPluginKind {
+		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.Kind)
 	}
 	if len(config.Spec.Generate.Command) == 0 {
 		return errors.New("invalid plugin configuration file. spec.generate command should be non-empty")

@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -243,8 +242,8 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -273,17 +272,17 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
+	ok, err := host.RepoHasPath(t.Context(), repo, "pkg/")
 	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
+	ok, err = host.RepoHasPath(t.Context(), repo, "notathing/")
 	require.NoError(t, err)
 	assert.False(t, ok)
 }
@@ -293,13 +292,13 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider("argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	repos, err := host.GetBranches(context.Background(), repo)
+	repos, err := host.GetBranches(t.Context(), repo)
 	if err != nil {
 		require.NoError(t, err)
 	} else {
@@ -311,12 +310,12 @@ func TestGithubGetBranches(t *testing.T) {
 		Repository:   "applicationset",
 		Branch:       "main",
 	}
-	_, err = host.GetBranches(context.Background(), repo2)
+	_, err = host.GetBranches(t.Context(), repo2)
 	require.NoError(t, err)
 
 	// Get all branches
 	host.allBranches = true
-	repos, err = host.GetBranches(context.Background(), repo)
+	repos, err = host.GetBranches(t.Context(), repo)
 	if err != nil {
 		require.NoError(t, err)
 	} else {

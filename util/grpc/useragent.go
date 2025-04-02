@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -18,7 +19,7 @@ func UserAgentUnaryServerInterceptor(clientName, constraintStr string) grpc.Unar
 	if err != nil {
 		panic(err)
 	}
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if err := userAgentEnforcer(ctx, clientName, constraintStr, semVerConstraint); err != nil {
 			return nil, err
 		}
@@ -33,7 +34,7 @@ func UserAgentStreamServerInterceptor(clientName, constraintStr string) grpc.Str
 	if err != nil {
 		panic(err)
 	}
-	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, stream grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if err := userAgentEnforcer(stream.Context(), clientName, constraintStr, semVerConstraint); err != nil {
 			return err
 		}
@@ -68,7 +69,7 @@ func userAgentEnforcer(ctx context.Context, clientName, constraintStr string, se
 			return status.Errorf(codes.InvalidArgument, "could not parse version from user-agent: %s", userAgent)
 		}
 		if ok, errs := semVerConstraint.Validate(uaVers); !ok {
-			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errs[0].Error())
+			return status.Errorf(codes.FailedPrecondition, "unsatisfied client version constraint: %s", errors.Join(errs...))
 		}
 		return nil
 	}

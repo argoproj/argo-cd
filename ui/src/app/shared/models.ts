@@ -129,6 +129,7 @@ export interface ResourceResult {
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
+    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
@@ -598,6 +599,7 @@ export interface Repository {
     project?: string;
     username?: string;
     password?: string;
+    bearerToken?: string;
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
@@ -607,6 +609,7 @@ export interface Repository {
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    useAzureWorkloadIdentity: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -614,6 +617,7 @@ export interface RepositoryList extends ItemsList<Repository> {}
 export interface RepoCreds {
     url: string;
     username?: string;
+    bearerToken?: string;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -810,6 +814,7 @@ export interface SyncWindow {
     clusters: string[];
     manualSync: boolean;
     timeZone: string;
+    andOperator: boolean;
 }
 
 export interface Project {

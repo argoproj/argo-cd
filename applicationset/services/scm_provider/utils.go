@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]*Filter, error) {
@@ -172,9 +172,10 @@ func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 		FilterTypeRepo:   {},
 	}
 	for _, filter := range filters {
-		if filter.FilterType == FilterTypeBranch {
+		switch filter.FilterType {
+		case FilterTypeBranch:
 			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
-		} else if filter.FilterType == FilterTypeRepo {
+		case FilterTypeRepo:
 			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
 		}
 	}

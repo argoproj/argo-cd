@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	httputil "github.com/argoproj/argo-cd/v2/util/http"
-	util_session "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v3/common"
+	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+	util_session "github.com/argoproj/argo-cd/v3/util/session"
 
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +26,7 @@ const (
 var upgrader = func() websocket.Upgrader {
 	upgrader := websocket.Upgrader{}
 	upgrader.HandshakeTimeout = time.Second * 2
-	upgrader.CheckOrigin = func(r *http.Request) bool {
+	upgrader.CheckOrigin = func(_ *http.Request) bool {
 		return true
 	}
 	return upgrader
@@ -139,7 +139,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		Operation: "stdout",
 		Data:      "Permission denied",
 	})
-	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -147,7 +147,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 
-	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
