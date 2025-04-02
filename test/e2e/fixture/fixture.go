@@ -66,6 +66,9 @@ const (
 	PluginSockFilePath = "/app/config/plugin"
 
 	E2ETestPrefix = "e2e-test-"
+
+	// Account for batch events processing (set to 1ms in e2e tests)
+	WhenThenSleepInterval = 5 * time.Millisecond
 )
 
 const (
@@ -1142,6 +1145,25 @@ func AddTag(t *testing.T, name string) {
 	}
 }
 
+func AddTagWithForce(t *testing.T, name string) {
+	t.Helper()
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
+func AddAnnotatedTag(t *testing.T, name string, message string) {
+	t.Helper()
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", "-a", name, "-m", message))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	}
+}
+
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(t *testing.T, filename string, values any) (string, error) {
 	t.Helper()
@@ -1181,9 +1203,10 @@ func CreateSubmoduleRepos(t *testing.T, repoType string) {
 		t.Setenv("GIT_ALLOW_PROTOCOL", "file")
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
 	}
-	if repoType == "ssh" {
+	switch repoType {
+	case "ssh":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
-	} else if repoType == "https" {
+	case "https":
 		errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeHTTPSSubmodule)))
 	}
 	errors.NewHandler(t).FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))

@@ -18,6 +18,16 @@ spec:
   syncPolicy:
     automated: {}
 ```
+Application CRD now also support explicitly setting automated sync to be turn on or off by using `spec.syncPolicy.automated.enabled` flag to true or false. When `enable` field is set to true, Automated Sync is active and when set to false controller will skip automated sync even if `prune`, `self-heal` and `allowEmpty` are set.
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      enabled: true
+```
+
+!!!note 
+  Setting `spec.syncPolicy.automated.enabled` flag to null will be treated as automated sync as enabled. When using `enabled` field set to false, fields like `prune`, `self-heal` and `allowEmpty` can be set without enabling them.
 
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
@@ -96,4 +106,4 @@ which is controlled by `--self-heal-timeout-seconds` flag of `argocd-application
   and parameters had failed.
 
 * Rollback cannot be performed against an application with automated sync enabled.
-* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `180s` (3 minutes).
+* The automatic sync interval is determined by [the `timeout.reconciliation` value in the `argocd-cm` ConfigMap](../faq.md#how-often-does-argo-cd-check-for-changes-to-my-git-or-helm-repository), which defaults to `120s` with added jitter of `60s` for a maximum period of 3 minutes.

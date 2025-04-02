@@ -280,9 +280,9 @@ data:
   # You can change the resource tracking method Argo CD uses by changing the
   # setting application.resourceTrackingMethod to the desired method.
   # The following methods are available:
-  # - label            : Uses the application.instanceLabelKey label for tracking
   # - annotation       : Uses an annotation with additional metadata for tracking instead of the label
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
+  # - label            : Uses the application.instanceLabelKey label for tracking
   application.resourceTrackingMethod: annotation
 
   # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
@@ -325,17 +325,18 @@ data:
   # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
-  # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
-  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
+  # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
+  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
   # > Note: The argocd-repo-server deployment and the argocd-application-controller statefulset (or deployment, if
   # configured) must be manually restarted after changing the setting.
-  timeout.reconciliation: 180s
+  timeout.reconciliation: 120s
+
   # With a large number of applications, the periodic refresh for each application can cause a spike in the refresh queue
   # and can cause a spike in the repo-server component. To avoid this, you can set a jitter to the sync timeout, which will
   # spread out the refreshes and give time to the repo-server to catch up. The jitter is the maximum duration that can be
   # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
-  # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 0.
-  timeout.reconciliation.jitter: "0"
+  # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 1 minute.
+  timeout.reconciliation.jitter: 60s
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
