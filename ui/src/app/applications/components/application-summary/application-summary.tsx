@@ -372,16 +372,18 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         });
     }
 
-    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean) {
+    async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
             try {
                 setChangeSync(true);
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                if (!updatedApp.spec.syncPolicy) {
+                if (!updatedApp.spec.syncPolicy) {  
                     updatedApp.spec.syncPolicy = {};
                 }
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: true};
+                //preserve the current enabled state when modifying prune or self heal
+                const currentEnabled = updatedApp.spec.syncPolicy.automated?.enabled;
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: currentEnabled ?? enable};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
@@ -518,7 +520,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <button
                                             className='argo-button argo-button--base'
                                             onClick={() =>
-                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false)
+                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false, true)
                                             }>
                                             <Spinner show={changeSync} style={{marginRight: '5px'}} />
                                             Enable Auto-Sync
@@ -554,8 +556,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             await updateApp(updatedApp, {validate: false});
                                                         }
                                                     }}
-                                                    checked={!!app.spec.syncPolicy?.automated?.enabled}
-                                                    id='enable-auto-sync'
+                                                    checked={app.spec.syncPolicy?.automated ? (app.spec.syncPolicy.automated.enabled !== false) : false}                                                    id='enable-auto-sync'
                                                 />
                                                 <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
                                                 <HelpIcon title='If checked, application will automatically sync when changes are detected' />
