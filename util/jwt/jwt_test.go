@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"testing"
-	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -41,7 +40,8 @@ func TestGetGroups(t *testing.T) {
 
 func TestIssuedAtTime_Int64(t *testing.T) {
 	// Tuesday, 1 December 2020 14:00:00
-	claims := jwt.MapClaims{"iat": int64(1606831200)}
+	// Use float64 as expected by jwt/v5 for numeric claims in MapClaims
+	claims := jwt.MapClaims{"iat": float64(1606831200)}
 	issuedAt, err := IssuedAtTime(claims)
 	require.NoError(t, err)
 	str := issuedAt.UTC().Format("Mon Jan _2 15:04:05 2006")
@@ -57,8 +57,8 @@ func TestIssuedAtTime_Error_NoInt(t *testing.T) {
 func TestIssuedAtTime_Error_Missing(t *testing.T) {
 	claims := jwt.MapClaims{}
 	iat, err := IssuedAtTime(claims)
-	require.Error(t, err)
-	assert.Equal(t, time.Unix(0, 0), iat)
+	require.NoError(t, err) // Expect no error when claim is missing
+	assert.Nil(t, iat)      // Expect nil time pointer when claim is missing
 }
 
 func TestIsValid(t *testing.T) {

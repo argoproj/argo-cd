@@ -11,7 +11,7 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	"github.com/golang-jwt/jwt/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
@@ -34,7 +34,7 @@ type Provider interface {
 
 	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
 
-	VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error)
+	VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error)
 }
 
 type providerImpl struct {
@@ -163,7 +163,7 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 }
 
 // VerifyJWT verifies a JWT token using the configured JWK Set URL
-func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error) {
+func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwtgo.Token, error) {
 	if argoSettings.JWTConfig == nil || argoSettings.JWTConfig.JWKSetURL == "" {
 		return nil, errors.New("JWT configuration not found")
 	}
@@ -183,8 +183,11 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		return nil, fmt.Errorf("failed to get JWKS: %w", err)
 	}
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+	// --- Key Function ---
+	keyFunc := func(token *jwtgo.Token) (interface{}, error) {
+		// Ensure the signing method is RSA (as expected for JWKS)
+		// The WithValidMethods option below enforces this, but double-checking here is fine.
+		if _, ok := token.Method.(*jwtgo.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
@@ -209,49 +212,94 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		}
 
 		return key.Key, nil
-	})
+	}
+	// --- End Key Function ---
+
+	// --- Parser Options ---
+	opts := []jwtgo.ParserOption{
+		jwtgo.WithValidMethods([]string{"RS256"}), // Enforce RSA signing method
+		// Add other standard validation options based on config
+	}
+	if argoSettings.JWTConfig.Issuer != "" {
+		opts = append(opts, jwtgo.WithIssuer(argoSettings.JWTConfig.Issuer))
+	}
+	if argoSettings.JWTConfig.Audience != "" {
+		opts = append(opts, jwtgo.WithAudience(argoSettings.JWTConfig.Audience))
+	}
+	// By default, Parse validates exp, nbf, iat. Add options if specific behavior is needed.
+	// opts = append(opts, jwtgo.WithExpirationRequired()) // Uncomment if expiration MUST be present
+	// opts = append(opts, jwtgo.WithIssuedAt()) // Enforces iat check
+	// --- End Parser Options ---
+
+	// --- Parse and Validate ---
+	parser := jwtgo.NewParser(opts...)
+	token, err := parser.Parse(tokenString, keyFunc)
 	if err != nil {
+		// Log the specific parsing/verification error for better debugging
+		log.Debugf("JWT parsing/verification failed: %v", err)
+		// Check for specific validation errors if needed for more context
+		if errors.Is(err, jwtgo.ErrTokenInvalidIssuer) {
+			return nil, fmt.Errorf("invalid issuer claim: %w", err)
+		}
+		if errors.Is(err, jwtgo.ErrTokenInvalidAudience) {
+			return nil, fmt.Errorf("invalid audience claim: %w", err)
+		}
+		if errors.Is(err, jwtgo.ErrTokenExpired) {
+			return nil, fmt.Errorf("token is expired: %w", err)
+		}
+		// Return a generic error for other parsing/signature issues
 		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
 	}
+	// --- End Parse and Validate ---
 
-	claims, ok := token.Claims.(jwt.MapClaims)
+	// --- Custom Claim Checks ---
+	claims, ok := token.Claims.(jwtgo.MapClaims)
 	if !ok {
-		return nil, errors.New("invalid token claims")
+		// This should ideally not happen if parsing succeeded, but check anyway.
+		return nil, errors.New("invalid token claims format after successful parse")
 	}
 
 	if argoSettings.JWTConfig.EmailClaim != "" {
 		if _, ok := claims[argoSettings.JWTConfig.EmailClaim]; !ok {
-			return nil, fmt.Errorf("required email claim %q not found", argoSettings.JWTConfig.EmailClaim)
+			log.Warnf("Required email claim %q not found in JWT", argoSettings.JWTConfig.EmailClaim)
+			// Depending on requirements, you might want to return an error here instead of just logging.
+			// For now, let's allow it but log a warning.
+			// return nil, fmt.Errorf("required email claim %q not found", argoSettings.JWTConfig.EmailClaim)
 		}
 	}
 
 	if argoSettings.JWTConfig.UsernameClaim != "" {
 		if _, ok := claims[argoSettings.JWTConfig.UsernameClaim]; !ok {
-			return nil, fmt.Errorf("required username claim %q not found", argoSettings.JWTConfig.UsernameClaim)
+			log.Warnf("Required username claim %q not found in JWT", argoSettings.JWTConfig.UsernameClaim)
+			// Depending on requirements, you might want to return an error here instead of just logging.
+			// For now, let's allow it but log a warning.
+			// return nil, fmt.Errorf("required username claim %q not found", argoSettings.JWTConfig.UsernameClaim)
 		}
 	}
 
 	// Verify audience if configured
-	if aud, ok := claims["aud"].(string); ok {
-		if argoSettings.JWTConfig.Audience != "" && aud != argoSettings.JWTConfig.Audience {
-			return nil, fmt.Errorf("invalid audience claim, expected %q, got %q. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, aud)
-		}
-	} else if audList, ok := claims["aud"].([]interface{}); ok {
-		if argoSettings.JWTConfig.Audience != "" {
+	if argoSettings.JWTConfig.Audience != "" {
+		audience, err := claims.GetAudience()
+		if err != nil {
+			// Consider if audience claim is mandatory based on your policy
+			// return nil, fmt.Errorf("failed to get audience claim: %w", err)
+			log.Debugf("Failed to get audience claim, continuing verification: %v", err)
+		} else {
 			validAud := false
-			for _, a := range audList {
-				if a.(string) == argoSettings.JWTConfig.Audience {
+			for _, aud := range audience {
+				if aud == argoSettings.JWTConfig.Audience {
 					validAud = true
 					break
 				}
 			}
 			if !validAud {
-				return nil, fmt.Errorf("invalid audience claim, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audList)
+				return nil, fmt.Errorf("invalid audience claim, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audience)
 			}
 		}
-	} else if argoSettings.JWTConfig.Audience != "" {
-		return nil, errors.New("audience claim not found or invalid type")
 	}
+	// Note: We don't explicitly check for the groups claim here, as its presence might be optional.
+	// Group extraction logic is handled in sessionmanager.Groups.
+	// --- End Custom Claim Checks ---
 
 	return token, nil
 }

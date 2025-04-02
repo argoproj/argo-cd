@@ -198,6 +198,10 @@ type JWTConfig struct {
 	CacheTTL string `json:"cacheTTL,omitempty"`
 	// Audience is the expected audience for the JWT
 	Audience string `json:"audience,omitempty"`
+	// Issuer is the expected issuer for the JWT
+	Issuer string `json:"issuer,omitempty"`
+	// GroupsClaim is the JWT claim to use for groups
+	GroupsClaim string `json:"groupsClaim,omitempty"`
 }
 
 type OIDCConfig struct {

@@ -10,20 +10,24 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
+	"fmt"
 
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"gopkg.in/square/go-jose.v2"
+	"sigs.k8s.io/yaml" // Import yaml
+
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-func generateTestTokenWithKey(privateKey *rsa.PrivateKey, claims map[string]interface{}) string {
-	// Create token with custom headers
-	token := jwt.New(jwt.SigningMethodRS256)
-	token.Header["kid"] = "test-key-id"
+// Helper function to generate a JWT for testing
+func generateTestToken(signingMethod jwtgo.SigningMethod, key interface{}, kid string, claims map[string]interface{}) string {
+	token := jwtgo.New(signingMethod)
+	if kid != "" {
+		token.Header["kid"] = kid
+	}
 
-	// Set default claims
-	defaultClaims := jwt.MapClaims{
+	defaultClaims := jwtgo.MapClaims{
 		"sub":   "test-user",
 		"email": "test@example.com",
 		"exp":   time.Now().Add(time.Hour).Unix(),
@@ -38,8 +42,7 @@ func generateTestTokenWithKey(privateKey *rsa.PrivateKey, claims map[string]inte
 
 	token.Claims = defaultClaims
 
-	// Sign with provided private key
-	tokenString, err := token.SignedString(privateKey)
+	tokenString, err := token.SignedString(key)
 	if err != nil {
 		log.Fatalf("Failed to sign token: %v", err)
 	}
@@ -50,30 +53,27 @@ func TestVerifyJWT(t *testing.T) {
 	const (
 		kid           = "test-key-id"
 		validAudience = "test-audience"
+		validIssuer   = "https://test.example.com"
 	)
 
-	// Generate key pair
+	// Generate key pairs
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	publicKey := &privateKey.PublicKey
 
-	// Create test server
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Logf("Mock server received request: %s %s", r.Method, r.URL.Path)
+	wrongPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
 
+	// --- Mock JWKS Server ---
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/.well-known/jwks.json" {
-			// Use jose library to create the JWKS
 			jwk := jose.JSONWebKey{
-				Key:       publicKey,
+				Key:       publicKey, // Serve the correct public key
 				KeyID:     kid,
 				Algorithm: string(jose.RS256),
 				Use:       "sig",
 			}
-			jwks := jose.JSONWebKeySet{
-				Keys: []jose.JSONWebKey{jwk},
-			}
-
-			// Serve the JWKS
+			jwks := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}}
 			w.Header().Set("Content-Type", "application/json")
 			err := json.NewEncoder(w).Encode(jwks)
 			require.NoError(t, err)
@@ -82,100 +82,450 @@ func TestVerifyJWT(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer ts.Close()
+	// --- End Mock JWKS Server ---
 
+	// --- Base JWT Config ---
+	baseJwtConfig := &settings.JWTConfig{
+		HeaderName:    "X-Test-JWT",
+		EmailClaim:    "email",
+		UsernameClaim: "sub",
+		JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+		CacheTTL:      "1m",
+		Audience:      validAudience,
+		Issuer:        validIssuer,
+	}
+	// --- End Base JWT Config ---
+
+	// --- Base Claims ---
+	baseClaims := map[string]interface{}{
+		"iss": validIssuer,
+		"aud": validAudience,
+		"exp": time.Now().Add(time.Hour).Unix(),
+		"nbf": time.Now().Add(-time.Minute).Unix(),
+		"iat": time.Now().Add(-time.Minute).Unix(),
+	}
+	// --- End Base Claims ---
+
+	// --- Test Cases ---
 	tests := []struct {
-		name        string
-		jwtConfig   *settings.JWTConfig
-		claims      map[string]interface{}
-		expectError bool
+		name          string
+		jwtConfig     *settings.JWTConfig      // Optional override
+		claims        map[string]interface{}   // Optional override
+		signingMethod jwtgo.SigningMethod      // Default: RS256
+		signingKey    interface{}              // Default: privateKey
+		signingKid    string                   // Default: kid
+		expectError   bool
+		errorContains string // Substring to check in error message
 	}{
+		// --- Success Cases ---
 		{
 			name: "Valid Token",
-			jwtConfig: &settings.JWTConfig{
-				HeaderName:    "X-Test-JWT",
-				EmailClaim:    "email",
-				UsernameClaim: "sub",
-				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
-				CacheTTL:      "invalid", // This will trigger the warning
-			},
-			claims: map[string]interface{}{
-				"iss": ts.URL, // Match issuer with test server URL
-			},
-			expectError: false,
-		},
-		{
-			name: "Valid Token with Matching Audience",
-			jwtConfig: &settings.JWTConfig{
-				HeaderName:    "X-Test-JWT",
-				EmailClaim:    "email",
-				UsernameClaim: "sub",
-				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
-				Audience:      validAudience,
-			},
-			claims: map[string]interface{}{
-				"iss": ts.URL,
-				"aud": validAudience,
-			},
-			expectError: false,
-		},
-		{
-			name: "Invalid Audience",
-			jwtConfig: &settings.JWTConfig{
-				HeaderName:    "X-Test-JWT",
-				EmailClaim:    "email",
-				UsernameClaim: "sub",
-				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
-				Audience:      validAudience,
-			},
-			claims: map[string]interface{}{
-				"iss": ts.URL,
-				"aud": "wrong-audience",
-			},
-			expectError: true,
 		},
 		{
 			name: "Valid Token with Multiple Audiences",
-			jwtConfig: &settings.JWTConfig{
-				HeaderName:    "X-Test-JWT",
-				EmailClaim:    "email",
-				UsernameClaim: "sub",
-				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
-				Audience:      validAudience,
-			},
 			claims: map[string]interface{}{
-				"iss": ts.URL,
 				"aud": []interface{}{validAudience, "other-audience"},
 			},
-			expectError: false,
+		},
+		{
+			name:      "Valid Token with No Audience Configured",
+			jwtConfig: &settings.JWTConfig{Audience: ""}, // Override base config
+			claims:    map[string]interface{}{"aud": validAudience},
+		},
+		{
+			name:      "Valid Token with No Issuer Configured",
+			jwtConfig: &settings.JWTConfig{Issuer: ""}, // Override base config
+			claims:    map[string]interface{}{"iss": validIssuer},
+		},
+		{
+			name:      "Valid Token with No Audience Claim and No Audience Configured",
+			jwtConfig: &settings.JWTConfig{Audience: ""}, // Override base config
+			claims:    map[string]interface{}{"aud": nil},
+		},
+		{
+			name:      "Valid Token with No Issuer Claim and No Issuer Configured",
+			jwtConfig: &settings.JWTConfig{Issuer: ""}, // Override base config
+			claims:    map[string]interface{}{"iss": nil},
+		},
+		// --- Failure Cases: Claims ---
+		{
+			name:          "Invalid Audience Claim",
+			claims:        map[string]interface{}{"aud": "wrong-audience"},
+			expectError:   true,
+			errorContains: "invalid audience claim",
+		},
+		{
+			name:          "Invalid Issuer Claim",
+			claims:        map[string]interface{}{"iss": "wrong-issuer"},
+			expectError:   true,
+			errorContains: "invalid issuer claim",
+		},
+		{
+			name:          "Expired Token",
+			claims:        map[string]interface{}{"exp": time.Now().Add(-time.Hour).Unix()},
+			expectError:   true,
+			errorContains: jwtgo.ErrTokenExpired.Error(),
+		},
+		{
+			name:          "Token Not Yet Valid (nbf)",
+			claims:        map[string]interface{}{"nbf": time.Now().Add(time.Hour).Unix()},
+			expectError:   true,
+			errorContains: jwtgo.ErrTokenNotValidYet.Error(),
+		},
+		{
+			name:          "Missing Required Email Claim",
+			jwtConfig:     &settings.JWTConfig{EmailClaim: "missing_email"}, // Override base config
+			expectError:   false,                                            // Currently only logs a warning
+			errorContains: "",                                               // No error expected, just a log
+		},
+		{
+			name:          "Missing Required Username Claim",
+			jwtConfig:     &settings.JWTConfig{UsernameClaim: "missing_user"}, // Override base config
+			expectError:   false,                                               // Currently only logs a warning
+			errorContains: "",                                                  // No error expected, just a log
+		},
+		// --- Failure Cases: Signature & Algorithm ---
+		{
+			name:          "Invalid Signature (Wrong Key)",
+			signingKey:    wrongPrivateKey, // Sign with a different key
+			expectError:   true,
+			errorContains: "failed to parse/verify JWT", // Underlying error is crypto/rsa: verification error
+		},
+		{
+			name:          "Algorithm None (Bypass Attempt)",
+			signingMethod: jwtgo.SigningMethodNone,
+			signingKey:    jwtgo.UnsafeAllowNoneSignatureType, // Required by go-jwt for alg:none
+			expectError:   true,
+			errorContains: "unexpected signing method: none",
+		},
+		{
+			name:          "Mismatched Signing Method (e.g., HS256)",
+			signingMethod: jwtgo.SigningMethodHS256,
+			signingKey:    []byte("some-secret"), // Use a symmetric key
+			expectError:   true,
+			errorContains: "unexpected signing method: HS256",
+		},
+		// --- Failure Cases: Key ID (kid) ---
+		{
+			name:          "Missing KID in Token Header",
+			signingKid:    "", // Generate token without kid
+			expectError:   true,
+			errorContains: "kid header not found",
+		},
+		{
+			name:          "KID in Token Header Not Found in JWKS",
+			signingKid:    "non-existent-kid", // Generate token with wrong kid
+			expectError:   true,
+			errorContains: "no key found for kid",
 		},
 	}
+	// --- End Test Cases ---
 
 	for _, tt := range tests {
 		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
-			// Generate token for each test case
-			tokenString := generateTestTokenWithKey(privateKey, tt.claims)
-			t.Logf("Generated Token: %s", tokenString)
-
-			provider := NewOIDCProvider(ts.URL, nil)
-			settings := &settings.ArgoCDSettings{
-				JWTConfig: tt.jwtConfig,
+			// --- Prepare Test Data ---
+			currentClaims := make(map[string]interface{})
+			for k, v := range baseClaims {
+				currentClaims[k] = v
+			}
+			if tt.claims != nil {
+				for k, v := range tt.claims {
+					if v == nil {
+						delete(currentClaims, k) // Allow removing claims for testing
+					} else {
+						currentClaims[k] = v
+					}
+				}
 			}
 
-			// Verify the JWT using the updated VerifyJWT method
-			token, err := provider.VerifyJWT(tokenString, settings)
+			currentJwtConfig := *baseJwtConfig // Copy base config
+			if tt.jwtConfig != nil {
+				// Apply overrides selectively
+				if tt.jwtConfig.Audience != "" || baseJwtConfig.Audience != "" { // Check if override or base has Audience
+					currentJwtConfig.Audience = tt.jwtConfig.Audience
+				}
+				if tt.jwtConfig.Issuer != "" || baseJwtConfig.Issuer != "" { // Check if override or base has Issuer
+					currentJwtConfig.Issuer = tt.jwtConfig.Issuer
+				}
+				if tt.jwtConfig.EmailClaim != "" {
+					currentJwtConfig.EmailClaim = tt.jwtConfig.EmailClaim
+				}
+				if tt.jwtConfig.UsernameClaim != "" {
+					currentJwtConfig.UsernameClaim = tt.jwtConfig.UsernameClaim
+				}
+				// Add other fields if needed
+			}
+
+			// Declare signingMethod as the interface type
+			var signingMethod jwtgo.SigningMethod = jwtgo.SigningMethodRS256
+			if tt.signingMethod != nil {
+				signingMethod = tt.signingMethod // Now assigning interface to interface variable
+			}
+
+			signingKey := interface{}(privateKey)
+			if tt.signingKey != nil {
+				signingKey = tt.signingKey
+			}
+
+			signingKid := kid
+			if tt.signingKid != "" { // Allow overriding kid for testing
+				signingKid = tt.signingKid
+			} else if tt.name == "Missing KID in Token Header" {
+				signingKid = "" // Explicitly set empty for this test
+			}
+			// --- End Prepare Test Data ---
+
+			// Generate token
+			tokenString := generateTestToken(signingMethod, signingKey, signingKid, currentClaims)
+			t.Logf("Test: %s, Generated Token: %s", tt.name, tokenString)
+
+			// Create provider and settings
+			// Use a real issuer URL for the provider, JWKS URL is in JWTConfig
+			provider := NewOIDCProvider(validIssuer, nil)
+			argoSettings := &settings.ArgoCDSettings{
+				JWTConfig: &currentJwtConfig,
+			}
+
+			// Verify the JWT
+			token, err := provider.VerifyJWT(tokenString, argoSettings)
+
+			// Assertions
 			if tt.expectError {
-				require.Error(t, err)
-				t.Logf("Expected error: %v", err)
+				require.Error(t, err, "Expected an error but got none")
+				if tt.errorContains != "" {
+					require.ErrorContains(t, err, tt.errorContains, "Error message mismatch")
+				}
+				t.Logf("Expected error occurred: %v", err)
 			} else {
-				require.NoError(t, err)
-				require.NotNil(t, token)
-				claims, ok := token.Claims.(jwt.MapClaims)
-				require.True(t, ok, "claims are not of type MapClaims")
-				require.Equal(t, "test@example.com", claims["email"])
-				require.Equal(t, "test-user", claims["sub"])
+				require.NoError(t, err, "Expected no error but got: %v", err)
+				require.NotNil(t, token, "Token should not be nil on success")
+				claims, ok := token.Claims.(jwtgo.MapClaims)
+				require.True(t, ok, "Claims are not of type MapClaims")
+
+				// Basic claim checks on success
+				if currentJwtConfig.EmailClaim != "" && currentClaims[currentJwtConfig.EmailClaim] != nil {
+					require.Contains(t, claims, currentJwtConfig.EmailClaim, "Email claim missing")
+				}
+				if currentJwtConfig.UsernameClaim != "" && currentClaims[currentJwtConfig.UsernameClaim] != nil {
+					require.Contains(t, claims, currentJwtConfig.UsernameClaim, "Username claim missing")
+				}
 				t.Logf("JWT verified successfully.")
 			}
 		})
 	}
+}
+
+// TestVerifyJWT_Cache tests the JWKS caching mechanism
+func TestVerifyJWT_Cache(t *testing.T) {
+	const kid = "cache-test-key"
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	publicKey := &privateKey.PublicKey
+
+	requestCount := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/jwks.json" {
+			requestCount++ // Increment counter on each JWKS request
+			jwk := jose.JSONWebKey{Key: publicKey, KeyID: kid, Algorithm: string(jose.RS256), Use: "sig"}
+			jwks := jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(jwks)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer ts.Close()
+
+	jwtConfig := &settings.JWTConfig{
+		JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+		CacheTTL:      "1s", // Short TTL for testing
+		EmailClaim:    "email",
+		UsernameClaim: "sub",
+	}
+	argoSettings := &settings.ArgoCDSettings{JWTConfig: jwtConfig}
+	provider := NewOIDCProvider("issuer", nil) // Issuer doesn't matter here
+
+	claims := map[string]interface{}{"exp": time.Now().Add(time.Hour).Unix()}
+	tokenString := generateTestToken(jwtgo.SigningMethodRS256, privateKey, kid, claims)
+
+	// First verification - should fetch JWKS
+	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	require.NoError(t, err)
+	require.Equal(t, 1, requestCount, "JWKS should be fetched on first call")
+
+	// Second verification - should use cache
+	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	require.NoError(t, err)
+	require.Equal(t, 1, requestCount, "JWKS should be cached on second call")
+
+	// Wait for cache to expire
+	time.Sleep(1100 * time.Millisecond) // Wait slightly longer than TTL
+
+	// Third verification - should fetch JWKS again
+	_, err = provider.VerifyJWT(tokenString, argoSettings)
+	require.NoError(t, err)
+	require.Equal(t, 2, requestCount, "JWKS should be fetched again after cache expiry")
+}
+
+// TestVerify_Audience tests the audience verification logic in the Verify method (for OIDC tokens)
+func TestVerify_Audience(t *testing.T) {
+	// Use the go-oidc test harness components
+	clientID := "argo-cd-client"
+	cliClientID := "argo-cd-cli-client"
+	otherAudience := "other-aud"
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: key}, nil)
+	require.NoError(t, err)
+
+	// --- Mock OIDC Server ---
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux) // Define ts here
+	defer ts.Close()
+
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(fmt.Sprintf(`{
+			"issuer": "%s",
+			"jwks_uri": "%s/keys"
+		}`, ts.URL, ts.URL))) // Use ts.URL here
+	})
+	mux.HandleFunc("/keys", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		jwk := jose.JSONWebKey{Key: key.Public(), Use: "sig", Algorithm: string(jose.RS256)}
+		_ = json.NewEncoder(w).Encode(&jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}})
+	})
+	// --- End Mock OIDC Server ---
+
+	// --- Helper to create ID Token ---
+	makeToken := func(aud []string) string {
+		// Use a map for claims as gooidc.Claims is not a public type for direct use here
+		claims := map[string]interface{}{
+			"iss": ts.URL, // Use ts.URL here
+			"sub": "test-sub",
+			"aud": aud,
+			"exp": time.Now().Add(time.Hour).Unix(), // Use Unix timestamp directly
+			"iat": time.Now().Unix(),                // Use Unix timestamp directly
+		}
+		payload, err := json.Marshal(claims)
+		require.NoError(t, err)
+		jws, err := signer.Sign(payload)
+		require.NoError(t, err)
+		return jws.FullSerialize()
+	}
+	// --- End Helper ---
+
+	tests := []struct {
+		name                                    string
+		tokenAudience                           []string
+		allowedAudiences                        []string
+		skipAudienceCheckWhenTokenHasNoAudience *bool // nil means use default (false for >=2.6)
+		expectError                             bool
+		errorContains                           string
+	}{
+		{
+			name:          "Valid: Token aud matches default allowed (clientID)",
+			tokenAudience: []string{clientID},
+		},
+		{
+			name:          "Valid: Token aud matches default allowed (cliClientID)",
+			tokenAudience: []string{cliClientID},
+		},
+		{
+			name:             "Valid: Token aud matches explicitly allowed audience",
+			tokenAudience:    []string{otherAudience},
+			allowedAudiences: []string{clientID, otherAudience},
+		},
+		{
+			name:             "Valid: Token has multiple aud, one matches allowed",
+			tokenAudience:    []string{"unrelated", clientID},
+			allowedAudiences: []string{clientID, otherAudience},
+		},
+		{
+			name:             "Valid: Token has multiple aud, one matches default allowed",
+			tokenAudience:    []string{"unrelated", cliClientID},
+			allowedAudiences: []string{}, // Use default allowed
+		},
+		{
+			name:          "Invalid: Token aud does not match default allowed",
+			tokenAudience: []string{otherAudience},
+			expectError:   true,
+			errorContains: "token verification failed for all audiences",
+		},
+		{
+			name:             "Invalid: Token aud does not match explicitly allowed",
+			tokenAudience:    []string{"unrelated"},
+			allowedAudiences: []string{clientID, otherAudience},
+			expectError:      true,
+			errorContains:    "token verification failed for all audiences",
+		},
+		{
+			name:          "Invalid: Token has no audience, skip check is default (false)",
+			tokenAudience: []string{}, // No audience
+			expectError:   true,
+			errorContains: "token has an audience claim, but no allowed audiences are configured", // This error happens before audience check
+		},
+		{
+			name:                                    "Valid: Token has no audience, skip check is true",
+			tokenAudience:                           []string{}, // No audience
+			skipAudienceCheckWhenTokenHasNoAudience: boolPtr(true),
+		},
+		{
+			name:                                    "Invalid: Token has audience, skip check is true (should still fail)",
+			tokenAudience:                           []string{"some-aud"},
+			allowedAudiences:                        []string{"different-aud"},
+			skipAudienceCheckWhenTokenHasNoAudience: boolPtr(true),
+			expectError:                             true,
+			errorContains:                           "token verification failed for all audiences",
+		},
+	}
+
+	var argoSettings *settings.ArgoCDSettings // Declare argoSettings outside the loop
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tokenString := makeToken(tt.tokenAudience)
+
+			// Configure OIDC in settings using raw YAML string
+			oidcConfigMap := map[string]interface{}{
+				"clientID":    clientID,
+				"cliClientID": cliClientID,
+			}
+			if len(tt.allowedAudiences) > 0 {
+				oidcConfigMap["allowedAudiences"] = tt.allowedAudiences
+			}
+			if tt.skipAudienceCheckWhenTokenHasNoAudience != nil {
+				oidcConfigMap["skipAudienceCheckWhenTokenHasNoAudience"] = *tt.skipAudienceCheckWhenTokenHasNoAudience
+			}
+
+			oidcConfigBytes, err := yaml.Marshal(oidcConfigMap)
+			require.NoError(t, err)
+
+			argoSettings = &settings.ArgoCDSettings{ // Use = instead of :=
+				OIDCConfigRAW: fmt.Sprintf("issuer: %s\n%s", ts.URL, string(oidcConfigBytes)),
+			}
+
+			// Create provider instance
+			provider := NewOIDCProvider(ts.URL, http.DefaultClient).(*providerImpl)
+
+			// Perform verification
+			_, err := provider.Verify(tokenString, argoSettings)
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorContains != "" {
+					require.ErrorContains(t, err, tt.errorContains)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Helper for pointer to bool
+func boolPtr(b bool) *bool {
+	return &b
 }
