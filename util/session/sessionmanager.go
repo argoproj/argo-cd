@@ -280,7 +280,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 
 	// Only attempt auto-regeneration if we have both expiration and issuedAt times
 	if expErr == nil && iatErr == nil && exp != nil && iat != nil {
-		tokenExpDuration := exp.Sub(*iat) // Dereference pointers
+		tokenExpDuration := exp.Sub(*iat)     // Dereference pointers
 		remainingDuration := time.Until(*exp) // Dereference pointer
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {

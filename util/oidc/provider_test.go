@@ -412,11 +412,11 @@ func TestVerify_Audience(t *testing.T) {
 			"exp": time.Now().Add(time.Hour).Unix(),
 			"iat": time.Now().Unix(),
 		}
-		
+
 		token := jwtgo.New(jwtgo.SigningMethodRS256)
 		token.Header["kid"] = "test-key-id"
 		token.Claims = jwtgo.MapClaims(claims)
-		
+
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 		return tokenString
@@ -477,7 +477,7 @@ func TestVerify_Audience(t *testing.T) {
 			name:                                    "Valid: Token has no audience, skip check is true",
 			tokenAudience:                           []string{}, // No audience
 			skipAudienceCheckWhenTokenHasNoAudience: boolPtr(true),
-			expectError:                             true,      // Changed to true as go-oidc v3 still requires the audience
+			expectError:                             true, // Changed to true as go-oidc v3 still requires the audience
 			errorContains:                           "expected audience",
 		},
 		{
