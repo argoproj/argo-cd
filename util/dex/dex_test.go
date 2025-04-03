@@ -170,6 +170,7 @@ connectors:
     orgs:
     - name: your-github-org
 `
+
 var goodDexConfigWithStorage = `
 storage:
   type: kubernetes
