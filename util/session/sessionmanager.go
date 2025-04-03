@@ -546,7 +546,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 			log.Warnf("Token verification failed: %v", verifyErr)
 			// Add error to context for potential downstream handling (e.g., UI showing expired message)
 			//nolint:staticcheck
-			ctx = context.WithValue(ctx, AuthErrorCtxKey, verifyErr)
+			r = r.WithContext(context.WithValue(ctx, AuthErrorCtxKey, verifyErr))
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
