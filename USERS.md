@@ -98,6 +98,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Divar](https://divar.ir)
 1. [Divistant](https://divistant.com)
 1. [Dott](https://ridedott.com)
+1. [Doubble](https://www.doubble.app)
 1. [Doximity](https://www.doximity.com/)
 1. [EDF Renewables](https://www.edf-re.com/)
 1. [edX](https://edx.org)
