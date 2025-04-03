@@ -11,8 +11,8 @@ import (
 	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
-	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/go-jose/go-jose/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
