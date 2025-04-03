@@ -184,7 +184,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	}
 
 	// --- Key Function ---
-	keyFunc := func(token *jwtgo.Token) (interface{}, error) {
+	keyFunc := func(token *jwtgo.Token) (any, error) {
 		// Ensure the signing method is RSA (as expected for JWKS)
 		// The WithValidMethods option below enforces this, but double-checking here is fine.
 		if _, ok := token.Method.(*jwtgo.SigningMethodRSA); !ok {

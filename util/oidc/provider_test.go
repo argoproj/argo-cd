@@ -4,13 +4,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	"fmt"
 
 	jwtgo "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
@@ -22,7 +21,7 @@ import (
 )
 
 // Helper function to generate a JWT for testing
-func generateTestToken(signingMethod jwtgo.SigningMethod, key interface{}, kid string, claims map[string]interface{}) string {
+func generateTestToken(signingMethod jwtgo.SigningMethod, key any, kid string, claims map[string]any) string {
 	token := jwtgo.New(signingMethod)
 	if kid != "" {
 		token.Header["kid"] = kid
@@ -98,7 +97,7 @@ func TestVerifyJWT(t *testing.T) {
 	// --- End Base JWT Config ---
 
 	// --- Base Claims ---
-	baseClaims := map[string]interface{}{
+	baseClaims := map[string]any{
 		"iss": validIssuer,
 		"aud": validAudience,
 		"exp": time.Now().Add(time.Hour).Unix(),
@@ -110,11 +109,11 @@ func TestVerifyJWT(t *testing.T) {
 	// --- Test Cases ---
 	tests := []struct {
 		name          string
-		jwtConfig     *settings.JWTConfig    // Optional override
-		claims        map[string]interface{} // Optional override
-		signingMethod jwtgo.SigningMethod    // Default: RS256
-		signingKey    interface{}            // Default: privateKey
-		signingKid    string                 // Default: kid
+		jwtConfig     *settings.JWTConfig // Optional override
+		claims        map[string]any      // Optional override
+		signingMethod jwtgo.SigningMethod // Default: RS256
+		signingKey    any                 // Default: privateKey
+		signingKid    string              // Default: kid
 		expectError   bool
 		errorContains string // Substring to check in error message
 	}{
@@ -124,52 +123,52 @@ func TestVerifyJWT(t *testing.T) {
 		},
 		{
 			name: "Valid Token with Multiple Audiences",
-			claims: map[string]interface{}{
-				"aud": []interface{}{validAudience, "other-audience"},
+			claims: map[string]any{
+				"aud": []any{validAudience, "other-audience"},
 			},
 		},
 		{
 			name:      "Valid Token with No Audience Configured",
 			jwtConfig: &settings.JWTConfig{Audience: ""}, // Override base config
-			claims:    map[string]interface{}{"aud": validAudience},
+			claims:    map[string]any{"aud": validAudience},
 		},
 		{
 			name:      "Valid Token with No Issuer Configured",
 			jwtConfig: &settings.JWTConfig{Issuer: ""}, // Override base config
-			claims:    map[string]interface{}{"iss": validIssuer},
+			claims:    map[string]any{"iss": validIssuer},
 		},
 		{
 			name:      "Valid Token with No Audience Claim and No Audience Configured",
 			jwtConfig: &settings.JWTConfig{Audience: ""}, // Override base config
-			claims:    map[string]interface{}{"aud": nil},
+			claims:    map[string]any{"aud": nil},
 		},
 		{
 			name:      "Valid Token with No Issuer Claim and No Issuer Configured",
 			jwtConfig: &settings.JWTConfig{Issuer: ""}, // Override base config
-			claims:    map[string]interface{}{"iss": nil},
+			claims:    map[string]any{"iss": nil},
 		},
 		// --- Failure Cases: Claims ---
 		{
 			name:          "Invalid Audience Claim",
-			claims:        map[string]interface{}{"aud": "wrong-audience"},
+			claims:        map[string]any{"aud": "wrong-audience"},
 			expectError:   true,
 			errorContains: "invalid audience claim",
 		},
 		{
 			name:          "Invalid Issuer Claim",
-			claims:        map[string]interface{}{"iss": "wrong-issuer"},
+			claims:        map[string]any{"iss": "wrong-issuer"},
 			expectError:   true,
 			errorContains: "invalid issuer claim",
 		},
 		{
 			name:          "Expired Token",
-			claims:        map[string]interface{}{"exp": time.Now().Add(-time.Hour).Unix()},
+			claims:        map[string]any{"exp": time.Now().Add(-time.Hour).Unix()},
 			expectError:   true,
 			errorContains: jwtgo.ErrTokenExpired.Error(),
 		},
 		{
 			name:          "Token Not Yet Valid (nbf)",
-			claims:        map[string]interface{}{"nbf": time.Now().Add(time.Hour).Unix()},
+			claims:        map[string]any{"nbf": time.Now().Add(time.Hour).Unix()},
 			expectError:   true,
 			errorContains: jwtgo.ErrTokenNotValidYet.Error(),
 		},
@@ -226,7 +225,7 @@ func TestVerifyJWT(t *testing.T) {
 		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
 			// --- Prepare Test Data ---
-			currentClaims := make(map[string]interface{})
+			currentClaims := make(map[string]any)
 			for k, v := range baseClaims {
 				currentClaims[k] = v
 			}
@@ -264,7 +263,7 @@ func TestVerifyJWT(t *testing.T) {
 				signingMethod = tt.signingMethod // Now assigning interface to interface variable
 			}
 
-			signingKey := interface{}(privateKey)
+			signingKey := any(privateKey)
 			if tt.signingKey != nil {
 				signingKey = tt.signingKey
 			}
@@ -347,7 +346,7 @@ func TestVerifyJWT_Cache(t *testing.T) {
 	argoSettings := &settings.ArgoCDSettings{JWTConfig: jwtConfig}
 	provider := NewOIDCProvider("issuer", nil) // Issuer doesn't matter here
 
-	claims := map[string]interface{}{"exp": time.Now().Add(time.Hour).Unix()}
+	claims := map[string]any{"exp": time.Now().Add(time.Hour).Unix()}
 	tokenString := generateTestToken(jwtgo.SigningMethodRS256, privateKey, kid, claims)
 
 	// First verification - should fetch JWKS
@@ -384,14 +383,14 @@ func TestVerify_Audience(t *testing.T) {
 	ts := httptest.NewServer(mux) // Define ts here
 	defer ts.Close()
 
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(fmt.Sprintf(`{
+		fmt.Fprintf(w, `{
 			"issuer": "%s",
 			"jwks_uri": "%s/keys"
-		}`, ts.URL, ts.URL))) // Use ts.URL here
+		}`, ts.URL, ts.URL) // Use ts.URL here
 	})
-	mux.HandleFunc("/keys", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/keys", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		jwk := jose.JSONWebKey{
 			Key:       key.Public(),
@@ -405,7 +404,7 @@ func TestVerify_Audience(t *testing.T) {
 
 	// --- Helper to create ID Token ---
 	makeToken := func(aud []string) string {
-		claims := map[string]interface{}{
+		claims := map[string]any{
 			"iss": ts.URL,
 			"sub": "test-sub",
 			"aud": aud,
@@ -497,7 +496,7 @@ func TestVerify_Audience(t *testing.T) {
 			tokenString := makeToken(tt.tokenAudience)
 
 			// Configure OIDC in settings using raw YAML string
-			oidcConfigMap := map[string]interface{}{
+			oidcConfigMap := map[string]any{
 				"clientID":    clientID,
 				"cliClientID": cliClientID,
 			}

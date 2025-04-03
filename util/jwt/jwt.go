@@ -70,7 +70,7 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 			values = append(values, v)
 		case []string:
 			values = append(values, v...)
-		case []interface{}: // Handle JSON arrays which often unmarshal to []interface{}
+		case []any: // Handle JSON arrays which often unmarshal to []interface{}
 			for _, item := range v {
 				if strVal, ok := item.(string); ok {
 					values = append(values, strVal)
@@ -91,23 +91,6 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 	// }
 	// return uniqueValues
 	return values
-}
-
-func numField(m jwtgo.MapClaims, key string) (int64, error) {
-	field, ok := m[key]
-	if !ok {
-		return 0, fmt.Errorf("token does not have %s claim", key)
-	}
-	switch val := field.(type) {
-	case float64:
-		return int64(val), nil
-	case json.Number:
-		return val.Int64()
-	case int64:
-		return val, nil
-	default:
-		return 0, fmt.Errorf("%s '%v' is not a number", key, val)
-	}
 }
 
 // IssuedAtTime returns the issued at ("iat") claim as a time.Time pointer.
