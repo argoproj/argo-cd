@@ -357,11 +357,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-						log.Infof("webhook trigger refresh app to hydrate '%s'", app.ObjectMeta.Name)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal, true)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
-							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
 							continue
 						}
 					}
