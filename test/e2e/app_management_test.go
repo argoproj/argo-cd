@@ -1374,7 +1374,7 @@ func TestLocalManifestSync(t *testing.T) {
 		Given().
 		LocalPath(guestbookPathLocal).
 		When().
-		Sync("--local-repo-root", ".").
+		Sync("--local-repo-root", ".", "--server-side-generate").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -1403,7 +1403,7 @@ func TestLocalSync(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm"))
+			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/helm", "--server-side-generate"))
 		})
 }
 
@@ -1418,7 +1418,7 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			_, err := fixture.RunCli("app", "set", app.Name, "--sync-policy", "automated")
 			require.NoError(t, err)
 
-			_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
+			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal, "--server-side-generate")
 			require.Error(t, err)
 		})
 }
