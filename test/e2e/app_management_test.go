@@ -1403,7 +1403,7 @@ func TestLocalSync(t *testing.T) {
 		CreateApp().
 		Then().
 		And(func(app *Application) {
-			FailOnErr(RunCli("app", "sync", app.Name, "--local", "testdata/helm", "--server-side-generate"))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", app.Name, "--local", "testdata/helm", "--server-side-generate"))
 		})
 }
 
@@ -1418,7 +1418,7 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			_, err := fixture.RunCli("app", "set", app.Name, "--sync-policy", "automated")
 			require.NoError(t, err)
 
-			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal, "--server-side-generate")
+			_, err = fixture.RunCli("app", "sync", app.Name, "--local", guestbookPathLocal, "--server-side-generate")
 			require.Error(t, err)
 		})
 }
