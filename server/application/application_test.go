@@ -2580,18 +2580,21 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 		testApp.Status.ResourceHealthSource = appsv1.ResourceHealthLocationAppTree
 		testApp.Status.Resources = resources
 
+		// DeepCopy to avoid mutation race
+		testAppCopy := testApp.DeepCopy()
+
 		// appServer := newTestAppServer(t, testApp, returnDeployment())
-		appServer := newTestAppServer(t, testApp, kube.MustToUnstructured(&deployment))
+		appServer := newTestAppServer(t, testAppCopy, kube.MustToUnstructured(&deployment))
 		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute, time.Minute)
 
-		err := appStateCache.SetAppResourcesTree(testApp.Name, &appsv1.ApplicationTree{Nodes: nodes})
+		err := appStateCache.SetAppResourcesTree(testAppCopy.Name, &appsv1.ApplicationTree{Nodes: nodes})
 		require.NoError(t, err)
 
 		appResponse, runErr := appServer.RunResourceAction(context.Background(), &application.ResourceActionRunRequest{
-			Name:         &testApp.Name,
+			Name:         &testAppCopy.Name,
 			Namespace:    &namespace,
 			Action:       &action,
-			AppNamespace: &testApp.Namespace,
+			AppNamespace: &testAppCopy.Namespace,
 			ResourceName: &resourceName,
 			Version:      &version,
 			Group:        &group,
