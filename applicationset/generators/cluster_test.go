@@ -330,7 +330,7 @@ func TestGenerateParams(t *testing.T) {
 					Values:   testCase.values,
 					FlatList: testCase.isFlatMode,
 				},
-			}, &applicationSetInfo, nil)
+			}, &applicationSetInfo, nil, nil)
 
 			if testCase.expectedError != nil {
 				require.EqualError(t, err, testCase.expectedError.Error())
@@ -870,7 +870,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					Values:   testCase.values,
 					FlatList: testCase.isFlatMode,
 				},
-			}, &applicationSetInfo, nil)
+			}, &applicationSetInfo, nil, nil)
 
 			if testCase.expectedError != nil {
 				require.EqualError(t, err, testCase.expectedError.Error())
