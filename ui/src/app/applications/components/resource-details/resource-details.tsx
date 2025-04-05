@@ -303,15 +303,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     </React.Fragment>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                    style={{marginLeft: 'auto', marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                </button>
+                                {AppUtils.isTopLevelResource(selectedNode, application) && (
+                                    <button
+                                        onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                        className='argo-button argo-button--base'>
+                                        <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
-                                    style={{marginRight: '5px'}}
+                                    style={{marginRight: '5px', marginLeft: !AppUtils.isTopLevelResource(selectedNode, application) ? 'auto' : ''}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
