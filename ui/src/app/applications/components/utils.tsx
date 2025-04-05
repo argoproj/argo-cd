@@ -772,7 +772,11 @@ export function syncStatusMessage(app: appModels.Application) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            message += ' (' + revision.substr(0, 7) + ')';
+            if (revision.startsWith('sha256:')) {
+                message += ' (' + revision.substring(0, 14) + ')';
+            } else {
+                message += ' (' + revision.substring(0, 7) + ')';
+            }
         }
     }
 
