@@ -200,19 +200,21 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
                 defaultMode: 420
                 secretName: argocd-google-groups-json
 
-3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
+3. Edit `argocd-cm` and add the following `url` and `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
 
-        dex.config: |
-          connectors:
-          - config:
-              redirectURI: https://argocd.example.com/api/dex/callback
-              clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
-              clientSecret: XXXXXXXXXXXXX
-              serviceAccountFilePath: /tmp/oidc/googleAuth.json
-              adminEmail: admin-email@example.com
-            type: google
-            id: google
-            name: Google
+        data:
+          url: https://argocd.example.com
+          dex.config: |
+            connectors:
+            - config:
+                redirectURI: https://argocd.example.com/api/dex/callback
+                clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
+                clientSecret: XXXXXXXXXXXXX
+                serviceAccountFilePath: /tmp/oidc/googleAuth.json
+                adminEmail: admin-email@example.com
+              type: google
+              id: google
+              name: Google
 
 4. Restart your `argocd-dex-server` deployment to be sure it's using the latest configuration
 5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member  
@@ -220,18 +222,20 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 6. Now you can use groups email addresses to give RBAC permissions
 7. Dex (> v2.31.0) can also be configure to fetch transitive group membership as follows:
 
-        dex.config: |
-          connectors:
-          - config:
-              redirectURI: https://argocd.example.com/api/dex/callback
-              clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
-              clientSecret: XXXXXXXXXXXXX
-              serviceAccountFilePath: /tmp/oidc/googleAuth.json
-              adminEmail: admin-email@example.com
-              fetchTransitiveGroupMembership: True
-            type: google
-            id: google
-            name: Google
+        data:
+          url: https://argocd.example.com
+          dex.config: |
+            connectors:
+            - config:
+                redirectURI: https://argocd.example.com/api/dex/callback
+                clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
+                clientSecret: XXXXXXXXXXXXX
+                serviceAccountFilePath: /tmp/oidc/googleAuth.json
+                adminEmail: admin-email@example.com
+                fetchTransitiveGroupMembership: True
+              type: google
+              id: google
+              name: Google
 
 ### References
 
