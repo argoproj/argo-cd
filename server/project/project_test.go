@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

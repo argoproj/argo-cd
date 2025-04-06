@@ -18,7 +18,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
