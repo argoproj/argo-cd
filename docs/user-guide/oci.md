@@ -15,6 +15,7 @@ metadata:
 spec:
   project: default
   source:
+    path: .
     repoURL: oci://registry-1.docker.io/some-user/my-custom-image
     targetRevision: 1.16.1
   destination:
@@ -32,6 +33,7 @@ metadata:
 spec:
   project: default
   source:
+    path: .
     repoURL: oci://registry-1.docker.io/bitnamicharts/nginx 
     targetRevision: 15.9.0
     helm:
@@ -47,6 +49,8 @@ The key to start using OCI images are the following components in the applicatio
 * `repoURL`: Specify the OCI image repository URL using the `oci://` scheme, followed by the registry and image name.
 * `targetRevision`: Use this field to specify the desired image tag or digest.
 * `path`: Use this field to select a relative path from the expanded image. If you don't want to select a subpath, use `.`.
+In the case of OCI Helm charts (an OCI artifact where the `mediaType` is set to `application/vnd.cncf.helm.chart.content.v1.tar+gzip`), 
+the path should always be set to `.`. 
 
 ## Usage Guidelines
 
@@ -72,6 +76,21 @@ oras push <registry-url>/guestbook:latest .
 
 ORAS will take care of packaging the directory to a single layer and setting the `mediaType` to 
 `application/vnd.oci.image.layer.v1.tar+gzip`.
+
+You can also package your OCI image using a compressed archive.
+
+```shell
+# Create a tarball of the directory containing your manifests. If you are not in the current directory, please ensure 
+# that you are setting the correct parent of the directory (that is what the `-C` flag does).
+tar -czvf archive.tar.gz -C manifests .
+```
+
+Then, you can push the archive to your OCI registry using ORAS:
+
+```shell
+# In the case of tarballs, you currently need to set the media type manually. 
+oras push <registry-url>/guestbook:latest archive.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
+```
 
 ## OCI Metadata Annotations
 
