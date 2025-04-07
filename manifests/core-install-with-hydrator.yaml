@@ -24218,10 +24218,6 @@ data:
       - EndpointSlice
     ### Internal Kubernetes resources excluded reduce the number of watched events
     - apiGroups:
-      - apiregistration.k8s.io
-      kinds:
-      - APIService
-    - apiGroups:
       - coordination.k8s.io
       kinds:
       - Lease
