@@ -78,7 +78,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
-	kubeClient := fake.NewClientset(&cm)
+	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
 	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
@@ -98,8 +98,6 @@ func TestIncludeResource(t *testing.T) {
 		includeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: false}
 		// !*:Service:*
 		excludeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: true}
-		// apps:ReplicaSet:backend
-		includeAllReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "*", Namespace: "", Exclude: false}
 		// apps:ReplicaSet:backend
 		includeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: false}
 		// !apps:ReplicaSet:backend
@@ -138,7 +136,7 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSetResource},
-			expectedResult:        false,
+			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
 		{
@@ -156,15 +154,6 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource},
-			expectedResult:        false,
-		},
-		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
-		{
-			testName:              "Exclude ReplicaSet backend resource and all service resources(dummy condition)",
-			name:                  "backend",
-			namespace:             "default",
-			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
-			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource, &excludeAllServiceResources},
 			expectedResult:        false,
 		},
 		// --resource apps:ReplicaSet:backend
@@ -194,15 +183,6 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:        true,
 		},
-		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:backend
-		{
-			testName:              "Include & Exclude ReplicaSet resources",
-			name:                  "backend",
-			namespace:             "default",
-			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
-			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSetResource},
-			expectedResult:        false,
-		},
 		// --resource !*:*:*
 		{
 			testName:              "Exclude all resources",
@@ -229,10 +209,7 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&blankValues},
 			expectedResult:        false,
 		},
-		{
-			testName:       "Default values",
-			expectedResult: true,
-		},
+		{testName: "Default values"},
 	}
 
 	for _, test := range tests {
@@ -446,7 +423,7 @@ func TestValidateRepo(t *testing.T) {
 		},
 	}
 
-	kubeClient := fake.NewClientset(&cm)
+	kubeClient := fake.NewSimpleClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 
 	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
@@ -702,7 +679,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -735,7 +712,7 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
@@ -773,7 +750,7 @@ func TestValidatePermissions(t *testing.T) {
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "unable to find destination server")
+		assert.Contains(t, conditions[0].Message, "has not been configured")
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
@@ -834,10 +811,8 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		require.NoError(t, err)
-		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "Unknown error occurred")
+		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
+		require.Error(t, err)
 	})
 
 	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
@@ -895,7 +870,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		require.ErrorContains(t, err, "operation is already in progress")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
@@ -908,7 +884,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		require.ErrorContains(t, err, "Operation unspecified")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
@@ -934,7 +911,7 @@ func TestValidateDestination(t *testing.T) {
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil)
-		require.Error(t, appCond)
+		require.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -973,7 +950,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		require.ErrorContains(t, err, "an error occurred")
+		assert.Contains(t, err.Error(), "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -1422,7 +1399,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
 		db := &dbmocks.ArgoDB{}
 		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
 		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)

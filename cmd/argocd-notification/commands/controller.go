@@ -1,15 +1,10 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
-	"runtime/debug"
 	"strings"
-	"sync"
-	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -67,8 +62,7 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			ctx := c.Context()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -116,13 +110,6 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("unknown log format '%s'", logFormat)
 			}
 
-			// Recover from panic and log the error using the configured logger instead of the default.
-			defer func() {
-				if r := recover(); r != nil {
-					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
-				}
-			}()
-
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       argocdRepoServerPlaintext,
 				StrictValidation: argocdRepoServerStrictTLS,
@@ -159,17 +146,6 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
 			go ctrl.Run(ctx, processorsCount)
 			<-ctx.Done()
 			return nil
@@ -183,7 +159,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
 	command.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Metrics port")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
-	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
+	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", false, "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
 	command.Flags().StringVar(&configMapName, "config-map-name", "argocd-notifications-cm", "Set notifications ConfigMap name")
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")

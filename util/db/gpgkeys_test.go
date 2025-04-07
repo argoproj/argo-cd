@@ -112,7 +112,7 @@ func getGPGKeysClientset(gpgCM v1.ConfigMap) *fake.Clientset {
 		Data: nil,
 	}
 
-	return fake.NewClientset([]runtime.Object{&cm, &gpgCM}...)
+	return fake.NewSimpleClientset([]runtime.Object{&cm, &gpgCM}...)
 }
 
 func Test_ValidatePGPKey(t *testing.T) {

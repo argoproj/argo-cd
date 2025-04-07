@@ -31,21 +31,7 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 	c.context.t.Helper()
 	var message string
 	var state state
-	sleepIntervals := []time.Duration{
-		10 * time.Millisecond,
-		20 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		200 * time.Millisecond,
-		300 * time.Millisecond,
-		500 * time.Millisecond,
-		1 * time.Second,
-	}
-	sleepIntervalsIdx := -1
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		state, message = e(c)
 		switch state {
 		case succeeded:

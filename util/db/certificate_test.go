@@ -283,7 +283,7 @@ func getCertClientset() *fake.Clientset {
 		},
 	}
 
-	return fake.NewClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
+	return fake.NewSimpleClientset([]runtime.Object{&cm, &sshCM, &tlsCM}...)
 }
 
 func Test_ListCertificate(t *testing.T) {

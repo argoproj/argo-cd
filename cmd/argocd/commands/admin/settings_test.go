@@ -45,7 +45,7 @@ func captureStdout(callback func()) (string, error) {
 func newSettingsManager(data map[string]string) *settings.SettingsManager {
 	ctx := context.Background()
 
-	clientset := fake.NewClientset(&v1.ConfigMap{
+	clientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 			Name:      common.ArgoCDConfigMapName,
@@ -200,7 +200,8 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
 			} else if tc.containsError != "" {
-				assert.ErrorContains(t, err, tc.containsError)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.containsError)
 			}
 		})
 	}

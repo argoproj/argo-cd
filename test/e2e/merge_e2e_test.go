@@ -167,11 +167,9 @@ func TestClusterMergeGenerator(t *testing.T) {
 	expectedApps := []argov1alpha1.Application{
 		generateExpectedApp("cluster1", "kustomize-guestbook", "1"),
 		generateExpectedApp("cluster1", "helm-guestbook", "0"),
-		generateExpectedApp("cluster1", "ksonnet-guestbook", "0"),
 
 		generateExpectedApp("cluster2", "kustomize-guestbook", "0"),
 		generateExpectedApp("cluster2", "helm-guestbook", "2"),
-		generateExpectedApp("cluster2", "ksonnet-guestbook", "0"),
 	}
 
 	var expectedAppsNewNamespace []argov1alpha1.Application
@@ -435,7 +433,6 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 }
 
 func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
-	t.Helper()
 	resVal, err := json.Marshal(g)
 	if err != nil {
 		t.Error("unable to unmarshal json", g)

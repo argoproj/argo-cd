@@ -49,7 +49,7 @@ func newFakeProj() *argoappv1.AppProject {
 }
 
 func TestEnforceAllPolicies(t *testing.T) {
-	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
@@ -90,7 +90,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 }
 
 func TestEnforceActionActions(t *testing.T) {
-	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
@@ -123,7 +123,7 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 }
 
 func TestInvalidatedCache(t *testing.T) {
-	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)

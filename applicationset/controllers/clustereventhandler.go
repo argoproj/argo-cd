@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -14,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -26,31 +24,31 @@ type clusterSecretEventHandler struct {
 	Client client.Client
 }
 
-func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.RateLimitingInterface) {
 	h.queueRelatedAppGenerators(ctx, q, e.Object)
 }
 
-func (h *clusterSecretEventHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+func (h *clusterSecretEventHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	h.queueRelatedAppGenerators(ctx, q, e.ObjectNew)
 }
 
-func (h *clusterSecretEventHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+func (h *clusterSecretEventHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	h.queueRelatedAppGenerators(ctx, q, e.Object)
 }
 
-func (h *clusterSecretEventHandler) Generic(ctx context.Context, e event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
+func (h *clusterSecretEventHandler) Generic(ctx context.Context, e event.GenericEvent, q workqueue.RateLimitingInterface) {
 	h.queueRelatedAppGenerators(ctx, q, e.Object)
 }
 
 // addRateLimitingInterface defines the Add method of workqueue.RateLimitingInterface, allow us to easily mock
 // it for testing purposes.
-type addRateLimitingInterface[T comparable] interface {
-	Add(item T)
+type addRateLimitingInterface interface {
+	Add(item interface{})
 }
 
-func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Context, q addRateLimitingInterface[reconcile.Request], object client.Object) {
+func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Context, q addRateLimitingInterface, object client.Object) {
 	// Check for label, lookup all ApplicationSets that might match the cluster, queue them all
-	if object.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+	if object.GetLabels()[generators.ArgoCDSecretTypeLabel] != generators.ArgoCDSecretTypeCluster {
 		return
 	}
 

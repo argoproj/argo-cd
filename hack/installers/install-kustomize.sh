@@ -4,7 +4,6 @@ set -eux -o pipefail
 . $(dirname $0)/../tool-versions.sh
 
 PROJECT_ROOT=$(cd $(dirname ${BASH_SOURCE})/../..; pwd)
-INSTALL_PATH="${BIN:-$INSTALL_PATH}"
 INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
 [ -d $INSTALL_PATH ] || mkdir -p $INSTALL_PATH

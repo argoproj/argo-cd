@@ -20,6 +20,50 @@ const (
 	fakeNamespace = "fake-ns"
 )
 
+// From Argo CD util/db/cluster_test.go
+func Test_secretToCluster(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+			"config": []byte("{\"username\":\"foo\"}"),
+		},
+	}
+	cluster, err := secretToCluster(secret)
+	require.NoError(t, err)
+	assert.Equal(t, argoappv1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+		Config: argoappv1.ClusterConfig{
+			Username: "foo",
+		},
+	}, *cluster)
+}
+
+// From Argo CD util/db/cluster_test.go
+func Test_secretToCluster_NoConfig(t *testing.T) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("test"),
+			"server": []byte("http://mycluster"),
+		},
+	}
+	cluster, err := secretToCluster(secret)
+	require.NoError(t, err)
+	assert.Equal(t, argoappv1.Cluster{
+		Name:   "test",
+		Server: "http://mycluster",
+	}, *cluster)
+}
+
 func createClusterSecret(secretName string, clusterName string, clusterServer string) *corev1.Secret {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,12 +92,7 @@ func TestValidateDestination(t *testing.T) {
 			Namespace: "default",
 		}
 
-		secret := createClusterSecret("my-secret", "minikube", "https://127.0.0.1:6443")
-		objects := []runtime.Object{}
-		objects = append(objects, secret)
-		kubeclientset := fake.NewSimpleClientset(objects...)
-
-		appCond := ValidateDestination(context.Background(), &dest, kubeclientset, fakeNamespace)
+		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
 		require.NoError(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})

@@ -58,9 +58,9 @@ type Server struct {
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
+	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
@@ -114,7 +114,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	id := q.Id
 	if err := prj.ValidateJWTTokenID(q.Role, q.Id); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	if id == "" {
 		uniqueId, _ := uuid.NewRandom()
@@ -273,7 +273,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 			res, err = s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(ctx, existing, metav1.UpdateOptions{})
 		} else {
 			if !reflect.DeepEqual(existing.Spec, q.GetProject().Spec) {
-				return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("project", existing.Spec, q.GetProject().Spec))
 			}
 			return existing, nil
 		}
@@ -398,16 +398,15 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		return nil, err
 	}
 
+	var srcValidatedApps []v1alpha1.Application
+	var dstValidatedApps []v1alpha1.Application
 	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
 
-	invalidSrcCount := 0
-	invalidDstCount := 0
-
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
-			invalidSrcCount++
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
+			srcValidatedApps = append(srcValidatedApps, a)
 		}
 
 		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
@@ -416,13 +415,26 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		}
 
 		if dstPermitted {
-			dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
-			if err != nil {
-				return nil, err
-			}
-			if !dstPermitted {
-				invalidDstCount++
-			}
+			dstValidatedApps = append(dstValidatedApps, a)
+		}
+	}
+
+	invalidSrcCount := 0
+	invalidDstCount := 0
+
+	for _, a := range srcValidatedApps {
+		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
+			invalidSrcCount++
+		}
+	}
+	for _, a := range dstValidatedApps {
+		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if !dstPermitted {
+			invalidDstCount++
 		}
 	}
 

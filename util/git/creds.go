@@ -4,19 +4,15 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/go-github/v66/github"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -41,6 +37,8 @@ var (
 )
 
 const (
+	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
+	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
@@ -68,21 +66,22 @@ func (d NoopCredsStore) Add(username string, password string) string {
 func (d NoopCredsStore) Remove(id string) {
 }
 
-func (d NoopCredsStore) Environ(id string) []string {
-	return []string{}
-}
-
 type CredsStore interface {
 	Add(username string, password string) string
 	Remove(id string)
-	// Environ returns the environment variables that should be set to use the credentials for the given credential ID.
-	Environ(id string) []string
 }
 
 type Creds interface {
 	Environ() (io.Closer, []string, error)
-	// GetUserInfo gets the username and email address for the credentials, if they're available.
-	GetUserInfo(ctx context.Context) (string, string, error)
+}
+
+func getGitAskPassEnv(id string) []string {
+	return []string{
+		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
+		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
+		"GIT_TERMINAL_PROMPT=0",
+		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+	}
 }
 
 // nop implementation
@@ -100,24 +99,16 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
-// GetUserInfo returns empty strings for user info
-func (c NopCreds) GetUserInfo(ctx context.Context) (name string, email string, err error) {
-	return "", "", nil
-}
-
 var _ io.Closer = NopCloser{}
 
 type GenericHTTPSCreds interface {
 	HasClientCert() bool
 	GetClientCertData() string
 	GetClientCertKey() string
-	Creds
+	Environ() (io.Closer, []string, error)
 }
 
-var (
-	_ GenericHTTPSCreds = HTTPSCreds{}
-	_ Creds             = HTTPSCreds{}
-)
+var _ GenericHTTPSCreds = HTTPSCreds{}
 
 // HTTPS creds implementation
 type HTTPSCreds struct {
@@ -133,15 +124,13 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
-	// list of targets that shouldn't use the proxy, applies only if the proxy is set
-	noProxy string
 	// temporal credentials store
 	store CredsStore
 	// whether to force usage of basic auth
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -149,16 +138,9 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
-		noProxy,
 		store,
 		forceBasicAuth,
 	}
-}
-
-// GetUserInfo returns the username and email address for the credentials, if they're available.
-func (c HTTPSCreds) GetUserInfo(ctx context.Context) (string, string, error) {
-	// Email not implemented for HTTPS creds.
-	return c.username, "", nil
 }
 
 func (c HTTPSCreds) BasicAuthHeader() string {
@@ -232,7 +214,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, c.store.Environ(nonce)...)
+	env = append(env, getGitAskPassEnv(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return httpCloser.Close()
@@ -251,8 +233,6 @@ func (c HTTPSCreds) GetClientCertKey() string {
 	return c.clientCertKey
 }
 
-var _ Creds = SSHCreds{}
-
 // SSH implementation
 type SSHCreds struct {
 	sshPrivateKey string
@@ -260,18 +240,10 @@ type SSHCreds struct {
 	insecure      bool
 	store         CredsStore
 	proxy         string
-	noProxy       string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, noProxy string) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, noProxy}
-}
-
-// GetUserInfo returns empty strings for user info.
-// TODO: Implement this method to return the username and email address for the credentials, if they're available.
-func (c SSHCreds) GetUserInfo(ctx context.Context) (string, string, error) {
-	// User info not implemented for SSH creds.
-	return "", "", nil
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
 }
 
 type sshPrivateKeyFile string
@@ -368,13 +340,12 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
-	noProxy        string
 	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -436,42 +407,11 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
-	env = append(env, g.store.Environ(nonce)...)
+	env = append(env, getGitAskPassEnv(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
 	}), env, nil
-}
-
-// GetUserInfo returns the username and email address for the credentials, if they're available.
-func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error) {
-	// We use the apps transport to get the app slug.
-	appTransport, err := g.getAppTransport()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create GitHub app transport: %w", err)
-	}
-	appClient := github.NewClient(&http.Client{Transport: appTransport})
-	app, _, err := appClient.Apps.Get(ctx, "")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get app info: %w", err)
-	}
-
-	// Then we use the installation transport to get the installation info.
-	appInstallTransport, err := g.getInstallationTransport()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get app installation: %w", err)
-	}
-	httpClient := http.Client{Transport: appInstallTransport}
-	client := github.NewClient(&httpClient)
-
-	appLogin := fmt.Sprintf("%s[bot]", app.GetSlug())
-	user, _, err := client.Users.Get(ctx, appLogin)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get app user info: %w", err)
-	}
-	authorName := user.GetLogin()
-	authorEmail := fmt.Sprintf("%d+%s@users.noreply.github.com", user.GetID(), user.GetLogin())
-	return authorName, authorEmail, nil
 }
 
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
@@ -481,53 +421,20 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	itr, err := g.getInstallationTransport()
-	if err != nil {
-		return "", fmt.Errorf("failed to create GitHub app installation transport: %w", err)
-	}
-
-	return itr.Token(ctx)
-}
-
-// getAppTransport creates a new GitHub transport for the app
-func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error) {
-	// GitHub API url
-	baseUrl := "https://api.github.com"
-	if g.baseURL != "" {
-		baseUrl = strings.TrimSuffix(g.baseURL, "/")
-	}
-
-	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
-	itr, err := ghinstallation.NewAppsTransport(c.Transport,
-		g.appID,
-		[]byte(g.privateKey),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GitHub installation transport: %w", err)
-	}
-
-	itr.BaseURL = baseUrl
-
-	return itr, nil
-}
-
-// getInstallationTransport creates a new GitHub transport for the app installation
-func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := h.Write([]byte(fmt.Sprintf("%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
+		return "", err
 	}
-	key := hex.EncodeToString(h.Sum(nil))
+	key := fmt.Sprintf("%x", h.Sum(nil))
 
 	// Check cache for GitHub transport which helps fetch an API token
 	t, found := githubAppTokenCache.Get(key)
 	if found {
 		itr := t.(*ghinstallation.Transport)
 		// This method caches the token and if it's expired retrieves a new one
-		return itr, nil
+		return itr.Token(ctx)
 	}
 
 	// GitHub API url
@@ -537,14 +444,14 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
 		[]byte(g.privateKey),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GitHub installation transport: %w", err)
+		return "", err
 	}
 
 	itr.BaseURL = baseUrl
@@ -552,7 +459,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	// Add transport to cache
 	githubAppTokenCache.Set(key, itr, time.Minute*60)
 
-	return itr, nil
+	return itr.Token(ctx)
 }
 
 func (g GitHubAppCreds) HasClientCert() bool {
@@ -566,8 +473,6 @@ func (g GitHubAppCreds) GetClientCertData() string {
 func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
 }
-
-var _ Creds = GoogleCloudCreds{}
 
 // GoogleCloudCreds to authenticate to Google Cloud Source repositories
 type GoogleCloudCreds struct {
@@ -584,16 +489,6 @@ func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 	return GoogleCloudCreds{creds, store}
 }
 
-// GetUserInfo returns the username and email address for the credentials, if they're available.
-// TODO: implement getting email instead of just username.
-func (c GoogleCloudCreds) GetUserInfo(ctx context.Context) (string, string, error) {
-	username, err := c.getUsername()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get username from creds: %w", err)
-	}
-	return username, "", nil
-}
-
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	username, err := c.getUsername()
 	if err != nil {
@@ -605,7 +500,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	}
 
 	nonce := c.store.Add(username, token)
-	env := c.store.Environ(nonce)
+	env := getGitAskPassEnv(nonce)
 
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
@@ -648,7 +543,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := hex.EncodeToString(h.Sum(nil))
+	key := fmt.Sprintf("%x", h.Sum(nil))
 
 	t, found := googleCloudTokenSource.Get(key)
 	if found {

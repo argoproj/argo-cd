@@ -77,11 +77,11 @@ func TestForbiddenNamespace(t *testing.T) {
 func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 	ctx := Given(t)
 	ctx.And(func() {
-		CheckError(SetResourceOverrides(map[string]ResourceOverride{
+		SetResourceOverrides(map[string]ResourceOverride{
 			"ConfigMap": {
 				HealthLua: `return { status = obj.annotations and obj.annotations['health'] or 'Progressing' }`,
 			},
-		}))
+		})
 	}).
 		Async(true).
 		SetAppNamespace(AppNamespace()).

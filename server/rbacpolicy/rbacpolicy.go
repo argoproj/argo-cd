@@ -14,18 +14,17 @@ import (
 
 const (
 	// please add new items to Resources
-	ResourceClusters          = "clusters"
-	ResourceProjects          = "projects"
-	ResourceApplications      = "applications"
-	ResourceApplicationSets   = "applicationsets"
-	ResourceRepositories      = "repositories"
-	ResourceWriteRepositories = "write-repositories"
-	ResourceCertificates      = "certificates"
-	ResourceAccounts          = "accounts"
-	ResourceGPGKeys           = "gpgkeys"
-	ResourceLogs              = "logs"
-	ResourceExec              = "exec"
-	ResourceExtensions        = "extensions"
+	ResourceClusters        = "clusters"
+	ResourceProjects        = "projects"
+	ResourceApplications    = "applications"
+	ResourceApplicationSets = "applicationsets"
+	ResourceRepositories    = "repositories"
+	ResourceCertificates    = "certificates"
+	ResourceAccounts        = "accounts"
+	ResourceGPGKeys         = "gpgkeys"
+	ResourceLogs            = "logs"
+	ResourceExec            = "exec"
+	ResourceExtensions      = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -46,13 +45,9 @@ var (
 		ResourceApplications,
 		ResourceApplicationSets,
 		ResourceRepositories,
-		ResourceWriteRepositories,
 		ResourceCertificates,
-		ResourceAccounts,
-		ResourceGPGKeys,
 		ResourceLogs,
 		ResourceExec,
-		ResourceExtensions,
 	}
 	Actions = []string{
 		ActionGet,
@@ -61,8 +56,6 @@ var (
 		ActionDelete,
 		ActionSync,
 		ActionOverride,
-		ActionAction,
-		ActionInvoke,
 	}
 )
 
@@ -148,11 +141,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
 
 	// Get groups to reduce the amount to checking groups
-	groupingPolicies, err := enforcer.GetGroupingPolicy()
-	if err != nil {
-		log.WithError(err).Error("failed to get grouping policy")
-		return false
-	}
+	groupingPolicies := enforcer.GetGroupingPolicy()
 	for gidx := range groups {
 		for gpidx := range groupingPolicies {
 			// Prefilter user groups by groups defined in the model

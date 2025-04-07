@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 	"time"
 
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
@@ -76,11 +75,6 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	}
 	if flusher, ok := w.(interface{ Flush() error }); ok {
 		if err := flusher.Flush(); err != nil {
-			return nil, err
-		}
-	}
-	if closer, ok := w.(interface{ Close() error }); ok {
-		if err := closer.Close(); err != nil {
 			return nil, err
 		}
 	}
@@ -201,11 +195,6 @@ func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Proce
 }
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
-// Lock should be shared between functions that can add/process a Redis hook.
-func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
-	if lock != nil {
-		lock.Lock()
-		defer lock.Unlock()
-	}
+func CollectMetrics(client *redis.Client, registry MetricsRegistry) {
 	client.AddHook(&redisHook{registry: registry})
 }
