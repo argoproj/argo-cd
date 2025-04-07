@@ -1882,7 +1882,7 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
-                      enable:
+                      enabled:
                         description: Enable allows apps to explicitly control automated
                           sync
                         type: boolean
