@@ -15,7 +15,7 @@
     "@types/selenium-webdriver": "^4.1.28",
     "assert": "^2.1.0",
     "chromedriver": "^135.0.0",
-    "selenium-webdriver": "^4.30.0"
+    "selenium-webdriver": "^4.31.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
