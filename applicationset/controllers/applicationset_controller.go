@@ -93,7 +93,6 @@ type ApplicationSetReconciler struct {
 	Metrics                    *metrics.ApplicationsetMetrics
 }
 
-
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
@@ -211,16 +210,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	appSyncMap := map[string]bool{}
 
 	if r.EnableProgressiveSyncs {
-		if !isRollingSyncStrategy(applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
-			// If an appset was using progressive sync but stopped, clean up the progressive sync application statuses
+		if !isRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
+			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
 			logCtx.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
 
 			err := r.setAppSetApplicationStatus(ctx, logCtx, &applicationSetInfo, []argov1alpha1.ApplicationSetApplicationStatus{})
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to clear previous AppSet application statuses for %v: %w", applicationSetInfo.Name, err)
 			}
-		} else if isRollingSyncStrategy(applicationSetInfo) {
-			// appset uses progressive sync
+		} else if isRollingSyncStrategy(&applicationSetInfo) {
+			// The appset uses progressive sync with `RollingSync` strategy
 			for _, app := range currentApplications {
 				appMap[app.Name] = app
 			}
@@ -1003,10 +1002,11 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 
 func isRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
 	// It's only RollingSync if it's especifically set by the type
-	return appset.Spec.Strategy != nil && appset.Spec.Strategy.RollingSync != nil && appset.Spec.Strategy.Type == "RollingSync"
+	return appset.Spec.Strategy != nil && appset.Spec.Strategy.Type == "RollingSync" && appset.Spec.Strategy.RollingSync != nil
 }
 
 func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
+	// ProgressiveSync is enabled if the strategy is set to `RollingSync` + steps slice is not empty
 	return isRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
