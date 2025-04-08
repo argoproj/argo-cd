@@ -704,7 +704,7 @@ rootCA: |
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured", func(t *testing.T) {
@@ -739,7 +739,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is Dex, TLS is configured", func(t *testing.T) {
@@ -774,7 +774,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is external, TLS is configured, OIDCTLSInsecureSkipVerify is true", func(t *testing.T) {
@@ -948,7 +948,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is external, audience is client ID, no allowed list specified", func(t *testing.T) {
@@ -1058,7 +1058,7 @@ allowedAudiences:
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is external, audience is not client ID, and there is no allow list", func(t *testing.T) {
@@ -1094,7 +1094,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	t.Run("OIDC provider is external, audience is specified, but allow list is empty", func(t *testing.T) {
@@ -1131,7 +1131,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 
 	// Make sure the logic works to allow any of the allowed audiences, not just the first one.
@@ -1204,7 +1204,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		_, _, err = mgr.VerifyToken(tokenString)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, common.TokenVerificationErr)
+		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
 }
 

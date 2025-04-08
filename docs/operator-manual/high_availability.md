@@ -132,8 +132,8 @@ stringData:
 
 * `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
   for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of resources,
-  and the controller is overwhelmed by the number of events. The default value is `false`, which means that the controller
-  processes events one by one.
+  and the controller is overwhelmed by the number of events. The default value is `true`. `false` would mean that the controller
+  would process events one by one.
 
 * `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing events in a batch.
   The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`.

@@ -289,19 +289,19 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 	})
 	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
 	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
 	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
@@ -581,7 +581,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
@@ -697,7 +697,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			var data []byte
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
@@ -914,10 +914,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, stderrors.New("No matching resource found")
+		return nil, stderrors.New("no matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("multiple resources match inputs, use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }

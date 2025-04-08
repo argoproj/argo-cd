@@ -8741,6 +8741,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -10098,6 +10105,10 @@
         "allowEmpty": {
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        },
+        "enable": {
+          "type": "boolean",
+          "title": "Enable allows apps to explicitly control automated sync"
         },
         "prune": {
           "type": "boolean",
