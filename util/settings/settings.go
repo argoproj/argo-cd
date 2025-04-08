@@ -1328,7 +1328,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}()
 
 	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
-		return errors.New("Timed out waiting for settings cache to sync")
+		return errors.New("timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
 
@@ -1479,7 +1479,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("Failed to parse URL: %w", err)
+		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return errors.New("URL must include http or https protocol")

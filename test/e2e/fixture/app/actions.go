@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	client "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
@@ -82,6 +82,18 @@ func (a *Actions) AddTag(name string) *Actions {
 	return a
 }
 
+func (a *Actions) AddAnnotatedTag(name string, message string) *Actions {
+	a.context.t.Helper()
+	fixture.AddAnnotatedTag(a.context.t, name, message)
+	return a
+}
+
+func (a *Actions) AddTagWithForce(name string) *Actions {
+	a.context.t.Helper()
+	fixture.AddTagWithForce(a.context.t, name)
+	return a
+}
+
 func (a *Actions) RemoveSubmodule() *Actions {
 	a.context.t.Helper()
 	fixture.RemoveSubmodule(a.context.t)
@@ -111,20 +123,20 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	return a
 }
 
-func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
+func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
 	a.context.t.Helper()
-	app := &Application{
+	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
-		Spec: ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
-			Source: &ApplicationSource{
+			Source: &v1alpha1.ApplicationSource{
 				RepoURL: fixture.RepoURL(a.context.repoURLType),
 				Path:    a.context.path,
 			},
-			Destination: ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Server:    a.context.destServer,
 				Namespace: fixture.DeploymentNamespace(),
 			},
@@ -132,23 +144,23 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 	}
 	source := app.Spec.GetSource()
 	if a.context.namePrefix != "" || a.context.nameSuffix != "" {
-		source.Kustomize = &ApplicationSourceKustomize{
+		source.Kustomize = &v1alpha1.ApplicationSourceKustomize{
 			NamePrefix: a.context.namePrefix,
 			NameSuffix: a.context.nameSuffix,
 		}
 	}
 	if a.context.configManagementPlugin != "" {
-		source.Plugin = &ApplicationSourcePlugin{
+		source.Plugin = &v1alpha1.ApplicationSourcePlugin{
 			Name: a.context.configManagementPlugin,
 		}
 	}
 
 	if len(a.context.parameters) > 0 {
-		log.Fatal("Application parameters or json tlas are not supported")
+		log.Fatal("v1alpha1.Application parameters or json tlas are not supported")
 	}
 
 	if a.context.directoryRecurse {
-		source.Directory = &ApplicationSourceDirectory{Recurse: true}
+		source.Directory = &v1alpha1.ApplicationSourceDirectory{Recurse: true}
 	}
 	app.Spec.Source = &source
 
@@ -170,20 +182,20 @@ func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string
 
 func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 	a.context.t.Helper()
-	app := &Application{
+	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
 			Namespace: a.context.AppNamespace(),
 		},
-		Spec: ApplicationSpec{
+		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Sources: a.context.sources,
-			Destination: ApplicationDestination{
+			Destination: v1alpha1.ApplicationDestination{
 				Server:    a.context.destServer,
 				Namespace: fixture.DeploymentNamespace(),
 			},
-			SyncPolicy: &SyncPolicy{
-				Automated: &SyncPolicyAutomated{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{
 					SelfHeal: true,
 				},
 			},
@@ -335,7 +347,7 @@ func (a *Actions) PatchApp(patch string) *Actions {
 
 func (a *Actions) PatchAppHttp(patch string) *Actions { //nolint:revive //FIXME(var-naming)
 	a.context.t.Helper()
-	var application Application
+	var application v1alpha1.Application
 	patchType := "merge"
 	appName := a.context.AppQualifiedName()
 	appNamespace := a.context.AppNamespace()
@@ -431,11 +443,11 @@ func (a *Actions) TerminateOp() *Actions {
 	return a
 }
 
-func (a *Actions) Refresh(refreshType RefreshType) *Actions {
+func (a *Actions) Refresh(refreshType v1alpha1.RefreshType) *Actions {
 	a.context.t.Helper()
-	flag := map[RefreshType]string{
-		RefreshTypeNormal: "--refresh",
-		RefreshTypeHard:   "--hard-refresh",
+	flag := map[v1alpha1.RefreshType]string{
+		v1alpha1.RefreshTypeNormal: "--refresh",
+		v1alpha1.RefreshTypeHard:   "--hard-refresh",
 	}[refreshType]
 
 	a.runCli("app", "get", a.context.AppQualifiedName(), flag)

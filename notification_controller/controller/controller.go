@@ -191,7 +191,7 @@ func (c *notificationController) Init(ctx context.Context) error {
 	go c.configMapInformer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.appInformer.HasSynced, c.appProjInformer.HasSynced, c.secretInformer.HasSynced, c.configMapInformer.HasSynced) {
-		return errors.New("Timed out waiting for caches to sync")
+		return errors.New("timed out waiting for caches to sync")
 	}
 	return nil
 }
