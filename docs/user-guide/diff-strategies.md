@@ -43,6 +43,11 @@ are only triggered when:
 - There is a new revision in the repo which the Argo CD Application is
   targeting.
 - The Argo CD Application spec changed.
+- The resource already exists.
+
+Note that Server-Side Diff will not be performed during the creation of new resources. 
+This is to save an additional call to KubeAPI and provide a much lighter and faster diff calculation 
+(Non-Server-Side Apply) when resources don't exist to compare against.
 
 One advantage of Server-Side Diff is that Kubernetes Admission
 Controllers will participate in the diff calculation. If for example
