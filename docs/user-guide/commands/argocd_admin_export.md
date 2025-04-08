@@ -11,8 +11,8 @@ argocd admin export [flags]
 ### Options
 
 ```
-      --application-namespaces strings      Comma separated list of namespace globs to export applications from. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applications from Argo CD namespace will be exported
-      --applicationset-namespaces strings   Comma separated list of namespace globs to export applicationsets from. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applicationsets from Argo CD namespace will be exported
+      --application-namespaces strings      Comma-separated list of namespace globs to export applications from, in addition to the control plane namespace (Argo CD namespace). By default, all applications from the control plane namespace are always exported. If this flag is provided, applications from the specified namespaces are exported along with the control plane namespace. If not specified, the value from 'application.namespaces' in argocd-cmd-params-cm is used (if defined in the ConfigMap). If the ConfigMap value is not set, only applications from the control plane namespace are exported.
+      --applicationset-namespaces strings   Comma-separated list of namespace globs to export ApplicationSets from, in addition to the control plane namespace (Argo CD namespace). By default, all ApplicationSets from the control plane namespace are always exported. If this flag is provided, ApplicationSets from the specified namespaces are exported along with the control plane namespace. If not specified, the value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm is used (if defined in the ConfigMap). If the ConfigMap value is not set, only ApplicationSets from the control plane namespace are exported.
       --as string                           Username to impersonate for the operation
       --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                       UID to impersonate for the operation

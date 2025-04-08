@@ -129,7 +129,7 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}, ""}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "ClusterMatrixNested", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{
@@ -144,7 +144,7 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}, ""}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "ListGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{{List: &argov1alpha1.ListGenerator{}}},
@@ -154,7 +154,7 @@ func TestRequeueAfter(t *testing.T) {
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
 			},
-		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}}, want: generators.DefaultRequeueAfter, wantErr: assert.NoError},
 		{name: "OverrideRequeueDuck", args: args{
 			appset: &argov1alpha1.ApplicationSet{
 				Spec: argov1alpha1.ApplicationSetSpec{
