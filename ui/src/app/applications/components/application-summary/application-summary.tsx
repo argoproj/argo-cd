@@ -381,7 +381,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
-                
+
                 updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
