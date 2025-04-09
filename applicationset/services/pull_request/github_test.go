@@ -36,33 +36,3 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 		})
 	}
 }
-
-func TestGetGithubPRLabels(t *testing.T) {
-	tests := []struct {
-		Name           string
-		Labels         []string
-		ExpectedResult []githubv4.String
-	}{
-		{
-			Name:   "Multiple labels",
-			Labels: []string{"bug", "enhancement", "help wanted"},
-			ExpectedResult: []githubv4.String{
-				githubv4.String("bug"),
-				githubv4.String("enhancement"),
-				githubv4.String("help wanted"),
-			},
-		},
-		{
-			Name:           "No labels",
-			Labels:         []string{},
-			ExpectedResult: nil,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.Name, func(t *testing.T) {
-			labels := getGithubPRLabels(test.Labels)
-			require.Equal(t, test.ExpectedResult, labels)
-		})
-	}
-}

@@ -114,20 +114,12 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 }
 
 // Get the Github pull request label names.
-func getGithubPRLabelNames(labels []githubLabel) []string {
+func getGithubPRLabelNames(gitHubLabels []githubLabel) []string {
 	var labelNames []string
-	for _, label := range labels {
-		labelNames = append(labelNames, string(label.Name))
+	for _, gitHubLabel := range gitHubLabels {
+		labelNames = append(labelNames, string(gitHubLabel.Name))
 	}
 	return labelNames
-}
-
-func getGithubPRLabels(labelNames []string) []githubv4.String {
-	var labels []githubv4.String
-	for _, labelName := range labelNames {
-		labels = append(labels, githubv4.String(labelName))
-	}
-	return labels
 }
 
 // roundTripperFunc creates a RoundTripper (transport).
