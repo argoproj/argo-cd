@@ -18,6 +18,7 @@ export const ApplicationsTable = (props: {
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
+    diffApplication: (appName: string, appNamespace: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
     const ctxh = React.useContext(Context);
@@ -152,6 +153,11 @@ export const ApplicationsTable = (props: {
                                                             title: 'Delete',
                                                             iconClassName: 'fa fa-fw fa-times-circle',
                                                             action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
+                                                        },
+                                                        {
+                                                            title: 'Diff',
+                                                            iconClassName: 'fa fa-fw fa-file-medical',
+                                                            action: () => props.diffApplication(app.metadata.name, app.metadata.namespace)
                                                         }
                                                     ]}
                                                 />
