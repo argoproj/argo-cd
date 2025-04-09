@@ -133,6 +133,7 @@ require (
 	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/davidmz/go-pageant v1.0.2 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
+	github.com/expr-lang/expr v1.17.2 // indirect
 	github.com/go-fed/httpsig v1.1.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
@@ -340,3 +341,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.29.6
 	k8s.io/sample-controller => k8s.io/sample-controller v0.29.6
 )
+
+replace github.com/antonmedv/expr => github.com/expr-lang/expr v1.17.0
