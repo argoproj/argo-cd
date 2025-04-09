@@ -558,9 +558,9 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 				claims = jwt.MapClaims{
 					"iss": "sso",
 				}
-				return claims, "", common.TokenVerificationErr
+				return claims, "", common.ErrTokenVerification
 			}
-			return nil, "", common.TokenVerificationErr
+			return nil, "", common.ErrTokenVerification
 		}
 
 		var claims jwt.MapClaims

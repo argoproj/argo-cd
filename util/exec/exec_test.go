@@ -178,9 +178,9 @@ func TestRunInDir(t *testing.T) {
 }
 
 func TestRedact(t *testing.T) {
-	assert.Equal(t, "", Redact(nil)(""))
-	assert.Equal(t, "", Redact([]string{})(""))
-	assert.Equal(t, "", Redact([]string{"foo"})(""))
+	assert.Empty(t, Redact(nil)(""))
+	assert.Empty(t, Redact([]string{})(""))
+	assert.Empty(t, Redact([]string{"foo"})(""))
 	assert.Equal(t, "foo", Redact([]string{})("foo"))
 	assert.Equal(t, "******", Redact([]string{"foo"})("foo"))
 	assert.Equal(t, "****** ******", Redact([]string{"foo", "bar"})("foo bar"))

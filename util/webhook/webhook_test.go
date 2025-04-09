@@ -310,6 +310,72 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook.Reset()
 }
 
+// TestGitHubCommitEvent_Hydrate makes sure that a webhook will hydrate an app when dry source changed.
+func TestGitHubCommitEvent_Hydrate(t *testing.T) {
+	hook := test.NewGlobal()
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		assert.Equal(t, "app-to-hydrate", patchAction.GetName())
+		patched = true
+		return true, nil, nil
+	}
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-to-hydrate",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource: v1alpha1.DrySource{
+					RepoURL:        "https://github.com/jessesuen/test-repo",
+					TargetRevision: "HEAD",
+					Path:           ".",
+				},
+				SyncSource: v1alpha1.SyncSource{
+					TargetBranch: "environments/dev",
+					Path:         ".",
+				},
+				HydrateTo: nil,
+			},
+		},
+	}, &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-to-ignore",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/some/unrelated-repo",
+					Path:    ".",
+				},
+			},
+		},
+	},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, patched)
+
+	logMessages := make([]string, 0, len(hook.Entries))
+	for _, entry := range hook.Entries {
+		logMessages = append(logMessages, entry.Message)
+	}
+
+	assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-hydrate'")
+	assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-ignore'")
+
+	hook.Reset()
+}
+
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
@@ -500,8 +566,15 @@ func TestAppRevisionHasChanged(t *testing.T) {
 		{"dev target revision, dev, did not touch head", getSource("dev"), "dev", false, true},
 		{"refs/heads/dev target revision, master, touched head", getSource("refs/heads/dev"), "master", true, false},
 		{"refs/heads/dev target revision, dev, did not touch head", getSource("refs/heads/dev"), "dev", false, true},
+		{"refs/tags/dev target revision, dev, did not touch head", getSource("refs/tags/dev"), "dev", false, true},
 		{"env/test target revision, env/test, did not touch head", getSource("env/test"), "env/test", false, true},
 		{"refs/heads/env/test target revision, env/test, did not touch head", getSource("refs/heads/env/test"), "env/test", false, true},
+		{"refs/tags/env/test target revision, env/test, did not touch head", getSource("refs/tags/env/test"), "env/test", false, true},
+		{"three/part/rev target revision, rev, did not touch head", getSource("three/part/rev"), "rev", false, false},
+		{"1.* target revision (matching), 1.1.0, did not touch head", getSource("1.*"), "1.1.0", false, true},
+		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", getSource("refs/tags/1.*"), "1.1.0", false, true},
+		{"1.* target revision (not matching), 2.0.0, did not touch head", getSource("1.*"), "2.0.0", false, false},
+		{"1.* target revision, dev (not semver), did not touch head", getSource("1.*"), "dev", false, false},
 	}
 
 	for _, tc := range testCases {

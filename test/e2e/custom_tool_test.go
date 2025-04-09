@@ -200,7 +200,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
+			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 
@@ -344,7 +344,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
+			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 

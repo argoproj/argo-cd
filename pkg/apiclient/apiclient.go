@@ -221,6 +221,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
+		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
 	}
 	// Override auth-token if specified in env variable or CLI flag
@@ -337,11 +338,11 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %w", issuerURL, err)
+		return nil, nil, fmt.Errorf("failed to query provider %q: %w", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse provider config: %w", err)
 	}
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)

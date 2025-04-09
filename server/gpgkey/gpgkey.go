@@ -72,10 +72,10 @@ func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*ap
 		return key, nil
 	}
 
-	return nil, fmt.Errorf("No such key: %s", keyID)
+	return nil, fmt.Errorf("no such key: %s", keyID)
 }
 
-// CreateGnuPGPublicKey adds one or more GPG public keys to the server's configuration
+// Create adds one or more GPG public keys to the server's configuration
 func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRequest) (*gpgkeypkg.GnuPGPublicKeyCreateResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionCreate, ""); err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 
 	keyData := strings.TrimSpace(q.Publickey.KeyData)
 	if keyData == "" {
-		return nil, errors.New("Submitted key data is empty")
+		return nil, errors.New("submitted key data is empty")
 	}
 
 	added, skipped, err := s.db.AddGPGPublicKey(ctx, q.Publickey.KeyData)

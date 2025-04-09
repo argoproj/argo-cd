@@ -97,7 +97,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
@@ -167,7 +167,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
 			}
 
 			keyId := args[0]

@@ -14,6 +14,7 @@ import (
 
 	bb "github.com/ktrysmt/go-bitbucket"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -351,14 +352,30 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			continue
 		}
 		for _, app := range filteredApps {
+			if app.Spec.SourceHydrator != nil {
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
+					refreshPaths := path.GetAppRefreshPaths(&app)
+					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
+						if err != nil {
+							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
+							continue
+						}
+					}
+				}
+			}
+
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal, true)
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
 						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.Name, err)
 							continue
 						}
 						// No need to refresh multiple times if multiple sources match.
@@ -475,11 +492,33 @@ func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
 		if strings.HasPrefix(source.TargetRevision, prefix) {
-			return revision == targetRev
+			return compareRevisions(revision, targetRev)
 		}
 	}
 
-	return source.TargetRevision == revision
+	return compareRevisions(revision, source.TargetRevision)
+}
+
+func compareRevisions(revision string, targetRevision string) bool {
+	if revision == targetRevision {
+		return true
+	}
+
+	// If basic equality checking fails, it might be that the target revision is
+	// a semver version constraint
+	constraint, err := semver.NewConstraint(targetRevision)
+	if err != nil {
+		// The target revision is not a constraint
+		return false
+	}
+
+	version, err := semver.NewVersion(revision)
+	if err != nil {
+		// The new revision is not a valid semver version, so it can't match the constraint.
+		return false
+	}
+
+	return constraint.Check(version)
 }
 
 func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {

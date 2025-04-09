@@ -97,10 +97,10 @@ func getModification(modification string, resource string, scope string, permiss
 	switch modification {
 	case "set":
 		if scope == "" {
-			return nil, stderrors.New("Flag --group cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --group cannot be empty if permission should be set in role")
 		}
 		if permission == "" {
-			return nil, stderrors.New("Flag --permission cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
 		return func(proj string, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)

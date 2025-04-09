@@ -35,7 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-var InvalidRedirectURLError = errors.New("invalid return URL")
+var ErrInvalidRedirectURL = errors.New("invalid return URL")
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -238,7 +238,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 				sanitizedURL = sanitizedURL[:100]
 			}
 			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
-			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
+			return "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
 		}
 		redirectURL = parts[1]
 	}

@@ -34,7 +34,7 @@ func SliceCopy[T runtime.Object](items []T) []T {
 // GenerateCacheKey generates a cache key based on a format string and arguments
 func GenerateCacheKey(format string, args ...any) (string, error) {
 	h := sha256.New()
-	_, err := h.Write([]byte(fmt.Sprintf(format, args...)))
+	_, err := fmt.Fprintf(h, format, args...)
 	if err != nil {
 		return "", err
 	}

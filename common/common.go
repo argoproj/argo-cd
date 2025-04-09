@@ -444,7 +444,7 @@ const (
 // TokenVerificationError is a generic error message for a failure to verify a JWT
 const TokenVerificationError = "failed to verify the token"
 
-var TokenVerificationErr = errors.New(TokenVerificationError)
+var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
 
