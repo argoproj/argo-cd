@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/shurcooL/githubv4"
 )
 
 type GithubService struct {
-	client *github.Client
+	client *githubv4.Client
 	owner  string
 	repo   string
 	labels []string
@@ -18,21 +18,28 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
+type githubLabel struct {
+	Name githubv4.String
+}
+
 func NewGithubService(token, url, owner, repo string, labels []string) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
 	httpClient := &http.Client{}
-	var client *github.Client
+	var client *githubv4.Client
 	if url == "" {
-		client = github.NewClient(httpClient).WithAuthToken(token)
+		httpClient.Transport = roundTripperFunc(
+			func(req *http.Request) (*http.Response, error) {
+				req = req.Clone(req.Context())
+				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+				return http.DefaultTransport.RoundTrip(req)
+			},
+		)
+		client = githubv4.NewClient(httpClient)
 	} else {
-		var err error
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
-		if err != nil {
-			return nil, err
-		}
+		client = githubv4.NewEnterpriseClient(url, httpClient)
 	}
 	return &GithubService{
 		client: client,
@@ -43,64 +50,89 @@ func NewGithubService(token, url, owner, repo string, labels []string) (PullRequ
 }
 
 func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
-	opts := &github.PullRequestListOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+	var query struct {
+		Search struct {
+			Nodes []struct {
+				PullRequest struct {
+					Number      githubv4.Int
+					Title       githubv4.String
+					HeadRefName githubv4.String
+					BaseRefName githubv4.String
+					HeadRefOid  githubv4.String
+					Labels      struct {
+						Nodes []githubLabel
+					} `graphql:"labels(first: 10)"`
+					Author struct {
+						Login githubv4.String
+					}
+				} `graphql:"... on PullRequest"`
+			}
+			PageInfo struct {
+				EndCursor   githubv4.String
+				HasNextPage bool
+			}
+		} `graphql:"search(query: $query, type: ISSUE, first: 100, after: $after)"`
 	}
+
+	queryString := fmt.Sprintf("repo:%s/%s is:pr is:open", g.owner, g.repo)
+	for _, label := range g.labels {
+		queryString += fmt.Sprintf(" label:\"%s\"", label)
+	}
+
+	variables := map[string]any{
+		"query": githubv4.String(queryString),
+		"after": (*githubv4.String)(nil),
+	}
+
 	pullRequests := []*PullRequest{}
 	for {
-		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
+		err := g.client.Query(ctx, &query, variables)
 		if err != nil {
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
-		for _, pull := range pulls {
-			if !containLabels(g.labels, pull.Labels) {
-				continue
-			}
+
+		for _, node := range query.Search.Nodes {
+			pull := node.PullRequest
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       *pull.Number,
-				Title:        *pull.Title,
-				Branch:       *pull.Head.Ref,
-				TargetBranch: *pull.Base.Ref,
-				HeadSHA:      *pull.Head.SHA,
-				Labels:       getGithubPRLabelNames(pull.Labels),
-				Author:       *pull.User.Login,
+				Number:       int(pull.Number),
+				Title:        string(pull.Title),
+				Branch:       string(pull.HeadRefName),
+				TargetBranch: string(pull.BaseRefName),
+				HeadSHA:      string(pull.HeadRefOid),
+				Labels:       getGithubPRLabelNames(pull.Labels.Nodes),
+				Author:       string(pull.Author.Login),
 			})
 		}
-		if resp.NextPage == 0 {
+
+		if !query.Search.PageInfo.HasNextPage {
 			break
 		}
-		opts.Page = resp.NextPage
+		variables["after"] = githubv4.String(query.Search.PageInfo.EndCursor)
 	}
+
 	return pullRequests, nil
 }
 
-// containLabels returns true if gotLabels contains expectedLabels
-func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
-	for _, expected := range expectedLabels {
-		found := false
-		for _, got := range gotLabels {
-			if got.Name == nil {
-				continue
-			}
-			if expected == *got.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
 // Get the Github pull request label names.
-func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
+func getGithubPRLabelNames(labels []githubLabel) []string {
 	var labelNames []string
-	for _, gitHubLabel := range gitHubLabels {
-		labelNames = append(labelNames, *gitHubLabel.Name)
+	for _, label := range labels {
+		labelNames = append(labelNames, string(label.Name))
 	}
 	return labelNames
+}
+
+func getGithubPRLabels(labelNames []string) []githubv4.String {
+	var labels []githubv4.String
+	for _, labelName := range labelNames {
+		labels = append(labels, githubv4.String(labelName))
+	}
+	return labels
+}
+
+// roundTripperFunc creates a RoundTripper (transport).
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
 }
