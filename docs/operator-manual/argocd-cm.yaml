@@ -230,7 +230,6 @@ data:
   # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
   resource.excludeEventLabelKeys: environment,bu
 
-
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
@@ -368,7 +367,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/antonmedv/expr is used for evaluation of conditions
+    # github.com/expr-lang/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
       if: spec.project == "default"
