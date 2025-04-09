@@ -381,9 +381,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
-                //preserve the current enabled state when modifying prune or self heal
-                const currentEnabled = updatedApp.spec.syncPolicy.automated?.enabled;
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: currentEnabled ?? enable};
+                
+                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
