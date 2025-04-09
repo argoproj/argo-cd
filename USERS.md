@@ -94,6 +94,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Deutsche Telekom AG](https://telekom.com)
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
 1. [Devtron Labs](https://github.com/devtron-labs/devtron)
+1. [DigitalEd](https://www.digitaled.com)
 1. [DigitalOcean](https://www.digitalocean.com)
 1. [Divar](https://divar.ir)
 1. [Divistant](https://divistant.com)
