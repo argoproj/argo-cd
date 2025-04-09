@@ -340,7 +340,7 @@ stringData:
     (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
     that do _not_ have a `project` set).
 
-All the examples above concerns Git repositories, but the same principles apply to clusters as well.
+All the examples above concern Git repositories, but the same principles apply to clusters as well.
 
 ```yaml
 apiVersion: v1

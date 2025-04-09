@@ -27,7 +27,7 @@ argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 ```
 
 The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str`, etc.
-You can also specify overrides directly in the source field on application spec. Read more about supported options in corresponding tool [documentation](./application_sources.md).
+You can also specify overrides directly in the source field on the application spec. Read more about supported options in the corresponding tool [documentation](./application_sources.md).
 
 ## When To Use Overrides?
 
