@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"fmt"
+
 	"github.com/argoproj/argo-cd/v3/common"
 )
 
