@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/shurcooL/githubv4"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 )
 
 func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo string, labels []string) (PullRequestService, error) {

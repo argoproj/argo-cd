@@ -33,7 +33,7 @@ func NewGithubService(token, url, owner, repo string, labels []string) (PullRequ
 		httpClient.Transport = roundTripperFunc(
 			func(req *http.Request) (*http.Response, error) {
 				req = req.Clone(req.Context())
-				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+				req.Header.Set("Authorization", "Bearer "+token)
 				return http.DefaultTransport.RoundTrip(req)
 			},
 		)
