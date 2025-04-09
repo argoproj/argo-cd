@@ -5,20 +5,26 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
-	"github.com/google/go-github/v69/github"
+	"github.com/shurcooL/githubv4"
+	"golang.org/x/oauth2"
 
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GithubService struct {
-	client *github.Client
-	owner  string
-	repo   string
-	labels []string
+	v4Client *githubv4.Client
+	owner    string
+	repo     string
+	labels   []string
 }
 
 var _ PullRequestService = (*GithubService)(nil)
+
+type githubLabel struct {
+	Name githubv4.String
+}
 
 func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
@@ -26,98 +32,109 @@ func NewGithubService(token, url, owner, repo string, labels []string, optionalH
 		token = os.Getenv("GITHUB_TOKEN")
 	}
 
-	var client *github.Client
+	var v4Client *githubv4.Client
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
 
-	if url == "" {
-		if token == "" {
-			client = github.NewClient(httpClient)
-		} else {
-			client = github.NewClient(httpClient).WithAuthToken(token)
-		}
-	} else {
-		var err error
-		if token == "" {
-			client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
-		} else {
-			client, err = github.NewClient(httpClient).WithAuthToken(token).WithEnterpriseURLs(url, url)
-		}
-		if err != nil {
-			return nil, err
+	if token != "" {
+		httpClient.Transport = &oauth2.Transport{
+			Source: oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token}),
+			Base:   httpClient.Transport,
 		}
 	}
+
+	if url == "" {
+		v4Client = githubv4.NewClient(httpClient)
+	} else {
+		url = strings.TrimSuffix(url, "/")
+		v4Client = githubv4.NewEnterpriseClient(url+"/graphql", httpClient)
+	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		v4Client: v4Client,
+		owner:    owner,
+		repo:     repo,
+		labels:   labels,
 	}, nil
 }
 
 func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
-	opts := &github.PullRequestListOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+	var query struct {
+		Repository *struct {
+			ID githubv4.ID
+		} `graphql:"repository(owner: $owner, name: $repo)"`
+		Search struct {
+			Nodes []struct {
+				PullRequest struct {
+					Number      githubv4.Int
+					Title       githubv4.String
+					HeadRefName githubv4.String
+					BaseRefName githubv4.String
+					HeadRefOid  githubv4.String
+					Labels      struct {
+						Nodes []githubLabel
+					} `graphql:"labels(first: 100)"`
+					Author struct {
+						Login githubv4.String
+					}
+				} `graphql:"... on PullRequest"`
+			}
+			PageInfo struct {
+				EndCursor   githubv4.String
+				HasNextPage bool
+			}
+		} `graphql:"search(query: $query, type: ISSUE, first: 100, after: $after)"`
 	}
+
+	queryString := fmt.Sprintf("repo:%s/%s is:pr is:open", g.owner, g.repo)
+	for _, label := range g.labels {
+		queryString += fmt.Sprintf(" label:%q", label)
+	}
+
+	variables := map[string]any{
+		"owner": githubv4.String(g.owner),
+		"repo":  githubv4.String(g.repo),
+		"query": githubv4.String(queryString),
+		"after": (*githubv4.String)(nil),
+	}
+
 	pullRequests := []*PullRequest{}
 	for {
-		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
+		err := g.v4Client.Query(ctx, &query, variables)
 		if err != nil {
-			if resp != nil && resp.StatusCode == http.StatusNotFound {
+			if strings.Contains(err.Error(), "Could not resolve to a Repository") {
 				// return a custom error indicating that the repository is not found,
 				// but also returning the empty result since the decision to continue or not in this case is made by the caller
 				return pullRequests, NewRepositoryNotFoundError(err)
 			}
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
-		for _, pull := range pulls {
-			if !containLabels(g.labels, pull.Labels) {
-				continue
-			}
+
+		for _, node := range query.Search.Nodes {
+			pull := node.PullRequest
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       *pull.Number,
-				Title:        *pull.Title,
-				Branch:       *pull.Head.Ref,
-				TargetBranch: *pull.Base.Ref,
-				HeadSHA:      *pull.Head.SHA,
-				Labels:       getGithubPRLabelNames(pull.Labels),
-				Author:       *pull.User.Login,
+				Number:       int(pull.Number),
+				Title:        string(pull.Title),
+				Branch:       string(pull.HeadRefName),
+				TargetBranch: string(pull.BaseRefName),
+				HeadSHA:      string(pull.HeadRefOid),
+				Labels:       getGithubPRLabelNames(pull.Labels.Nodes),
+				Author:       string(pull.Author.Login),
 			})
 		}
-		if resp.NextPage == 0 {
+
+		if !query.Search.PageInfo.HasNextPage {
 			break
 		}
-		opts.Page = resp.NextPage
+		variables["after"] = githubv4.String(query.Search.PageInfo.EndCursor)
 	}
+
 	return pullRequests, nil
 }
 
-// containLabels returns true if gotLabels contains expectedLabels
-func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
-	for _, expected := range expectedLabels {
-		found := false
-		for _, got := range gotLabels {
-			if got.Name == nil {
-				continue
-			}
-			if expected == *got.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return false
-		}
-	}
-	return true
-}
-
 // Get the Github pull request label names.
-func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
+func getGithubPRLabelNames(gitHubLabels []githubLabel) []string {
 	var labelNames []string
 	for _, gitHubLabel := range gitHubLabels {
-		labelNames = append(labelNames, *gitHubLabel.Name)
+		labelNames = append(labelNames, string(gitHubLabel.Name))
 	}
 	return labelNames
 }
