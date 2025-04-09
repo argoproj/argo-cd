@@ -536,25 +536,16 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                             <div className='checkbox-container'>
                                                 <Checkbox
                                                     onChange={async (val: boolean) => {
-                                                        const confirmed = await ctx.popup.confirm(
+                                                        setAutoSync(
+                                                            ctx,
                                                             val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
                                                             val
                                                                 ? 'If checked, application will automatically sync when changes are detected'
-                                                                : 'Are you sure you want to disable automated application synchronization'
+                                                                : 'Are you sure you want to disable automated application synchronization',
+                                                            app.spec.syncPolicy.automated.prune,
+                                                            app.spec.syncPolicy.automated.selfHeal,
+                                                            val
                                                         );
-                                                        if (confirmed) {
-                                                            const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                                                            const currentAutomated = updatedApp.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
-
-                                                            updatedApp.spec.syncPolicy = updatedApp.spec.syncPolicy || {};
-                                                            updatedApp.spec.syncPolicy.automated = {
-                                                                prune: currentAutomated.prune,
-                                                                selfHeal: currentAutomated.selfHeal,
-                                                                enabled: val
-                                                            };
-
-                                                            await updateApp(updatedApp, {validate: false});
-                                                        }
                                                     }}
                                                     checked={app.spec.syncPolicy?.automated ? app.spec.syncPolicy.automated.enabled !== false : false}
                                                     id='enable-auto-sync'
