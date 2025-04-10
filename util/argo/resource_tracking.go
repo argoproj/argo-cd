@@ -66,6 +66,9 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue {
+	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
+		return nil
+	}
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
