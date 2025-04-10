@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/shurcooL/githubv4"
 )
@@ -39,7 +40,10 @@ func NewGithubService(token, url, owner, repo string, labels []string) (PullRequ
 		)
 		client = githubv4.NewClient(httpClient)
 	} else {
-		client = githubv4.NewEnterpriseClient(url, httpClient)
+		if !strings.HasSuffix(url, "/") {
+			url += "/"
+		}
+		client = githubv4.NewEnterpriseClient(url+"graphql", httpClient)
 	}
 	return &GithubService{
 		client: client,

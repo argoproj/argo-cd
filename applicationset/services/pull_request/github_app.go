@@ -3,6 +3,7 @@ package pull_request
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/shurcooL/githubv4"
@@ -17,6 +18,10 @@ func NewGithubAppService(g github_app_auth.Authentication, url, owner, repo stri
 	}
 	if url == "" {
 		url = g.EnterpriseBaseURL
+		if !strings.HasSuffix(url, "/") {
+			url += "/"
+		}
+		url += "graphql"
 	}
 	var client *githubv4.Client
 	if url == "" {
