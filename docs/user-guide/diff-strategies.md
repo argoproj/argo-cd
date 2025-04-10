@@ -17,16 +17,14 @@ Argo CD currently has 3 different strategies to calculate diffs:
 
 ## Structured-Merge Diff
 
-!!! warning "Beta Feature (Since v2.5.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
+!!! warning "Feature Discontinued"
+    After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
 
 This diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
 used by Kubernetes to calculate diffs based on fields ownership. There
 are some challenges using this strategy to calculate diffs for CRDs
-that define default values. After different issues were identified by
-the community, this strategy is being discontinued in favour of
-Server-Side Diff.
+that define default values.
 
 ## Server-Side Diff
 
@@ -65,7 +63,7 @@ Application.
 
 Add the following entry in the argocd-cmd-params-cm configmap:
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -82,7 +80,7 @@ after applying this configuration.
 
 Add the following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -97,7 +95,7 @@ If Server-Side Diff is enabled globally in your Argo CD instance, it
 is possible to disable it at the application level. In order to do so,
 add the following annotation in the Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -115,7 +113,7 @@ Server-Side Diff does not include changes made by mutation webhooks by
 default. If you want to include mutation webhooks in Argo CD diffs add
 the following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -128,7 +126,7 @@ Note: This annotation is only effective when Server-Side Diff is
 enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
