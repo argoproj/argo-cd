@@ -37,7 +37,7 @@ var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
 
-	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
+	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
 )
 
 type indexCache interface {
@@ -418,7 +418,7 @@ func getIndexURL(rawURL string) (string, error) {
 
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) {
 	if !c.enableOci {
-		return nil, OCINotEnabledErr
+		return nil, ErrOCINotEnabled
 	}
 
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)

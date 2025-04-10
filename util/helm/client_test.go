@@ -165,7 +165,7 @@ func TestGetIndexURL(t *testing.T) {
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
-		assert.Equal(t, "", got)
+		assert.Empty(t, got)
 		require.Error(t, err)
 	})
 }
@@ -216,7 +216,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
 		_, err := client.GetTags("my-chart", true)
-		assert.ErrorIs(t, OCINotEnabledErr, err)
+		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
 }
 

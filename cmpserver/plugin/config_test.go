@@ -88,7 +88,7 @@ func Test_ReadPluginConfig(t *testing.T) {
 metadata:
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
 		},
 		{
 			name: "empty metadata name",
@@ -97,7 +97,7 @@ metadata:
   name: ""
 `,
 			expected:    nil,
-			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty.",
+			expectedErr: "invalid plugin configuration file. metadata.name should be non-empty",
 		},
 		{
 			name: "invalid kind",

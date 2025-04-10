@@ -1883,7 +1883,7 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
-                      enable:
+                      enabled:
                         description: Enable allows apps to explicitly control automated
                           sync
                         type: boolean
@@ -6551,7 +6551,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -7233,7 +7233,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -7914,7 +7914,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -8575,7 +8575,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -9261,7 +9261,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -9943,7 +9943,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -10624,7 +10624,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -11285,7 +11285,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -11954,7 +11954,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -12842,7 +12842,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -13729,7 +13729,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -14407,7 +14407,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -15095,7 +15095,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -15777,7 +15777,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -16458,7 +16458,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -17119,7 +17119,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -17788,7 +17788,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -18676,7 +18676,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -19563,7 +19563,7 @@ spec:
                                                 properties:
                                                   allowEmpty:
                                                     type: boolean
-                                                  enable:
+                                                  enabled:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
@@ -20245,7 +20245,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -20913,7 +20913,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -21801,7 +21801,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -22688,7 +22688,7 @@ spec:
                                       properties:
                                         allowEmpty:
                                           type: boolean
-                                        enable:
+                                        enabled:
                                           type: boolean
                                         prune:
                                           type: boolean
@@ -23441,7 +23441,7 @@ spec:
                             properties:
                               allowEmpty:
                                 type: boolean
-                              enable:
+                              enabled:
                                 type: boolean
                               prune:
                                 type: boolean
@@ -24629,10 +24629,6 @@ data:
       - Endpoints
       - EndpointSlice
     ### Internal Kubernetes resources excluded reduce the number of watched events
-    - apiGroups:
-      - apiregistration.k8s.io
-      kinds:
-      - APIService
     - apiGroups:
       - coordination.k8s.io
       kinds:
