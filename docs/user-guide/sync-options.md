@@ -16,11 +16,6 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
-In the UI, the pod will simply appear as out-of-sync:
-
-![sync option no prune](../assets/sync-option-no-prune.png)
-
-
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
