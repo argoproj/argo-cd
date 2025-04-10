@@ -93,6 +93,8 @@ message RepoAccessQuery {
 	bool useAzureWorkloadIdentity = 20;
 	// BearerToken contains the bearer token used for Git auth at the repo server
 	string bearerToken = 21;
+	// Whether https should be disabled for an OCI repo
+	bool insecureOciForceHttp = 22;
 }
 
 message RepoResponse {}

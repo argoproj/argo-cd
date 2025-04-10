@@ -373,6 +373,36 @@ func (_m *ArgoDB) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*v1alp
 	return r0, r1
 }
 
+// GetAllOCIRepositoryCredentials provides a mock function with given fields: ctx
+func (_m *ArgoDB) GetAllOCIRepositoryCredentials(ctx context.Context) ([]*v1alpha1.RepoCreds, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllOCIRepositoryCredentials")
+	}
+
+	var r0 []*v1alpha1.RepoCreds
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*v1alpha1.RepoCreds, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*v1alpha1.RepoCreds); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.RepoCreds)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetApplicationControllerReplicas provides a mock function with no fields
 func (_m *ArgoDB) GetApplicationControllerReplicas() int {
 	ret := _m.Called()
@@ -727,6 +757,36 @@ func (_m *ArgoDB) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Reposit
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListHelmRepositories")
+	}
+
+	var r0 []*v1alpha1.Repository
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]*v1alpha1.Repository, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []*v1alpha1.Repository); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*v1alpha1.Repository)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListOCIRepositories provides a mock function with given fields: ctx
+func (_m *ArgoDB) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListOCIRepositories")
 	}
 
 	var r0 []*v1alpha1.Repository
