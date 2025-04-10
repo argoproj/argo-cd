@@ -80,7 +80,8 @@ that runs before all other resources. The `argocd.argoproj.io/sync-wave` annotat
 The sync options allows customizing the synchronization of selected resources. The options are specified using the
 annotation 'argocd.argoproj.io/sync-options'. Following sync options are supported:
 
-- SkipDryRunOnMissingResource=true - disables dry run in resource is missing in the cluster
+- SkipDryRunOnMissingResource=true - disables dry run if CRD resource is missing in the cluster
+- SkipDryRun=true - disables dry run if resource is missing in the cluster
 - Prune=false - disables resource pruning
 - Validate=false - disables resource validation (equivalent to 'kubectl apply --validate=false')
 

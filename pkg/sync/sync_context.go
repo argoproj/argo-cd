@@ -188,6 +188,12 @@ func WithReplace(replace bool) SyncOpt {
 	}
 }
 
+func WithSkipDryRun(skipDryRun bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.skipDryRun = skipDryRun
+	}
+}
+
 func WithServerSideApply(serverSideApply bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.serverSideApply = serverSideApply
@@ -335,6 +341,7 @@ type syncContext struct {
 	namespace           string
 
 	dryRun                 bool
+	skipDryRun             bool
 	force                  bool
 	validate               bool
 	skipHooks              bool
@@ -812,16 +819,24 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 		}
 
 		if err != nil {
-			// Special case for custom resources: if CRD is not yet known by the K8s API server,
-			// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
-			// then skip verification during `kubectl apply --dry-run` since we expect the CRD
-			// to be created during app synchronization.
-			if apierrors.IsNotFound(err) &&
+			switch {
+			case apierrors.IsNotFound(err) &&
 				((task.targetObj != nil && resourceutil.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipDryRunOnMissingResource)) ||
-					sc.hasCRDOfGroupKind(task.group(), task.kind())) {
+					sc.hasCRDOfGroupKind(task.group(), task.kind())):
+				// Special case for custom resources: if CRD is not yet known by the K8s API server,
+				// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
+				// then skip verification during `kubectl apply --dry-run` since we expect the CRD
+				// to be created during app synchronization.
 				sc.log.WithValues("task", task).V(1).Info("Skip dry-run for custom resource")
 				task.skipDryRun = true
-			} else {
+			case sc.skipDryRun:
+				// Skip dryrun for task if the sync context is in skip dryrun mode
+				// This can be useful when resource creation is depending on the creation of other resources
+				// like namespaces that need to be created first before the resources in the namespace can be created
+				// For CRD's one can also use the SkipDryRunOnMissingResource annotation.
+				sc.log.WithValues("task", task).V(1).Info("Skipping dry-run for task because skipDryRun is set in the sync context")
+				task.skipDryRun = true
+			default:
 				sc.setResourceResult(task, common.ResultCodeSyncFailed, "", err.Error())
 				successful = false
 			}
