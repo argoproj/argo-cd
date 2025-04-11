@@ -1197,12 +1197,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	// Get destination cluster
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
-		logCtx.Warnf("Unable to locate cluster URL for Application being deleted: %v", err)
+		logCtx.Warnf("Unable to get destination cluster: %v", err)
 		app.UnSetCascadedDeletion()
 		app.UnSetPostDeleteFinalizer()
-		if app.HasPreDeleteFinalizer() {
-			app.UnSetPreDeleteFinalizer()
-		}
+		app.UnSetPreDeleteFinalizer()
 		if err := ctrl.updateFinalizers(app); err != nil {
 			return err
 		}
