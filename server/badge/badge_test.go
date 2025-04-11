@@ -209,7 +209,7 @@ func TestHandlerFeatureProjectIsEnabled(t *testing.T) {
 		require.NoError(t, err)
 		handler.ServeHTTP(rr, req)
 		require.Equal(t, tt.response, rr.Result().StatusCode)
-		if rr.Result().StatusCode != http.StatusBadRequest {
+		if rr.Result().StatusCode != 400 {
 			assert.Equal(t, "private, no-store", rr.Header().Get("Cache-Control"))
 			assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 			response := rr.Body.String()

@@ -17,9 +17,7 @@ type BitbucketCloudService struct {
 
 type BitbucketCloudPullRequest struct {
 	ID     int                             `json:"id"`
-	Title  string                          `json:"title"`
 	Source BitbucketCloudPullRequestSource `json:"source"`
-	Author BitbucketCloudPullRequestAuthor `json:"author"`
 }
 
 type BitbucketCloudPullRequestSource struct {
@@ -33,11 +31,6 @@ type BitbucketCloudPullRequestSourceBranch struct {
 
 type BitbucketCloudPullRequestSourceCommit struct {
 	Hash string `json:"hash"`
-}
-
-// Also have display_name and uuid, but don't plan to use them.
-type BitbucketCloudPullRequestAuthor struct {
-	Nickname string `json:"nickname"`
 }
 
 type PullRequestResponse struct {
@@ -136,10 +129,8 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:  pull.ID,
-			Title:   pull.Title,
 			Branch:  pull.Source.Branch.Name,
 			HeadSHA: pull.Source.Commit.Hash,
-			Author:  pull.Author.Nickname,
 		})
 	}
 

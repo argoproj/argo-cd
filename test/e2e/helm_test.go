@@ -362,62 +362,7 @@ func TestKubeVersion(t *testing.T) {
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.LessOrEqual(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
-		}).
-		When().
-		// Make sure override works.
-		AppSet("--helm-kube-version", "999.999.999").
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, "v999.999.999", FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
-				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
-}
-
-// make sure api versions gets passed down to resources
-func TestApiVersions(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-api-versions").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
-				"-o", "jsonpath={.data.apiVersions}")).(string)
-			// The v1 API shouldn't be going anywhere.
-			assert.Contains(t, apiVersions, "v1")
-		}).
-		When().
-		// Make sure override works.
-		AppSet("--helm-api-versions", "v1/MyTestResource").
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
-				"-o", "jsonpath={.data.apiVersions}")).(string)
-			assert.Contains(t, apiVersions, "v1/MyTestResource")
-		})
-}
-
-func TestHelmNamespaceOverride(t *testing.T) {
-	SkipOnEnv(t, "HELM")
-	Given(t).
-		Path("helm-namespace").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		When().
-		AppSet("--helm-namespace", "does-not-exist").
-		Then().
-		// The app should go out of sync, because the resource's target namespace changed.
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
 func TestHelmValuesHiddenDirectory(t *testing.T) {
@@ -501,7 +446,6 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
-	t.Helper()
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests
@@ -519,14 +463,14 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
-			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
+			fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
 				Name:           "custom-repo",
 				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
 				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
 				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
 				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
-			}))
+			})
 		})
 	} else {
 		ctx = ctx.HelmRepoAdded("custom-repo")

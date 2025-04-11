@@ -65,7 +65,7 @@ configuration.
 **Example**
 ```bash
 kubectl exec -it argocd-notifications-controller-<pod-hash> \
-  /usr/local/bin/argocd admin notifications trigger get
+  /app/argocd admin notifications trigger get
 ```
 
 ## Commands
