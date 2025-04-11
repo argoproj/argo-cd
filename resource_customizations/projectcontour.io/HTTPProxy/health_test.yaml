@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Valid HTTPProxy"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status'
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'unresolved service reference: service "default/s1" not found'
+  inputPath: testdata/degraded.yaml
