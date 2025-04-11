@@ -151,11 +151,26 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
 func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	render := utils.Render{}
+
+	var interpolatedGenerator *argoprojiov1alpha1.ApplicationSetGenerator
+
+	if requestedGenerator != nil && requestedGenerator.Matrix != nil {
+		// If 2nd child is a matrix, only interpolate the 1st child of the inner matrix
+		interpolatedGenerator = requestedGenerator
+
+		innerGenerator, err := render.RenderNestedGeneratorParams(&requestedGenerator.Matrix.Generators[0], params, useGoTemplate, goTemplateOptions)
+		if err != nil {
+			log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
+			return argoprojiov1alpha1.ApplicationSetGenerator{}, err
+		}
+		interpolatedGenerator.Matrix.Generators[0] = *innerGenerator
+		return *interpolatedGenerator, nil
+	}
+
 	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate, goTemplateOptions)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
 		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
 	}
-
 	return *interpolatedGenerator, nil
 }
