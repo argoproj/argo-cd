@@ -7484,6 +7484,9 @@
             "$ref": "#/definitions/v1alpha1RevisionHistory"
           }
         },
+        "lastCompletedNonDryRunOperation": {
+          "$ref": "#/definitions/v1alpha1OperationState"
+        },
         "observedAt": {
           "$ref": "#/definitions/v1Time"
         },
