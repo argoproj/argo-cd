@@ -2912,7 +2912,7 @@ func TestInstallationID(t *testing.T) {
 			require.NotNil(t, cm)
 			assert.Equal(t, SyncStatusCodeOutOfSync, cm.Status)
 		}).
-		When().SetInstallationID("test").Sync().
+		When().SetInstallationID("test").Sync("--prune").
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
