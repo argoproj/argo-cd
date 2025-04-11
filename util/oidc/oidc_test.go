@@ -79,7 +79,7 @@ func TestIDTokenClaims(t *testing.T) {
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
 	require.NoError(t, err)
 
-	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}
@@ -97,7 +97,7 @@ func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDT
 }
 
 func TestHandleCallback(t *testing.T) {
-	app := ClientApp{provider: &fakeProvider{}, settings: &settings.ArgoCDSettings{}}
+	app := ClientApp{provider: &fakeProvider{}}
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", nil)
 	req.Form = url.Values{
@@ -190,104 +190,6 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
-	})
-
-	t.Run("with additional base URL", func(t *testing.T) {
-		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			AdditionalURLs:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
-			OIDCTLSInsecureSkipVerify: true,
-			DexConfig: `connectors:
-			- type: github
-			  name: GitHub
-			  config:
-			    clientID: aabbccddeeff00112233
-			    clientSecret: aabbccddeeff00112233`,
-			OIDCConfigRAW: fmt.Sprintf(`
-name: Test
-issuer: %s
-clientID: xxx
-clientSecret: yyy
-requestedScopes: ["oidc"]`, oidcTestServer.URL),
-		}
-		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
-		require.NoError(t, err)
-		cdSettings.Certificate = &cert
-
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
-		require.NoError(t, err)
-
-		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
-
-			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://argocd.example.com/applications"},
-			}.Encode()
-
-			w := httptest.NewRecorder()
-
-			app.HandleLogin(w, req)
-
-			assert.Equal(t, http.StatusSeeOther, w.Code)
-			location, err := url.Parse(w.Header().Get("Location"))
-			require.NoError(t, err)
-			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
-			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
-		})
-
-		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/auth/login", nil)
-
-			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://localhost:8080/applications"},
-			}.Encode()
-
-			w := httptest.NewRecorder()
-
-			app.HandleLogin(w, req)
-
-			assert.Equal(t, http.StatusSeeOther, w.Code)
-			location, err := url.Parse(w.Header().Get("Location"))
-			require.NoError(t, err)
-			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
-			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://localhost:8080/auth/callback", location.Query().Get("redirect_uri"))
-		})
-
-		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/auth/login", nil)
-
-			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://other.argocd.example.com/applications"},
-			}.Encode()
-
-			w := httptest.NewRecorder()
-
-			app.HandleLogin(w, req)
-
-			assert.Equal(t, http.StatusSeeOther, w.Code)
-			location, err := url.Parse(w.Header().Get("Location"))
-			require.NoError(t, err)
-			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
-			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://other.argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
-		})
-
-		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://not-argocd.example.com/auth/login", nil)
-
-			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://not-argocd.example.com/applications"},
-			}.Encode()
-
-			w := httptest.NewRecorder()
-
-			app.HandleLogin(w, req)
-
-			assert.Equal(t, http.StatusBadRequest, w.Code)
-			assert.Empty(t, w.Header().Get("Location"))
-		})
 	})
 }
 
@@ -579,7 +481,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		require.NoError(t, err)
+		require.NoError(t, err, InvalidRedirectURLError)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 }
@@ -639,7 +541,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
 					expectError: true,
 				},
 			},
@@ -654,7 +556,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -673,7 +575,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
 					expectError: true,
 				},
 			},
@@ -688,7 +590,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -707,7 +609,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
 					expectError: true,
 				},
 			},
@@ -730,7 +632,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -749,7 +651,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
 					expectError: true,
 				},
 			},
@@ -782,7 +684,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey("randomUser"),
+					key:             formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
@@ -809,7 +711,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},

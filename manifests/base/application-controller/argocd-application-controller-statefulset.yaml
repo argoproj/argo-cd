@@ -226,8 +226,6 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.ignore.normalizer.jq.timeout
               optional: true
-        - name: KUBECACHEDIR
-          value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -254,10 +252,6 @@ spec:
           mountPath: /app/config/controller/tls
         - name: argocd-home
           mountPath: /home/argocd
-        - name: argocd-cmd-params-cm
-          mountPath: /home/argocd/params
-        - name: argocd-application-controller-tmp
-          mountPath: /tmp
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -277,8 +271,6 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
-      - emptyDir: {}
-        name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
         secret:
           secretName: argocd-repo-server-tls
@@ -290,12 +282,3 @@ spec:
             path: tls.key
           - key: ca.crt
             path: ca.crt
-      - name: argocd-cmd-params-cm
-        configMap:
-          optional: true
-          name: argocd-cmd-params-cm
-          items:
-            - key: controller.profile.enabled
-              path: profiler.enabled
-      nodeSelector:
-        kubernetes.io/os: linux

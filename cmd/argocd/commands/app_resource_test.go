@@ -6,7 +6,6 @@ import (
 	"text/tabwriter"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -37,8 +36,10 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
-	require.NoError(t, w.Flush())
+	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	output := buf.String()
 
 	assert.Contains(t, output, "Rollout")
@@ -76,8 +77,10 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
-	require.NoError(t, w.Flush())
+	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	if err := w.Flush(); err != nil {
+		t.Fatal(err)
+	}
 	output := buf.String()
 
 	assert.Contains(t, output, "Rollout")

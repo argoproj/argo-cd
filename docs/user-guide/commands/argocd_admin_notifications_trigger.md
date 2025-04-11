@@ -17,14 +17,13 @@ argocd admin notifications trigger [flags]
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-repo-server string       Argo CD repo server address (default "argocd-repo-server:8081")
       --argocd-repo-server-plaintext    Use a plaintext client (non-TLS) to connect to repository server
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file
@@ -52,7 +51,6 @@ argocd admin notifications trigger [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                If provided, this URL will be used to connect via proxy
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")

@@ -455,21 +455,7 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 	var mostRecentError error
 
-	sleepIntervals := []time.Duration{
-		10 * time.Millisecond,
-		20 * time.Millisecond,
-		50 * time.Millisecond,
-		100 * time.Millisecond,
-		200 * time.Millisecond,
-		300 * time.Millisecond,
-		500 * time.Millisecond,
-		1 * time.Second,
-	}
-	sleepIntervalsIdx := -1
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
 		appSet, err := a.get()
 		mostRecentError = err
 		if err == nil {

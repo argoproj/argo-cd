@@ -9,7 +9,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/profile"
 )
 
@@ -19,7 +18,6 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
-	argoVersion              *prometheus.GaugeVec
 }
 
 var (
@@ -53,13 +51,6 @@ var (
 		},
 		[]string{"extension"},
 	)
-	argoVersion = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "argocd_info",
-			Help: "ArgoCD version information",
-		},
-		[]string{"version"},
-	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
@@ -70,15 +61,12 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		registry,
 		prometheus.DefaultGatherer,
 	}, promhttp.HandlerOpts{}))
-	argoVersion.WithLabelValues(common.GetVersion().Version).Set(1)
-
 	profile.RegisterProfiler(mux)
 
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
-	registry.MustRegister(argoVersion)
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -89,7 +77,6 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
-		argoVersion:              argoVersion,
 	}
 }
 
