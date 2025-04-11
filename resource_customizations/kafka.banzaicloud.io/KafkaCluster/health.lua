@@ -1,5 +1,10 @@
 local health_status = {}
 if obj.status ~= nil then
+  if obj.status.state == "ClusterRollingUpgrading" then
+    health_status.message = "Kafka Cluster is Rolling Upgrading."
+    health_status.status = "Progressing"
+    return health_status
+  end
   if obj.status.brokersState ~= nil then
     local numberBrokers = 0
     local healthyBrokers = 0
@@ -20,11 +25,6 @@ if obj.status ~= nil then
       if obj.status.cruiseControlTopicStatus == "CruiseControlTopicNotReady" or obj.status.cruiseControlTopicStatus == nil then
         if obj.status.state == "ClusterReconciling" then
           health_status.message = "Kafka Cluster is Reconciling."
-          health_status.status = "Progressing"
-          return health_status
-        end
-        if obj.status.state == "ClusterRollingUpgrading" then
-          health_status.message = "Kafka Cluster is Rolling Upgrading."
           health_status.status = "Progressing"
           return health_status
         end

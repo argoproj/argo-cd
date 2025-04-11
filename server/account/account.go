@@ -77,7 +77,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		}
 	}
 
-	//Need to validate password complexity with regular expression
+	// Need to validate password complexity with regular expression
 	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
 	if err != nil {
 		return nil, err
@@ -104,7 +104,6 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		acc.PasswordMtime = &now
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +114,6 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 		log.Infof("user '%s' updated password of user '%s'", username, updatedUsername)
 	}
 	return &account.UpdatePasswordResponse{}, nil
-
 }
 
 // CanI checks if the current account has permission to perform an action

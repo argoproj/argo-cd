@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -69,12 +70,11 @@ func TestSCMProviderGetSecretRef(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			token, err := gen.getSecretRef(ctx, c.ref, c.namespace)
 			if c.hasError {
-				assert.NotNil(t, err)
+				require.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, c.token, token)
-
 		})
 	}
 }
@@ -188,15 +188,14 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
 	}
 }
@@ -282,9 +281,9 @@ func TestAllowedSCMProvider(t *testing.T) {
 				},
 			}
 
-			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
-			assert.Error(t, err, "Must return an error")
+			require.Error(t, err, "Must return an error")
 			assert.ErrorAs(t, err, testCaseCopy.expectedError)
 		})
 	}
@@ -308,6 +307,6 @@ func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
 		},
 	}
 
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

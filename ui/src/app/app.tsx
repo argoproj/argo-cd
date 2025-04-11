@@ -26,7 +26,7 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
@@ -98,10 +98,7 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
+        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -185,8 +182,7 @@ export class App extends React.Component<
                 </>
             );
             extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
+                component: component as React.ComponentType<React.ComponentProps<any>>
             };
         }
 
@@ -240,11 +236,7 @@ export class App extends React.Component<
                                                     ) : (
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {pref => (
-                                                                <Layout
-                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                    navItems={this.navItems}
-                                                                    pref={pref}
-                                                                    isExtension={route.extension}>
+                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>

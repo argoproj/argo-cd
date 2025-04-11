@@ -19,11 +19,11 @@ func (h *ApplicationSourceHelm) SetValuesString(value string) error {
 	} else {
 		data, err := yaml.YAMLToJSON([]byte(value))
 		if err != nil {
-			return fmt.Errorf("failed converting yaml to json: %v", err)
+			return fmt.Errorf("failed converting yaml to json: %w", err)
 		}
 		var v interface{}
 		if err := json.Unmarshal(data, &v); err != nil {
-			return fmt.Errorf("failed to unmarshal json: %v", err)
+			return fmt.Errorf("failed to unmarshal json: %w", err)
 		}
 		switch v.(type) {
 		case string:

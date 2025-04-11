@@ -53,7 +53,6 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 }
 
 func TestMergeLogStreams(t *testing.T) {
-
 	first := make(chan logEntry)
 	go func() {
 		parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
@@ -75,4 +74,34 @@ func TestMergeLogStreams(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"1", "2", "3", "4"}, lines)
+}
+
+func TestMergeLogStreams_RaceCondition(t *testing.T) {
+	// Test for regression of this issue: https://github.com/argoproj/argo-cd/issues/7006
+	for i := 0; i < 5000; i++ {
+		first := make(chan logEntry)
+		second := make(chan logEntry)
+
+		go func() {
+			parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
+			time.Sleep(time.Duration(i%3) * time.Millisecond)
+			close(first)
+		}()
+
+		go func() {
+			parseLogsStream("second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
+			time.Sleep(time.Duration((i+1)%3) * time.Millisecond)
+			close(second)
+		}()
+
+		merged := mergeLogStreams([]chan logEntry{first, second}, 1*time.Millisecond)
+
+		// Drain the channel
+		for range merged {
+		}
+
+		// This test intentionally doesn't test the order of the output. Under these intense conditions, the test would
+		// fail often due to out of order entries. This test is only meant to reproduce a race between a channel writer
+		// and channel closer.
+	}
 }

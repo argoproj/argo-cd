@@ -29,6 +29,7 @@ import (
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -38,14 +39,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-type fakeSettingsSrc struct {
-}
+type fakeSettingsSrc struct{}
 
 func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
 	return "mycompany.com/appname", nil
 }
 
 func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
+	return "", nil
+}
+
+func (f fakeSettingsSrc) GetInstallationID() (string, error) {
 	return "", nil
 }
 
@@ -56,6 +60,11 @@ type reactorDef struct {
 }
 
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	defaultMaxPayloadSize := int64(1) * 1024 * 1024 * 1024
+	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
+}
+
+func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset(objects...)
 	if reactor != nil {
 		defaultReactor := appClientset.ReactionChain[0]
@@ -71,7 +80,8 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
+		10*time.Second,
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{}, maxPayloadSize)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -80,11 +90,11 @@ func TestGitHubCommitEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -96,11 +106,11 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Vss-Activityid", "abc")
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -151,11 +161,11 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Requested app 'app-to-refresh' refresh"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.True(t, patched)
@@ -232,11 +242,11 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 
 	logMessages := make([]string, 0, len(hook.Entries))
 
@@ -264,11 +274,11 @@ func TestGitHubTagEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -280,11 +290,11 @@ func TestGitHubPingEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -296,11 +306,11 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
 	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
@@ -316,7 +326,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -328,11 +338,11 @@ func TestGogsPushEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -344,11 +354,11 @@ func TestGitLabPushEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -360,11 +370,11 @@ func TestGitLabSystemEvent(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
@@ -377,7 +387,7 @@ func TestInvalidMethod(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusMethodNotAllowed)
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
@@ -391,8 +401,8 @@ func TestInvalidEvent(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusBadRequest)
-	expectedLogResult := "Webhook processing failed: error parsing payload"
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 1024 MB) and ensure it is valid JSON"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()
@@ -405,90 +415,9 @@ func TestUnknownEvent(t *testing.T) {
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	assert.Equal(t, w.Code, http.StatusBadRequest)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
 	hook.Reset()
-}
-
-func getApp(annotation string, sourcePath string) *v1alpha1.Application {
-	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
-			},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				Path: sourcePath,
-			},
-		},
-	}
-}
-
-func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application {
-	var sources v1alpha1.ApplicationSources
-	for _, path := range paths {
-		sources = append(sources, v1alpha1.ApplicationSource{Path: path})
-	}
-	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
-			},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: sources,
-		},
-	}
-}
-
-func Test_getAppRefreshPrefix(t *testing.T) {
-	tests := []struct {
-		name           string
-		app            *v1alpha1.Application
-		files          []string
-		changeExpected bool
-	}{
-		{"default no path", &v1alpha1.Application{}, []string{"README.md"}, true},
-		{"relative path - matching", getApp(".", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #1", getMultiSourceApp(".", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #2", getMultiSourceApp(".", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path - not matching", getApp(".", "source/path"), []string{"README.md"}, false},
-		{"relative path, multi source - not matching", getMultiSourceApp(".", "other/path", "unrelated/path"), []string{"README.md"}, false},
-		{"absolute path - matching", getApp("/source/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #1", getMultiSourceApp("/source/path", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #2", getMultiSourceApp("/source/path", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path - not matching", getApp("/source/path1", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"absolute path, multi source - not matching", getMultiSourceApp("/source/path1", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"two relative paths - matching", getApp(".;../shared", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #1", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #2", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths - not matching", getApp(".;../shared", "my-app"), []string{"README.md"}, false},
-		{"two relative paths, multi source - not matching", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"README.md"}, false},
-		{"file relative path - matching", getApp("./my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #1", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #2", getMultiSourceApp("./my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path - not matching", getApp("./my-deployment.yaml", "source/path"), []string{"README.md"}, false},
-		{"file relative path, multi source - not matching", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"README.md"}, false},
-		{"file absolute path - matching", getApp("/source/path/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #1", getMultiSourceApp("/source/path/my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #2", getMultiSourceApp("/source/path/my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path - not matching", getApp("/source/path1/README.md", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"file absolute path, multi source - not matching", getMultiSourceApp("/source/path1/README.md", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"file two relative paths - matching", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"file two relative paths, multi source - matching", getMultiSourceApp("./README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"shared/my-deployment.yaml"}, true},
-		{"file two relative paths - not matching", getApp(".README.md;../shared/my-deployment.yaml", "my-app"), []string{"kustomization.yaml"}, false},
-		{"file two relative paths, multi source - not matching", getMultiSourceApp(".README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"kustomization.yaml"}, false},
-	}
-	for _, tt := range tests {
-		ttc := tt
-		t.Run(ttc.name, func(t *testing.T) {
-			t.Parallel()
-			if got := appFilesHaveChanged(ttc.app, ttc.files); got != ttc.changeExpected {
-				t.Errorf("getAppRefreshPrefix() = %v, want %v", got, ttc.changeExpected)
-			}
-		})
-	}
 }
 
 func TestAppRevisionHasChanged(t *testing.T) {
@@ -677,10 +606,27 @@ func Test_getWebUrlRegex(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			regexp, err := getWebUrlRegex(testCopy.webURL)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}
+}
+
+func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
+	hook := test.NewGlobal()
+	maxPayloadSize := int64(100)
+	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
 }

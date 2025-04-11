@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -15,7 +16,6 @@ import (
 )
 
 func TestKustomize2AppSource(t *testing.T) {
-
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
 		return func(app *Application) {
 			name := "k2-patched-guestbook-ui-deploy1"
@@ -23,7 +23,7 @@ func TestKustomize2AppSource(t *testing.T) {
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.metadata.labels.patched-by}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "argo-cd", labelValue, "wrong value of 'patched-by' label of %s %s", kind, name)
 		}
 	}
@@ -98,14 +98,13 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
-			assert.Equal(t, 2, len(app.Status.Resources))
+			assert.Len(t, app.Status.Resources, 2)
 			for _, resourceStatus := range app.Status.Resources {
 				// new map in-sync
 				if resourceStatus.Name != oldMap {
 					assert.Contains(t, resourceStatus.Name, "my-map-")
 					// make sure we've a new map with changed name
 					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
-
 				} else {
 					assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
 				}
@@ -191,7 +190,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.spec.replicas}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, strconv.Itoa(deploymentReplicas), replicas, "wrong value of replicas %s %s", kind, name)
 		}
 	}
@@ -256,7 +255,7 @@ func TestKustomizeUnsetOverride(t *testing.T) {
 			assert.Contains(t, app.Spec.GetSource().Kustomize.Images, KustomizeImage("alpine:bar"))
 		}).
 		When().
-		//AppUnSet("--kustomize-image=alpine").
+		// AppUnSet("--kustomize-image=alpine").
 		AppUnSet("--kustomize-image", "alpine", "--kustomize-image", "alpine").
 		Then().
 		And(func(app *Application) {

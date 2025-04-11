@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -139,16 +139,27 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions) int {
+func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtr()
+	source := spec.GetSourcePtrByPosition(sourcePosition)
 	if source == nil {
 		source = &argoappv1.ApplicationSource{}
 	}
 	source, visited = ConstructSource(source, *appOpts, flags)
+	if spec.HasMultipleSources() {
+		if sourcePosition == 0 {
+			spec.Sources[sourcePosition] = *source
+		} else if sourcePosition > 0 {
+			spec.Sources[sourcePosition-1] = *source
+		} else {
+			spec.Sources = append(spec.Sources, *source)
+		}
+	} else {
+		spec.Source = source
+	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
 
@@ -207,7 +218,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
+						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
@@ -220,7 +231,6 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
 		}
-		spec.Source = source
 	})
 	if flags.Changed("auto-prune") {
 		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
@@ -414,20 +424,18 @@ func setJsonnetOptLibs(src *argoappv1.ApplicationSource, libs []string) {
 // SetParameterOverrides updates an existing or appends a new parameter override in the application
 // The app is assumed to be a helm app and is expected to be in the form:
 // param=value
-func SetParameterOverrides(app *argoappv1.Application, parameters []string) {
+func SetParameterOverrides(app *argoappv1.Application, parameters []string, index int) {
 	if len(parameters) == 0 {
 		return
 	}
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtrByIndex(index)
 	var sourceType argoappv1.ApplicationSourceType
 	if st, _ := source.ExplicitType(); st != nil {
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
-	} else {
-		if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
-			sourceType = argoappv1.ApplicationSourceTypeHelm
-		}
+	} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+		sourceType = argoappv1.ApplicationSourceTypeHelm
 	}
 
 	switch sourceType {
@@ -473,13 +481,12 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	}
 	err = readApps(data, apps)
 	if err != nil {
-		return fmt.Errorf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %w", err)
 	}
 	return nil
 }
 
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
-
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
@@ -530,8 +537,8 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Source: &argoappv1.ApplicationSource{},
 		},
 	}
-	SetAppSpecOptions(flags, &app.Spec, &appOpts)
-	SetParameterOverrides(app, appOpts.Parameters)
+	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+	SetParameterOverrides(app, appOpts.Parameters, 0)
 	mergeLabels(app, labels)
 	setAnnotations(app, annotations)
 	return []*argoappv1.Application{
@@ -557,10 +564,14 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 			return nil, fmt.Errorf("app.Name is empty. --name argument can be used to provide app.Name")
 		}
 
-		SetAppSpecOptions(flags, &app.Spec, &appOpts)
-		SetParameterOverrides(app, appOpts.Parameters)
 		mergeLabels(app, labels)
 		setAnnotations(app, annotations)
+
+		// do not allow overrides for applications with multiple sources
+		if !app.Spec.HasMultipleSources() {
+			SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
+			SetParameterOverrides(app, appOpts.Parameters, 0)
+		}
 	}
 	return apps, nil
 }

@@ -109,6 +109,7 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
   optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
@@ -196,9 +197,12 @@ message ApplicationSetApplicationStatus {
 
   // Step tracks which step this Application should be updated in
   optional string step = 5;
+
+  // TargetRevision tracks the desired revisions the Application should be synced to.
+  repeated string targetrevisions = 6;
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
   optional string type = 1;
@@ -330,6 +334,9 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
+
+  // Resources is a list of Applications resources managed by this application set.
+  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -393,6 +400,13 @@ message ApplicationSetTerminalGenerator {
 
   // Selector allows to post-filter all generator.
   optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+message ApplicationSetTree {
+  // Nodes contains list of nodes which are directly managed by the applicationset
+  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -715,11 +729,11 @@ message Cluster {
   // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
 
-  // DEPRECATED: use Info.ConnectionState field instead.
+  // Deprecated: use Info.ConnectionState field instead.
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
 
-  // DEPRECATED: use Info.ServerVersion field instead.
+  // Deprecated: use Info.ServerVersion field instead.
   // The server version
   optional string serverVersion = 5;
 
@@ -902,6 +916,9 @@ message EnvEntry {
 
   // Value is the value of the variable
   optional string value = 2;
+}
+
+message ErrApplicationNotAllowedToUseProject {
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -1496,7 +1513,7 @@ message RefTarget {
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
-  // URL is the URL that this credentials matches to
+  // URL is the URL to which these credentials match
   optional string url = 1;
 
   // Username for authenticating at the repo server
@@ -1609,7 +1626,7 @@ message Repository {
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
 
-  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+  // Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
   optional string project = 20;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -2157,6 +2174,9 @@ message SyncOperation {
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
   repeated string revisions = 11;
+
+  // SelfHealAttemptsCount contains the number of auto-heal attempts
+  optional int64 autoHealAttemptsCount = 12;
 }
 
 // SyncOperationResource contains resources to sync.

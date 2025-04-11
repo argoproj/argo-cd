@@ -82,10 +82,16 @@ spec:
 ```
 * In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
-* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin, consistent-hashing]:
+- `legacy` mode uses an `uid` based distribution (non-uniform).
+- `round-robin` uses an equal distribution across all shards.
+- `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
 
-!!! warning "Alpha Feature"
-    The `round-robin` shard distribution algorithm  is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+
+!!! warning "Alpha Features"
+    The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+    The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
 
 * A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
 ```yaml
@@ -126,7 +132,7 @@ stringData:
 
 **metrics**
 
-* `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
+* `argocd_app_reconcile` - reports application reconciliation duration in seconds. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
 * `argocd_app_k8s_request_total` - number of k8s requests per application. The number of fallback Kubernetes API queries - useful to identify which application has a resource with
 non-preferred version and causes performance issues.
 
@@ -178,17 +184,21 @@ If the manifest generation has no side effects then requests are processed in pa
   * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
 
-### Webhook and Manifest Paths Annotation
+### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
 This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
 
-The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation with the changed files specified in the webhook payload. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then the webhook will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
+The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. It will use the paths specified in the annotation to compare the last cached revision to the latest commit. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then it will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 
 Installations that use a different repository for each application are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
+Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an unrelated change happens in the external source.
+
+For webhooks, the comparison is done using the files specified in the webhook event payload instead.
+
 !!! note
-    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
+    Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
 * **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 
@@ -241,6 +251,25 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: HEAD
     path: my-application
+# ...
+```
+
+* **Glob paths** The annotation might contain a glob pattern path, which can be any pattern supported by the [Go filepath Match function](https://pkg.go.dev/path/filepath#Match):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  annotations:
+    # resolves to any file matching the pattern of *-secret.yaml in the top level shared folder
+    argocd.argoproj.io/manifest-generate-paths: "/shared/*-secret.yaml"
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
 # ...
 ```
 

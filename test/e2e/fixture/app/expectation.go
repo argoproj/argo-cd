@@ -111,7 +111,6 @@ func StatusExists() Expectation {
 func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
-
 		if err != nil {
 			return failed, fmt.Sprintf("namespace not found %s", err.Error())
 		}
@@ -134,6 +133,7 @@ func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expect
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, namespace).Status
@@ -147,12 +147,14 @@ func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) E
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, namespace).Health.Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
 		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
@@ -268,7 +270,6 @@ func pods() (*v1.PodList, error) {
 func NoNamespace(name string) Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := namespace(name)
-
 		if err != nil {
 			return succeeded, "namespace not found"
 		}

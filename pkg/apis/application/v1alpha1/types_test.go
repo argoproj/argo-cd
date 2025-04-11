@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -112,74 +112,85 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
-	}{{
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://my-cluster", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://*.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://team1-*", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: true,
-	},
+	}{
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://my-cluster", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://*.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://team1-*", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "*", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: true,
+		},
 		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: true,
-		}, {
+		},
+		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
-		}}
+		},
+	}
 
 	for _, data := range testData {
 		proj := AppProject{
@@ -428,7 +439,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
@@ -487,14 +498,14 @@ func TestAppProject_GetRoleByName(t *testing.T) {
 	t.Run("NotExists", func(t *testing.T) {
 		p := &AppProject{}
 		role, i, err := p.GetRoleByName("test-role")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, -1, i)
 		assert.Nil(t, role)
 	})
 	t.Run("NotExists", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}}}
 		role, i, err := p.GetRoleByName("test-role")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 0, i)
 		assert.Equal(t, &ProjectRole{Name: "test-role"}, role)
 	})
@@ -504,20 +515,20 @@ func TestAppProject_AddGroupToRole(t *testing.T) {
 	t.Run("NoRole", func(t *testing.T) {
 		p := &AppProject{}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.False(t, got)
 	})
 	t.Run("NoGroup", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{}}}}}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, got)
 		assert.Len(t, p.Spec.Roles[0].Groups, 1)
 	})
 	t.Run("Exists", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{"test-group"}}}}}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, got)
 	})
 }
@@ -526,21 +537,21 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 	t.Run("NoRole", func(t *testing.T) {
 		p := &AppProject{}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.False(t, got)
 	})
 	t.Run("NoGroup", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{}}}}}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, got)
 	})
 	t.Run("Exists", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{"test-group"}}}}}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, got)
-		assert.Len(t, p.Spec.Roles[0].Groups, 0)
+		assert.Empty(t, p.Spec.Roles[0].Groups)
 	})
 }
 
@@ -556,14 +567,14 @@ func newTestProject() *AppProject {
 func TestAppProject_ValidateSources(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badSources := []string{
 		"!*",
 	}
 	for _, badName := range badSources {
 		p.Spec.SourceRepos = []string{badName}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	duplicateSources := []string{
@@ -572,21 +583,21 @@ func TestAppProject_ValidateSources(t *testing.T) {
 	}
 	p.Spec.SourceRepos = duplicateSources
 	err = p.ValidateProject()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // TestAppProject_ValidateDestinations tests for an invalid destination
 func TestAppProject_ValidateDestinations(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badNamespaces := []string{
 		"!*",
 	}
 	for _, badName := range badNamespaces {
 		p.Spec.Destinations[0].Namespace = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodNamespaces := []string{
@@ -596,7 +607,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, goodNamespace := range goodNamespaces {
 		p.Spec.Destinations[0].Namespace = goodNamespace
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	badServers := []string{
@@ -605,7 +616,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badServer := range badServers {
 		p.Spec.Destinations[0].Server = badServer
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodServers := []string{
@@ -615,7 +626,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badName := range goodServers {
 		p.Spec.Destinations[0].Server = badName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	badNames := []string{
@@ -624,7 +635,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badName := range badNames {
 		p.Spec.Destinations[0].Name = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodNames := []string{
@@ -634,7 +645,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, goodName := range goodNames {
 		p.Spec.Destinations[0].Name = goodName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	validDestination := ApplicationDestination{
@@ -644,12 +655,12 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 
 	p.Spec.Destinations[0] = validDestination
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	cluster1Destination := ApplicationDestination{
 		Name:      "cluster1",
@@ -662,12 +673,12 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	// allow multiple destinations with blank server, same namespace but unique cluster name
 	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Run("must reject duplicate source namespaces", func(t *testing.T) {
 		p.Spec.SourceNamespaces = []string{"argocd", "argocd"}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -675,7 +686,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 func TestAppProject_ValidateRoleName(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badRoleNames := []string{
 		"",
 		" ",
@@ -691,7 +702,7 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 	for _, badName := range badRoleNames {
 		p.Spec.Roles[0].Name = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 	goodRoleNames := []string{
 		"MY-ROLE",
@@ -700,7 +711,7 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 	for _, goodName := range goodRoleNames {
 		p.Spec.Roles[0].Name = goodName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -708,10 +719,10 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 func TestAppProject_ValidateGroupName(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	p.Spec.Roles[0].Groups = []string{"mygroup"}
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badGroupNames := []string{
 		"",
 		" ",
@@ -725,7 +736,7 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 	goodGroupNames := []string{
 		"my:group",
@@ -733,7 +744,7 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	for _, goodName := range goodGroupNames {
 		p.Spec.Roles[0].Groups = []string{goodName}
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -741,15 +752,15 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 	t.Run("WorkingSyncWindow", func(t *testing.T) {
 		p := newTestProjectWithSyncWindows()
 		err := p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("HasNilSyncWindow", func(t *testing.T) {
 		p := newTestProjectWithSyncWindows()
 		err := p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -757,7 +768,7 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	type badPolicy struct {
 		policy string
 		errmsg string
@@ -791,9 +802,8 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		if assert.Error(t, err) {
-			assert.Contains(t, err.Error(), bad.errmsg)
-		}
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), bad.errmsg)
 	}
 }
 
@@ -801,7 +811,7 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 func TestAppProject_ValidPolicyRules(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	goodPolicies := []string{
 		"p,proj:my-proj:my-role,applications,get,my-proj/*,allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, allow",
@@ -814,15 +824,19 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, sync, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, delete, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/apps/Deployment/restart, my-proj/foo, allow",
 	}
 	for _, good := range goodPolicies {
 		p.Spec.Roles[0].Policies = []string{good}
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -836,7 +850,7 @@ func TestExplicitType(t *testing.T) {
 		},
 	}
 	explicitType, err := src.ExplicitType()
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.Nil(t, explicitType)
 	src = ApplicationSource{
 		Helm: &ApplicationSourceHelm{
@@ -845,8 +859,8 @@ func TestExplicitType(t *testing.T) {
 	}
 
 	explicitType, err = src.ExplicitType()
-	assert.Nil(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	require.NoError(t, err)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -855,7 +869,7 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
-	assert.NotNil(t, err, "cannot add directory with any other types")
+	require.Error(t, err, "cannot add directory with any other types")
 }
 
 func TestAppSourceEquality(t *testing.T) {
@@ -924,7 +938,6 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 }
 
 func TestRepository_HasCredentials(t *testing.T) {
-
 	tests := []struct {
 		name string
 		repo Repository
@@ -1279,7 +1292,6 @@ func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "bar"})
 		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "baz"})
@@ -1292,7 +1304,6 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "bar"})
 		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "bar"}}, src.FileParameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "baz"})
@@ -1303,16 +1314,16 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
-		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+		require.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
 	})
 	t.Run("NonString", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
 	})
 	t.Run("String", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
 	})
 }
@@ -1320,16 +1331,16 @@ func TestNewHelmParameter(t *testing.T) {
 func TestNewKustomizeReplica(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		r, err := NewKustomizeReplica("my-deployment=2")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: intstr.Parse("2")}, r)
 	})
 	t.Run("InvalidFormat", func(t *testing.T) {
 		_, err := NewKustomizeReplica("garbage")
-		assert.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
+		require.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
 	})
 	t.Run("InvalidCount", func(t *testing.T) {
 		_, err := NewKustomizeReplica("my-deployment=garbage")
-		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+		require.EqualError(t, err, "expected integer value for count. Received: garbage")
 	})
 }
 
@@ -1340,7 +1351,7 @@ func TestKustomizeReplica_GetIntCount(t *testing.T) {
 			Count: intstr.FromString("2"),
 		}
 		count, err := kr.GetIntCount()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 	})
 	t.Run("String which cannot be converted to integer", func(t *testing.T) {
@@ -1349,7 +1360,7 @@ func TestKustomizeReplica_GetIntCount(t *testing.T) {
 			Count: intstr.FromString("garbage"),
 		}
 		count, err := kr.GetIntCount()
-		assert.EqualError(t, err, "expected integer value for count. Received: garbage")
+		require.EqualError(t, err, "expected integer value for count. Received: garbage")
 		assert.Equal(t, 0, count)
 	})
 	t.Run("Integer", func(t *testing.T) {
@@ -1358,7 +1369,7 @@ func TestKustomizeReplica_GetIntCount(t *testing.T) {
 			Count: intstr.FromInt(2),
 		}
 		count, err := kr.GetIntCount()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 2, count)
 	})
 }
@@ -1380,11 +1391,12 @@ func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
 	t.Run("Replace", func(t *testing.T) {
 		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
 		k.MergeReplica(r2)
-		assert.Equal(t, 1, len(k.Replicas))
+		assert.Len(t, k.Replicas, 1)
 		assert.Equal(t, k.Replicas[0].Name, r2.Name)
 		assert.Equal(t, k.Replicas[0].Count, r2.Count)
 	})
 }
+
 func TestApplicationSourceKustomize_FindByName(t *testing.T) {
 	r1 := KustomizeReplica{
 		Name:  "my-deployment",
@@ -1486,7 +1498,6 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 }
 
 func TestApplicationSourcePlugin_IsZero(t *testing.T) {
-
 	tests := []struct {
 		name   string
 		source *ApplicationSourcePlugin
@@ -1612,7 +1623,7 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 	t.Run("False", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		err := proj.Spec.DeleteWindow(0)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, proj.Spec.SyncWindows.HasWindows())
 	})
 }
@@ -1620,7 +1631,9 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+		activeWindows, err := proj.Spec.SyncWindows.Active()
+		require.NoError(t, err)
+		assert.Len(t, *activeWindows, 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1647,6 +1660,7 @@ func TestSyncWindows_Active(t *testing.T) {
 		currentTime    time.Time
 		matchingIndex  int
 		expectedLength int
+		isErr          bool
 	}{
 		{
 			name: "MatchFirst",
@@ -1754,31 +1768,55 @@ func TestSyncWindows_Active(t *testing.T) {
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "3h", ""),
+				syncWindow("allow", "* 11 * * 7", "3h", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "3a", ""),
+				syncWindow("allow", "* 11 * * *", "3a", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			result := tt.syncWindow.active(tt.currentTime)
+			result, err := tt.syncWindow.active(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+		inactiveAllowWindows, err := proj.Spec.SyncWindows.InactiveAllows()
+		require.NoError(t, err)
+		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1805,6 +1843,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		currentTime    time.Time
 		matchingIndex  int
 		expectedLength int
+		isErr          bool
 	}{
 		{
 			name: "MatchFirst",
@@ -1930,24 +1969,44 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "2h", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2a", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			result := tt.syncWindow.inactiveAllows(tt.currentTime)
+			result, err := tt.syncWindow.inactiveAllows(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -1977,13 +2036,12 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
-				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
+				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
-
 	}
 }
 
@@ -1993,13 +2051,13 @@ func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
-		assert.Error(t, err)
-		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
+		require.Error(t, err)
+		assert.Len(t, proj.Spec.SyncWindows, 2)
 	})
 	t.Run("Delete", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(0)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
+		require.NoError(t, err)
+		assert.Len(t, proj.Spec.SyncWindows, 1)
 	})
 }
 
@@ -2009,31 +2067,31 @@ func TestSyncWindows_Matches(t *testing.T) {
 	t.Run("MatchNamespace", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchClusterName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
@@ -2049,9 +2107,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(true).build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
@@ -2060,9 +2119,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		proj := newProjectBuilder().withInactiveDenyWindow(false).build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
@@ -2074,9 +2134,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
@@ -2087,9 +2148,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
@@ -2100,9 +2162,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
@@ -2113,9 +2176,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2127,9 +2191,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2141,9 +2206,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
@@ -2154,9 +2220,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
@@ -2167,9 +2234,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2180,9 +2248,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2193,9 +2262,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2207,9 +2277,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2221,9 +2292,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
@@ -2235,9 +2307,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
@@ -2248,9 +2321,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
@@ -2261,9 +2335,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2274,9 +2349,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2287,9 +2363,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2303,9 +2380,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2319,9 +2397,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
@@ -2333,9 +2412,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2347,9 +2427,10 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(true)
+		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
+		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2361,9 +2442,24 @@ func TestSyncWindows_CanSync(t *testing.T) {
 			build()
 
 		// when
-		canSync := proj.Spec.SyncWindows.CanSync(false)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+	t.Run("will deny and return error with invalid windows", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withInvalidWindows().
+			build()
+
+		// when
+		canSync, err := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		require.Error(t, err)
 		assert.False(t, canSync)
 	})
 }
@@ -2384,14 +2480,12 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
 		assert.True(t, manualEnabled)
-
 	})
 	t.Run("False", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.False(t, hasDeny)
 		assert.False(t, manualEnabled)
-
 	})
 }
 
@@ -2415,8 +2509,9 @@ func TestSyncWindows_hasAllow(t *testing.T) {
 func TestSyncWindow_Active(t *testing.T) {
 	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
 	t.Run("ActiveWindow", func(t *testing.T) {
-		window.Active()
-		assert.True(t, window.Active())
+		isActive, err := window.Active()
+		require.NoError(t, err)
+		assert.True(t, isActive)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
@@ -2441,6 +2536,7 @@ func TestSyncWindow_Active(t *testing.T) {
 		syncWindow     SyncWindow
 		currentTime    time.Time
 		expectedResult bool
+		isErr          bool
 	}{
 		{
 			name:           "Allow-active",
@@ -2490,48 +2586,78 @@ func TestSyncWindow_Active(t *testing.T) {
 			currentTime:    timeWithHour(13-4, utcM4Zone),
 			expectedResult: false,
 		},
+		{
+			name:           "Allow-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("allow", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Deny-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("deny", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Allow-inactive-InvalidDuration",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
+		{
+			name:           "Deny-inactive-InvalidDuration",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+			isErr:          true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
-
+			result, err := tt.syncWindow.active(tt.currentTime)
+			if tt.isErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
-
 }
 
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
 		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{}, []string{}, "")
-		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
 		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
 		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
 	})
 }
@@ -2539,22 +2665,22 @@ func TestSyncWindow_Update(t *testing.T) {
 func TestSyncWindow_Validate(t *testing.T) {
 	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 	t.Run("Validates", func(t *testing.T) {
-		assert.NoError(t, window.Validate())
+		require.NoError(t, window.Validate())
 	})
 	t.Run("IncorrectKind", func(t *testing.T) {
 		window.Kind = "wrong"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 	t.Run("IncorrectSchedule", func(t *testing.T) {
 		window.Kind = "allow"
 		window.Schedule = "* * *"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 	t.Run("IncorrectDuration", func(t *testing.T) {
 		window.Kind = "allow"
 		window.Schedule = "* * * * *"
 		window.Duration = "1000days"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 }
 
@@ -2606,6 +2732,16 @@ func (b *projectBuilder) withActiveDenyWindow(allowManual bool) *projectBuilder 
 func (b *projectBuilder) withInactiveDenyWindow(allowManual bool) *projectBuilder {
 	window := newSyncWindow("deny", inactiveCronSchedule(), allowManual)
 	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows, window)
+	return b
+}
+
+func (b *projectBuilder) withInvalidWindows() *projectBuilder {
+	b.proj.Spec.SyncWindows = append(b.proj.Spec.SyncWindows,
+		newSyncWindow("allow", "* 10 * * 7", false),
+		newSyncWindow("deny", "* 10 * * 7", false),
+		newSyncWindow("allow", "* 10 * * 7", true),
+		newSyncWindow("deny", "* 10 * * 7", true),
+	)
 	return b
 }
 
@@ -2855,12 +2991,12 @@ func TestSyncOptions_AddOption(t *testing.T) {
 
 func TestSyncOptions_RemoveOption(t *testing.T) {
 	options := SyncOptions{"a=1"}
-	assert.Len(t, options.RemoveOption("a=1"), 0)
-	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+	assert.Empty(t, options.RemoveOption("a=1"))
+	assert.Empty(t, options.RemoveOption("a=1").RemoveOption("a=1"))
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {
-	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Empty(t, RevisionHistories{}.Trunc(1))
 	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
@@ -2906,22 +3042,28 @@ func TestProjectNormalize(t *testing.T) {
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesEmpty-StatusRolesToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-Same", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.False(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2929,10 +3071,14 @@ func TestProjectNormalize(t *testing.T) {
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentRole", func(t *testing.T) {
 		jwtTokens0 := []JWTToken{{IssuedAt: issuedAt}}
 		jwtTokens1 := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: jwtTokens0},
-			{Name: "test-role1", JWTTokens: jwtTokens1},
-			{Name: "test-role2"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec: AppProjectSpec{Roles: []ProjectRole{
+				{Name: "test-role", JWTTokens: jwtTokens0},
+				{Name: "test-role1", JWTTokens: jwtTokens1},
+				{Name: "test-role2"},
+			}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2956,17 +3102,16 @@ func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 
 	for i, expected := range expectedTimes {
 		retryAt, err := retry.NextRetryAt(now, int64(i))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
-
 }
 
 func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64(3),
+			Factor:      ptr.To(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -2981,7 +3126,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 
 	for i, expected := range expectedTimes {
 		retryAt, err := retry.NextRetryAt(now, int64(i))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
 }
@@ -3041,7 +3186,7 @@ func TestRemoveEnvEntry(t *testing.T) {
 				&EnvEntry{"gamma", "delta"},
 			},
 		}
-		assert.NoError(t, plugins.RemoveEnvEntry("alpha"))
+		require.NoError(t, plugins.RemoveEnvEntry("alpha"))
 		want := Env{&EnvEntry{"foo", "bar"}, &EnvEntry{"gamma", "delta"}}
 		assert.Equal(t, want, plugins.Env)
 	})
@@ -3050,7 +3195,7 @@ func TestRemoveEnvEntry(t *testing.T) {
 			Name: "test",
 			Env:  Env{&EnvEntry{"foo", "bar"}},
 		}
-		assert.NoError(t, plugins.RemoveEnvEntry("foo"))
+		require.NoError(t, plugins.RemoveEnvEntry("foo"))
 		assert.Equal(t, Env{}, plugins.Env)
 	})
 	t.Run("Remove unknown element from the list", func(t *testing.T) {
@@ -3059,15 +3204,15 @@ func TestRemoveEnvEntry(t *testing.T) {
 			Env:  Env{&EnvEntry{"foo", "bar"}},
 		}
 		err := plugins.RemoveEnvEntry("key")
-		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 		err = plugins.RemoveEnvEntry("bar")
-		assert.EqualError(t, err, `unable to find env variable with key "bar" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "bar" for plugin "test"`)
 		assert.Equal(t, Env{&EnvEntry{"foo", "bar"}}, plugins.Env)
 	})
 	t.Run("Remove element from an empty list", func(t *testing.T) {
 		plugins := &ApplicationSourcePlugin{Name: "test"}
 		err := plugins.RemoveEnvEntry("key")
-		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
 }
 
@@ -3075,39 +3220,101 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(false)
+	settings.Warn = ptr.To(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.Bool(true)
+	settings.Warn = ptr.To(true)
 	assert.True(t, settings.IsWarn())
+}
+
+func Test_isValidPolicyObject(t *testing.T) {
+	policyTests := []struct {
+		name    string
+		policy  string
+		isValid bool
+	}{
+		{
+			name:    "policy with full wildcard",
+			policy:  "some-project/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified project and application",
+			policy:  "some-project/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with full wildcard namespace and application",
+			policy:  "some-project/*/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard namespace and specified application",
+			policy:  "some-project/*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard application",
+			policy:  "some-project/some-namespace/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard prefix namespace and specified application",
+			policy:  "some-project/some-name*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard prefixed application",
+			policy:  "some-project/some-namespace/some-app*",
+			isValid: true,
+		},
+		{
+			name:    "policy with valid namespace and application",
+			policy:  "some-project/some-namespace/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with invalid namespace character",
+			policy:  "some-project/some~namespace/some-application",
+			isValid: false,
+		},
+		{
+			name:    "policy with invalid application character",
+			policy:  "some-project/some-namespace/some^application",
+			isValid: false,
+		},
+	}
+
+	for _, policyTest := range policyTests {
+		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
+	}
 }
 
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
 	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some.project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
-	assert.Error(t, err)
-
+	require.Error(t, err)
 }
 
 func TestEnvsubst(t *testing.T) {
@@ -3147,22 +3354,21 @@ func Test_validateGroupName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateGroupName(tt.groupname)
 			if tt.isvalid {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 			}
 		})
 	}
 }
 
 func TestGetCAPath(t *testing.T) {
-
 	temppath := t.TempDir()
 	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
 	if err != nil {
 		panic(err)
 	}
-	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0o666)
 	if err != nil {
 		panic(err)
 	}
@@ -3171,18 +3377,25 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com/charts",
+		"https://foo.example.com:5000",
+		"foo.example.com:5000",
+		"foo.example.com:5000/charts",
+		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://foo.example.com",
-		"git@example.com:organization/reponame.git",
+		"ssh://bar.example.com",
+		"git@foo.example.com:organization/reponame.git",
+		"ssh://git@foo.example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
+		"://invalid",
 	}
 
 	for _, str := range validcert {
@@ -3311,7 +3524,6 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 		// app7 is installed to someotherns, controller running in argocd
 		assert.False(t, proj.IsAppNamespacePermitted(app7, "argocd"))
 	})
-
 }
 
 func Test_RBACName(t *testing.T) {
@@ -3357,7 +3569,7 @@ func TestGetSummary(t *testing.T) {
 	app := newTestApp()
 
 	summary := tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 0)
+	assert.Empty(t, summary.ExternalURLs)
 
 	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
 	const url = "https://example.com"
@@ -3365,15 +3577,15 @@ func TestGetSummary(t *testing.T) {
 	app.Annotations[annotationName] = url
 
 	summary = tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Len(t, summary.ExternalURLs, 1)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3430,7 +3642,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
@@ -3617,6 +3829,53 @@ func TestOptionalMapEquality(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
+	testCases := []struct {
+		name        string
+		application ApplicationSpec
+		sourceIndex int
+		expected    *ApplicationSource
+	}{
+		{
+			name: "HasMultipleSources_ReturnsFirstSource",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
+		},
+		{
+			name: "HasMultipleSources_ReturnsSourceAtIndex",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 1,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
+		},
+		{
+			name: "HasSingleSource_ReturnsSource",
+			application: ApplicationSpec{
+				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }

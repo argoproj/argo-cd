@@ -26,7 +26,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 
 func TestHelmTemplateParams(t *testing.T) {
 	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
 		Set: map[string]string{
@@ -38,14 +38,14 @@ func TestHelmTemplateParams(t *testing.T) {
 		},
 	}
 	objs, err := template(h, &opts)
-	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	require.NoError(t, err)
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
 			var svc apiv1.Service
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, apiv1.ServiceTypeLoadBalancer, svc.Spec.Type)
 			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
 			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
@@ -58,7 +58,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
 	opts := TemplateOpts{
@@ -66,14 +66,14 @@ func TestHelmTemplateValues(t *testing.T) {
 		Values: []path.ResolvedFilePath{valuesPath},
 	}
 	objs, err := template(h, &opts)
-	assert.Nil(t, err)
-	assert.Equal(t, 8, len(objs))
+	require.NoError(t, err)
+	assert.Len(t, objs, 8)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "Deployment" && obj.GetName() == "test-redis-slave" {
 			var dep appsv1.Deployment
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &dep)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, int32(3), *dep.Spec.Replicas)
 		}
 	}
@@ -84,9 +84,9 @@ func TestHelmGetParams(t *testing.T) {
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "1", slaveCountParam)
@@ -97,11 +97,11 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
 	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "3", slaveCountParam)
@@ -112,13 +112,13 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
 	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
 	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
 	assert.Equal(t, "3", slaveCountParam)
@@ -126,17 +126,17 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
-	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	require.NoError(t, err)
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
 		}
 	}
@@ -144,16 +144,16 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 
 func TestHelmTemplateReleaseName(t *testing.T) {
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
-	assert.Nil(t, err)
-	assert.Equal(t, 5, len(objs))
+	require.NoError(t, err)
+	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
 		if obj.GetKind() == "StatefulSet" {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
 		}
 	}
@@ -174,7 +174,7 @@ func TestHelmArgCleaner(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	ver, err := Version(false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
@@ -204,41 +204,32 @@ func Test_flatVals(t *testing.T) {
 
 func TestAPIVersions(t *testing.T) {
 	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", false)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
-		return
-	}
-	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v1")
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+	assert.Equal(t, "sample/v1", objs[0].GetAPIVersion())
 
 	objs, err = template(h, &TemplateOpts{APIVersions: []string{"sample/v2"}})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
-		return
-	}
-	assert.Equal(t, objs[0].GetAPIVersion(), "sample/v2")
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+	assert.Equal(t, "sample/v2", objs[0].GetAPIVersion())
 }
 
 func TestSkipCrds(t *testing.T) {
 	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
-		return
-	}
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
 
 	objs, err = template(h, &TemplateOpts{})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 1) {
-		return
-	}
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
-	if !assert.NoError(t, err) || !assert.Len(t, objs, 0) {
-		return
-	}
+	require.NoError(t, err)
+	require.Empty(t, objs)
 }

@@ -2,6 +2,7 @@ package git
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
+
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-git/go-git/v5"
@@ -24,6 +27,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/go-git/go-git/v5/storage/memory"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/knownhosts"
@@ -36,6 +40,8 @@ import (
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
+
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
 
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
@@ -55,7 +61,8 @@ type Refs struct {
 
 type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
-	GetGitReferences(repo string, references *[]*plumbing.Reference) error
+	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
+	UnlockGitReferences(repo string, lockId string) error
 }
 
 // Client is a generic git client interface
@@ -73,6 +80,8 @@ type Client interface {
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
+	ChangedFiles(revision string, targetRevision string) ([]string, error)
+	IsRevisionPresent(revision string) bool
 }
 
 type EventHandlers struct {
@@ -126,7 +135,6 @@ func init() {
 	maxRetryDuration = env.ParseDurationFromEnv(common.EnvGitRetryMaxDuration, common.DefaultGitRetryMaxDuration, 0, math.MaxInt64)
 	retryDuration = env.ParseDurationFromEnv(common.EnvGitRetryDuration, common.DefaultGitRetryDuration, 0, math.MaxInt64)
 	factor = env.ParseInt64FromEnv(common.EnvGitRetryFactor, common.DefaultGitRetryFactor, 0, math.MaxInt64)
-
 }
 
 type ClientOpts func(c *nativeGitClient)
@@ -174,9 +182,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
-var (
-	gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
-)
+var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -188,7 +194,7 @@ var (
 //   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
 func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
-	var customHTTPClient = &http.Client{
+	customHTTPClient := &http.Client{
 		// 15 second timeout by default
 		Timeout: gitClientTimeout,
 		// don't follow redirect
@@ -314,15 +320,15 @@ func (m *nativeGitClient) Init() error {
 	if err == nil {
 		return nil
 	}
-	if err != git.ErrRepositoryNotExists {
+	if !errors.Is(err, git.ErrRepositoryNotExists) {
 		return err
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
 	err = os.RemoveAll(m.root)
 	if err != nil {
-		return fmt.Errorf("unable to clean repo at %s: %v", m.root, err)
+		return fmt.Errorf("unable to clean repo at %s: %w", m.root, err)
 	}
-	err = os.MkdirAll(m.root, 0755)
+	err = os.MkdirAll(m.root, 0o755)
 	if err != nil {
 		return err
 	}
@@ -350,6 +356,21 @@ func (m *nativeGitClient) fetch(revision string) error {
 		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
+}
+
+// IsRevisionPresent checks to see if the given revision already exists locally.
+func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
+	if revision == "" {
+		return false
+	}
+
+	cmd := exec.Command("git", "cat-file", "-t", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if out == "commit" && err == nil {
+		return true
+	} else {
+		return false
+	}
 }
 
 // Fetch fetches latest updates from origin
@@ -477,11 +498,36 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) error
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	myLockUUID, err := uuid.NewRandom()
+	myLockId := ""
+	if err != nil {
+		log.Debug("Error generating git references cache lock id: ", err)
+	} else {
+		myLockId = myLockUUID.String()
+	}
+	// Prevent an additional get call to cache if we know our state isn't stale
+	needsUnlock := true
 	if m.gitRefCache != nil && m.loadRefFromCache {
 		var res []*plumbing.Reference
-		if m.gitRefCache.GetGitReferences(m.repoURL, &res) == nil {
+		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
+		isLockOwner := myLockId == foundLockId
+		if !isLockOwner && err == nil {
+			// Valid value already in cache
 			return res, nil
+		} else if !isLockOwner && err != nil {
+			// Error getting value from cache
+			log.Debugf("Error getting git references from cache: %v", err)
+			return nil, err
 		}
+		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
+		defer func() {
+			if needsUnlock {
+				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
+				if err != nil {
+					log.Debugf("Error unlocking git references from cache: %v", err)
+				}
+			}
+		}()
 	}
 
 	if m.OnLsRemote != nil {
@@ -508,6 +554,9 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
+		} else {
+			// Since we successfully overwrote the lock with valid data, we don't need to unlock
+			needsUnlock = false
 		}
 		return res, nil
 	}
@@ -516,7 +565,6 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {
 	refs, err := m.getRefs()
-
 	if err != nil {
 		return nil, err
 	}
@@ -543,11 +591,11 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 	return sortedRefs, nil
 }
 
-// LsRemote resolves the commit SHA of a specific branch, tag, or HEAD. If the supplied revision
-// does not resolve, and "looks" like a 7+ hexadecimal commit SHA, it return the revision string.
-// Otherwise, it returns an error indicating that the revision could not be resolved. This method
-// runs with in-memory storage and is safe to run concurrently, or to be run without a git
-// repository locally cloned.
+// LsRemote resolves the commit SHA of a specific branch, tag (with semantic versioning or not),
+// or HEAD. If the supplied revision does not resolve, and "looks" like a 7+ hexadecimal commit SHA,
+// it will return the revision string. Otherwise, it returns an error indicating that the revision could
+// not be resolved. This method runs with in-memory storage and is safe to run concurrently,
+// or to be run without a git repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
@@ -574,26 +622,34 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	}
 
 	refs, err := m.getRefs()
-
 	if err != nil {
 		return "", err
 	}
+
 	if revision == "" {
 		revision = "HEAD"
 	}
+
+	semverSha := m.resolveSemverRevision(revision, refs)
+	if semverSha != "" {
+		return semverSha, nil
+	}
+
 	// refToHash keeps a maps of remote refs to their hash
 	// (e.g. refs/heads/master -> a67038ae2e9cb9b9b16423702f98b41e36601001)
 	refToHash := make(map[string]string)
+
 	// refToResolve remembers ref name of the supplied revision if we determine the revision is a
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
 		if ref.Type() == plumbing.HashReference {
 			refToHash[refName] = hash
 		}
-		//log.Debugf("%s\t%s", hash, refName)
+		// log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
@@ -604,6 +660,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			}
 		}
 	}
+
 	if refToResolve != "" {
 		// If refToResolve is non-empty, we are resolving symbolic reference (e.g. HEAD).
 		// It should exist in our refToHash map
@@ -612,14 +669,69 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			return hash, nil
 		}
 	}
+
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
 	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		return revision, nil
 	}
+
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+}
+
+// resolveSemverRevision is a part of the lsRemote method workflow.
+// When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
+// use this logic path rather than the standard lsRemote revision resolution loop.
+// Some examples to illustrate the actual behavior - if the revision is:
+// * "v0.1.2"/"0.1.2" or "v0.1"/"0.1", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
+// * "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
+// * "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
+// * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
+// * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
+func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
+	if _, err := semver.NewVersion(revision); err == nil {
+		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
+		// In which case, we should use standard tag resolution mechanisms.
+		return ""
+	}
+
+	constraint, err := semver.NewConstraint(revision)
+	if err != nil {
+		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
+		return ""
+	}
+
+	maxVersion := semver.New(0, 0, 0, "", "")
+	maxVersionHash := plumbing.ZeroHash
+	for _, ref := range refs {
+		if !ref.Name().IsTag() {
+			continue
+		}
+
+		tag := ref.Name().Short()
+		version, err := semver.NewVersion(tag)
+		if err != nil {
+			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
+			// Skip this tag and continue to the next one
+			continue
+		}
+
+		if constraint.Check(version) {
+			if version.GreaterThan(maxVersion) {
+				maxVersion = version
+				maxVersionHash = ref.Hash()
+			}
+		}
+	}
+
+	if maxVersionHash.IsZero() {
+		return ""
+	}
+
+	log.Debugf("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
+	return maxVersionHash.String()
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -658,7 +770,8 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
-		return "", err
+		log.Errorf("error verifying commit signature: %v", err)
+		return "", fmt.Errorf("permission denied")
 	}
 	return out, nil
 }
@@ -672,6 +785,29 @@ func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	} else {
 		return false
 	}
+}
+
+// ChangedFiles returns a list of files changed between two revisions
+func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) ([]string, error) {
+	if revision == targetRevision {
+		return []string{}, nil
+	}
+
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+
+	out, err := m.runCmd("diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
 }
 
 // runWrapper runs a custom command with all the semantics of running the Git client

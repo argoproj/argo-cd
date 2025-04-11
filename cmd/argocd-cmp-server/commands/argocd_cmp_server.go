@@ -30,7 +30,7 @@ func NewCommand() *cobra.Command {
 		otlpHeaders    map[string]string
 		otlpAttrs      []string
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD ConfigManagementPlugin Server",
 		Long:              "ArgoCD ConfigManagementPlugin Server is an internal service which runs as sidecar container in reposerver deployment. The following configuration options are available:",

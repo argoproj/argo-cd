@@ -47,8 +47,11 @@ data:
   controller.log.level: "info"
   # Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
   controller.metrics.cache.expiration: "24h0m0s"
-  # Specifies timeout between application self heal attempts (default 5)
-  controller.self.heal.timeout.seconds: "5"
+  # Specifies exponential backoff timeout parameters between application self heal attempts
+  controller.self.heal.timeout.seconds: "2"
+  controller.self.heal.backoff.factor: "3"
+  controller.self.heal.backoff.cap.seconds: "300"
+
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
   # Specifies if resource health should be persisted in app CRD (default true)
@@ -58,7 +61,7 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
-  # Sharding algorithm used to balance clusters accross application controller shards (default "legacy")
+  # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
@@ -179,6 +182,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Include hidden directories from Git
+  reposerver.include.hidden.directories: "false"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"

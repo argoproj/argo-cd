@@ -100,7 +100,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 
@@ -359,6 +359,11 @@ func (c *Context) HelmSkipCrds() *Context {
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	fixture.SetTrackingMethod(trackingMethod)
+	return c
+}
+
+func (c *Context) SetInstallationID(installationID string) *Context {
+	fixture.SetTrackingMethod(installationID)
 	return c
 }
 

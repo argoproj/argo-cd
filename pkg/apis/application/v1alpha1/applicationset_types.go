@@ -759,9 +759,11 @@ type ApplicationSetStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
+	// Resources is a list of Applications resources managed by this application set.
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -771,7 +773,7 @@ type ApplicationSetCondition struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// True/False/Unknown
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
-	//Single word camelcase representing the reason for the status eg ErrorOccurred
+	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
@@ -833,6 +835,8 @@ type ApplicationSetApplicationStatus struct {
 	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+	// TargetRevision tracks the desired revisions the Application should be synced to.
+	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -842,6 +846,21 @@ type ApplicationSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []ApplicationSet `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+type ApplicationSetTree struct {
+	// Nodes contains list of nodes which are directly managed by the applicationset
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+// Normalize sorts applicationset tree nodes. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationSetTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
 }
 
 // func init() {

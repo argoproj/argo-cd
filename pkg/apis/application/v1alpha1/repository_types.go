@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
@@ -14,7 +15,7 @@ import (
 
 // RepoCreds holds the definition for repository credentials
 type RepoCreds struct {
-	// URL is the URL that this credentials matches to
+	// URL is the URL to which these credentials match
 	URL string `json:"url" protobuf:"bytes,1,opt,name=url"`
 	// Username for authenticating at the repo server
 	Username string `json:"username,omitempty" protobuf:"bytes,2,opt,name=username"`
@@ -87,7 +88,7 @@ type Repository struct {
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,19,opt,name=proxy"`
-	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	// Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
 	Project string `json:"project,omitempty" protobuf:"bytes,20,opt,name=project"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey string `json:"gcpServiceAccountKey,omitempty" protobuf:"bytes,21,opt,name=gcpServiceAccountKey"`
@@ -227,21 +228,22 @@ func getCAPath(repoURL string) string {
 	}
 
 	hostname := ""
-	// url.Parse() will happily parse most things thrown at it. When the URL
-	// is either https or oci, we use the parsed hostname to retrieve the cert,
-	// otherwise we'll use the parsed path (OCI repos are often specified as
-	// hostname, without protocol).
-	parsedURL, err := url.Parse(repoURL)
+	var parsedURL *url.URL
+	var err error
+	// Without schema in url, url.Parse() treats the url as differently
+	// and may incorrectly parses the hostname if url contains a path or port.
+	// To ensure proper parsing, prepend a dummy schema.
+	if !strings.Contains(repoURL, "://") {
+		parsedURL, err = url.Parse("protocol://" + repoURL)
+	} else {
+		parsedURL, err = url.Parse(repoURL)
+	}
 	if err != nil {
 		log.Warnf("Could not parse repo URL '%s': %v", repoURL, err)
 		return ""
 	}
-	if parsedURL.Scheme == "https" || parsedURL.Scheme == "oci" {
-		hostname = parsedURL.Host
-	} else if parsedURL.Scheme == "" {
-		hostname = parsedURL.Path
-	}
 
+	hostname = parsedURL.Hostname()
 	if hostname == "" {
 		log.Warnf("Could not get hostname for repository '%s'", repoURL)
 		return ""

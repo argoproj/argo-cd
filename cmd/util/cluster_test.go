@@ -160,7 +160,6 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func kubeconfigFixture(endpoint string) string {

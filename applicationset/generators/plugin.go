@@ -55,8 +55,7 @@ func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applic
 	return &appSetGenerator.Plugin.Template
 }
 
-func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
+func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -94,7 +93,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 	}
 	token, err := g.getToken(ctx, cm["token"])
 	if err != nil {
-		return nil, fmt.Errorf("error fetching Secret token: %v", err)
+		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
 
 	var requestTimeout int
@@ -117,7 +116,6 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 	res := []map[string]interface{}{}
 
 	for _, objectFound := range objectsFound {
-
 		params := map[string]interface{}{}
 
 		if useGoTemplate {
@@ -152,7 +150,6 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 }
 
 func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string, error) {
-
 	if tokenRef == "" || !strings.HasPrefix(tokenRef, "$") {
 		return "", fmt.Errorf("token is empty, or does not reference a secret key starting with '$': %v", tokenRef)
 	}
@@ -167,9 +164,8 @@ func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string
 			Namespace: g.namespace,
 		},
 		secret)
-
 	if err != nil {
-		return "", fmt.Errorf("error fetching secret %s/%s: %v", g.namespace, secretName, err)
+		return "", fmt.Errorf("error fetching secret %s/%s: %w", g.namespace, secretName, err)
 	}
 
 	secretValues := make(map[string]string, len(secret.Data))
@@ -192,7 +188,6 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 			Namespace: g.namespace,
 		},
 		cm)
-
 	if err != nil {
 		return nil, err
 	}

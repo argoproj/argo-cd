@@ -37,7 +37,7 @@ type policyOpts struct {
 
 // NewProjectCommand returns a new instance of an `argocd proj` command
 func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects",
 		Example: templates.Examples(`
@@ -101,7 +101,7 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		fileURL string
 		upsert  bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "create PROJECT",
 		Short: "Create a project",
 		Example: templates.Examples(`
@@ -135,10 +135,8 @@ func NewProjectCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 // NewProjectSetCommand returns a new instance of an `argocd proj set` command
 func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		opts cmdutil.ProjectOpts
-	)
-	var command = &cobra.Command{
+	var opts cmdutil.ProjectOpts
+	command := &cobra.Command{
 		Use:   "set PROJECT",
 		Short: "Set project parameters",
 		Example: templates.Examples(`
@@ -178,7 +176,7 @@ func NewProjectSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 
 // NewProjectAddSignatureKeyCommand returns a new instance of an `argocd proj add-signature-key` command
 func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-signature-key PROJECT KEY-ID",
 		Short: "Add GnuPG signature key to project",
 		Example: templates.Examples(`
@@ -220,7 +218,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 
 // NewProjectRemoveSignatureKeyCommand returns a new instance of an `argocd proj remove-signature-key` command
 func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-signature-key PROJECT KEY-ID",
 		Short: "Remove GnuPG signature key from project",
 		Example: templates.Examples(`
@@ -274,7 +272,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 		return v1alpha1.ApplicationDestination{Server: destination, Namespace: namespace}
 	}
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-destination PROJECT SERVER/NAME NAMESPACE",
 		Short: "Add project destination",
 		Example: templates.Examples(`
@@ -318,7 +316,7 @@ func NewProjectAddDestinationCommand(clientOpts *argocdclient.ClientOptions) *co
 
 // NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination` command
 func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-destination PROJECT SERVER NAMESPACE",
 		Short: "Remove project destination",
 		Example: templates.Examples(`
@@ -363,10 +361,8 @@ func NewProjectRemoveDestinationCommand(clientOpts *argocdclient.ClientOptions) 
 
 // NewProjectAddOrphanedIgnoreCommand returns a new instance of an `argocd proj add-orphaned-ignore` command
 func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		name string
-	)
-	var command = &cobra.Command{
+	var name string
+	command := &cobra.Command{
 		Use:   "add-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Add a resource to orphaned ignore list",
 		Example: templates.Examples(`
@@ -415,10 +411,8 @@ func NewProjectAddOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) 
 
 // NewProjectRemoveOrphanedIgnoreCommand returns a new instance of an `argocd proj remove-orphaned-ignore` command
 func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		name string
-	)
-	var command = &cobra.Command{
+	var name string
+	command := &cobra.Command{
 		Use:   "remove-orphaned-ignore PROJECT GROUP KIND",
 		Short: "Remove a resource from orphaned ignore list",
 		Example: templates.Examples(`
@@ -471,7 +465,7 @@ func NewProjectRemoveOrphanedIgnoreCommand(clientOpts *argocdclient.ClientOption
 
 // NewProjectAddSourceCommand returns a new instance of an `argocd proj add-src` command
 func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-source PROJECT URL",
 		Short: "Add project source repository",
 		Example: templates.Examples(`
@@ -513,7 +507,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 // NewProjectAddSourceNamespace returns a new instance of an `argocd proj add-source-namespace` command
 func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-source-namespace PROJECT NAMESPACE",
 		Short: "Add source namespace to the AppProject",
 		Example: templates.Examples(`
@@ -551,7 +545,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewProjectRemoveSourceNamespace returns a new instance of an `argocd proj remove-source-namespace` command
 func NewProjectRemoveSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-source-namespace PROJECT NAMESPACE",
 		Short: "Removes the source namespace from the AppProject",
 		Example: templates.Examples(`
@@ -632,7 +626,7 @@ func modifyResourceListCmd(cmdUse, cmdDesc, examples string, clientOpts *argocdc
 	} else {
 		defaultList = "allow"
 	}
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     cmdUse,
 		Short:   cmdDesc,
 		Example: templates.Examples(examples),
@@ -726,7 +720,7 @@ func NewProjectAllowClusterResourceCommand(clientOpts *argocdclient.ClientOption
 
 // NewProjectRemoveSourceCommand returns a new instance of an `argocd proj remove-src` command
 func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-source PROJECT URL",
 		Short: "Remove project source repository",
 		Example: templates.Examples(`
@@ -770,7 +764,7 @@ func NewProjectRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 // NewProjectDeleteCommand returns a new instance of an `argocd proj delete` command
 func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "delete PROJECT",
 		Short: "Delete project",
 		Example: templates.Examples(`
@@ -814,10 +808,8 @@ func printProjectTable(projects []v1alpha1.AppProject) {
 
 // NewProjectListCommand returns a new instance of an `argocd proj list` command
 func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List projects",
 		Example: templates.Examples(`
@@ -929,7 +921,7 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 		fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
 	}
 
-	//Print scoped repositories
+	// Print scoped repositories
 	scr0 := "<none>"
 	if len(scopedRepositories) > 0 {
 		scr0 = scopedRepositories[0].Repo
@@ -949,7 +941,7 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
 	}
 
-	//Print scoped clusters
+	// Print scoped clusters
 	scc0 := "<none>"
 	if len(scopedClusters) > 0 {
 		scc0 = scopedClusters[0].Server
@@ -981,15 +973,12 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	fmt.Printf(printProjFmtStr, "Signature keys:", signatureKeysStr)
 
 	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
-
 }
 
 // NewProjectGetCommand returns a new instance of an `argocd proj get` command
 func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "get PROJECT",
 		Short: "Get project details",
 		Example: templates.Examples(`
@@ -1034,7 +1023,7 @@ func getProject(c *cobra.Command, clientOpts *argocdclient.ClientOptions, ctx co
 }
 
 func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "edit PROJECT",
 		Short: "Edit project",
 		Example: templates.Examples(`

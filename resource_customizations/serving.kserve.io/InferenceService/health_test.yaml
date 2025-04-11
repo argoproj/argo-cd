@@ -11,3 +11,7 @@ tests:
     status: Healthy
     message: Inference Service is healthy.
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: Inference Service is healthy.
+  inputPath: testdata/healthy_raw.yaml

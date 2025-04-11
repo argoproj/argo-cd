@@ -2,13 +2,14 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -107,21 +109,25 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
+	isMultiSourceRevision := app.Spec.HasMultipleSources()
+	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
+	if rollback {
+		// rollback case
+		if len(state.Operation.Sync.Sources) > 0 {
+			sources = state.Operation.Sync.Sources
+			isMultiSourceRevision = true
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+			isMultiSourceRevision = false
+		}
+	} else {
 		// normal sync case (where source is taken from app.spec.sources)
 		if app.Spec.HasMultipleSources() {
 			sources = app.Spec.Sources
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
 			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
-		}
-	} else {
-		// rollback case
-		if app.Spec.HasMultipleSources() {
-			sources = state.Operation.Sync.Sources
-		} else {
-			source = *state.Operation.Sync.Source
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
 	}
@@ -135,7 +141,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		if app.Spec.HasMultipleSources() {
+		if isMultiSourceRevision {
 			syncRes.Sources = sources
 		} else {
 			syncRes.Source = source
@@ -146,7 +152,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
 	// This typically indicates we are just about to begin a brand new sync/rollback operation.
 	// Take the value in the requested operation. We will resolve this to a SHA later.
-	if app.Spec.HasMultipleSources() {
+	if isMultiSourceRevision {
 		if len(revisions) != len(sources) {
 			revisions = syncOp.Revisions
 		}
@@ -161,21 +167,27 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
-	}
-
-	if app.Spec.HasMultipleSources() {
-		revisions = syncRes.Revisions
 	} else {
-		revisions = append(revisions, revision)
+		isBlocked, err := syncWindowPreventsSync(app, proj)
+		if isBlocked {
+			// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+			if state.Phase == common.OperationRunning {
+				state.Message = "Sync operation blocked by sync window"
+				if err != nil {
+					state.Message = fmt.Sprintf("%s: %v", state.Message, err)
+				}
+			}
+			return
+		}
 	}
 
-	if !app.Spec.HasMultipleSources() {
+	if !isMultiSourceRevision {
 		sources = []v1alpha1.ApplicationSource{source}
 		revisions = []string{revision}
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
 	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -276,6 +288,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get appInstanceLabelKey: %v", err)
 		return
 	}
+	installationID, err := m.settingsMgr.GetInstallationID()
+	if err != nil {
+		log.Errorf("Could not get installation ID: %v", err)
+		return
+	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
 	opts := []sync.SyncOpt{
@@ -289,7 +306,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
-
 				if err != nil {
 					return err
 				}
@@ -306,7 +322,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
@@ -332,7 +348,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		openAPISchema,
 		opts...,
 	)
-
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to initialize sync context: %v", err)
@@ -391,7 +406,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -399,11 +414,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 }
 
-// normalizeTargetResources will apply the diff normalization in all live and target resources.
-// Then it calculates the merge patch between the normalized live and the current live resources.
-// Finally it applies the merge patch in the normalized target resources. This is done to ensure
-// that target resources have the same ignored diff fields values from live ones to avoid them to
-// be applied in the cluster. Returns the list of normalized target resources.
+// normalizeTargetResources modifies target resources to ensure ignored fields are not touched during synchronization:
+//   - applies normalization to the target resources based on the live resources
+//   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
+//     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// normalize live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
@@ -422,94 +436,35 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
-		// calculate targetPatch between normalized and target resource
-		targetPatch, err := getMergePatch(normalizedTarget, originalTarget)
+
+		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
+		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
+		if err == nil {
+			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
+			if err != nil {
+				return nil, err
+			}
+			lookupPatchMeta = &meta
+		}
+
+		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
-		if len(targetPatch) > 2 {
-			livePatch, err := getMergePatch(normalized.Lives[idx], live)
-			if err != nil {
-				return nil, err
-			}
-			// generate a minimal patch that uses the fields from targetPatch (template)
-			// with livePatch values
-			patch, err := compilePatch(targetPatch, livePatch)
-			if err != nil {
-				return nil, err
-			}
-			normalizedTarget, err = applyMergePatch(normalizedTarget, patch)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// if there is no patch just use the original target
-			normalizedTarget = originalTarget
+		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		if err != nil {
+			return nil, err
 		}
+
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 	return patchedTargets, nil
 }
 
-// compilePatch will generate a patch using the fields from templatePatch with
-// the values from valuePatch.
-func compilePatch(templatePatch, valuePatch []byte) ([]byte, error) {
-	templateMap := make(map[string]interface{})
-	err := json.Unmarshal(templatePatch, &templateMap)
-	if err != nil {
-		return nil, err
-	}
-	valueMap := make(map[string]interface{})
-	err = json.Unmarshal(valuePatch, &valueMap)
-	if err != nil {
-		return nil, err
-	}
-	resultMap := intersectMap(templateMap, valueMap)
-	return json.Marshal(resultMap)
-}
-
-// intersectMap will return map with the fields intersection from the 2 provided
-// maps populated with the valueMap values.
-func intersectMap(templateMap, valueMap map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for k, v := range templateMap {
-		if innerTMap, ok := v.(map[string]interface{}); ok {
-			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
-				result[k] = intersectMap(innerTMap, innerVMap)
-			}
-		} else if innerTSlice, ok := v.([]interface{}); ok {
-			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
-				items := []interface{}{}
-				for idx, innerTSliceValue := range innerTSlice {
-					if idx < len(innerVSlice) {
-						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
-							if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
-								item := intersectMap(tSliceValueMap, vSliceValueMap)
-								items = append(items, item)
-							}
-						} else {
-							items = append(items, innerVSlice[idx])
-						}
-					}
-				}
-				if len(items) > 0 {
-					result[k] = items
-				}
-			}
-		} else {
-			if _, ok := valueMap[k]; ok {
-				result[k] = valueMap[k]
-			}
-		}
-	}
-	return result
-}
-
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -518,20 +473,30 @@ func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
+	if lookupPatchMeta != nil {
+		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+	}
+
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
 // applyMergePatch will apply the given patch in the obj and return the patched
 // unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte) (*unstructured.Unstructured, error) {
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject interface{}) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
-	patchedJSON, err := jsonpatch.MergePatch(originalJSON, patch)
+	var patchedJSON []byte
+	if versionedObject == nil {
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
+	} else {
+		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	patchedObj := &unstructured.Unstructured{}
 	_, _, err = unstructured.UnstructuredJSONScheme.Decode(patchedJSON, nil, patchedObj)
 	if err != nil {
@@ -572,4 +537,18 @@ func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) err
 		time.Sleep(duration)
 	}
 	return nil
+}
+
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
+	window := proj.Spec.SyncWindows.Matches(app)
+	isManual := false
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+	}
+	canSync, err := window.CanSync(isManual)
+	if err != nil {
+		// prevents sync because sync window has an error
+		return true, err
+	}
+	return !canSync, nil
 }
