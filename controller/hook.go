@@ -14,26 +14,31 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/lua"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var (
-	postDeleteHook  = "PostDelete"
-	postDeleteHooks = map[string]string{
-		"argocd.argoproj.io/hook": postDeleteHook,
-		"helm.sh/hook":            "post-delete",
+	preDeleteHook  = "PreDelete"
+	postDeleteHook = "PostDelete"
+
+	hookTypeAnnotations = map[string]map[string]string{
+		preDeleteHook: {
+			"argocd.argoproj.io/hook": preDeleteHook,
+			"helm.sh/hook":            "pre-delete",
+		},
+		postDeleteHook: {
+			"argocd.argoproj.io/hook": postDeleteHook,
+			"helm.sh/hook":            "post-delete",
+		},
 	}
 )
 
-func isHook(obj *unstructured.Unstructured) bool {
-	return hook.IsHook(obj) || isPostDeleteHook(obj)
-}
-
-func isPostDeleteHook(obj *unstructured.Unstructured) bool {
+func isHookOfType(obj *unstructured.Unstructured, hookType string) bool {
 	if obj == nil || obj.GetAnnotations() == nil {
 		return false
 	}
-	for k, v := range postDeleteHooks {
+
+	for k, v := range hookTypeAnnotations[hookType] {
 		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
 			return true
 		}
@@ -41,7 +46,160 @@ func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 	return false
 }
 
-func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Application, proj *v1alpha1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func isHook(obj *unstructured.Unstructured) bool {
+	if hook.IsHook(obj) {
+		return true
+	}
+
+	for hookType := range hookTypeAnnotations {
+		if isHookOfType(obj, hookType) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPreDeleteHook(obj *unstructured.Unstructured) bool {
+	return isHookOfType(obj, preDeleteHook)
+}
+
+func isPostDeleteHook(obj *unstructured.Unstructured) bool {
+	return isHookOfType(obj, postDeleteHook)
+}
+
+func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return false, err
+	}
+	var revisions []string
+	for _, src := range app.Spec.GetSources() {
+		revisions = append(revisions, src.TargetRevision)
+	}
+
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false, true)
+	if err != nil {
+		return false, err
+	}
+	runningHooks := map[kube.ResourceKey]*unstructured.Unstructured{}
+	for key, obj := range liveObjs {
+		if isPreDeleteHook(obj) {
+			runningHooks[key] = obj
+		}
+	}
+
+	expectedHook := map[kube.ResourceKey]*unstructured.Unstructured{}
+	for _, obj := range targets {
+		if obj.GetNamespace() == "" {
+			obj.SetNamespace(app.Spec.Destination.Namespace)
+		}
+		if !isPreDeleteHook(obj) {
+			continue
+		}
+		if runningHook := runningHooks[kube.GetResourceKey(obj)]; runningHook == nil {
+			expectedHook[kube.GetResourceKey(obj)] = obj
+		}
+	}
+	createdCnt := 0
+	for _, obj := range expectedHook {
+		_, err = ctrl.kubectl.CreateResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
+		if err != nil {
+			return false, err
+		}
+		createdCnt++
+	}
+	if createdCnt > 0 {
+		logCtx.Infof("Created %d pre-delete hooks", createdCnt)
+		return false, nil
+	}
+	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return false, err
+	}
+	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
+
+	progressingHooksCount := 0
+	for _, obj := range runningHooks {
+		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
+		if err != nil {
+			return false, err
+		}
+		if hookHealth == nil {
+			logCtx.WithFields(log.Fields{
+				"group":     obj.GroupVersionKind().Group,
+				"version":   obj.GroupVersionKind().Version,
+				"kind":      obj.GetKind(),
+				"name":      obj.GetName(),
+				"namespace": obj.GetNamespace(),
+			}).Info("No health check defined for resource, considering it healthy")
+			hookHealth = &health.HealthStatus{
+				Status: health.HealthStatusHealthy,
+			}
+		}
+		if hookHealth.Status == health.HealthStatusProgressing {
+			progressingHooksCount++
+		}
+	}
+	if progressingHooksCount > 0 {
+		logCtx.Infof("Waiting for %d pre-delete hooks to complete", progressingHooksCount)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (ctrl *ApplicationController) cleanupPreDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return false, err
+	}
+	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
+
+	pendingDeletionCount := 0
+	aggregatedHealth := health.HealthStatusHealthy
+	var hooks []*unstructured.Unstructured
+	for _, obj := range liveObjs {
+		if !isPreDeleteHook(obj) {
+			continue
+		}
+		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
+		if err != nil {
+			return false, err
+		}
+		if hookHealth == nil {
+			hookHealth = &health.HealthStatus{
+				Status: health.HealthStatusHealthy,
+			}
+		}
+		if health.IsWorse(aggregatedHealth, hookHealth.Status) {
+			aggregatedHealth = hookHealth.Status
+		}
+		hooks = append(hooks, obj)
+	}
+
+	for _, obj := range hooks {
+		for _, policy := range hook.DeletePolicies(obj) {
+			if policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded || policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy {
+				pendingDeletionCount++
+				if obj.GetDeletionTimestamp() != nil {
+					continue
+				}
+				logCtx.Infof("Deleting pre-delete hook %s/%s", obj.GetNamespace(), obj.GetName())
+				err = ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{})
+				if err != nil {
+					return false, err
+				}
+			}
+		}
+	}
+	if pendingDeletionCount > 0 {
+		logCtx.Infof("Waiting for %d pre-delete hooks to be deleted", pendingDeletionCount)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -92,7 +250,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 	}
 	healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
 
-	progressingHooksCnt := 0
+	progressingHooksCount := 0
 	for _, obj := range runningHooks {
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
@@ -111,11 +269,11 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 			}
 		}
 		if hookHealth.Status == health.HealthStatusProgressing {
-			progressingHooksCnt++
+			progressingHooksCount++
 		}
 	}
-	if progressingHooksCnt > 0 {
-		logCtx.Infof("Waiting for %d post-delete hooks to complete", progressingHooksCnt)
+	if progressingHooksCount > 0 {
+		logCtx.Infof("Waiting for %d post-delete hooks to complete", progressingHooksCount)
 		return false, nil
 	}
 
