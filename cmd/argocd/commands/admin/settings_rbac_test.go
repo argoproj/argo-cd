@@ -152,7 +152,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
-	require.Equal(t, "", matchMode)
+	require.Empty(t, matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
