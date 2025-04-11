@@ -20,26 +20,39 @@ import (
 var (
 	preDeleteHook  = "PreDelete"
 	postDeleteHook = "PostDelete"
-	preDeleteHooks = map[string]string{
-		"argocd.argoproj.io/hook": preDeleteHook,
-		"helm.sh/hook":            "pre-delete",
-	}
-	postDeleteHooks = map[string]string{
-		"argocd.argoproj.io/hook": postDeleteHook,
-		"helm.sh/hook":            "post-delete",
+
+	hookTypeAnnotations = map[string]map[string]string{
+		preDeleteHook: {
+			"argocd.argoproj.io/hook": preDeleteHook,
+			"helm.sh/hook":            "pre-delete",
+		},
+		postDeleteHook: {
+			"argocd.argoproj.io/hook": postDeleteHook,
+			"helm.sh/hook":            "post-delete",
+		},
 	}
 )
 
-func isHook(obj *unstructured.Unstructured) bool {
-	return hook.IsHook(obj) || isPostDeleteHook(obj) || isPreDeleteHook(obj)
-}
-
-func isPostDeleteHook(obj *unstructured.Unstructured) bool {
+func isHookOfType(obj *unstructured.Unstructured, hookType string) bool {
 	if obj == nil || obj.GetAnnotations() == nil {
 		return false
 	}
-	for k, v := range postDeleteHooks {
+
+	for k, v := range hookTypeAnnotations[hookType] {
 		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
+			return true
+		}
+	}
+	return false
+}
+
+func isHook(obj *unstructured.Unstructured) bool {
+	if hook.IsHook(obj) {
+		return true
+	}
+
+	for hookType := range hookTypeAnnotations {
+		if isHookOfType(obj, hookType) {
 			return true
 		}
 	}
@@ -47,15 +60,11 @@ func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 }
 
 func isPreDeleteHook(obj *unstructured.Unstructured) bool {
-	if obj == nil || obj.GetAnnotations() == nil {
-		return false
-	}
-	for k, v := range preDeleteHooks {
-		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
-			return true
-		}
-	}
-	return false
+	return isHookOfType(obj, preDeleteHook)
+}
+
+func isPostDeleteHook(obj *unstructured.Unstructured) bool {
+	return isHookOfType(obj, postDeleteHook)
 }
 
 func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
