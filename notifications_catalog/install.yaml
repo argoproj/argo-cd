@@ -43,7 +43,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -70,7 +70,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
@@ -120,7 +120,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -143,7 +143,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
@@ -193,7 +193,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -220,7 +220,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
@@ -270,7 +270,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -297,7 +297,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
@@ -351,7 +351,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -374,7 +374,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
@@ -423,7 +423,7 @@ data:
           ,
           {
             "title": "{{$c.type}}",
-            "value": "{{$c.message}}",
+            "value": {{$c.message | quote}},
             "short": true
           }
           {{end}}
@@ -450,7 +450,7 @@ data:
           ,
           {
             "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
+            "value": {{$c.message | quote}}
           }
         {{end}}
         ]
