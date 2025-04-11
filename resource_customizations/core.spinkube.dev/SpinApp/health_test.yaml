@@ -1,0 +1,36 @@
+tests:
+  - name: "healthy-spinapp"
+    inputFile: "testdata/healthy.yaml"
+    expected:
+      status: "Healthy"
+      message: "Application is healthy with 2/2 replicas ready"
+
+  - name: "degraded-spinapp"
+    inputFile: "testdata/degraded.yaml"
+    expected:
+      status: "Degraded"
+      message: "ReplicaSet has timed out progressing."
+
+  - name: "progressing-spinapp"
+    inputFile: "testdata/progressing.yaml"
+    expected:
+      status: "Progressing"
+      message: "Application is still progressing"
+
+  - name: "no-status"
+    input:
+      spec:
+        replicas: 2
+    expected:
+      status: "Degraded"
+      message: "No status available"
+
+  - name: "no-conditions"
+    input:
+      status:
+        readyReplicas: 2
+      spec:
+        replicas: 2
+    expected:
+      status: "Degraded"
+      message: "Application is not available" 
