@@ -112,6 +112,8 @@ argocd login cd.argoproj.io --core`,
 				ServerName:           globalClientOpts.ServerName,
 			}
 
+			ctxName = globalClientOpts.Context
+
 			if ctxName == "" {
 				ctxName = server
 				if globalClientOpts.GRPCWebRootPath != "" {
@@ -167,9 +169,6 @@ argocd login cd.argoproj.io --core`,
 				AuthToken:    tokenString,
 				RefreshToken: refreshToken,
 			})
-			if ctxName == "" {
-				ctxName = server
-			}
 			localCfg.CurrentContext = ctxName
 			localCfg.UpsertContext(localconfig.ContextRef{
 				Name:   ctxName,
