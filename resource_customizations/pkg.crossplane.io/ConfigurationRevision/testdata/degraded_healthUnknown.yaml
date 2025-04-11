@@ -1,0 +1,37 @@
+apiVersion: pkg.crossplane.io/v1
+kind: ConfigurationRevision
+metadata:
+  creationTimestamp: '2025-01-16T13:43:03Z'
+  finalizers:
+    - revision.pkg.crossplane.io
+  generation: 1
+  name: my-config-1-74384878d6b9
+  ownerReferences:
+    - apiVersion: pkg.crossplane.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Configuration
+      name: my-config-1
+      uid: 89844b59-99f2-467e-8851-faa5fde64728
+  resourceVersion: '72566'
+  uid: 8b7cec1a-ecfc-4a24-8221-d089fb424867
+  selfLink: >-
+    /apis/pkg.crossplane.io/v1/configurationrevisions/my-config-1-74384878d6b9
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-16T13:49:16Z'
+      message: >-
+        cannot establish control of object:
+        xclusters.configuration.something is already controlled by
+        ConfigurationRevision my-config-74384878d6b9 (UID
+        e085adc6-4526-4052-962b-08092409c523)
+      reason: UnhealthyPackageRevision
+      status: 'False'
+      type: Healthy
+spec:
+  desiredState: Active
+  ignoreCrossplaneConstraints: false
+  image: crossplane/my-config:latest
+  packagePullPolicy: Always
+  revision: 1
+  skipDependencyResolution: true

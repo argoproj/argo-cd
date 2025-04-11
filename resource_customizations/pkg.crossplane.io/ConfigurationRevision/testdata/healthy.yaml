@@ -1,0 +1,37 @@
+apiVersion: pkg.crossplane.io/v1
+kind: ConfigurationRevision
+metadata:
+  creationTimestamp: '2025-01-15T08:38:36Z'
+  finalizers:
+    - revision.pkg.crossplane.io
+  generation: 2
+  name: my-config-bbcfb0d59bd8
+  ownerReferences:
+    - apiVersion: pkg.crossplane.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Configuration
+      name: my-config
+      uid: 38f22072-b5b0-41c8-b18d-907a397bd439
+  resourceVersion: '9919'
+  uid: b43efcc4-6392-4dfc-8efb-d140a001e7e2
+  selfLink: >-
+    /apis/pkg.crossplane.io/v1/configurationrevisions/my-config-bbcfb0d59bd8
+status:
+  conditions:
+    - lastTransitionTime: '2025-01-15T08:42:28Z'
+      reason: HealthyPackageRevision
+      status: 'True'
+      type: Healthy
+  objectRefs:
+    - apiVersion: apiextensions.crossplane.io/v1
+      kind: Composition
+      name: some-composition
+      uid: 05cd4549-0ace-474b-b584-9d31f0cfe2d2
+spec:
+  desiredState: Inactive
+  ignoreCrossplaneConstraints: false
+  image: crossplane/my-config:latest
+  packagePullPolicy: Always
+  revision: 1
+  skipDependencyResolution: true
