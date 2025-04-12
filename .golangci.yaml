@@ -40,7 +40,6 @@ linters:
       - comments
       - common-false-positives
       - legacy
-      - std-error-handling
 
     warn-unused: true
 
