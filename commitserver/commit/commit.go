@@ -119,7 +119,10 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	fileData, err := os.ReadFile(metadataPath)
 	if err == nil {
 		var hydratorMetadata hydratorMetadataFile
-		json.Unmarshal(fileData, &hydratorMetadata)
+		err = json.Unmarshal(fileData, &hydratorMetadata)
+		if err != nil {
+			return out, "", fmt.Errorf("failed to unmarshal hydrator metadata: %w", err)
+		}
 		if hydratorMetadata.DrySHA == r.DrySha {
 			logCtx.WithField("drySHA", r.DrySha).Debug("Already Hydrated")
 			return "", r.DrySha, nil
