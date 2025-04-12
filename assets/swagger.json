@@ -5342,6 +5342,9 @@
         "statusBadgeRootUrl": {
           "type": "string"
         },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
+        },
         "trackingMethod": {
           "type": "string"
         },
