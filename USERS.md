@@ -45,6 +45,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Bedag Informatik AG](https://www.bedag.ch/)
 1. [Beleza Na Web](https://www.belezanaweb.com.br/)
 1. [Believable Bots](https://believablebots.io)
+1. [Bayer AG](https://bayer.com)
 1. [BigPanda](https://bigpanda.io)
 1. [BioBox Analytics](https://biobox.io)
 1. [BMW Group](https://www.bmwgroup.com/)
