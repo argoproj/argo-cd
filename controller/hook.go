@@ -217,6 +217,8 @@ func (ctrl *ApplicationController) cleanupHooks(hookType string, liveObjs map[ku
 	return true, nil
 }
 
+// Execute and cleanup hooks for pre-delete and post-delete operations
+
 func (ctrl *ApplicationController) executePreDeleteHooks(app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.executeHooks(preDeleteHook, app, proj, liveObjs, config, logCtx)
 }
