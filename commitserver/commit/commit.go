@@ -2,9 +2,11 @@ package commit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -110,6 +112,18 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
+	}
+
+	logCtx.Debug("Checking if hydrated already")
+	metadataPath := path.Join(dirPath, "hydrator.metadata")
+	fileData, err := os.ReadFile(metadataPath)
+	if err == nil {
+		var hydratorMetadata hydratorMetadataFile
+		json.Unmarshal(fileData, &hydratorMetadata)
+		if hydratorMetadata.DrySHA == r.DrySha {
+			logCtx.WithField("drySHA", r.DrySha).Debug("Already Hydrated")
+			return "", r.DrySha, nil
+		}
 	}
 
 	logCtx.Debug("Clearing repo contents")
