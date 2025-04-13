@@ -4,10 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
-
-	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -64,7 +63,7 @@ func TestListPullRequest(t *testing.T) {
 	prID := 123
 	prTitle := "feat(123)"
 	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
-	ctx := context.Background()
+	ctx := t.Context()
 	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{

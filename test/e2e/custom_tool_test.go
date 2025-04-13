@@ -16,7 +16,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // make sure we can echo back the Git creds
@@ -163,6 +163,9 @@ func TestCustomToolWithEnv(t *testing.T) {
 				Env: Env{{
 					Name:  "FOO",
 					Value: "bar",
+				}, {
+					Name:  "EMPTY",
+					Value: "",
 				}},
 			}
 		}).
@@ -182,13 +185,13 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions().ServerVersion.Format("%s.%s")
+			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(_ *Application) {
-			expectedAPIVersion := fixture.GetApiResources()
+			expectedAPIVersion := fixture.GetApiResources(t)
 			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
 			sort.Strings(expectedAPIVersionSlice)
 
@@ -197,7 +200,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
+			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 
@@ -223,10 +226,10 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
-			FailOnErr(fixture.RunCli("app", "sync", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		}).
 		And(func(_ *Application) {
-			FailOnErr(fixture.RunCli("app", "diff", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
+			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		})
 }
 
@@ -241,7 +244,7 @@ func startCMPServer(t *testing.T, configFile string) {
 		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
-	FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
+	errors.NewHandler(t).FailOnErr(fixture.RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
 }
 
 // Discover by fileName
@@ -326,13 +329,13 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions().ServerVersion.Format("%s.%s")
+			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
 			output, err := fixture.Run("", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(_ *Application) {
-			expectedAPIVersion := fixture.GetApiResources()
+			expectedAPIVersion := fixture.GetApiResources(t)
 			expectedAPIVersionSlice := strings.Split(expectedAPIVersion, ",")
 			sort.Strings(expectedAPIVersionSlice)
 
@@ -341,7 +344,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
-			assert.EqualValues(t, expectedAPIVersionSlice, outputSlice)
+			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
 		})
 }
 

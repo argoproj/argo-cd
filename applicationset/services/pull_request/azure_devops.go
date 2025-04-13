@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"

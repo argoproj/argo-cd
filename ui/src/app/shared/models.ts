@@ -129,6 +129,7 @@ export interface ResourceResult {
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
+    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
@@ -289,6 +290,7 @@ export interface ApplicationSourceDirectory {
 export interface Automated {
     prune: boolean;
     selfHeal: boolean;
+    enabled: boolean;
 }
 
 export interface SyncPolicy {

@@ -341,10 +341,10 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 				renderer,
 				nil,
 			)
-			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
-			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
-			assert.True(t, maps.Equal(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+			assert.Equal(t, cases.expectedApp[0].Name, gotApp[0].Name)
+			assert.Equal(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
+			assert.Equal(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
+			assert.True(t, maps.Equal(cases.expectedApp[0].Labels, gotApp[0].Labels))
 		})
 	}
 }

@@ -199,6 +199,7 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		var impactedResources []ImpactedResource
 
 		jsonString := bytes.NewBuffer(jsonBytes).String()
+		// nolint:staticcheck // Lua is fine to be capitalized.
 		if len(jsonString) < 2 {
 			return nil, errors.New("Lua output was not a valid json object or array")
 		}
@@ -406,10 +407,12 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	// Fetch predefined Lua scripts
 	discoveryKey := key + "/actions/"
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
-
-	// Ignore the error if the script does not exist.
-	var doesNotExistErr *ScriptDoesNotExistError
-	if err != nil && !errors.As(err, &doesNotExistErr) {
+	if err != nil {
+		var doesNotExistErr *ScriptDoesNotExistError
+		if errors.As(err, &doesNotExistErr) {
+			// No worries, just return what we have.
+			return discoveryScripts, nil
+		}
 		return nil, fmt.Errorf("error while fetching predefined lua scripts: %w", err)
 	}
 

@@ -63,7 +63,7 @@ Of course, you can also use this in combination with the `--username` and `--pas
 Your TLS client certificate and corresponding key can also be configured using the UI, see instructions for adding Git repos using HTTPS.
 
 !!! note
-    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
+    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not supported. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
 
 !!! note
     When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.

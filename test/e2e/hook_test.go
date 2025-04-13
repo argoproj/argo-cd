@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -14,12 +13,10 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/pkg/errors"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
@@ -65,8 +62,8 @@ func TestPostDeleteHook(t *testing.T) {
 		Then().
 		Expect(DoesNotExist()).
 		AndAction(func() {
-			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
-			CheckError(err)
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(t.Context(), metav1.ListOptions{})
+			require.NoError(t, err)
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
@@ -99,9 +96,9 @@ func TestPreSyncHookFailure(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(Error("hook  Failed              PreSync", "")).
+		Expect(Error("hook    Failed   Synced     PreSync  container \"main\" failed", "")).
 		// make sure resource are also printed
-		Expect(Error("pod   OutOfSync  Missing", "")).
+		Expect(Error("pod  OutOfSync  Missing", "")).
 		Expect(OperationPhaseIs(OperationFailed)).
 		// if a pre-sync hook fails, we should not start the main sync
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -335,7 +332,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		And(func(_ *Application) {
 			var err error
 			creationTimestamp1, err = getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
 			time.Sleep(1 * time.Second)
@@ -350,7 +347,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" })).
 		And(func(_ *Application) {
 			creationTimestamp2, err := getCreationTimestamp()
-			CheckError(err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, creationTimestamp2)
 			assert.NotEqual(t, creationTimestamp1, creationTimestamp2)
 		})
@@ -447,7 +444,7 @@ func testHookFinalizer(t *testing.T, hookType HookType) {
 	t.Helper()
 	Given(t).
 		And(func() {
-			errors.CheckError(SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				lua.GetConfigMapKey(schema.FromAPIVersionAndKind("batch/v1", "Job")): {
 					HealthLua: `
 						local hs = {}

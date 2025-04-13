@@ -203,7 +203,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 	assert.True(t, settings.InClusterEnabled)
@@ -261,9 +261,6 @@ func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
 	}}
-	ignoreCRDFields := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/status", "/spec/preserveUnknownFields"},
-	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(map[string]string{
@@ -297,10 +294,10 @@ func TestGetResourceOverrides(t *testing.T) {
 		},
 	}, webHookOverrides)
 
-	// by default, crd status should be ignored
-	crdOverrides := overrides[crdGK]
-	assert.NotNil(t, crdOverrides)
-	assert.Equal(t, ignoreCRDFields, crdOverrides)
+	// by default, all status should be ignored
+	globalOverrides := overrides["*/*"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value all, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
@@ -310,7 +307,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	globalOverrides := overrides["*/*"]
+	globalOverrides = overrides["*/*"]
 	assert.NotNil(t, globalOverrides)
 	assert.Equal(t, ignoreStatus, globalOverrides)
 
@@ -330,14 +327,14 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	crdOverrides = overrides[crdGK]
+	crdOverrides := overrides[crdGK]
 	assert.NotNil(t, crdOverrides)
 	assert.Equal(t, v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status", "/spec/preserveUnknownFields"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
 
-	// with incorrect value, status of crd objects should be ignored
+	// with incorrect value, status of all objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: foobar`,
@@ -345,15 +342,32 @@ func TestGetResourceOverrides(t *testing.T) {
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	defaultOverrides := overrides[crdGK]
-	assert.NotNil(t, defaultOverrides)
-	assert.Equal(t, ignoreStatus, defaultOverrides)
-	assert.Equal(t, ignoreStatus, defaultOverrides)
+	globalOverrides = overrides["*/*"]
+	assert.NotNil(t, globalOverrides)
+	assert.Equal(t, ignoreStatus, globalOverrides)
 
-	// with value off, status of no objects should be ignored
+	// with value non-string off, status of no objects should be ignored
 	_, settingsManager = fixtures(map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	require.NoError(t, err)
+	assert.Empty(t, overrides)
+
+	// with value non-string false, status of no objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: false`,
+	})
+	overrides, err = settingsManager.GetResourceOverrides()
+	require.NoError(t, err)
+	assert.Empty(t, overrides)
+
+	// with value none, status of no objects should be ignored
+	_, settingsManager = fixtures(map[string]string{
+		"resource.compareoptions": `
+    ignoreResourceStatusField: none`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
@@ -390,6 +404,8 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 
 func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	data := map[string]string{
+		"resource.compareoptions": `ignoreResourceStatusField: none`,
+
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
@@ -411,13 +427,11 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	}
 
 	t.Run("MergedKey", func(t *testing.T) {
-		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 		_, settingsManager := fixtures(data)
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 5)
-		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
+		assert.Len(t, overrides, 4)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -431,6 +445,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 	t.Run("SplitKeys", func(t *testing.T) {
 		newData := map[string]string{
+			"resource.compareoptions": `ignoreResourceStatusField: none`,
+
 			"resource.customizations.health.admissionregistration.k8s.io_MutatingWebhookConfiguration": "bar",
 			"resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration": `jsonPointers:
         - bar`,
@@ -459,16 +475,12 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 			"resource.customizations.ignoreResourceUpdates.apps_Deployment": `jqPathExpressions:
         - bar`,
 		}
-		crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 		_, settingsManager := fixtures(mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 9)
-		assert.Len(t, overrides[crdGK].IgnoreDifferences.JSONPointers, 2)
-		assert.Equal(t, "/status", overrides[crdGK].IgnoreDifferences.JSONPointers[0])
-		assert.Equal(t, "/spec/preserveUnknownFields", overrides[crdGK].IgnoreDifferences.JSONPointers[1])
+		assert.Len(t, overrides, 8)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -494,41 +506,6 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Len(t, overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions, 1)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions[0])
 	})
-
-	t.Run("SplitKeysCompareOptionsAll", func(t *testing.T) {
-		newData := map[string]string{
-			"resource.customizations.health.cert-manager.io_Certificate": "bar",
-			"resource.customizations.actions.apps_Deployment":            "bar",
-			"resource.compareoptions":                                    `ignoreResourceStatusField: all`,
-		}
-		_, settingsManager := fixtures(mergemaps(data, newData))
-
-		overrides, err := settingsManager.GetResourceOverrides()
-		require.NoError(t, err)
-		assert.Len(t, overrides, 5)
-		assert.Len(t, overrides["*/*"].IgnoreDifferences.JSONPointers, 1)
-		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
-		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
-	})
-
-	t.Run("SplitKeysCompareOptionsOff", func(t *testing.T) {
-		newData := map[string]string{
-			"resource.customizations.health.cert-manager.io_Certificate": "bar",
-			"resource.customizations.actions.apps_Deployment":            "bar",
-			"resource.compareoptions":                                    `ignoreResourceStatusField: off`,
-		}
-		_, settingsManager := fixtures(mergemaps(data, newData))
-
-		overrides, err := settingsManager.GetResourceOverrides()
-		require.NoError(t, err)
-		assert.Len(t, overrides, 4)
-		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
-		assert.Equal(t, "foo\n", overrides["certmanager.k8s.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["cert-manager.io/Certificate"].HealthLua)
-		assert.Equal(t, "bar", overrides["apps/Deployment"].Actions)
-	})
 }
 
 func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
@@ -545,6 +522,10 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	allGK := "*/*"
 
 	testCustomizations := map[string]string{
+		"resource.compareoptions": `
+            ignoreResourceStatusField: none
+            ignoreDifferencesOnResourceUpdates: true`,
+
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
@@ -568,29 +549,29 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	assert.NotNil(t, allOverrides)
 	assert.Equal(t, allDefault, allOverrides)
 
-	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
-	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
-	assert.Equal(t, v1alpha1.ResourceOverride{
-		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
-			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
-		},
-		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
-	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
-
 	// with ignoreDifferencesOnResourceUpdates, ignoreDifferences should be added
-	_, settingsManager = fixtures(mergemaps(testCustomizations, map[string]string{
-		"resource.compareoptions": `
-    ignoreDifferencesOnResourceUpdates: true`,
-	}))
-	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
-	require.NoError(t, err)
-
 	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
 	assert.Equal(t, v1alpha1.ResourceOverride{
 		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle", "/webhooks/0/clientConfig/caBundle"},
 			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle", ".webhooks[0].clientConfig.caBundle"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
+	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+
+	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
+	_, settingsManager = fixtures(mergemaps(map[string]string{
+		"resource.compareoptions": `
+            ignoreResourceStatusField: none
+            ignoreDifferencesOnResourceUpdates: false`,
+	}, testCustomizations))
+	overrides, err = settingsManager.GetIgnoreResourceUpdatesOverrides()
+	require.NoError(t, err)
+	assert.NotNil(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
+	assert.Equal(t, v1alpha1.ResourceOverride{
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers:      []string{"/webhooks/1/clientConfig/caBundle"},
+			JQPathExpressions: []string{".webhooks[1].clientConfig.caBundle"},
 		},
 		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{},
 	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
@@ -729,7 +710,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		}
 		sortVersionsByName(want.Versions)
 		sortVersionsByName(got.Versions)
-		assert.EqualValues(t, want, got)
+		assert.Equal(t, want, got)
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
@@ -817,7 +798,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 	t.Run("DefaultBuildOptions", func(t *testing.T) {
 		ver, err := settings.GetOptions(v1alpha1.ApplicationSource{})
 		require.NoError(t, err)
-		assert.Equal(t, "", ver.BinaryPath)
+		assert.Empty(t, ver.BinaryPath)
 		assert.Equal(t, "--opt1 val1", ver.BuildOptions)
 	})
 
@@ -827,7 +808,7 @@ func TestKustomizeSettings_GetOptions(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "path_v2", ver.BinaryPath)
-		assert.Equal(t, "", ver.BuildOptions)
+		assert.Empty(t, ver.BuildOptions)
 	})
 
 	t.Run("VersionExistsWithBuildOption", func(t *testing.T) {
@@ -924,7 +905,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -956,7 +937,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*24, s.UserSessionDuration)
@@ -988,7 +969,7 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		s, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
@@ -1023,7 +1004,7 @@ func TestGetOIDCConfig(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1103,7 +1084,7 @@ func TestGetOIDCSecretTrim(t *testing.T) {
 			},
 		},
 	)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
 
@@ -1159,7 +1140,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1207,7 +1188,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.True(t, settings.CertificateIsExternal)
@@ -1252,7 +1233,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
@@ -1287,7 +1268,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 				},
 			},
 		)
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
@@ -1366,7 +1347,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 		},
 	}
 	kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 	settings, err := settingsManager.GetSettings()
 	require.NoError(t, err)
@@ -1424,7 +1405,7 @@ func TestGetEnableManifestGeneration(t *testing.T) {
 			}
 
 			kubeClient := fake.NewClientset(cm, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			enableManifestGeneration, err := settingsManager.GetEnabledSourceTypes()
 			require.NoError(t, err)
@@ -1493,7 +1474,7 @@ func TestGetHelmSettings(t *testing.T) {
 				},
 			}
 			kubeClient := fake.NewClientset(cm, secret, argocdSecret)
-			settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 
 			helmSettings, err := settingsManager.GetHelmSettings()
 			require.NoError(t, err)
@@ -1643,7 +1624,7 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "$invalid-secret-key", result)
 
 	result = ReplaceStringSecret("", secretValues)
-	assert.Equal(t, "", result)
+	assert.Empty(t, result)
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
@@ -1811,7 +1792,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
 	kubeClient := fake.NewClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
 		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")

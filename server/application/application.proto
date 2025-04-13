@@ -246,6 +246,7 @@ message ApplicationPodLogsQuery {
 	optional bool previous = 14;
 	optional string appNamespace = 15;
 	optional string project = 16;
+	optional bool matchCase = 17;
 }
 
 message LogEntry {

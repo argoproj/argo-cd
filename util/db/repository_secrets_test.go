@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"strconv"
 	"testing"
 
@@ -38,7 +37,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	}
 	setupWithK8sObjects := func(objects ...runtime.Object) *fixture {
 		clientset := getClientset(objects...)
-		settingsMgr := settings.NewSettingsManager(context.Background(), clientset, testNamespace)
+		settingsMgr := settings.NewSettingsManager(t.Context(), clientset, testNamespace)
 		repoBackend := &secretsRepositoryBackend{db: &db{
 			ns:            testNamespace,
 			kubeclientset: clientset,
@@ -55,14 +54,14 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		f := setupWithK8sObjects()
 
 		// when
-		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
+		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
 		// then
 		require.NoError(t, err)
 		assert.Same(t, repo, output)
 
 		secret, err := f.clientSet.CoreV1().Secrets(testNamespace).Get(
-			context.TODO(),
+			t.Context(),
 			RepoURLToSecretName(repoSecretPrefix, repo.Repo, ""),
 			metav1.GetOptions{},
 		)
@@ -76,7 +75,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		assert.Equal(t, repo.Repo, string(secret.Data["url"]))
 		assert.Equal(t, repo.Username, string(secret.Data["username"]))
 		assert.Equal(t, repo.Password, string(secret.Data["password"]))
-		assert.Equal(t, "", string(secret.Data["insecureIgnoreHostKey"]))
+		assert.Empty(t, string(secret.Data["insecureIgnoreHostKey"]))
 		assert.Equal(t, strconv.FormatBool(repo.EnableLFS), string(secret.Data["enableLfs"]))
 	})
 	t.Run("will return proper error if secret does not have expected label", func(t *testing.T) {
@@ -97,7 +96,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		})
 
 		// when
-		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
+		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
 		// then
 		require.Error(t, err)
@@ -139,7 +138,7 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		})
 
 		// when
-		output, err := f.repoBackend.CreateRepository(context.Background(), repo)
+		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
 		// then
 		require.Error(t, err)
@@ -214,10 +213,10 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
+	repository, err := testee.GetRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "ArgoCD", repository.Name)
@@ -225,7 +224,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	assert.Equal(t, "someUsername", repository.Username)
 	assert.Equal(t, "somePassword", repository.Password)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
+	repository, err = testee.GetRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "")
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "UserManagedRepo", repository.Name)
@@ -233,7 +232,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	assert.Equal(t, "someOtherUsername", repository.Username)
 	assert.Equal(t, "someOtherPassword", repository.Password)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "testProject")
+	repository, err = testee.GetRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "testProject")
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "Scoped ArgoCD", repository.Name)
@@ -242,7 +241,7 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	assert.Equal(t, "someScopedPassword", repository.Password)
 	assert.Equal(t, "testProject", repository.Project)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "testProject")
+	repository, err = testee.GetRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "testProject")
 	require.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "Scoped UserManagedRepo", repository.Name)
@@ -287,20 +286,20 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	repositories, err := testee.ListRepositories(context.TODO(), nil)
+	repositories, err := testee.ListRepositories(t.Context(), nil)
 	require.NoError(t, err)
 	assert.Len(t, repositories, 2)
 
 	for _, repository := range repositories {
-		switch {
-		case repository.Name == "ArgoCD":
+		switch repository.Name {
+		case "ArgoCD":
 			assert.Equal(t, "git@github.com:argoproj/argo-cd.git", repository.Repo)
 			assert.Equal(t, "someUsername", repository.Username)
 			assert.Equal(t, "somePassword", repository.Password)
-		case repository.Name == "UserManagedRepo":
+		case "UserManagedRepo":
 			assert.Equal(t, "git@github.com:argoproj/argoproj.git", repository.Repo)
 			assert.Equal(t, "someOtherUsername", repository.Username)
 			assert.Equal(t, "someOtherPassword", repository.Password)
@@ -410,58 +409,58 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
 	managedRepository.Username = "newUsername"
-	updateRepository, err := testee.UpdateRepository(context.TODO(), managedRepository)
+	updateRepository, err := testee.UpdateRepository(t.Context(), managedRepository)
 	require.NoError(t, err)
 	assert.Same(t, managedRepository, updateRepository)
 	assert.Equal(t, managedRepository.Username, updateRepository.Username)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsername", string(secret.Data["username"]))
 
 	userProvidedRepository.Username = "newOtherUsername"
-	updateRepository, err = testee.UpdateRepository(context.TODO(), userProvidedRepository)
+	updateRepository, err = testee.UpdateRepository(t.Context(), userProvidedRepository)
 	require.NoError(t, err)
 	assert.Same(t, userProvidedRepository, updateRepository)
 	assert.Equal(t, userProvidedRepository.Username, updateRepository.Username)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "user-managed", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newOtherUsername", string(secret.Data["username"]))
 
-	updateRepository, err = testee.UpdateRepository(context.TODO(), newRepository)
+	updateRepository, err = testee.UpdateRepository(t.Context(), newRepository)
 	require.NoError(t, err)
 	assert.Same(t, newRepository, updateRepository)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), newSecretName, metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), newSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "foo", string(secret.Data["username"]))
 
 	managedProjectRepository.Username = "newUsername"
-	updateRepository, err = testee.UpdateRepository(context.TODO(), managedProjectRepository)
+	updateRepository, err = testee.UpdateRepository(t.Context(), managedProjectRepository)
 	require.NoError(t, err)
 	assert.Same(t, managedProjectRepository, updateRepository)
 	assert.Equal(t, managedProjectRepository.Username, updateRepository.Username)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedProjectSecretName, metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedProjectSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsername", string(secret.Data["username"]))
 
 	userProvidedProjectRepository.Username = "newUsernameScoped"
-	updateRepository, err = testee.UpdateRepository(context.TODO(), userProvidedProjectRepository)
+	updateRepository, err = testee.UpdateRepository(t.Context(), userProvidedProjectRepository)
 	require.NoError(t, err)
 	assert.Same(t, userProvidedProjectRepository, updateRepository)
 	assert.Equal(t, userProvidedProjectRepository.Username, updateRepository.Username)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed-scoped", metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "user-managed-scoped", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsernameScoped", string(secret.Data["username"]))
@@ -519,28 +518,28 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
+	err := testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "")
 	require.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedSecretName, metav1.GetOptions{})
 	require.Error(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedScopedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedScopedSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 
-	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "someProject")
+	err = testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argo-cd.git", "someProject")
 	require.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedScopedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedScopedSecretName, metav1.GetOptions{})
 	require.Error(t, err)
 
-	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
+	err = testee.DeleteRepository(t.Context(), "git@github.com:argoproj/argoproj.git", "")
 	require.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "user-managed", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepository])
@@ -551,7 +550,7 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
 	testCases := []struct {
@@ -592,12 +591,12 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			output, err := testee.CreateRepoCreds(context.TODO(), &testCase.repoCreds)
+			output, err := testee.CreateRepoCreds(t.Context(), &testCase.repoCreds)
 			require.NoError(t, err)
 			assert.Same(t, &testCase.repoCreds, output)
 
 			secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
-				context.TODO(),
+				t.Context(),
 				RepoURLToSecretName(credSecretPrefix, testCase.repoCreds.URL, ""),
 				metav1.GetOptions{},
 			)
@@ -680,17 +679,17 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
+	repoCred, err := testee.GetRepoCreds(t.Context(), "git@github.com:argoproj")
 	require.NoError(t, err)
 	require.NotNil(t, repoCred)
 	assert.Equal(t, "git@github.com:argoproj", repoCred.URL)
 	assert.Equal(t, "someUsername", repoCred.Username)
 	assert.Equal(t, "somePassword", repoCred.Password)
 
-	repoCred, err = testee.GetRepoCreds(context.TODO(), "git@gitlab.com")
+	repoCred, err = testee.GetRepoCreds(t.Context(), "git@gitlab.com")
 	require.NoError(t, err)
 	assert.NotNil(t, repoCred)
 	assert.Equal(t, "git@gitlab.com", repoCred.URL)
@@ -737,10 +736,10 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	repoCreds, err := testee.ListRepoCreds(context.TODO())
+	repoCreds, err := testee.ListRepoCreds(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, repoCreds, 2)
 	assert.Contains(t, repoCreds, "git@github.com:argoproj")
@@ -798,36 +797,36 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
 	managedCreds.Username = "newUsername"
-	updateRepoCreds, err := testee.UpdateRepoCreds(context.TODO(), managedCreds)
+	updateRepoCreds, err := testee.UpdateRepoCreds(t.Context(), managedCreds)
 	require.NoError(t, err)
 	assert.NotSame(t, managedCreds, updateRepoCreds)
 	assert.Equal(t, managedCreds.Username, updateRepoCreds.Username)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedCredsName, metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedCredsName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newUsername", string(secret.Data["username"]))
 
 	userProvidedCreds.Username = "newOtherUsername"
-	updateRepoCreds, err = testee.UpdateRepoCreds(context.TODO(), userProvidedCreds)
+	updateRepoCreds, err = testee.UpdateRepoCreds(t.Context(), userProvidedCreds)
 	require.NoError(t, err)
 	assert.NotSame(t, userProvidedCreds, updateRepoCreds)
 	assert.Equal(t, userProvidedCreds.Username, updateRepoCreds.Username)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "user-managed", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "newOtherUsername", string(secret.Data["username"]))
 
-	updateRepoCreds, err = testee.UpdateRepoCreds(context.TODO(), newCreds)
+	updateRepoCreds, err = testee.UpdateRepoCreds(t.Context(), newCreds)
 	require.NoError(t, err)
 	assert.Same(t, newCreds, updateRepoCreds)
 
-	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), newCredsName, metav1.GetOptions{})
+	secret, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), newCredsName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "foo", string(secret.Data["username"]))
@@ -867,19 +866,19 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	err := testee.DeleteRepoCreds(context.TODO(), "git@github.com:argoproj")
+	err := testee.DeleteRepoCreds(t.Context(), "git@github.com:argoproj")
 	require.NoError(t, err)
 
-	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), managedSecretName, metav1.GetOptions{})
+	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), managedSecretName, metav1.GetOptions{})
 	require.Error(t, err)
 
-	err = testee.DeleteRepoCreds(context.TODO(), "git@gitlab.com")
+	err = testee.DeleteRepoCreds(t.Context(), "git@gitlab.com")
 	require.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "user-managed", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "user-managed", metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Empty(t, secret.Labels[common.LabelValueSecretTypeRepoCreds])
@@ -921,10 +920,10 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 	testee := &secretsRepositoryBackend{db: &db{
 		ns:            testNamespace,
 		kubeclientset: clientset,
-		settingsMgr:   settings.NewSettingsManager(context.TODO(), clientset, testNamespace),
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
 	}}
 
-	repoCreds, err := testee.GetAllHelmRepoCreds(context.TODO())
+	repoCreds, err := testee.GetAllHelmRepoCreds(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, repoCreds, 1)
 }

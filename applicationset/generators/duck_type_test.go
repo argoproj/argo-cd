@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -160,7 +159,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -271,7 +270,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -293,7 +292,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -456,7 +455,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -567,7 +566,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -589,7 +588,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{

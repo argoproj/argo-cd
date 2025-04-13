@@ -1,7 +1,6 @@
 package git
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -383,11 +382,11 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 	assert.Nil(t, googleCloudCreds.creds)
 
 	token, err := googleCloudCreds.getAccessToken()
-	assert.Equal(t, "", token)
+	assert.Empty(t, token)
 	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
-	assert.Equal(t, "", username)
+	assert.Empty(t, username)
 	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
@@ -422,7 +421,7 @@ func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 	assert.Len(t, store.creds, 1)
 
 	for _, value := range store.creds {
-		assert.Equal(t, "", value.username)
+		assert.Empty(t, value.username)
 		assert.Equal(t, "accessToken", value.password)
 	}
 }
@@ -445,10 +444,10 @@ func TestAzureWorkloadIdentityCreds_GetUserInfo(t *testing.T) {
 	workloadIdentityMock.On("GetToken", azureDevopsEntraResourceId).Return("accessToken", nil)
 	creds := AzureWorkloadIdentityCreds{store, workloadIdentityMock}
 
-	user, email, err := creds.GetUserInfo(context.Background())
+	user, email, err := creds.GetUserInfo(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, workloadidentity.EmptyGuid, user)
-	assert.Equal(t, "", email)
+	assert.Empty(t, email)
 }
 
 func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t *testing.T) {

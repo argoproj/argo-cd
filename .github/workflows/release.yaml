@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.23.5' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.24.1' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -25,7 +25,7 @@ jobs:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.23.5
+      go-version: 1.24.1
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -77,7 +77,8 @@ jobs:
       - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
         run: |
           set -xue
-          echo "GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }})" >> $GITHUB_ENV
+          GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }}) || exit 1
+          echo "GORELEASER_PREVIOUS_TAG=$GORELEASER_PREVIOUS_TAG" >> $GITHUB_ENV
 
       - name: Set environment variables for ldflags
         id: set_ldflag

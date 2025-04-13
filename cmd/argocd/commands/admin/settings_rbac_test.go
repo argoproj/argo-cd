@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -116,7 +115,7 @@ func Test_validateRBACResourceAction(t *testing.T) {
 }
 
 func Test_PolicyFromCSV(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/policy.csv", nil, "")
 	require.NotEmpty(t, uPol)
@@ -125,7 +124,7 @@ func Test_PolicyFromCSV(t *testing.T) {
 }
 
 func Test_PolicyFromYAML(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/argocd-rbac-cm.yaml", nil, "")
 	require.NotEmpty(t, uPol)
@@ -137,7 +136,7 @@ func Test_PolicyFromYAML(t *testing.T) {
 
 func Test_PolicyFromK8s(t *testing.T) {
 	data, err := os.ReadFile("testdata/rbac/policy.csv")
-	ctx := context.Background()
+	ctx := t.Context()
 
 	require.NoError(t, err)
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
@@ -153,7 +152,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
-	require.Equal(t, "", matchMode)
+	require.Empty(t, matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
 		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
@@ -218,7 +217,7 @@ func Test_PolicyFromK8s(t *testing.T) {
 }
 
 func Test_PolicyFromK8sUsingRegex(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	policy := `
 p, role:user, clusters, get, .+, allow

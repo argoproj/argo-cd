@@ -2,14 +2,14 @@
 
 It is possible for an application to be `OutOfSync` even immediately after a successful Sync operation. Some reasons for this might be:
 
-* There is a bug in the manifest, where it contains extra/unknown fields from the actual K8s spec. These extra fields would get dropped when querying Kubernetes for the live state,
-resulting in an `OutOfSync` status indicating a missing field was detected.
-* The sync was performed (with pruning disabled), and there are resources which need to be deleted.
-* A controller or [mutating webhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook) is altering the object after it was
-submitted to Kubernetes in a manner which contradicts Git.
-* A Helm chart is using a template function such as [`randAlphaNum`](https://github.com/helm/charts/blob/master/stable/redis/templates/secret.yaml#L16),
-which generates different data every time `helm template` is invoked.
-* For Horizontal Pod Autoscaling (HPA) objects, the HPA controller is known to reorder `spec.metrics`
+- There is a bug in the manifest, where it contains extra/unknown fields from the actual K8s spec. These extra fields would get dropped when querying Kubernetes for the live state,
+  resulting in an `OutOfSync` status indicating a missing field was detected.
+- The sync was performed (with pruning disabled), and there are resources which need to be deleted.
+- A controller or [mutating webhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook) is altering the object after it was
+  submitted to Kubernetes so it differs from the one in Git.
+- A Helm chart is using a template function such as [`randAlphaNum`](https://github.com/helm/charts/blob/master/stable/redis/templates/secret.yaml#L16),
+  which generates different data every time `helm template` is invoked.
+- For Horizontal Pod Autoscaling (HPA) objects, the HPA controller is known to reorder `spec.metrics`
   in a specific order. See [kubernetes issue #74099](https://github.com/kubernetes/kubernetes/issues/74099).
   To work around this, you can order `spec.metrics` in Git in the same order that the controller
   prefers.
@@ -19,17 +19,17 @@ The diffing customization can be configured for single or multiple application r
 
 ## Application Level Configuration
 
-Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
+Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](<https://stedolan.github.io/jq/manual/#path(path_expression)>). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
 
 The following sample application is configured to ignore differences in `spec.replicas` for all deployments:
 
 ```yaml
 spec:
   ignoreDifferences:
-  - group: apps
-    kind: Deployment
-    jsonPointers:
-    - /spec/replicas
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
 ```
 
 Note that the `group` field relates to the [Kubernetes API group](https://kubernetes.io/docs/reference/using-api/#api-groups) without the version.
@@ -38,32 +38,34 @@ The above customization could be narrowed to a resource with the specified name 
 ```yaml
 spec:
   ignoreDifferences:
-  - group: apps
-    kind: Deployment
-    name: guestbook
-    namespace: default
-    jsonPointers:
-    - /spec/replicas
+    - group: apps
+      kind: Deployment
+      name: guestbook
+      namespace: default
+      jsonPointers:
+        - /spec/replicas
 ```
 
 To ignore elements of a list, you can use JQ path expressions to identify list items based on item content:
+
 ```yaml
 spec:
   ignoreDifferences:
-  - group: apps
-    kind: Deployment
-    jqPathExpressions:
-    - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
 
 To ignore fields owned by specific managers defined in your live resources:
+
 ```yaml
 spec:
   ignoreDifferences:
-  - group: "*"
-    kind: "*"
-    managedFieldsManagers:
-    - kube-controller-manager
+    - group: '*'
+      kind: '*'
+      managedFieldsManagers:
+        - kube-controller-manager
 ```
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
@@ -73,9 +75,9 @@ If you have a slash `/` in your pointer path, you need to replace it with the `~
 ```yaml
 spec:
   ignoreDifferences:
-  - kind: Node
-    jsonPointers: 
-    - /metadata/labels/node-role.kubernetes.io~1worker
+    - kind: Node
+      jsonPointers:
+        - /metadata/labels/node-role.kubernetes.io~1worker
 ```
 
 ## System-Level Configuration
@@ -86,12 +88,13 @@ of a `MutatingWebhookConfiguration` webhooks:
 
 ```yaml
 data:
-  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
+  resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration:
+    |
     jqPathExpressions:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
-Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example below shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
+Resource customization can also be configured to ignore all differences made by a `managedField.manager` at the system level. The example below shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
 
 ```yaml
 data:
@@ -100,7 +103,7 @@ data:
     - kube-controller-manager
 ```
 
-It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
+It is possible to configure `ignoreDifferences` to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
 
 ```yaml
 data:
@@ -111,20 +114,23 @@ data:
     - /spec/replicas
 ```
 
-The `status` field of `CustomResourceDefinitions` is often stored in Git/Helm manifest and should be ignored during diffing. The `ignoreResourceStatusField` setting simplifies
-handling that edge case:
+The `status` field of many resources is often stored in Git/Helm manifest and should be ignored during diffing. The `status` field is used by
+Kubernetes controller to persist the current state of the resource and therefore cannot be applied as a desired configuration.
 
 ```yaml
 data:
   resource.compareoptions: |
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions (default)
-    # 'all' - all resources
+    # 'crd' - CustomResourceDefinitions
+    # 'all' - all resources (default)
     # 'none' - disabled
-    ignoreResourceStatusField: crd
+    ignoreResourceStatusField: all
 ```
 
-By default `status` field is ignored during diffing for `CustomResourceDefinition` resource. The behavior can be extended to all resources using `all` value or disabled using `none`.
+If you rely on the status field being part of your desired state, although this is not recommended, the `ignoreResourceStatusField` setting can be used to configure this behavior.
+
+!!! note
+    Since it is common for `CustomResourceDefinitions` to have their `status` commited to Git, consider using `crd` over `none`.
 
 ### Ignoring RBAC changes made by AggregateRoles
 
@@ -151,6 +157,7 @@ A typical example is the `argoproj.io/Rollout` CRD that re-using `core/v1/PodSpe
 might be reformatted by the custom marshaller of `IntOrString` data type:
 
 from:
+
 ```yaml
 resources:
   requests:
@@ -158,6 +165,7 @@ resources:
 ```
 
 to:
+
 ```yaml
 resources:
   requests:
@@ -184,9 +192,8 @@ data:
 
 The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt) and additionally:
 
-* `core/Quantity`
-* `meta/v1/duration`
-
+- `core/Quantity`
+- `meta/v1/duration`
 
 ### JQ Path expression timeout
 
@@ -198,5 +205,5 @@ kind: ConfigMap
 metadata:
   name: argocd-cmd-params-cm
 data:
-  ignore.normalizer.jq.timeout: "5s"
+  ignore.normalizer.jq.timeout: '5s'
 ```

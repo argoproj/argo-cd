@@ -8,13 +8,13 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
@@ -28,10 +28,10 @@ const (
 
 type Expectation func(c *Consequences) (state state, message string)
 
-func OperationPhaseIs(expected OperationPhase) Expectation {
+func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
-		actual := OperationRunning
+		actual := common.OperationRunning
 		if operationState != nil {
 			actual = operationState.Phase
 		}
@@ -57,14 +57,14 @@ func simple(success bool, message string) (state, string) {
 	return pending, message
 }
 
-func SyncStatusIs(expected SyncStatusCode) Expectation {
+func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
 		return simple(actual == expected, fmt.Sprintf("sync status to be %s, is %s", expected, actual))
 	}
 }
 
-func Condition(conditionType ApplicationConditionType, conditionMessage string) Expectation {
+func Condition(conditionType v1alpha1.ApplicationConditionType, conditionMessage string) Expectation {
 	return func(c *Consequences) (state, string) {
 		got := c.app().Status.Conditions
 		message := fmt.Sprintf("condition {%s %s} in %v", conditionType, conditionMessage, got)
@@ -107,7 +107,7 @@ func StatusExists() Expectation {
 	}
 }
 
-func Namespace(name string, block func(app *Application, ns *corev1.Namespace)) Expectation {
+func Namespace(name string, block func(app *v1alpha1.Application, ns *corev1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
 		if err != nil {
@@ -126,14 +126,14 @@ func HealthIs(expected health.HealthStatusCode) Expectation {
 	}
 }
 
-func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expectation {
+func ResourceSyncStatusIs(kind, resource string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, "").Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 
-func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected SyncStatusCode) Expectation {
+func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, namespace).Status
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
@@ -180,7 +180,7 @@ func ResourceResultNumbering(num int) Expectation {
 	}
 }
 
-func ResourceResultIs(result ResourceResult) Expectation {
+func ResourceResultIs(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {
@@ -192,7 +192,7 @@ func ResourceResultIs(result ResourceResult) Expectation {
 	}
 }
 
-func sameResourceResult(res1, res2 ResourceResult) bool {
+func sameResourceResult(res1, res2 v1alpha1.ResourceResult) bool {
 	return res1.Kind == res2.Kind &&
 		res1.Group == res2.Group &&
 		res1.Namespace == res2.Namespace &&
@@ -202,7 +202,7 @@ func sameResourceResult(res1, res2 ResourceResult) bool {
 		res1.HookPhase == res2.HookPhase
 }
 
-func ResourceResultMatches(result ResourceResult) Expectation {
+func ResourceResultMatches(result v1alpha1.ResourceResult) Expectation {
 	return func(c *Consequences) (state, string) {
 		results := c.app().Status.OperationState.SyncResult.Resources
 		for _, res := range results {

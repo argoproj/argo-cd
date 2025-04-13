@@ -920,6 +920,11 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1152,6 +1157,11 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
             "in": "query"
           }
         ],
@@ -6443,6 +6453,7 @@
     },
     "v1PortStatus": {
       "type": "object",
+      "title": "PortStatus represents the error condition of a service port",
       "properties": {
         "error": {
           "type": "string",
@@ -8744,6 +8755,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -9203,6 +9221,7 @@
       "type": "object",
       "properties": {
         "defaultValue": {
+          "description": "DefaultValue holds the default value for the action parameter, if any.",
           "type": "string"
         },
         "disabled": {
@@ -9214,6 +9233,7 @@
           "type": "string"
         },
         "hasParameters": {
+          "description": "HasParameters indicates whether the action requires parameters to be provided.",
           "type": "boolean"
         },
         "iconClass": {
@@ -10107,6 +10127,10 @@
         "allowEmpty": {
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
+        },
+        "enable": {
+          "type": "boolean",
+          "title": "Enable allows apps to explicitly control automated sync"
         },
         "prune": {
           "type": "boolean",
