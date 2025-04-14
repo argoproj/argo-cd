@@ -74,8 +74,8 @@ func TestConfirmBaseOnCount(t *testing.T) {
 		} else {
 			assert.Equal(t, tt.output, result2)
 		}
-		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	os.Stdin = origStdin
@@ -98,8 +98,8 @@ func TestConfirmPrompt(t *testing.T) {
 		p := &Prompt{enabled: true}
 		result := p.Confirm("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.output, result)
-		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	os.Stdin = origStdin
@@ -125,8 +125,8 @@ func TestConfirmAllPrompt(t *testing.T) {
 		confirm, confirmAll := p.ConfirmAll("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.confirm, confirm)
 		assert.Equal(t, c.confirmAll, confirmAll)
-		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	os.Stdin = origStdin
