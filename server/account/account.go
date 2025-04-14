@@ -74,7 +74,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 			return nil, fmt.Errorf("failed to get issue time: %w", err)
 		}
 		if time.Since(iat) > common.ChangePasswordSSOTokenMaxAge {
-			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token.")
+			return nil, errors.New("SSO token is too old. Please use 'argocd relogin' to get a new token")
 		}
 	}
 
@@ -90,7 +90,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	}
 
 	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
-		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
+		err := fmt.Errorf("new password does not match the following expression: %s", passwordPattern)
 		return nil, err
 	}
 
@@ -124,21 +124,6 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	}
 	if !slice.ContainsString(rbac.Resources, r.Resource, nil) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
-	}
-
-	// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable (representing server.rbac.log.enforce.enable env var)
-	// is defined and has a "true" value
-	// Otherwise, no RBAC enforcement for logs will take place (meaning, can-i request on a logs resource will result in "yes",
-	// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
-	if r.Resource == "logs" {
-		serverRBACLogEnforceEnable, err := s.settingsMgr.GetServerRBACLogEnforceEnable()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get server RBAC log enforcement setting: %w", err)
-		}
-
-		if !serverRBACLogEnforceEnable {
-			return &account.CanIResponse{Value: "yes"}, nil
-		}
 	}
 
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)

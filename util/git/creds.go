@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -49,6 +49,7 @@ const (
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
+	bearerAuthHeaderEnv       = "ARGOCD_GIT_BEARER_AUTH_HEADER"
 	// This is the resource id of the OAuth application of Azure Devops.
 	azureDevopsEntraResourceId = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
@@ -133,6 +134,8 @@ type HTTPSCreds struct {
 	username string
 	// Password for authentication
 	password string
+	// Bearer token for authentication
+	bearerToken string
 	// Whether to ignore invalid server certificates
 	insecure bool
 	// Client certificate to use
@@ -149,10 +152,11 @@ type HTTPSCreds struct {
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, bearerToken string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
+		bearerToken,
 		insecure,
 		clientCertData,
 		clientCertKey,
@@ -173,6 +177,11 @@ func (creds HTTPSCreds) BasicAuthHeader() string {
 	h := "Authorization: Basic "
 	t := creds.username + ":" + creds.password
 	h += base64.StdEncoding.EncodeToString([]byte(t))
+	return h
+}
+
+func (creds HTTPSCreds) BearerAuthHeader() string {
+	h := "Authorization: Bearer " + creds.bearerToken
 	return h
 }
 
@@ -237,6 +246,9 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 	// skipped. This is insecure, but some environments may need it.
 	if creds.password != "" && creds.forceBasicAuth {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, creds.BasicAuthHeader()))
+	} else if creds.bearerToken != "" {
+		// If bearer token is set, we will set ARGOCD_BEARER_AUTH_HEADER to	hold the HTTP authorization header
+		env = append(env, fmt.Sprintf("%s=%s", bearerAuthHeaderEnv, creds.BearerAuthHeader()))
 	}
 	nonce := creds.store.Add(text.FirstNonEmpty(creds.username, githubAccessTokenUsername), creds.password)
 	env = append(env, creds.store.Environ(nonce)...)
@@ -522,7 +534,7 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := h.Write([]byte(fmt.Sprintf("%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)))
+	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
 	}

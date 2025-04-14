@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -51,7 +50,7 @@ func Test_loadClusters(t *testing.T) {
 			},
 		},
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	kubeClient := fake.NewClientset(argoCDCM, argoCDSecret)
 	appClient := fakeapps.NewSimpleClientset(app)
 	cacheSrc := func() (*appstate.Cache, error) {

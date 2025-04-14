@@ -107,7 +107,7 @@ func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
-	require.Error(t, err, "")
+	require.Error(t, err)
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -267,7 +267,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
 	assert.False(t, useOpenLibs)
-	assert.Equal(t, "", script)
+	assert.Empty(t, script)
 }
 
 func TestGetResourceActionPredefined(t *testing.T) {
@@ -325,7 +325,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Equal(t, "", discoveryLua[0])
+	assert.Empty(t, discoveryLua)
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {

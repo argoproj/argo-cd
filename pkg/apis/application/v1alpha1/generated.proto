@@ -594,6 +594,9 @@ message ApplicationSourceKustomize {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 16;
+
+  // LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+  optional bool labelIncludeTemplates = 18;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -1515,6 +1518,9 @@ message PullRequestGenerator {
 
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 10;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1712,6 +1718,9 @@ message RepoCreds {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1795,6 +1804,9 @@ message Repository {
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -2502,6 +2514,9 @@ message SyncPolicyAutomated {
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
+
+  // Enable allows apps to explicitly control automated sync
+  optional bool enable = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the

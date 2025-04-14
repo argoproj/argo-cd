@@ -1140,6 +1140,11 @@ func TestRepository_HasCredentials(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "TestHasBearerToken",
+			repo: Repository{BearerToken: "foo"},
+			want: true,
+		},
+		{
 			name: "TestHasSSHPrivateKey",
 			repo: Repository{SSHPrivateKey: "foo"},
 			want: true,
@@ -1249,6 +1254,7 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &Repository{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &Repository{}, Repository{Password: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &Repository{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &Repository{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &Repository{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &Repository{}, Repository{Insecure: true}},
@@ -1259,6 +1265,7 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 
 		{"SourceUsername", &Repository{}, &Repository{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &Repository{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourcePassword", &Repository{}, &Repository{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &Repository{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceInsecureHostKey", &Repository{}, &Repository{InsecureIgnoreHostKey: true}, Repository{InsecureIgnoreHostKey: false}},
 		{"SourceInsecure", &Repository{}, &Repository{Insecure: true}, Repository{Insecure: false}},
@@ -1284,6 +1291,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 	}{
 		{"Username", &Repository{Username: "foo"}, &RepoCreds{}, Repository{Username: "foo"}},
 		{"Password", &Repository{Password: "foo"}, &RepoCreds{}, Repository{Password: "foo"}},
+		{"BearerToken", &Repository{BearerToken: "foo"}, &RepoCreds{}, Repository{BearerToken: "foo"}},
 		{"SSHPrivateKey", &Repository{SSHPrivateKey: "foo"}, &RepoCreds{}, Repository{SSHPrivateKey: "foo"}},
 		{"InsecureHostKey", &Repository{InsecureIgnoreHostKey: true}, &RepoCreds{}, Repository{InsecureIgnoreHostKey: true}},
 		{"Insecure", &Repository{Insecure: true}, &RepoCreds{}, Repository{Insecure: true}},
@@ -1294,6 +1302,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 
 		{"SourceUsername", &Repository{}, &RepoCreds{Username: "foo"}, Repository{Username: "foo"}},
 		{"SourcePassword", &Repository{}, &RepoCreds{Password: "foo"}, Repository{Password: "foo"}},
+		{"SourceBearerToken", &Repository{}, &RepoCreds{BearerToken: "foo"}, Repository{BearerToken: "foo"}},
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
@@ -1414,6 +1423,7 @@ func TestResourceResults_Find(t *testing.T) {
 
 func TestResourceResults_PruningRequired(t *testing.T) {
 	needsPruning := &ResourceResult{Status: common.ResultCodePruneSkipped}
+	pruneSkippedButNoPruneMessage := &ResourceResult{Status: common.ResultCodePruneSkipped, Message: "ignored (no prune)"}
 	tests := []struct {
 		name    string
 		r       ResourceResults
@@ -1422,6 +1432,8 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 		{"TestNil", ResourceResults{}, 0},
 		{"TestOne", ResourceResults{needsPruning}, 1},
 		{"TestTwo", ResourceResults{needsPruning, needsPruning}, 2},
+		{"TestPruneSkippedButNoPruneMessage", ResourceResults{pruneSkippedButNoPruneMessage}, 0},
+		{"TestPruneSkippedButNoPruneMessage_and_OnePrune", ResourceResults{needsPruning, pruneSkippedButNoPruneMessage}, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1480,7 +1492,7 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
-		require.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+		require.EqualError(t, err, "expected helm parameter of the form param=value but received: garbage")
 	})
 	t.Run("NonString", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)
@@ -1717,12 +1729,12 @@ func TestEnv_IsZero(t *testing.T) {
 
 func TestEnv_Envsubst(t *testing.T) {
 	env := Env{&EnvEntry{"FOO", "bar"}}
-	assert.Equal(t, "", env.Envsubst(""))
+	assert.Empty(t, env.Envsubst(""))
 	assert.Equal(t, "bar", env.Envsubst("$FOO"))
 	assert.Equal(t, "bar", env.Envsubst("${FOO}"))
 	assert.Equal(t, "FOO", env.Envsubst("${FOO"))
-	assert.Equal(t, "", env.Envsubst("$BAR"))
-	assert.Equal(t, "", env.Envsubst("${BAR}"))
+	assert.Empty(t, env.Envsubst("$BAR"))
+	assert.Empty(t, env.Envsubst("${BAR}"))
 	assert.Equal(t,
 		"echo bar; echo ; echo bar; echo ; echo FOO",
 		env.Envsubst("echo $FOO; echo $BAR; echo ${FOO}; echo ${BAR}; echo ${FOO"),
@@ -3033,7 +3045,7 @@ func TestApplicationStatus_GetConditions(t *testing.T) {
 	conditions := status.GetConditions(map[ApplicationConditionType]bool{
 		ApplicationConditionInvalidSpecError: true,
 	})
-	assert.EqualValues(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
+	assert.Equal(t, []ApplicationCondition{{Type: ApplicationConditionInvalidSpecError}}, conditions)
 }
 
 type projectBuilder struct {
@@ -3194,8 +3206,8 @@ func TestSetConditions(t *testing.T) {
 			validate: func(t *testing.T, a *Application) {
 				t.Helper()
 				// SetConditions should add timestamps for new conditions.
-				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
-				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[0].LastTransitionTime.After(fiveMinsAgo.Time))
+				assert.True(t, a.Status.Conditions[1].LastTransitionTime.After(fiveMinsAgo.Time))
 			},
 		},
 		{
@@ -4475,7 +4487,7 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		},
 		{
 			url:            "test://!abc",
-			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
+			expectedErrMsg: "failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
 		},
 		{
 			url:            "http://192.168.99.100:8443",

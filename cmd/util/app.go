@@ -77,6 +77,7 @@ type AppOptions struct {
 	kustomizeCommonLabels           []string
 	kustomizeCommonAnnotations      []string
 	kustomizeLabelWithoutSelector   bool
+	kustomizeLabelIncludeTemplates  bool
 	kustomizeForceCommonLabels      bool
 	kustomizeForceCommonAnnotations bool
 	kustomizeNamespace              string
@@ -169,7 +170,8 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.Validate, "validate", true, "Validation of repo and cluster")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonLabels, "kustomize-common-label", []string{}, "Set common labels in Kustomize")
 	command.Flags().StringArrayVar(&opts.kustomizeCommonAnnotations, "kustomize-common-annotation", []string{}, "Set common labels in Kustomize")
-	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors or templates")
+	command.Flags().BoolVar(&opts.kustomizeLabelWithoutSelector, "kustomize-label-without-selector", false, "Do not apply common label to selectors. Also do not apply label to templates unless --kustomize-label-include-templates is set")
+	command.Flags().BoolVar(&opts.kustomizeLabelIncludeTemplates, "kustomize-label-include-templates", false, "Apply common label to resource templates")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonLabels, "kustomize-force-common-label", false, "Force common labels in Kustomize")
 	command.Flags().BoolVar(&opts.kustomizeForceCommonAnnotations, "kustomize-force-common-annotation", false, "Force common annotations in Kustomize")
 	command.Flags().StringVar(&opts.kustomizeNamespace, "kustomize-namespace", "", "Kustomize namespace")
@@ -287,19 +289,19 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 	})
 	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
 	}
 	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 	}
 	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || spec.SyncPolicy.Automated == nil {
+		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
 		}
 		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
@@ -317,6 +319,7 @@ type kustomizeOpts struct {
 	commonLabels            map[string]string
 	commonAnnotations       map[string]string
 	labelWithoutSelector    bool
+	labelIncludeTemplates   bool
 	forceCommonLabels       bool
 	forceCommonAnnotations  bool
 	namespace               string
@@ -355,6 +358,9 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.labelWithoutSelector {
 		src.Kustomize.LabelWithoutSelector = opts.labelWithoutSelector
+	}
+	if opts.labelIncludeTemplates {
+		src.Kustomize.LabelIncludeTemplates = opts.labelIncludeTemplates
 	}
 	if opts.forceCommonLabels {
 		src.Kustomize.ForceCommonLabels = opts.forceCommonLabels
@@ -575,7 +581,7 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
-		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+		if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 			return os.ReadFile(fileURL)
 		}
 		return config.ReadRemoteFile(fileURL)
@@ -691,7 +697,7 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			var data []byte
 			// read uri
 			parsedURL, err := url.ParseRequestURI(appOpts.values)
-			if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+			if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 				data, err = os.ReadFile(appOpts.values)
 			} else {
 				data, err = config.ReadRemoteFile(appOpts.values)
@@ -768,6 +774,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setKustomizeOpt(source, kustomizeOpts{commonAnnotations: parsedAnnotations})
 		case "kustomize-label-without-selector":
 			setKustomizeOpt(source, kustomizeOpts{labelWithoutSelector: appOpts.kustomizeLabelWithoutSelector})
+		case "kustomize-label-include-templates":
+			setKustomizeOpt(source, kustomizeOpts{labelIncludeTemplates: appOpts.kustomizeLabelIncludeTemplates})
 		case "kustomize-force-common-label":
 			setKustomizeOpt(source, kustomizeOpts{forceCommonLabels: appOpts.kustomizeForceCommonLabels})
 		case "kustomize-force-common-annotation":
@@ -906,10 +914,10 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 		filteredObjects = append(filteredObjects, deepCopy)
 	}
 	if len(filteredObjects) == 0 {
-		return nil, stderrors.New("No matching resource found")
+		return nil, stderrors.New("no matching resource found")
 	}
 	if len(filteredObjects) > 1 && !all {
-		return nil, stderrors.New("Multiple resources match inputs. Use the --all flag to patch multiple resources")
+		return nil, stderrors.New("multiple resources match inputs, use the --all flag to patch multiple resources")
 	}
 	return filteredObjects, nil
 }
