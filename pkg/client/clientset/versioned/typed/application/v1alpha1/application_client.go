@@ -3,10 +3,10 @@
 package v1alpha1
 
 import (
-	http "net/http"
+	"net/http"
 
-	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	scheme "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -79,10 +79,10 @@ func New(c rest.Interface) *ArgoprojV1alpha1Client {
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := applicationv1alpha1.SchemeGroupVersion
+	gv := v1alpha1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()

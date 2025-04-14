@@ -5,7 +5,7 @@ The tool used to build an application is detected as follows:
 If a specific tool is explicitly configured, then that tool is selected to create your application's manifests.
 
 The tool can be explicitly specified in the Application custom resource like this:
-```yaml
+```
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

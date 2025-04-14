@@ -12,8 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/grpc"
 )
 
 const objJSON = `
@@ -38,7 +38,7 @@ metadata:
   resourceVersion: "123"
 `
 
-const ec2AWSCrossplaneObjJSON = `
+const ec2AWSCrossplaneObjJson = `
 apiVersion: ec2.aws.crossplane.io/v1alpha1
 kind: Instance
 metadata:
@@ -69,7 +69,7 @@ end
 return a`
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]any)
+	obj := make(map[string]interface{})
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)
@@ -90,7 +90,7 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
 	require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
-	require.Error(t, err)
+	require.Error(t, err, "")
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -236,7 +236,7 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
-	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"*.aws.crossplane.io/*": {
@@ -266,8 +266,8 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
-	assert.False(t, useOpenLibs)
-	assert.Empty(t, script)
+	assert.True(t, useOpenLibs)
+	assert.Equal(t, "", script)
 }
 
 func TestGetResourceActionPredefined(t *testing.T) {
@@ -283,8 +283,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	var expectedErr *ScriptDoesNotExistError
-	require.ErrorAs(t, err, &expectedErr)
+	require.NoError(t, err)
 	assert.Empty(t, action.ActionLua)
 }
 
@@ -325,7 +324,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Empty(t, discoveryLua)
+	assert.Equal(t, "", discoveryLua[0])
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
@@ -685,7 +684,8 @@ func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
-	assert.ErrorContains(t, err, "unsupported operation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
@@ -847,7 +847,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -858,7 +858,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override with non-empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 		overrides := getMultipleWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)
@@ -867,7 +867,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
-		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
 		require.NoError(t, err)

@@ -4,16 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // Context implements the "given" part of given/when/then
@@ -23,38 +21,31 @@ type Context struct {
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                  int
-	name                     string
-	appNamespace             string
-	destServer               string
-	destName                 string
-	isDestServerInferred     bool
-	env                      string
-	parameters               []string
-	namePrefix               string
-	nameSuffix               string
-	resource                 string
-	prune                    bool
-	configManagementPlugin   string
-	async                    bool
-	localPath                string
-	project                  string
-	revision                 string
-	force                    bool
-	applyOutOfSyncOnly       bool
-	directoryRecurse         bool
-	replace                  bool
-	helmPassCredentials      bool
-	helmSkipCrds             bool
-	helmSkipSchemaValidation bool
-	helmSkipTests            bool
-	trackingMethod           v1alpha1.TrackingMethod
-	sources                  []v1alpha1.ApplicationSource
-	drySourceRevision        string
-	drySourcePath            string
-	syncSourceBranch         string
-	syncSourcePath           string
-	hydrateToBranch          string
+	timeout                int
+	name                   string
+	appNamespace           string
+	destServer             string
+	destName               string
+	isDestServerInferred   bool
+	env                    string
+	parameters             []string
+	namePrefix             string
+	nameSuffix             string
+	resource               string
+	prune                  bool
+	configManagementPlugin string
+	async                  bool
+	localPath              string
+	project                string
+	revision               string
+	force                  bool
+	applyOutOfSyncOnly     bool
+	directoryRecurse       bool
+	replace                bool
+	helmPassCredentials    bool
+	helmSkipCrds           bool
+	trackingMethod         v1alpha1.TrackingMethod
+	sources                []v1alpha1.ApplicationSource
 }
 
 type ContextArgs struct {
@@ -62,20 +53,17 @@ type ContextArgs struct {
 }
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
-	t.Helper()
 	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
-	t.Helper()
 	ctx := Given(t)
 	ctx.appNamespace = namespace
 	return ctx
 }
 
 func GivenWithSameState(t *testing.T) *Context {
-	t.Helper()
 	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
@@ -99,128 +87,129 @@ func (c *Context) AppName() string {
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
+	} else {
+		return c.AppName()
 	}
-	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
+	} else {
+		return fixture.TestNamespace()
 	}
-	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// errors.CheckError(fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation"))
+	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey(c.t)
+	gpgkeys.AddGPGPublicKey()
 	return c
 }
 
 func (c *Context) GPGPublicKeyRemoved() *Context {
-	gpgkeys.DeleteGPGPublicKey(c.t)
+	gpgkeys.DeleteGPGPublicKey()
 	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
-	certs.AddCustomCACert(c.t)
+	certs.AddCustomCACert()
 	return c
 }
 
 func (c *Context) CustomSSHKnownHostsAdded() *Context {
-	certs.AddCustomSSHKnownHostsKeys(c.t)
+	certs.AddCustomSSHKnownHostsKeys()
 	return c
 }
 
 func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(c.t, true, withCreds, "", fixture.RepoURLTypeHTTPS)
+	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(c.t, true)
+	repos.AddHTTPSRepoClientCert(true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(c.t, false)
+	repos.AddHTTPSRepoClientCert(false)
 	return c
 }
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos(c.t, "https")
-	repos.AddHTTPSRepo(c.t, false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
+	fixture.CreateSubmoduleRepos("https")
+	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(c.t, true, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos(c.t, "ssh")
-	repos.AddSSHRepo(c.t, false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
+	fixture.CreateSubmoduleRepos("ssh")
+	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
 func (c *Context) HelmRepoAdded(name string) *Context {
-	repos.AddHelmRepo(c.t, name)
+	repos.AddHelmRepo(name)
 	return c
 }
 
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
-	repos.AddHelmOCIRepo(c.t, name)
+	repos.AddHelmOCIRepo(name)
 	return c
 }
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToOCIRegistry(c.t, chartPathName, chartName, chartVersion)
+	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHTTPSCredentialsUserPass(c.t)
+	repos.AddHTTPSCredentialsUserPass()
 	return c
 }
 
 func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHelmHTTPSCredentialsTLSClientCert(c.t)
+	repos.AddHelmHTTPSCredentialsTLSClientCert()
 	return c
 }
 
 func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
-	repos.AddHelmoOCICredentialsWithoutUserPass(c.t)
+	repos.AddHelmoOCICredentialsWithoutUserPass()
 	return c
 }
 
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
-	repos.AddHTTPSCredentialsTLSClientCert(c.t)
+	repos.AddHTTPSCredentialsTLSClientCert()
 	return c
 }
 
 func (c *Context) SSHCredentialsAdded() *Context {
-	repos.AddSSHCredentials(c.t)
+	repos.AddSSHCredentials()
 	return c
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetProjectSpec(c.project, spec))
+	fixture.SetProjectSpec(c.project, spec)
 	return c
 }
 
@@ -245,31 +234,6 @@ func (c *Context) Name(name string) *Context {
 
 func (c *Context) Path(path string) *Context {
 	c.path = path
-	return c
-}
-
-func (c *Context) DrySourceRevision(revision string) *Context {
-	c.drySourceRevision = revision
-	return c
-}
-
-func (c *Context) DrySourcePath(path string) *Context {
-	c.drySourcePath = path
-	return c
-}
-
-func (c *Context) SyncSourceBranch(branch string) *Context {
-	c.syncSourceBranch = branch
-	return c
-}
-
-func (c *Context) SyncSourcePath(path string) *Context {
-	c.syncSourcePath = path
-	return c
-}
-
-func (c *Context) HydrateToBranch(branch string) *Context {
-	c.hydrateToBranch = branch
 	return c
 }
 
@@ -332,14 +296,12 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceOverrides(overrides))
+	fixture.SetResourceOverrides(overrides)
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetResourceFilter(filter))
+	fixture.SetResourceFilter(filter)
 	return c
 }
 
@@ -349,7 +311,8 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	time.Sleep(fixture.WhenThenSleepInterval)
+	// in case any settings have changed, pause for 1s, not great, but fine
+	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
 }
 
@@ -398,25 +361,13 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
-func (c *Context) HelmSkipSchemaValidation() *Context {
-	c.helmSkipSchemaValidation = true
-	return c
-}
-
-func (c *Context) HelmSkipTests() *Context {
-	c.helmSkipTests = true
-	return c
-}
-
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetTrackingMethod(trackingMethod))
+	fixture.SetTrackingMethod(trackingMethod)
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	c.t.Helper()
-	require.NoError(c.t, fixture.SetInstallationID(installationID))
+	fixture.SetTrackingMethod(installationID)
 	return c
 }
 
