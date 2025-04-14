@@ -1,12 +1,8 @@
 package admin
 
 import (
-	"bufio"
-	"io"
-	"os"
+	"bytes"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
@@ -19,32 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
-
-func createTestWriter(t *testing.T, out string) (io.Writer, func()) {
-	t.Helper()
-
-	var writer io.Writer
-	var cleanup func()
-
-	if out == "-" {
-		writer = os.Stdout
-		cleanup = func() {}
-	} else {
-		f, err := os.Create(out)
-		require.NoError(t, err)
-
-		bw := bufio.NewWriter(f)
-		writer = bw
-
-		cleanup = func() {
-			require.NoError(t, bw.Flush())
-			require.NoError(t, f.Close())
-			_ = os.Remove(out)
-		}
-	}
-
-	return writer, cleanup
-}
 
 func newBackupObject(trackingValue string, trackingLabel bool, trackingAnnotation bool) *unstructured.Unstructured {
 	cm := corev1.ConfigMap{
@@ -177,7 +147,6 @@ func Test_exportResources(t *testing.T) {
 	tests := []struct {
 		name                string
 		object              *unstructured.Unstructured
-		out                 string
 		namespace           string
 		enabledNamespaces   []string
 		expectedFileContent string
@@ -186,7 +155,6 @@ func Test_exportResources(t *testing.T) {
 		{
 			name:         "ConfigMap should be in the exported manifest",
 			object:       newConfigmapObject(),
-			out:          "test.yaml",
 			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 kind: ""
@@ -200,7 +168,6 @@ metadata:
 		{
 			name:         "Secret should be in the exported manifest",
 			object:       newSecretsObject(),
-			out:          "test.yaml",
 			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 data:
@@ -218,7 +185,6 @@ metadata:
 		{
 			name:         "App Project should be in the exported manifest",
 			object:       newAppProject(),
-			out:          "test.yaml",
 			expectExport: true,
 			expectedFileContent: `apiVersion: ""
 kind: ""
@@ -240,7 +206,6 @@ status: {}
 		{
 			name:         "Application should be in the exported manifest when created in the default 'argocd' namespace",
 			object:       newApplication("argocd"),
-			out:          "test.yaml",
 			namespace:    "argocd",
 			expectExport: true,
 			expectedFileContent: `apiVersion: ""
@@ -270,7 +235,6 @@ status:
 		{
 			name:              "Application should be in the exported manifest when created in the enabled namespaces",
 			object:            newApplication("dev"),
-			out:               "test.yaml",
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
@@ -302,8 +266,7 @@ status:
 		{
 			name:                "Application should not be in the exported manifest when it's neither created in the default argod namespace nor in enabled namespace",
 			object:              newApplication("staging"),
-			out:                 "test.yaml",
-			namespace:           "stagin",
+			namespace:           "staging",
 			enabledNamespaces:   []string{"dev", "prod"},
 			expectExport:        false,
 			expectedFileContent: ``,
@@ -311,7 +274,6 @@ status:
 		{
 			name:         "ApplicationSet should be in the exported manifest when created in the default 'argocd' namespace",
 			object:       newApplicationSet("argocd"),
-			out:          "test.yaml",
 			namespace:    "argocd",
 			expectExport: true,
 			expectedFileContent: `apiVersion: ""
@@ -340,7 +302,6 @@ status: {}
 		{
 			name:              "ApplicationSet should be in the exported manifest when created in the enabled namespaces",
 			object:            newApplicationSet("dev"),
-			out:               "test.yaml",
 			namespace:         "dev",
 			enabledNamespaces: []string{"dev", "prod"},
 			expectExport:      true,
@@ -371,7 +332,6 @@ status: {}
 		{
 			name:                "ApplicationSet should not be in the exported manifest when neither created in the default 'argocd' namespace nor in enabled namespaces",
 			object:              newApplicationSet("staging"),
-			out:                 "test.yaml",
 			namespace:           "staging",
 			enabledNamespaces:   []string{"dev", "prod"},
 			expectExport:        false,
@@ -381,27 +341,23 @@ status: {}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w, cleanup := createTestWriter(t, tt.out)
+			var buf bytes.Buffer
+
 			kind := tt.object.GetKind()
 			if kind == "Application" || kind == "ApplicationSet" {
 				if security.IsNamespaceEnabled(tt.namespace, "argocd", tt.enabledNamespaces) {
-					export(w, *tt.object, ArgoCDNamespace)
+					export(&buf, *tt.object, ArgoCDNamespace)
 				}
 			} else {
-				export(w, *tt.object, ArgoCDNamespace)
+				export(&buf, *tt.object, ArgoCDNamespace)
 			}
 
-			if bw, ok := w.(*bufio.Writer); ok {
-				require.NoError(t, bw.Flush())
-			}
-			content, err := os.ReadFile(tt.out)
-			require.NoError(t, err)
+			content := buf.String()
 			if tt.expectExport {
-				assert.Equal(t, tt.expectedFileContent, string(content))
+				assert.Equal(t, tt.expectedFileContent, content)
 			} else {
-				assert.Empty(t, string(content))
+				assert.Empty(t, content)
 			}
-			cleanup()
 		})
 	}
 }
