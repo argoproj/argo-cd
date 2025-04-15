@@ -81,7 +81,7 @@ RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/
-COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config.yml
+COPY --from=registry /etc/distribution/config.yml /etc/docker/registry/config.yml
 
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
