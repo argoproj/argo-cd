@@ -30,10 +30,10 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/expr-lang/expr v1.17.2
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20240917142304-df385efaac68
 	github.com/go-git/go-git/v5 v5.14.0
-	github.com/go-jose/go-jose/v4 v4.0.5
+	github.com/go-jose/go-jose/v4 v4.1.0
 	github.com/go-logr/logr v1.4.2
 	github.com/go-openapi/loads v0.22.0
 	github.com/go-openapi/runtime v0.28.0
@@ -59,7 +59,7 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/improbable-eng/grpc-web v0.15.1-0.20230209220825-1d9bbb09a099
 	github.com/itchyny/gojq v0.12.17
-	github.com/jarcoal/httpmock v1.3.1
+	github.com/jarcoal/httpmock v1.4.0
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.82
@@ -69,8 +69,8 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/olekukonko/tablewriter v0.0.6-0.20230925090304-df64c4bbad77
 	github.com/patrickmn/go-cache v2.1.1-0.20191004192108-46f407853014+incompatible
-	github.com/prometheus/client_golang v1.21.1
-	github.com/prometheus/client_model v0.6.1
+	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/client_model v0.6.2
 	github.com/r3labs/diff/v3 v3.0.1
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
@@ -88,12 +88,12 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.35.0
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/crypto v0.36.0
+	golang.org/x/crypto v0.37.0
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
-	golang.org/x/net v0.38.0
-	golang.org/x/oauth2 v0.28.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/term v0.30.0
+	golang.org/x/net v0.39.0
+	golang.org/x/oauth2 v0.29.0
+	golang.org/x/sync v0.13.0
+	golang.org/x/term v0.31.0
 	golang.org/x/time v0.11.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a
 	google.golang.org/grpc v1.71.1
@@ -112,7 +112,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.5.0
 	sigs.k8s.io/controller-runtime v0.20.1
-	sigs.k8s.io/structured-merge-diff/v4 v4.6.0
+	sigs.k8s.io/structured-merge-diff/v4 v4.7.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -211,7 +211,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/keybase/go-keychain v0.0.0-20231219164618-57a3676c3af6 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
@@ -262,8 +262,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect
 	golang.org/x/mod v0.22.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
