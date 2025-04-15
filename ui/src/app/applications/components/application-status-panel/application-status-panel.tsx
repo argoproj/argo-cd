@@ -211,6 +211,41 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 </div>
             )}
+            <div className='application-status-panel__item'>
+                <React.Fragment>
+                    {sectionHeader(
+                        {
+                            title: 'PROGRESSIVE SYNC',
+                            helpContent: 'Shows if the application is currently in a rolling sync state, waiting for other applications to sync.'
+                        },
+                        () => showMetadataInfo('PROGRESSIVE_SYNC_STATUS')
+                    )}
+                    <div className='application-status-panel__item-value'>
+                        {application.spec.syncPolicy?.syncOptions?.includes('RollingSync=true') ? (
+                            <div className='progressive-sync-status'>
+                                {application.status.operationState?.phase === 'Running' ? (
+                                    <>
+                                        <i className='fa fa-sync-alt rotating' style={{color: '#0DADEA'}} />
+                                        <span style={{marginLeft: '5px', color: '#0DADEA'}}>RollingSync in Progress</span>
+                                    </>
+                                ) : application.status.sync.status === 'Synced' ? (
+                                    <>
+                                        <i className='fa fa-sync-alt' style={{color: '#18BE94'}} />
+                                        <span style={{marginLeft: '5px', color: '#18BE94'}}>RollingSync Complete</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className='fa fa-sync-alt' style={{color: '#CCD6DD'}} />
+                                        <span style={{marginLeft: '5px', color: '#CCD6DD'}}>RollingSync Enabled</span>
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            <span>-</span>
+                        )}
+                    </div>
+                </React.Fragment>
+            </div>
             {application.status.conditions && (
                 <div className={`application-status-panel__item`}>
                     {sectionLabel({title: 'APP CONDITIONS'})}
