@@ -233,7 +233,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.Sources != nil && len(a.Sources) > 0
+	return len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {

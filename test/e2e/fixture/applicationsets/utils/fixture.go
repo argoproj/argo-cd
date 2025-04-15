@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -268,7 +269,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = err.Error()
 	}
 
-	return fmt.Errorf(msg)
+	return goerrors.New(msg)
 }
 
 // waitForSuccess waits for the condition to return a non-error value.
