@@ -2,6 +2,7 @@ import * as React from 'react';
 import {Application, ApplicationTree} from '../shared/models';
 import {HelpIcon} from 'argo-ui';
 import {ARGO_GRAY6_COLOR} from '../shared/components';
+import './progressive-sync.scss';
 
 declare global {
     interface Window {
