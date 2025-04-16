@@ -2,9 +2,9 @@
 set -eux -o pipefail
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")"/../..; pwd)
-INSTALLERS="$PROJECT_ROOT/hack/installers"
+INSTALLERS=$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)
 
-. "$PROJECT_ROOT/hack/tool-versions.sh"
+. "$INSTALLERS/../tool-versions.sh"
 
 INSTALL_PATH="${BIN:-$INSTALL_PATH}"
 INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
