@@ -315,6 +315,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/refs`).then(res => res.body as models.RefsInfo);
     }
 
+    public async ociTags(repo: string): Promise<models.RefsInfo> {
+        return requests.get(`/repositories/${encodeURIComponent(repo)}/oci-tags`).then(res => res.body as models.RefsInfo);
+    }
+
     public apps(repo: string, revision: string, appName: string, appProject: string): Promise<models.AppInfo[]> {
         return requests
             .get(`/repositories/${encodeURIComponent(repo)}/apps`)

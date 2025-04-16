@@ -187,6 +187,28 @@ func (s *Service) Init() error {
 	return os.Chmod(s.rootDir, 0o300)
 }
 
+// ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
+func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
+	if err != nil {
+		return nil, fmt.Errorf("error creating oci client: %w", err)
+	}
+
+	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
+
+	refs, err := ociClient.GetTags(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+
+	res := apiclient.Refs{
+		Tags: refs.Tags,
+	}
+
+	return &res, nil
+}
+
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
 	gitClient, err := s.newClient(q.Repo)

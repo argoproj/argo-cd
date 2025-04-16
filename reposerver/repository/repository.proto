@@ -319,6 +319,10 @@ service RepoServerService {
     rpc ListRefs(ListRefsRequest) returns (Refs) {
     }
 
+    // Returns a list of oci tags in the repo
+    rpc ListOCITags(ListRefsRequest) returns (Refs) {
+    }
+
     // ListApps returns a list of apps in the repo
     rpc ListApps(ListAppsRequest) returns (AppList) {
     }

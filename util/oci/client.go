@@ -69,6 +69,9 @@ type Client interface {
 
 	// TestRepo verifies the connectivity and accessibility of the repository.
 	TestRepo(ctx context.Context) (bool, error)
+
+	// GetTags retrieves the list of tags for the repository.
+	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
 }
 
 type Creds struct {
@@ -280,7 +283,7 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 	if err != nil {
 		// Look to see if revision is a semver constraint
 		if constraints, err := semver.NewConstraint(revision); err == nil {
-			tags, err := c.getTags(ctx, noCache)
+			tags, err := c.GetTags(ctx, noCache)
 			if err != nil {
 				return "", fmt.Errorf("error fetching tags: %w", err)
 			}
@@ -296,7 +299,7 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 	return digest, nil
 }
 
-func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList, error) {
+func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -330,11 +333,8 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList,
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
-	} else {
-		err := json.Unmarshal(data, tags)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode tags: %w", err)
-		}
+	} else if err := json.Unmarshal(data, tags); err != nil {
+		return nil, fmt.Errorf("failed to decode tags: %w", err)
 	}
 
 	return tags, nil
@@ -396,9 +396,7 @@ func createTarFile(from, to string) error {
 	if err != nil {
 		return err
 	}
-
-	_, err = files.Tar(from, nil, nil, f)
-	if err != nil {
+	if _, err = files.Tar(from, nil, nil, f); err != nil {
 		_ = os.RemoveAll(to)
 	}
 	return f.Close()
@@ -418,14 +416,12 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.Rea
 	}
 
 	// Copy remote repo at the given digest to the scratch dir.
-	_, err = oras.Copy(ctx, repo, digest, store, digest, oras.DefaultCopyOptions)
-	if err != nil {
+	if _, err = oras.Copy(ctx, repo, digest, store, digest, oras.DefaultCopyOptions); err != nil {
 		return err
 	}
 
 	// Remove redundant ingest folder; this is an artifact from the oras.Copy call above
-	err = os.RemoveAll(path.Join(tempDir, "ingest"))
-	if err != nil {
+	if err = os.RemoveAll(path.Join(tempDir, "ingest")); err != nil {
 		return err
 	}
 
@@ -568,8 +564,7 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 
 	manifest := imagev1.Manifest{}
 	decoder := json.NewDecoder(rc)
-	err = decoder.Decode(&manifest)
-	if err != nil {
+	if err = decoder.Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("error decoding oci manifest for digest %s: %w", digest, err)
 	}
 

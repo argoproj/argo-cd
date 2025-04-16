@@ -238,6 +238,27 @@ func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos
 	return items, nil
 }
 
+func (s *Server) ListOCITags(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
+	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, err
+	}
+	defer io.Close(conn)
+
+	return repoClient.ListOCITags(ctx, &apiclient.ListRefsRequest{
+		Repo: repo,
+	})
+}
+
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
 	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
 	if err != nil {
