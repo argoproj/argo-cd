@@ -51,26 +51,9 @@ Install Go with a version equal to or greater than the version listed in `go.mod
 
 ### Install Goreman
 
-1. Add these lines to your ~/.bashrc:
-   ```bash
-    export GOPATH=$HOME/go
-    export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-    export PATH=$GOPATH/bin:$PATH
-   ```
-   Then reload the shell config:
-   ```bash
-   source ~/.bashrc
-   ```
+Installation guide for goreman: <br>
+https://github.com/mattn/goreman?tab=readme-ov-file#getting-started
 
-2. Install goreman:
-   ```bash
-   go install github.com/mattn/goreman@latest
-   ```
-
-3. Verify installation:
-   ```bash
-   goreman -h
-   ```
 
 ### Install Docker or Podman
 

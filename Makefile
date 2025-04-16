@@ -598,7 +598,6 @@ install-codegen-tools-local:
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
-	./hack/install.sh goreman
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
