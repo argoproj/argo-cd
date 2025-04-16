@@ -25879,6 +25879,12 @@ spec:
               key: reposerver.grpc.max.size
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_GRPC_MAX_RETRIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.max.retries
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
           valueFrom:
             configMapKeyRef:
