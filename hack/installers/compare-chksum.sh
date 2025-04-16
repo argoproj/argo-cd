@@ -6,7 +6,7 @@ if test "${TARGET_FILE}" = ""; then
 	exit 1
 fi
 
-CHKSUM_FILE=$(cd "$(dirname "$0")" && pwd)/checksums/${TARGET_FILE}.sha256
+CHKSUM_FILE="$(cd "$(dirname "$0")" && pwd)/checksums/${TARGET_FILE}.sha256"
 
 cd "${DOWNLOADS}" || (
 	echo "Can't change directory to ${DOWNLOAD}" >&2
@@ -18,9 +18,9 @@ if ! test -f "${TARGET_FILE}"; then
 	exit 1
 fi
 
-if ! grep -q "${TARGET_FILE}" ${CHKSUM_FILE}; then
+if ! grep -q "${TARGET_FILE}" "${CHKSUM_FILE}"; then
 	echo "No checksum for ${TARGET_FILE} in ${CHKSUM_FILE}" >&2
 	exit 1
 fi
 
-shasum -a 256 -c ${CHKSUM_FILE}
+shasum -a 256 -c "${CHKSUM_FILE}"
