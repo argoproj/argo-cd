@@ -9,6 +9,7 @@ import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
+import {ApplicationsProgressiveSync} from './applications-progressive-sync';
 
 import './applications-tiles.scss';
 
@@ -199,6 +200,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             &nbsp;
                                                             <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                                             &nbsp;
+                                                            <ApplicationsProgressiveSync app={app} />
                                                             <OperationState app={app} quiet={true} />
                                                         </div>
                                                     </div>
