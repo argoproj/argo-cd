@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import * as Moment from 'moment';
 import {App} from './app';
+import './init';
 
 ReactDOM.render(<App />, document.getElementById('app'));
 
