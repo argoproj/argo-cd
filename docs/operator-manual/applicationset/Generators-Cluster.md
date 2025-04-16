@@ -46,7 +46,7 @@ spec:
   - clusters: {} # Automatically use all clusters defined within Argo CD
   template:
     metadata:
-      name: '{{.name}}-guestbook' # 'name' field of the Secret
+      name: '{{name}}-guestbook' # 'name' field of the Secret
     spec:
       project: "my-project"
       source:
@@ -54,7 +54,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{.server}}' # 'server' field of the secret
+        server: '{{server}}' # 'server' field of the secret
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
@@ -188,16 +188,16 @@ spec:
         revision: stable
   template:
     metadata:
-      name: '{{.name}}-guestbook'
+      name: '{{name}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
-        targetRevision: '{{.values.revision}}'
+        targetRevision: '{{values.revision}}'
         path: guestbook
       destination:
-        server: '{{.server}}'
+        server: '{{server}}'
         namespace: guestbook
 ```
 
@@ -229,7 +229,7 @@ spec:
       values:
         # If `my-custom-annotation` is in your cluster secret, `revision` will be substituted with it.
         revision: '{{index .metadata.annotations "my-custom-annotation"}}' 
-        clusterName: '{{.name}}'
+        clusterName: '{{name}}'
   - clusters:
       selector:
         matchLabels:
@@ -237,20 +237,20 @@ spec:
       values:
         # production uses a different revision value, for 'stable' branch
         revision: stable
-        clusterName: '{{.name}}'
+        clusterName: '{{name}}'
   template:
     metadata:
-      name: '{{.name}}-guestbook'
+      name: '{{name}}-guestbook'
     spec:
       project: "my-project"
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
-        targetRevision: '{{.values.revision}}'
+        targetRevision: '{{values.revision}}'
         path: guestbook
       destination:
         # In this case this is equivalent to just using {{name}}
-        server: '{{.values.clusterName}}'
+        server: '{{values.clusterName}}'
         namespace: guestbook
 ```
 ### Gather cluster information as a flat list
