@@ -9,7 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
-	"github.com/argoproj/pkg/grpc/http"
+	"github.com/argoproj/pkg/v2/grpc/http"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 
 	//nolint:staticcheck
