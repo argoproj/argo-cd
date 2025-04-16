@@ -4,10 +4,10 @@ A *selective sync* is one where only some resources are sync'd. You can choose w
 
 ![selective sync](../assets/selective-sync.png)
 
-When doing so, bear in mind:
+When doing so, bear in mind that:
 
 * Your sync is not recorded in the history, and so rollback is not possible.
-* Hooks are not run.
+* [Hooks](resource_hooks.md) are not run.
 
 ## Selective Sync Option
 
