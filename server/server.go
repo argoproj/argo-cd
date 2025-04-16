@@ -27,7 +27,7 @@ import (
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	golang_proto "github.com/golang/protobuf/proto" //nolint:staticcheck
 	"github.com/gorilla/handlers"

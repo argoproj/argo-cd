@@ -14,7 +14,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250314164314-7258614f5041
 	github.com/argoproj/notifications-engine v0.4.1-0.20250309174002-87bf0576a872
-	github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5
+	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/bmatcuk/doublestar/v4 v4.8.1
 	github.com/bombsimon/logrusr/v4 v4.1.0
