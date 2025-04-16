@@ -44,4 +44,4 @@ export const ApplicationsProgressiveSync = ({app}: {app: Application}) => {
             </Tooltip>
         </div>
     );
-}; 
+};
