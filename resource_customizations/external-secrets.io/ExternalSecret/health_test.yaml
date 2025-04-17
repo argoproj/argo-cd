@@ -11,3 +11,11 @@ tests:
       status: Healthy
       message: 'Secret was synced'
     inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'Secret was synced'
+    inputPath: testdata/healthy_onchange.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for ExternalSecret
+    inputPath: testdata/progressing_onchange.yaml
