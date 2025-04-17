@@ -6,7 +6,7 @@ It is possible for an application to be `OutOfSync` even immediately after a suc
   resulting in an `OutOfSync` status indicating a missing field was detected.
 - The sync was performed (with pruning disabled), and there are resources which need to be deleted.
 - A controller or [mutating webhook](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook) is altering the object after it was
-  submitted to Kubernetes in a manner which contradicts Git.
+  submitted to Kubernetes so it differs from the one in Git.
 - A Helm chart is using a template function such as [`randAlphaNum`](https://github.com/helm/charts/blob/master/stable/redis/templates/secret.yaml#L16),
   which generates different data every time `helm template` is invoked.
 - For Horizontal Pod Autoscaling (HPA) objects, the HPA controller is known to reorder `spec.metrics`
@@ -94,7 +94,7 @@ data:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
-Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example below shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
+Resource customization can also be configured to ignore all differences made by a `managedField.manager` at the system level. The example below shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
 
 ```yaml
 data:
@@ -103,7 +103,7 @@ data:
     - kube-controller-manager
 ```
 
-It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
+It is possible to configure `ignoreDifferences` to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
 
 ```yaml
 data:
@@ -129,7 +129,8 @@ data:
 
 If you rely on the status field being part of your desired state, although this is not recommended, the `ignoreResourceStatusField` setting can be used to configure this behavior.
 
-**Note**: Since it is common for `CustomResourceDefinitions` to have their `status` commited to Git, consider using `crd` over `none`.
+!!! note
+    Since it is common for `CustomResourceDefinitions` to have their `status` commited to Git, consider using `crd` over `none`.
 
 ### Ignoring RBAC changes made by AggregateRoles
 
