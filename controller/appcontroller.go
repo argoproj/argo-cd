@@ -1218,12 +1218,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if app.HasPreDeleteFinalizer() {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting permitted app live objects: %w", err)
 		}
 
 		done, err := ctrl.executePreDeleteHooks(app, proj, objsMap, config, logCtx)
 		if err != nil {
-			return err
+			return fmt.Errorf("error executing pre-delete hooks: %w", err)
 		}
 		if !done {
 			// PreDelete hooks are still running - wait for them to complete
@@ -1232,7 +1232,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		// PreDelete hooks are done - remove the finalizer so we can continue with deletion
 		app.UnSetPreDeleteFinalizer()
 		if err := ctrl.updateFinalizers(app); err != nil {
-			return err
+			return fmt.Errorf("error updating pre-delete finalizers: %w", err)
 		}
 	}
 
@@ -1317,12 +1317,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	if app.HasPreDeleteFinalizer("cleanup") {
 		objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting permitted app live objects for pre-delete cleanup: %w", err)
 		}
 
 		done, err := ctrl.cleanupPreDeleteHooks(objsMap, config, logCtx)
 		if err != nil {
-			return err
+			return fmt.Errorf("error cleaning up pre-delete hooks: %w", err)
 		}
 		if !done {
 			return nil
