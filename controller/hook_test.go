@@ -138,3 +138,36 @@ func TestIsPreDeleteHook(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPostDeleteHook(t *testing.T) {
+	tests := []struct {
+		name     string
+		annot    map[string]string
+		expected bool
+	}{
+		{
+			name:     "ArgoCD PostDelete hook",
+			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
+			expected: true,
+		},
+		{
+			name:     "Helm PostDelete hook",
+			annot:    map[string]string{"helm.sh/hook": "post-delete"},
+			expected: true,
+		},
+		{
+			name:     "Not a PostDelete hook",
+			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := &unstructured.Unstructured{}
+			obj.SetAnnotations(tt.annot)
+			result := isPostDeleteHook(obj)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
