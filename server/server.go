@@ -296,7 +296,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server
 func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
+	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace, settings_util.WithInsecureMode(opts.Insecure))
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errorsutil.CheckError(err)
 	err = initializeDefaultProject(opts)
@@ -540,6 +540,7 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 	go server.appsetInformer.Run(ctx.Done())
 	go server.configMapInformer.Run(ctx.Done())
 	go server.secretInformer.Run(ctx.Done())
+	go server.settingsMgr.RefreshSettings(ctx.Done())
 }
 
 // Run runs the API Server

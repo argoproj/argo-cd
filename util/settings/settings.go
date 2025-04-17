@@ -570,6 +570,7 @@ type SettingsManager struct {
 	reposCache            []Repository
 	repoCredsCache        []RepositoryCredentials
 	reposOrClusterChanged func()
+	insecureMode          bool
 }
 
 type incompleteSettingsError struct {
@@ -1698,6 +1699,12 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 	}
 }
 
+func WithInsecureMode(insecureMode bool) SettingsManagerOpts {
+	return func(mgr *SettingsManager) {
+		mgr.insecureMode = insecureMode
+	}
+}
+
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
@@ -2044,6 +2051,29 @@ func isIncompleteSettingsError(err error) bool {
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
+	return mgr.refreshSettings(insecureModeEnabled)
+}
+
+// RefreshSettings is used to refresh settings periodically
+func (mgr *SettingsManager) RefreshSettings(stopCh <-chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			log.Info("Stopping settings refresh")
+			return
+		default:
+			cdSettings, err := mgr.refreshSettings(mgr.insecureMode)
+			if err != nil {
+				log.Warnf("Error refreshing settings: %v", err)
+				continue
+			}
+			mgr.notifySubscribers(cdSettings)
+			time.Sleep(1 * time.Minute) // Adjust the interval as needed
+		}
+	}
+}
+
+func (mgr *SettingsManager) refreshSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 
 	cdSettings, err := mgr.GetSettings()
