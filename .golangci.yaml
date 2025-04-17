@@ -16,6 +16,7 @@ issues:
 linters:
   enable:
     - errorlint
+    - forbidigo
     - gocritic
     - gomodguard
     - importas
@@ -220,6 +221,12 @@ linters:
     usetesting:
       os-mkdir-temp: false
 
+    forbidigo:
+      forbid:
+        - pattern: context\.Background
+          msg: "Should propagate context instead of using context.Background"
+        - pattern: context\.TODO
+          msg: "Should propagate context instead of using context.TODO"
 output:
   show-stats: false
 
