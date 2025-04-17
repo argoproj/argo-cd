@@ -32,11 +32,14 @@ These windows affect the running of both manual and automated syncs but allow an
 for manual syncs which is useful if you are only interested in preventing automated syncs or if you need to temporarily 
 override a window to perform a sync.
 
-The windows work in the following way. If there are no windows matching an application then all syncs are allowed. If there
-are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window. If there
-are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active. If there is an
-active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows. The
-UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
+The windows work in the following way:
+
+- If there are no windows matching an application then all syncs are allowed.
+- If there are any `allow` windows matching an application then syncs will only be allowed when there is an active `allow` window.
+- If there are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active.
+- If there is an active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows.
+
+The UI and the CLI will both display the state of the sync windows. The UI has a panel which will display different colours depending
 on the state. The colours are as follows. `Red: sync denied`, `Orange: manual allowed` and `Green: sync allowed`.
 
 To display the sync state using the CLI:

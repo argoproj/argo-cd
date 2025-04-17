@@ -38,11 +38,47 @@ func TestConfirmBaseOnCountPromptDisabled(t *testing.T) {
 	assert.True(t, result2)
 }
 
-func TestConfirmBaseOnCountZeroApps(t *testing.T) {
-	p := &Prompt{enabled: true}
-	result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Process all?", 0)
-	assert.True(t, result1)
-	assert.True(t, result2)
+func TestConfirmBaseOnCount(t *testing.T) {
+	tests := []struct {
+		input  string
+		output bool
+		count  int
+	}{
+		{
+			input:  "y\n",
+			output: true,
+			count:  0,
+		},
+		{
+			input:  "y\n",
+			output: true,
+			count:  1,
+		},
+		{
+			input:  "n\n",
+			output: false,
+			count:  1,
+		},
+	}
+
+	origStdin := os.Stdin
+
+	for _, tt := range tests {
+		tmpFile, err := writeToStdin(tt.input)
+		require.NoError(t, err)
+		p := &Prompt{enabled: true}
+		result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Proceed all?", tt.count)
+		assert.Equal(t, tt.output, result1)
+		if tt.count == 1 {
+			assert.False(t, result2)
+		} else {
+			assert.Equal(t, tt.output, result2)
+		}
+		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
+	}
+
+	os.Stdin = origStdin
 }
 
 func TestConfirmPrompt(t *testing.T) {
@@ -62,8 +98,8 @@ func TestConfirmPrompt(t *testing.T) {
 		p := &Prompt{enabled: true}
 		result := p.Confirm("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.output, result)
-		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	os.Stdin = origStdin
@@ -89,8 +125,8 @@ func TestConfirmAllPrompt(t *testing.T) {
 		confirm, confirmAll := p.ConfirmAll("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.confirm, confirm)
 		assert.Equal(t, c.confirmAll, confirmAll)
-		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
+		os.Remove(tmpFile.Name())
 	}
 
 	os.Stdin = origStdin

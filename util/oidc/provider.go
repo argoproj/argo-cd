@@ -66,7 +66,7 @@ func (p *providerImpl) newGoOIDCProvider() (*gooidc.Provider, error) {
 	ctx := gooidc.ClientContext(context.Background(), p.client)
 	prov, err := gooidc.NewProvider(ctx, p.issuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to query provider %q: %w", p.issuerURL, err)
+		return nil, fmt.Errorf("failed to query provider %q: %w", p.issuerURL, err)
 	}
 	s, _ := ParseConfig(prov)
 	log.Infof("OIDC supported scopes: %v", s.ScopesSupported)

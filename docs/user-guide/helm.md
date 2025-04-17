@@ -390,9 +390,9 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-You have to remember about `HELM_PLUGINS` environment property - this is required for plugins to work correctly.
+The `HELM_PLUGINS` environment property required for ArgoCD to locale plugins correctly.
 
-After that you have to use your custom image for ArgoCD installation.
+Once built, use the custom image for ArgoCD installation.
 
 ### Using `initContainers`
 Another option is to install Helm plugins via Kubernetes `initContainers`.
@@ -517,7 +517,6 @@ spec:
     helm:
       skipSchemaValidation: true
 ```
-
 
 
 ## Helm `--skip-tests`
