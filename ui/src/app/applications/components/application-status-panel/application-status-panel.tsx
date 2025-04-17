@@ -117,13 +117,13 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
                     )}
                     <div className='application-status-panel__item-name'>
-                        <RevisionMetadataPanel
+                        {application.status.sourceHydrator.currentOperation.drySHA && <RevisionMetadataPanel
                             appName={application.metadata.name}
                             appNamespace={application.metadata.namespace}
                             type={''}
                             revision={application.status.sourceHydrator.currentOperation.drySHA}
                             versionId={utils.getAppCurrentVersion(application)}
-                        />
+                        />}
                     </div>
                 </div>
             )}
