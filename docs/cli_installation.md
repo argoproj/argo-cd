@@ -64,14 +64,14 @@ VERSION=$(curl --silent "https://api.github.com/repos/argoproj/argo-cd/releases/
 Replace `VERSION` in the command below with the version of Argo CD you would like to download:
 
 ```bash
-curl -sSL -o argocd-darwin-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-amd64
+curl -sSL -o argocd-darwin-amd64 https://github.com/argoproj/argo-cd/releases/download/$VERSION/argocd-darwin-arm64
 ```
 
 Install the Argo CD CLI binary:
 
 ```bash
 sudo install -m 555 argocd-darwin-amd64 /usr/local/bin/argocd
-rm argocd-darwin-amd64
+rm argocd-darwin-arm64
 ```
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
