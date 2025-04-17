@@ -97,7 +97,7 @@ func createRBACObject(project string, repo string) string {
 // result may be retrieved out of the cache.
 func (s *Server) getConnectionState(ctx context.Context, url string, project string, forceRefresh bool) v1alpha1.ConnectionState {
 	if !forceRefresh {
-		if connectionState, err := s.cache.GetRepoConnectionState(url, project); err == nil {
+		if connectionState, err := s.cache.GetRepoConnectionState(url); err == nil {
 			return connectionState
 		}
 	}
@@ -120,7 +120,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 			connectionState.Message = fmt.Sprintf("Unable to connect to repository: %v", err)
 		}
 	}
-	err = s.cache.SetRepoConnectionState(url, project, &connectionState)
+	err = s.cache.SetRepoConnectionState(url, &connectionState)
 	if err != nil {
 		log.Warnf("getConnectionState cache set error %s: %v", url, err)
 	}
@@ -592,7 +592,7 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err != nil {
+	if err := s.cache.SetRepoConnectionState(repo.Repo, nil); err != nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 

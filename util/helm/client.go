@@ -388,7 +388,7 @@ func normalizeChartName(chart string) string {
 }
 
 func (c *nativeHelmChart) getCachedChartPath(chart string, version string, project string) (string, error) {
-	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version, "project": project})
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
 	if err != nil {
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)
 	}

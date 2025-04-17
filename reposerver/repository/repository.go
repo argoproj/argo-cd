@@ -1314,7 +1314,7 @@ func getResolvedRefValueFile(
 ) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
 
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo), "project": project})
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(refSourceRepo)})
 	if err != nil {
 		return "", err
 	}
@@ -2384,7 +2384,7 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 }
 
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo), "project": repo.Project})
+	keyData, err := json.Marshal(map[string]string{"url": git.NormalizeGitURL(repo.Repo)})
 	if err != nil {
 		return nil, err
 	}
