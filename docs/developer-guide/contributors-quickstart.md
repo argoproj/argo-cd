@@ -51,7 +51,6 @@ Install Go with a version equal to or greater than the version listed in `go.mod
 
 ### Install Goreman
 
-Installation guide for goreman: <br>
 https://github.com/mattn/goreman?tab=readme-ov-file#getting-started
 
 
