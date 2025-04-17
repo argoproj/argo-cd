@@ -13,6 +13,7 @@ import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarP
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import {ApplicationResourceDiffPanel} from '../application-resource-diff-panel/application-resource-diff-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
 import {ApplicationsStatusBar} from './applications-status-bar';
@@ -556,6 +557,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
+                                                                                    diffApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {diffApp: appName, appNamespace}, {replace: true})
+                                                                                    }
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -566,6 +570,9 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                                     refreshApplication={refreshApp}
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                    }
+                                                                                    diffApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {diffApp: appName, appNamespace}, {replace: true})
                                                                                     }
                                                                                 />
                                                                             )
@@ -587,6 +594,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             apps={filteredApps}
                                                         />
                                                     </div>
+
                                                     <ObservableQuery>
                                                         {q => (
                                                             <DataLoader
@@ -610,6 +618,30 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                             </DataLoader>
                                                         )}
                                                     </ObservableQuery>
+
+                                                    <ObservableQuery>
+                                                        {q => (
+                                                            <DataLoader
+                                                                load={() =>
+                                                                    q.pipe(
+                                                                        mergeMap(params => {
+                                                                            const diffApp = params.get('diffApp');
+                                                                            const appNamespace = params.get('appNamespace');
+                                                                            return (diffApp && from(services.applications.get(diffApp, appNamespace))) || from([null]);
+                                                                        })
+                                                                    )
+                                                                }>
+                                                                {app => (
+                                                                    <ApplicationResourceDiffPanel
+                                                                        key='diffPanel'
+                                                                        application={app}
+                                                                        hide={() => ctx.navigation.goto('.', {diffApp: null}, {replace: true})}
+                                                                    />
+                                                                )}
+                                                            </DataLoader>
+                                                        )}
+                                                    </ObservableQuery>
+
                                                     <SlidingPanel
                                                         isShown={!!appInput}
                                                         onClose={() => handleCreatePanelClose()} //Separate handling for outside click.
