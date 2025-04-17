@@ -110,8 +110,8 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string, project string) error {
-	cachePath, err := c.getCachedChartPath(chart, version, project)
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+	cachePath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)
 	}
@@ -152,7 +152,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		return "", nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
 
-	cachedChartPath, err := c.getCachedChartPath(chart, version, project)
+	cachedChartPath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error getting cached chart path: %w", err)
@@ -387,7 +387,7 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version string, project string) (string, error) {
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
 	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
 	if err != nil {
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)
