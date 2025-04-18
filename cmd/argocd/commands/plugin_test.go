@@ -168,7 +168,7 @@ func TestPluginExecutionError(t *testing.T) {
 
 	pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.EqualError(t, pluginErr, "Error: exit status 1\n")
+	assert.EqualError(t, pluginErr, "exit status 1")
 }
 
 // TestPluginInRelativePathIgnored ensures that plugins in a relative path, even if the path is included in PATH,
@@ -224,7 +224,7 @@ func TestPluginFlagParsing(t *testing.T) {
 			name:           "Unknown flag",
 			args:           []string{"argocd", "test-plugin", "--flag3", "invalid"},
 			shouldFail:     true,
-			expectedErrMsg: "Error: exit status 1\n",
+			expectedErrMsg: "exit status 1",
 		},
 	}
 
