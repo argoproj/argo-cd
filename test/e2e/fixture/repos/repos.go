@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -91,6 +92,19 @@ func AddHelmRepo(t *testing.T, name string) {
 		"--tls-client-cert-key-path", CertKeyPath(t),
 		"--type", "helm",
 		"--name", name,
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
+func AddOCIRepo(t *testing.T, name, imagePath string) {
+	t.Helper()
+	args := []string{
+		"repo",
+		"add",
+		fmt.Sprintf("%s/%s", fixture.OCIHostURL, imagePath),
+		"--type", "oci",
+		"--name", name,
+		"--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
@@ -196,5 +210,19 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmOCIRegistryURL,
+	))
+}
+
+// PushImageToOCIRegistry adds a helm chart to helm OCI registry
+func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
+	t.Helper()
+	imagePath := "./testdata/" + pathName
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		imagePath,
+		"oras",
+		"push",
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), pathName), tag),
+		".",
 	))
 }
