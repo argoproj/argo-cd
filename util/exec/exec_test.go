@@ -73,8 +73,10 @@ func TestRunWithExecRunOptsFatal(t *testing.T) {
 			ShouldWait: true,
 		},
 	}
+	// The returned error string in this case should contain a "fatal" in this case
 	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && sleep 10000' 15 && sleep 2"), opts)
-	assert.ErrorContains(t, err, "failed timeout after 200ms")
+	// The expected timeout is ARGOCD_EXEC_TIMEOUT + ARGOCD_EXEC_FATAL_TIMEOUT = 200ms + 100ms = 300ms
+	assert.ErrorContains(t, err, "failed fatal timeout after 300ms")
 }
 
 func Test_getCommandArgsToLog(t *testing.T) {

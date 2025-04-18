@@ -228,10 +228,26 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
+		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
-			<-done
+			select {
+			case <-done:
+			case <-fatalTimeoutCh:
+				// upgrades to SIGKILL if cmd does not respect SIGTERM
+				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				output := stdout.String()
+				if opts.CaptureStderr {
+					output += stderr.String()
+				}
+				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
+				logCtx.Error(err.Error())
+				return strings.TrimSuffix(output, "\n"), err
+			}
 		}
+		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()
@@ -253,11 +269,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			}
 			return strings.TrimSuffix(output, "\n"), err
 		}
-	case <-fatalTimeoutCh:
-		// upgrades to SIGKILL if cmd does not respect SIGTERM
-		_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 	}
-
 	output := stdout.String()
 	if opts.CaptureStderr {
 		output += stderr.String()
