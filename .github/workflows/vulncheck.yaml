@@ -1,0 +1,38 @@
+name: vulncheck
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
+  pull_request:
+    branches:
+      - 'master'
+      - 'release-*'
+
+env:
+  # Golang version to use across CI steps
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.24.2'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: ${{ env.GOLANG_VERSION }}
+          repo-checkout: false
