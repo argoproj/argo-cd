@@ -17,11 +17,14 @@ func Test_timeout(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		initTimeout()
 		assert.Equal(t, 90*time.Second, timeout)
+		assert.Equal(t, 10*time.Second, fatalTimeout)
 	})
 	t.Run("Default", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_TIMEOUT", "1s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "2s")
 		initTimeout()
 		assert.Equal(t, 1*time.Second, timeout)
+		assert.Equal(t, 2*time.Second, fatalTimeout)
 	})
 }
 
@@ -44,6 +47,22 @@ func TestHideUsernamePassword(t *testing.T) {
 
 func TestRunWithExecRunOpts(t *testing.T) {
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	initTimeout()
+
+	opts := ExecRunOpts{
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
+	assert.ErrorContains(t, err, "failed timeout after 200ms")
+}
+
+func TestRunWithExecRunOptsFatal(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "100ms")
+
 	initTimeout()
 
 	opts := ExecRunOpts{
