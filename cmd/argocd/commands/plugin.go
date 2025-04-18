@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,6 +38,7 @@ func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCL
 	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
 	// gave us a non-nil error.
 	initConfig()
+	cli.SetLogFormat("text")
 	// If it's an unknown command error, attempt to handle it as a plugin.
 	// Unfortunately, cobra doesn't handle this error, so we need to assume
 	// that error consists of substring "unknown command".
