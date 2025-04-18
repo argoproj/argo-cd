@@ -67,6 +67,20 @@ metadata:
 
 The dry run will still be executed if the CRD is already present in the cluster.
 
+It is also possible to skip dry run on missing resource for all application resources. You can set the `SkipDryRunOnMissingResource=true`
+sync option to skip dry run on missing resource
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - SkipDryRunOnMissingResource=true
+```
+
+
+
 ## No Resource Deletion
 
 For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
