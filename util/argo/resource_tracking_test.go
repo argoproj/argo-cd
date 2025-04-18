@@ -209,16 +209,16 @@ func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
 
 	// live object is a CRD resource
 	liveObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apiextensions.k8s.io/v1",
 			"kind":       "CustomResourceDefinition",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "crontabs.stable.example.com",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					common.LabelKeyAppInstance: "my-app",
 				},
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"group": "stable.example.com",
 				"scope": "Namespaced",
 			},
@@ -227,16 +227,16 @@ func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
 
 	// config object is a CRD resource
 	configObj := &unstructured.Unstructured{
-		Object: map[string]interface{}{
+		Object: map[string]any{
 			"apiVersion": "apiextensions.k8s.io/v1",
 			"kind":       "CustomResourceDefinition",
-			"metadata": map[string]interface{}{
+			"metadata": map[string]any{
 				"name": "crontabs.stable.example.com",
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					common.LabelKeyAppInstance: "my-app",
 				},
 			},
-			"spec": map[string]interface{}{
+			"spec": map[string]any{
 				"group": "stable.example.com",
 				"scope": "Namespaced",
 			},
