@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -232,23 +233,25 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
-	if err != nil {
-		return err
-	}
-	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-	if err != nil {
-		return err
-	}
-
-	label, err = kube.GetAppInstanceLabel(config, labelKey)
-	if err != nil {
-		return fmt.Errorf("failed to get app instance label: %w", err)
-	}
-	if label == "" {
-		err = kube.RemoveLabel(live, labelKey)
+	if !kubeutil.IsCRD(live) {
+		annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
 		if err != nil {
-			return fmt.Errorf("failed to remove app instance label: %w", err)
+			return err
+		}
+		err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+		if err != nil {
+			return err
+		}
+
+		label, err = kube.GetAppInstanceLabel(config, labelKey)
+		if err != nil {
+			return fmt.Errorf("failed to get app instance label: %w", err)
+		}
+		if label == "" {
+			err = kube.RemoveLabel(live, labelKey)
+			if err != nil {
+				return fmt.Errorf("failed to remove app instance label: %w", err)
+			}
 		}
 	}
 
