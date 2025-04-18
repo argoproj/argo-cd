@@ -7013,3 +7013,62 @@ func TestIgnoreNotAllowedNamespaces(t *testing.T) {
 		})
 	}
 }
+
+func TestIsRollingSyncStrategy(t *testing.T) {
+	tests := []struct {
+		name     string
+		appset   *v1alpha1.ApplicationSet
+		expected bool
+	}{
+		{
+			name: "RollingSync strategy is explicitly set",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{},
+						},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "AllAtOnce strategy is explicitly set",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "AllAtOnce",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Strategy is empty",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Strategy is nil",
+			appset: &v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: nil,
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isRollingSyncStrategy(tt.appset)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
