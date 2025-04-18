@@ -79,8 +79,6 @@ spec:
     - SkipDryRunOnMissingResource=true
 ```
 
-
-
 ## No Resource Deletion
 
 For certain resources you might want to retain them even after your application is deleted, for eg. Persistent Volume Claims.
