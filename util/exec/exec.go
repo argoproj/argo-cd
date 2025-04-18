@@ -237,6 +237,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				// now original cmd should exit immediately after SIGKILL
+				<-done
+				// return error with a marker indicating that cmd exited only after fatal SIGKILL
 				output := stdout.String()
 				if opts.CaptureStderr {
 					output += stderr.String()
