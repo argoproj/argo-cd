@@ -6,8 +6,8 @@ The Email notification service sends email notifications using SMTP protocol and
 
 * `host` - the SMTP server host name
 * `port` - the SMTP server port
-* `username` - username
-* `password` - password
+* `username` - user email address 
+* `password` - user app password
 * `from` - from email address
 * `html` - optional bool, true or false
 * `insecure_skip_verify` - optional bool, true or false
@@ -24,7 +24,7 @@ metadata:
 data:
   service.email.gmail: |
     username: $email-username
-    password: $email-password
+    password: $app-password
     host: smtp.gmail.com
     port: 465
     from: $email-username
