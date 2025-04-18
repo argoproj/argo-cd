@@ -75,17 +75,17 @@ func TestIsHook(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "PreDelete hook",
+			name:     "ArgoCD PreDelete hook",
 			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
 			expected: true,
 		},
 		{
-			name:     "PostDelete hook",
+			name:     "ArgoCD PostDelete hook",
 			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
 			expected: true,
 		},
 		{
-			name:     "PreSync hook",
+			name:     "ArgoCD PreSync hook",
 			annot:    map[string]string{"argocd.argoproj.io/hook": "PreSync"},
 			expected: true,
 		},
@@ -123,7 +123,7 @@ func TestIsPreDeleteHook(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Not a PreDelete hook",
+			name:     "ArgoCD PostDelete hook",
 			annot:    map[string]string{"argocd.argoproj.io/hook": postDeleteHook},
 			expected: false,
 		},
@@ -156,7 +156,7 @@ func TestIsPostDeleteHook(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Not a PostDelete hook",
+			name:     "ArgoCD PreDelete hook",
 			annot:    map[string]string{"argocd.argoproj.io/hook": preDeleteHook},
 			expected: false,
 		},
