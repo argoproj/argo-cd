@@ -521,7 +521,7 @@ export const deletePopup = async (
     );
 };
 
-export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
         return actions.map(action => ({
             title: action.displayName ?? action.name,
@@ -530,7 +530,6 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
             action: async () => {
                 const confirmed = false;
                 const title = action.hasParameters ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
-                console.log('title:', title);
                 await apis.popup.prompt(
                     title,
                     api => (
@@ -556,7 +555,9 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
 
                         submit: async (vals, _, close) => {
                             try {
-                                const resourceActionParameters = action.hasParameters ? [{name: action.name, value: vals.inputParameter}] : [];
+                                const resourceActionParameters = action.hasParameters
+                                    ? [{name: action.name, value: vals.inputParameter, type: action.params[0]?.type, default: action.params[0]?.default}]
+                                    : [];
                                 await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
                                 close();
                             } catch (e) {
@@ -569,7 +570,7 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
                     },
                     null,
                     null,
-                    {inputParameter: action.defaultValue}
+                    {inputParameter: action.params[0]?.default}
                 );
                 return confirmed;
             }

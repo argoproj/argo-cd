@@ -9220,10 +9220,6 @@
       "description": "ResourceAction represents an individual action that can be performed on a resource.\nIt includes parameters, an optional disabled flag, an icon for display, and a name for the action.",
       "type": "object",
       "properties": {
-        "defaultValue": {
-          "description": "DefaultValue holds the default value for the action parameter, if any.",
-          "type": "string"
-        },
         "disabled": {
           "description": "Disabled indicates whether the action is disabled.",
           "type": "boolean"

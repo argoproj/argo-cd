@@ -1860,11 +1860,8 @@ message ResourceAction {
   // DisplayName provides a user-friendly name for the action.
   optional string displayName = 5;
 
-  // DefaultValue holds the default value for the action parameter, if any.
-  optional string defaultValue = 6;
-
   // HasParameters indicates whether the action requires parameters to be provided.
-  optional bool hasParameters = 7;
+  optional bool hasParameters = 6;
 }
 
 // ResourceActionDefinition defines an individual action that can be executed on a resource.

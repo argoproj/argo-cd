@@ -331,7 +331,7 @@ export class ApplicationsService {
         appNamespace: string,
         resource: models.ResourceNode,
         action: string,
-        resourceActionParameters: models.ResourceActionParameters[]
+        resourceActionParameters: models.ResourceActionParam[]
     ): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)

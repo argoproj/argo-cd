@@ -889,7 +889,7 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 	statefulSetObj := createMockResource("StatefulSet", "test-statefulset", 1)
 
 	actionLua := `
-		obj.spec.replicas = 3
+		obj.spec.replicas = tonumber(actionParams["replicas"])
 		return obj
 		`
 

@@ -2410,7 +2410,7 @@ func (s *Server) getAvailableActions(resourceOverrides map[string]v1alpha1.Resou
 	if err != nil {
 		return nil, fmt.Errorf("error getting Lua discovery script: %w", err)
 	}
-	if discoveryScripts[0] == "" {
+	if len(discoveryScripts) == 0 {
 		return []v1alpha1.ResourceAction{}, nil
 	}
 	availableActions, err := luaVM.ExecuteResourceActionDiscovery(obj, discoveryScripts)

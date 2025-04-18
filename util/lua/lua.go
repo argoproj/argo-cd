@@ -105,10 +105,13 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	defer cancel()
 	l.SetContext(ctx)
 
+	// Inject action parameters as a hash table global variable
+	actionParams := l.CreateTable(0, len(resourceActionParameters))
 	for _, resourceActionParameter := range resourceActionParameters {
 		value := decodeValue(l, resourceActionParameter.GetValue())
-		l.SetGlobal(resourceActionParameter.GetName(), value)
+		actionParams.RawSetH(lua.LString(resourceActionParameter.GetName()), value)
 	}
+	l.SetGlobal("actionParams", actionParams) // Set the actionParams table as a global variable
 
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)

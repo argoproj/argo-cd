@@ -2442,10 +2442,8 @@ type ResourceAction struct {
 	IconClass string `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
 	// DisplayName provides a user-friendly name for the action.
 	DisplayName string `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
-	// DefaultValue holds the default value for the action parameter, if any.
-	DefaultValue string `json:"defaultValue,omitempty" protobuf:"bytes,6,opt,name=defaultValue"`
 	// HasParameters indicates whether the action requires parameters to be provided.
-	HasParameters bool `json:"hasParameters,omitempty" protobuf:"bytes,7,opt,name=hasParameters"`
+	HasParameters bool `json:"hasParameters,omitempty" protobuf:"bytes,6,opt,name=hasParameters"`
 }
 
 // ResourceActionParam represents a parameter for a resource action.
