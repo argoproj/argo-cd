@@ -59,4 +59,3 @@ argocd-applicationset-controller [flags]
       --webhook-addr string                     The address the webhook endpoint binds to. (default ":7000")
       --webhook-parallelism-limit int           Number of webhook requests processed concurrently (default 50)
 ```
-

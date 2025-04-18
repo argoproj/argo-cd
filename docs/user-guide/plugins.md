@@ -25,13 +25,19 @@ not a relative path. `argocd` allows plugins to add custom commands such as
 
 ## Limitations
 
-It is currently not possible to create plugins that overwrite existing
+1. It is currently not possible to create plugins that overwrite existing
 `argocd` commands. For example, creating a plugin such as `argocd-version`
 will cause the plugin to never get executed, as the existing `argocd version`
 command will always take precedence over it. Due to this limitation, it is
 also not possible to use plugins to add new subcommands to existing `argocd` commands.
 For example, adding a subcommand `argocd cluster upgrade` by naming your plugin
 `argocd-cluster` will cause the plugin to be ignored.
+
+2. It is currently not possible to parse the global flags set by `argocd` CLI. For example, 
+if you have set any global flag value such as `--logformat` value to `text`, the plugin will
+not parse the global flags and pass the default value to the `--logformat` flag which is `json`.
+The flag parsing will work exactly the same way for existing `argocd` commands which means executing a
+existing argocd command such as `argocd cluster list` will correctly parse the flag value as `text`.
 
 ## Conditions for an `argocd` plugin
 

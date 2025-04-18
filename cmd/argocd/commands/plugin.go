@@ -37,26 +37,25 @@ func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCL
 	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
 	// gave us a non-nil error.
 	initConfig()
-	log.SetLevel(log.DebugLevel)
 	// If it's an unknown command error, attempt to handle it as a plugin.
 	// Unfortunately, cobra doesn't handle this error, so we need to assume
 	// that error consists of substring "unknown command".
 	// https://github.com/spf13/cobra/pull/2167
 	if isArgocdCLI && strings.Contains(err.Error(), "unknown command") {
-		log.Debug("command does not exist, looking for a plugin...")
 		pluginPath, pluginErr := h.handlePluginCommand(args[1:])
 		// IMP: If a plugin doesn't exist, the returned path will be empty along with nil error
 		// This means the command is neither a normal Argo CD Command nor a plugin.
 		if pluginErr != nil {
 			// If plugin handling fails, report the plugin error and exit
-			return fmt.Errorf("Error: %w\n", pluginErr)
+			fmt.Printf("Error: %w\n", pluginErr)
+			return pluginErr
 		} else if pluginPath == "" {
-			log.Errorf("Error: %v\nRun 'argocd --help' for usage.\n", err)
+			fmt.Printf("Error: %v\nRun 'argocd --help' for usage.\n", err)
 			return err
 		}
 	} else {
 		// If it's any other error (not an unknown command), report it directly and exit
-		log.Errorf("Error: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		return err
 	}
 
