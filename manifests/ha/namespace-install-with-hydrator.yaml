@@ -3069,6 +3069,12 @@ spec:
               key: server.webhook.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_EXTENSIONS_SHARED_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: sever.extensions.sharedpath
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
           valueFrom:
             configMapKeyRef:

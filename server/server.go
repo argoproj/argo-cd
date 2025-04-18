@@ -240,6 +240,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	ExtensionsSharedPath    string
 }
 
 type ApplicationSetOpts struct {
@@ -1234,10 +1235,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	extensionsSharedPath := "/tmp/extensions/"
-
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		server.serveExtensions(extensionsSharedPath, writer)
+		server.serveExtensions(server.ExtensionsSharedPath, writer)
 	})
 	if server.EnableGZip {
 		extensionsHandler = compressHandler(extensionsHandler)

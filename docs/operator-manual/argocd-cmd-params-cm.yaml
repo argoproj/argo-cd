@@ -123,6 +123,8 @@ data:
   server.webhook.parallelism.limit: "50"
   # Whether to allow sync with replace checked to go through. Resource-level annotation to replace override this setting, i.e. it's only enforced on the API server level.
   server.sync.replace.allowed: "true"
+  # UI extensions shared path.
+  sever.extensions.sharedpath: "/tmp/extensions"
 
   # Set the logging format. One of: json|text (default "json")
   server.log.format: "json"
