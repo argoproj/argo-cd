@@ -233,25 +233,28 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	if !kubeutil.IsCRD(live) {
-		annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
-		if err != nil {
-			return err
-		}
-		err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-		if err != nil {
-			return err
-		}
+	if kubeutil.IsCRD(live) {
+		// CRDs don't get tracking annotations.
+		return nil
+	}
 
-		label, err = kube.GetAppInstanceLabel(config, labelKey)
+	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	if err != nil {
+		return err
+	}
+	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	if err != nil {
+		return err
+	}
+
+	label, err = kube.GetAppInstanceLabel(config, labelKey)
+	if err != nil {
+		return fmt.Errorf("failed to get app instance label: %w", err)
+	}
+	if label == "" {
+		err = kube.RemoveLabel(live, labelKey)
 		if err != nil {
-			return fmt.Errorf("failed to get app instance label: %w", err)
-		}
-		if label == "" {
-			err = kube.RemoveLabel(live, labelKey)
-			if err != nil {
-				return fmt.Errorf("failed to remove app instance label: %w", err)
-			}
+			return fmt.Errorf("failed to remove app instance label: %w", err)
 		}
 	}
 
