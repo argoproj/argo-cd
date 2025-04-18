@@ -110,7 +110,7 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+func (c *nativeHelmChart) CleanChartCache(chart string, version string, project string) error {
 	cachePath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)

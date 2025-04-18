@@ -3,16 +3,15 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateRepositoryWithProject(t *testing.T) {
@@ -230,5 +229,48 @@ func TestGetRepoCLIOutput(t *testing.T) {
 		AndCLIOutput(func(output string, _ error) {
 			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
 git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
+		})
+}
+
+func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
+	// Create first project with valid credentials
+	projectFixture.Given(t).
+		When().
+		Name("project-a").
+		Create()
+	path := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
+	repoFixture.Given(t).
+		When().
+		Path(path).
+		Project("project-a").
+		Create().
+		Then().
+		And(func(r *Repository, _ error) {
+			assert.Equal(t, r.Repo, path)
+			assert.Equal(t, "project-a", r.Project)
+		})
+	// Restart server to test cache behavior
+	fixture.RestartAPIServer(t)
+	// Create second project with invalid credentials
+	projectFixture.Given(t).
+		When().
+		Name("project-b").
+		Create()
+	// Set invalid credentials for Project B
+	_, err := fixture.RunCli("repo", "add", path,
+		"--username", "invalid-user",
+		"--password", "invalid-pass",
+		"--project", "project-b")
+
+	require.NoError(t, err)
+	repoFixture.Given(t).
+		When().
+		Path(path).
+		Project("project-b").
+		IgnoreErrors().
+		Create().
+		Then().
+		AndCLIOutput(func(_ string, err error) {
+			assert.ErrorContains(t, err, "repository not accessible")
 		})
 }
