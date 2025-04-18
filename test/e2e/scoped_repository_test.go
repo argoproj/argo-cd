@@ -8,6 +8,7 @@ import (
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	"github.com/stretchr/testify/assert"
@@ -233,44 +234,34 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 }
 
 func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
-	// Create first project with valid credentials
-	projectFixture.Given(t).
-		When().
-		Name("project-a").
-		Create()
-	path := fixture.RepoURL(fixture.RepoURLTypeHTTPS)
-	repoFixture.Given(t).
-		When().
-		Path(path).
+	// Create project A with valid credentials
+	Given(t).
 		Project("project-a").
-		Create().
+		Path(fixture.GuestbookPath).
+		And(func() {
+			// Add repository with valid credentials to project A
+			_, err := fixture.RunCli("repo", "add",
+				fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+				"--project", "project-a",
+				"--username", fixture.GitUsername,
+				"--password", fixture.GitPassword,
+				"--insecure-skip-server-verification")
+			require.NoError(t, err)
+		}).
+		When().
+		CreateApp().
 		Then().
-		And(func(r *Repository, _ error) {
-			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "project-a", r.Project)
-		})
+		Expect(Success(""))
 	// Restart server to test cache behavior
 	fixture.RestartAPIServer(t)
-	// Create second project with invalid credentials
-	projectFixture.Given(t).
-		When().
-		Name("project-b").
-		Create()
-	// Set invalid credentials for Project B
-	_, err := fixture.RunCli("repo", "add", path,
-		"--username", "invalid-user",
-		"--password", "invalid-pass",
-		"--project", "project-b")
-
-	require.NoError(t, err)
-	repoFixture.Given(t).
-		When().
-		Path(path).
+	// Create project B and try to use the same repo without credentials
+	Given(t).
 		Project("project-b").
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		Path(fixture.GuestbookPath).
+		When().
 		IgnoreErrors().
-		Create().
+		CreateApp().
 		Then().
-		AndCLIOutput(func(_ string, err error) {
-			assert.ErrorContains(t, err, "repository not accessible")
-		})
+		Expect(Error("", "repository not accessible"))
 }
