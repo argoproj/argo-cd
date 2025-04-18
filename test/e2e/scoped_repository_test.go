@@ -4,9 +4,8 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
@@ -235,6 +234,12 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 
 func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
 	// Create project A with valid credentials
+	projectFixture.Given(t).
+		When().
+		Name("project-a").
+		Create().
+		Then()
+
 	Given(t).
 		Project("project-a").
 		Path(fixture.GuestbookPath).
@@ -254,6 +259,14 @@ func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
 		Expect(Success(""))
 	// Restart server to test cache behavior
 	fixture.RestartAPIServer(t)
+
+	// Create project B explicitly
+	projectFixture.Given(t).
+		When().
+		Name("project-b").
+		Create().
+		Then()
+
 	// Create project B and try to use the same repo without credentials
 	Given(t).
 		Project("project-b").
