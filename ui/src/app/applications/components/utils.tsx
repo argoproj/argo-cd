@@ -539,24 +539,32 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                                     <div> Are you sure you want to perform {action.name} action?</div>
                                 </div>
                             )}
-                            {action.hasParameters && (
-                                <div className='argo-form-row'>
-                                    <FormField formApi={api} field='inputParameter' component={Text} componentProps={{showErrors: true}} />
-                                </div>
-                            )}
+                            {action.params &&
+                                action.params.map((param, index) => (
+                                    <div className='argo-form-row' key={index}>
+                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} componentProps={{showErrors: true}} />
+                                    </div>
+                                ))}
                         </div>
                     ),
                     {
                         validate: vals => {
-                            return {
-                                inputParameter: vals.inputParameter && action.regexp && !vals.inputParameter.match(action.regexp) ? action.errorMessage : undefined
-                            };
+                            return (action.params || []).reduce((acc: {[key: string]: string}, param) => {
+                                acc[param.name] =
+                                    vals[param.name] && vals[param.name].match(param.type) ? undefined : `Invalid value for ${param.name}. Expected format: ${param.type}.`;
+                                return acc;
+                            }, {});
                         },
 
                         submit: async (vals, _, close) => {
                             try {
-                                const resourceActionParameters = action.hasParameters
-                                    ? [{name: action.name, value: vals.inputParameter, type: action.params[0]?.type, default: action.params[0]?.default}]
+                                const resourceActionParameters = action.params
+                                    ? action.params.map(param => ({
+                                          name: param.name,
+                                          value: vals[param.name] || param.default,
+                                          type: param.type,
+                                          default: param.default
+                                      }))
                                     : [];
                                 await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
                                 close();
