@@ -23,6 +23,11 @@ Helm chart versions are [Semantic Versions](https://semver.org/). As a result, y
 
 [Read about version ranges](https://www.telerik.com/blogs/the-mystical-magical-semver-ranges-used-by-npm-bower)
 
+!!! note
+    If you want Argo CD to include all existing prerelease version tags of a repository in the comparison logic, you explicitly have to add a prerelease `-0` suffix to the version constraint. As mentioned `*-0` will compare against prerelease versions in a repository, `*` will not. The same applies for other constraints e.g. `>=1.2.2` will **not** compare prerelease versions vs. `>=1.2.2-0` which will include prerelease versions in the comparison.
+
+[Read about prerelease version comparison](https://github.com/Masterminds/semver?tab=readme-ov-file#working-with-prerelease-versions)
+
 ## Git
 
 For Git, all versions are Git references but tags [Semantic Versions](https://semver.org/) can also be used:
