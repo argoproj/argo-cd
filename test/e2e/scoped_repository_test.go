@@ -3,16 +3,15 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
-
-	"github.com/stretchr/testify/assert"
-
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateRepositoryWithProject(t *testing.T) {
@@ -231,4 +230,51 @@ func TestGetRepoCLIOutput(t *testing.T) {
 			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
 git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
 		})
+}
+
+func TestCannotAccessProjectScopedRepoWithInvalidCreds(t *testing.T) {
+	// Create project A with valid credentials
+	projectFixture.Given(t).
+		When().
+		Name("project-a").
+		Create().
+		Then()
+
+	Given(t).
+		Project("project-a").
+		Path(fixture.GuestbookPath).
+		And(func() {
+			// Add repository with valid credentials to project A
+			_, err := fixture.RunCli("repo", "add",
+				fixture.RepoURL(fixture.RepoURLTypeHTTPS),
+				"--project", "project-a",
+				"--username", fixture.GitUsername,
+				"--password", fixture.GitPassword,
+				"--insecure-skip-server-verification")
+			require.NoError(t, err)
+		}).
+		When().
+		CreateApp().
+		Then().
+		Expect(Success(""))
+	// Restart server to test cache behavior
+	fixture.RestartAPIServer(t)
+
+	// Create project B explicitly
+	projectFixture.Given(t).
+		When().
+		Name("project-b").
+		Create().
+		Then()
+
+	// Create project B and try to use the same repo without credentials
+	Given(t).
+		Project("project-b").
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		Path(fixture.GuestbookPath).
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "repository not accessible"))
 }
