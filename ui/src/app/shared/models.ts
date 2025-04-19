@@ -857,6 +857,9 @@ export interface ResourceAction {
     disabled: boolean;
     iconClass: string;
     displayName: string;
+    regexp: string;
+    hasParameters: boolean;
+    errorMessage: string;
 }
 
 export interface SyncWindowsState {

@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 )
@@ -477,7 +478,7 @@ func TestExecuteOldStyleResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua, nil)
 	require.NoError(t, err)
 	assert.Len(t, newObjects, 1)
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -650,7 +651,7 @@ func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -663,7 +664,7 @@ func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -676,7 +677,7 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk)
+	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -684,14 +685,14 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
+	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing, nil)
 	assert.ErrorContains(t, err, "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, returnInt)
+	_, err := vm.ExecuteResourceAction(testObj, returnInt, nil)
 	assert.Errorf(t, err, incorrectReturnType, "table", "number")
 }
 
@@ -703,7 +704,7 @@ return newObj
 func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
+	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn, nil)
 	require.Error(t, err)
 }
 
@@ -758,7 +759,7 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua, nil)
 	require.NoError(t, err)
 	assert.Len(t, newObjects, 1)
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -881,4 +882,75 @@ return hs`
 		require.NoError(t, err)
 		assert.Nil(t, status)
 	})
+}
+
+func TestExecuteResourceActionWithParams(t *testing.T) {
+	deploymentObj := createMockResource("Deployment", "test-deployment", 1)
+	statefulSetObj := createMockResource("StatefulSet", "test-statefulset", 1)
+
+	actionLua := `
+		obj.spec.replicas = tonumber(actionParams["replicas"])
+		return obj
+		`
+
+	params := []*applicationpkg.ResourceActionParameters{
+		{
+			Name:  func() *string { s := "replicas"; return &s }(),
+			Value: func() *string { s := "3"; return &s }(),
+		},
+	}
+
+	vm := VM{}
+
+	// Test with Deployment
+	t.Run("Test with Deployment", func(t *testing.T) {
+		impactedResources, err := vm.ExecuteResourceAction(deploymentObj, actionLua, params)
+		require.NoError(t, err)
+
+		for _, impactedResource := range impactedResources {
+			modifiedObj := impactedResource.UnstructuredObj
+
+			// Check the replicas in the modified object
+			actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.True(t, found, "spec.replicas should be found in the modified object")
+			assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
+		}
+	})
+
+	// Test with StatefulSet
+	t.Run("Test with StatefulSet", func(t *testing.T) {
+		impactedResources, err := vm.ExecuteResourceAction(statefulSetObj, actionLua, params)
+		require.NoError(t, err)
+
+		for _, impactedResource := range impactedResources {
+			modifiedObj := impactedResource.UnstructuredObj
+
+			// Check the replicas in the modified object
+			actualReplicas, found, err := unstructured.NestedInt64(modifiedObj.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.True(t, found, "spec.replicas should be found in the modified object")
+			assert.Equal(t, int64(3), actualReplicas, "replicas should be updated to 3")
+		}
+	})
+}
+
+func createMockResource(kind string, name string, replicas int) *unstructured.Unstructured {
+	return StrToUnstructured(fmt.Sprintf(`
+    apiVersion: apps/v1
+    kind: %s
+    metadata:
+      name: %s
+      namespace: default
+    spec:
+      replicas: %d
+      template:
+        metadata:
+          labels:
+            app: test
+        spec:
+          containers:
+          - name: test-container
+            image: nginx
+    `, kind, name, replicas))
 }

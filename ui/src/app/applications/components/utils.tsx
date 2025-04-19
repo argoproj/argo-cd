@@ -521,22 +521,53 @@ export const deletePopup = async (
     );
 };
 
-export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications
-        .getResourceActions(metadata.name, metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.displayName ?? action.name,
-                        disabled: !!action.disabled,
-                        iconClassName: action.iconClass,
-                        action: async () => {
+export async function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
+        return actions.map(action => ({
+            title: action.displayName ?? action.name,
+            disabled: !!action.disabled,
+            iconClassName: action.iconClass,
+            action: async () => {
+                const confirmed = false;
+                const title = action.hasParameters ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                await apis.popup.prompt(
+                    title,
+                    api => (
+                        <div>
+                            {!action.hasParameters && (
+                                <div className='argo-form-row'>
+                                    <div> Are you sure you want to perform {action.name} action?</div>
+                                </div>
+                            )}
+                            {action.params &&
+                                action.params.map((param, index) => (
+                                    <div className='argo-form-row' key={index}>
+                                        <FormField label={param.name} field={param.name} formApi={api} component={Text} componentProps={{showErrors: true}} />
+                                    </div>
+                                ))}
+                        </div>
+                    ),
+                    {
+                        validate: vals => {
+                            return (action.params || []).reduce((acc: {[key: string]: string}, param) => {
+                                acc[param.name] =
+                                    vals[param.name] && vals[param.name].match(param.type) ? undefined : `Invalid value for ${param.name}. Expected format: ${param.type}.`;
+                                return acc;
+                            }, {});
+                        },
+
+                        submit: async (vals, _, close) => {
                             try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
-                                }
+                                const resourceActionParameters = action.params
+                                    ? action.params.map(param => ({
+                                          name: param.name,
+                                          value: vals[param.name] || param.default,
+                                          type: param.type,
+                                          default: param.default
+                                      }))
+                                    : [];
+                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                close();
                             } catch (e) {
                                 apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
@@ -544,10 +575,15 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
                                 });
                             }
                         }
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+                    },
+                    null,
+                    null,
+                    {inputParameter: action.params[0]?.default}
+                );
+                return confirmed;
+            }
+        }));
+    });
 }
 
 function getActionItems(
