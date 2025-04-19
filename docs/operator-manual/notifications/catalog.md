@@ -58,7 +58,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       },
       {
@@ -144,7 +144,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -221,7 +221,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -302,7 +302,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -387,7 +387,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -463,7 +463,7 @@ slack:
       },
       {
         "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
+        "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
