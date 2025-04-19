@@ -115,7 +115,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#000080'
@@ -192,7 +192,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -273,7 +273,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -354,7 +354,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   title: Start syncing application {{.app.metadata.name}}.
@@ -435,7 +435,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   title: Application {{.app.metadata.name}} sync status is 'Unknown'
@@ -515,7 +515,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "{{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#000080'
