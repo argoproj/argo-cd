@@ -6,7 +6,7 @@ import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
-import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {filter, map, mergeMap} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, ContextApis} from '../../../shared/context';
@@ -1096,8 +1096,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             return watchEvent.application;
                                         })
                                     )
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
                             )
                         ),
                         merge(
@@ -1106,8 +1104,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             AppUtils.handlePageVisibility(() =>
                                 services.applications
                                     .watchResourceTree(name, appNamespace)
-                                    .pipe(repeat())
-                                    .pipe(retryWhen(errors => errors.pipe(delay(500))))
                             )
                         )
                     );
