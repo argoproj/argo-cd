@@ -383,6 +383,15 @@ spec:
 
 In `values` we can also interpolate all fields set by the git files generator as mentioned above.
 
+## Wildcard Pattern
+
+The Git generator supports the following wildcard patterns for matching directory or file paths:
+
+- `*` matches any single level of directory or file. For example, for the path `cluster-addons/*` the git generator will match
+   `cluster-addons/prometheus-operator` and `cluster-addons/argo-workflows` but not `cluster-addons/prometheus-operator/templates/`.
+- `**` matches zero or more levels of directories. It searches for the file recursively. For example, for the path `cluster-config/**/config.json`
+   the git generator will match `config.json` in every directory recursively such as `cluster-config/dev/config.json` and `cluster-config/team-x/dev/config.json`.
+
 ## Webhook Configuration
 
 When using a Git generator, ApplicationSet polls Git repositories every three minutes to detect changes. To eliminate
