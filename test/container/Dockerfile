@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.4.2@sha256:ca65ea36ae16e709b0f1c7534bc7e5b5ac2e5bb3c97236e4fec00e3625eb678d AS redis
+FROM docker.io/library/redis:7.4.2@sha256:fbdbaea47b9ae4ecc2082ecdb4e1cea81e32176ffb1dcf643d422ad07427e5d9 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -81,7 +81,7 @@ RUN mv /usr/lib/linux-gnu/libssl.so.3 /usr/lib/$(uname -m)-linux-gnu/ && \
 
 # Copy registry binaries to the image
 COPY --from=registry /bin/registry /usr/local/bin/
-COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config.yml
+COPY --from=registry /etc/distribution/config.yml /etc/docker/registry/config.yml
 
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules

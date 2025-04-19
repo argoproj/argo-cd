@@ -53,7 +53,7 @@ func (p *Prompt) ConfirmBaseOnCount(messageForSingle string, messageForArray str
 	}
 
 	if count == 1 {
-		return p.Confirm(messageForSingle), true
+		return p.Confirm(messageForSingle), false
 	}
 
 	return p.ConfirmAll(messageForArray)

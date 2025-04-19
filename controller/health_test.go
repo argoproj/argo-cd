@@ -109,6 +109,7 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+	assert.NotNil(t, healthStatus.LastTransitionTime)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
