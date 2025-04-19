@@ -10,6 +10,7 @@ import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
+import {ApplicationsProgressiveSync} from './applications-progressive-sync';
 import {services} from '../../../shared/services';
 import './applications-table.scss';
 
@@ -131,6 +132,13 @@ export const ApplicationsTable = (props: {
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                                                 <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                                            </div>
+
+                                            <div className='columns small-2'>
+                                                <ApplicationsProgressiveSync app={app} />
+                                            </div>
+
+                                            <div className='columns small-2'>
                                                 <DropDownMenu
                                                     anchor={() => (
                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
