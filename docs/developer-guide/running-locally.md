@@ -17,6 +17,10 @@ kubectl create namespace argocd
 kubectl apply -n argocd --force -f manifests/install.yaml
 ```
 
+### Install goreman (optional)
+
+https://github.com/mattn/goreman?tab=readme-ov-file#getting-started
+
 ### Scale down any Argo CD instance in your cluster
 
 Make sure that Argo CD is not running in your development cluster by scaling down the deployments:

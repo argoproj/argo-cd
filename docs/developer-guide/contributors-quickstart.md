@@ -49,6 +49,10 @@ make install-codegen-tools-local
 
 Install Go with a version equal to or greater than the version listed in `go.mod` (verify go version with `go version`). 
 
+### Install Goreman
+
+https://github.com/mattn/goreman?tab=readme-ov-file#getting-started
+
 
 ### Install Docker or Podman
 
