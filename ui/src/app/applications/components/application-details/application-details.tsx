@@ -1086,25 +1086,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             from([app]),
                             this.appChanged.pipe(filter(item => !!item)),
                             AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watch({name, appNamespace})
-                                    .pipe(
-                                        map(watchEvent => {
-                                            if (watchEvent.type === 'DELETED') {
-                                                this.onAppDeleted();
-                                            }
-                                            return watchEvent.application;
-                                        })
-                                    )
+                                services.applications.watch({name, appNamespace}).pipe(
+                                    map(watchEvent => {
+                                        if (watchEvent.type === 'DELETED') {
+                                            this.onAppDeleted();
+                                        }
+                                        return watchEvent.application;
+                                    })
+                                )
                             )
                         ),
                         merge(
                             from([fallbackTree]),
                             services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
-                            AppUtils.handlePageVisibility(() =>
-                                services.applications
-                                    .watchResourceTree(name, appNamespace)
-                            )
+                            AppUtils.handlePageVisibility(() => services.applications.watchResourceTree(name, appNamespace))
                         )
                     );
                 })
