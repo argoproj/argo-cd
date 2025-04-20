@@ -60,10 +60,10 @@
   resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-10.0.10.tgz#91f62905e8d23cbd66225312f239454a23bebfa0"
   integrity sha512-xPyYSz1cMPnJQhl0CLMH68j3gprKZaTjG3s5Vi+fDgx+uhG9NOXwbVt52eFS8ECyXhyKcjDLCBEqBExKuiZb7Q==
 
-"@types/node@*", "@types/node@^22.14.0":
-  version "22.14.0"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.14.0.tgz#d3bfa3936fef0dbacd79ea3eb17d521c628bb47e"
-  integrity sha512-Kmpl+z84ILoG+3T/zQFyAJsU6EPTmOCj8/2+83fSN6djd6I4o7uOuGIH6vq3PrjY5BGitSbFuMN18j3iknubbA==
+"@types/node@*", "@types/node@^22.14.1":
+  version "22.14.1"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.14.1.tgz#53b54585cec81c21eee3697521e31312d6ca1e6f"
+  integrity sha512-u0HuPQwe/dHrItgHHpmw3N2fYCR6x4ivMNbPHRkBVP4CvN+kiRrKHWk3i8tXiO/joPwXLMYvF9TTF0eqgHIuOw==
   dependencies:
     undici-types "~6.21.0"
 
@@ -294,10 +294,10 @@ chokidar@^3.5.3:
   optionalDependencies:
     fsevents "~2.3.2"
 
-chromedriver@^135.0.1:
-  version "135.0.1"
-  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-135.0.1.tgz#26e2e1b597ffeb73d0c76aa45403515a9a853cec"
-  integrity sha512-MLAS4t9dkttp1R1O2o/1nvtNIxg1dBTx7OE3ZCSrrFz+EFowd0wRAO7H5j918hw0i8+30yODq99p8CumvqRS9Q==
+chromedriver@^135.0.2:
+  version "135.0.2"
+  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-135.0.2.tgz#73ed7dc6d11306b12f92097a4aae51ed6bc030b4"
+  integrity sha512-/X3VecpIhFFRW/TazgsA/S9RVIcBaMJ6zkZ8Gf8PGn4prB1A/S0JFdgxALjXnbqyjxCi45JUl+5q4rVY65pvQA==
   dependencies:
     "@testim/chrome-version" "^1.1.4"
     axios "^1.7.4"
