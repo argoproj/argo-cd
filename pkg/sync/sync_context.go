@@ -194,6 +194,12 @@ func WithSkipDryRun(skipDryRun bool) SyncOpt {
 	}
 }
 
+func WithSkipDryRunOnMissingResource(skipDryRunOnMissingResource bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.skipDryRunOnMissingResource = skipDryRunOnMissingResource
+	}
+}
+
 func WithServerSideApply(serverSideApply bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.serverSideApply = serverSideApply
@@ -340,19 +346,20 @@ type syncContext struct {
 	resourceOps         kubeutil.ResourceOperations
 	namespace           string
 
-	dryRun                 bool
-	skipDryRun             bool
-	force                  bool
-	validate               bool
-	skipHooks              bool
-	resourcesFilter        func(key kubeutil.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
-	prune                  bool
-	replace                bool
-	serverSideApply        bool
-	serverSideApplyManager string
-	pruneLast              bool
-	prunePropagationPolicy *metav1.DeletionPropagation
-	pruneConfirmed         bool
+	dryRun                      bool
+	skipDryRun                  bool
+	skipDryRunOnMissingResource bool
+	force                       bool
+	validate                    bool
+	skipHooks                   bool
+	resourcesFilter             func(key kubeutil.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool
+	prune                       bool
+	replace                     bool
+	serverSideApply             bool
+	serverSideApplyManager      string
+	pruneLast                   bool
+	prunePropagationPolicy      *metav1.DeletionPropagation
+	pruneConfirmed              bool
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -818,11 +825,18 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 			}
 		}
 
+		shouldSkipDryRunOnMissingResource := func() bool {
+			// skip dry run on missing resource error for all application resources
+			if sc.skipDryRunOnMissingResource {
+				return true
+			}
+			return (task.targetObj != nil && resourceutil.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipDryRunOnMissingResource)) ||
+				sc.hasCRDOfGroupKind(task.group(), task.kind())
+		}
+
 		if err != nil {
 			switch {
-			case apierrors.IsNotFound(err) &&
-				((task.targetObj != nil && resourceutil.HasAnnotationOption(task.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipDryRunOnMissingResource)) ||
-					sc.hasCRDOfGroupKind(task.group(), task.kind())):
+			case apierrors.IsNotFound(err) && shouldSkipDryRunOnMissingResource():
 				// Special case for custom resources: if CRD is not yet known by the K8s API server,
 				// and the CRD is part of this sync or the resource is annotated with SkipDryRunOnMissingResource=true,
 				// then skip verification during `kubectl apply --dry-run` since we expect the CRD
