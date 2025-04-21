@@ -10,6 +10,12 @@ You can download the latest Argo CD version from [the latest release page of thi
 pacman -S argocd
 ```
 
+### Homebrew
+
+```bash
+brew install argocd
+```
+
 ### Download With Curl
 
 #### Download latest version
@@ -70,8 +76,8 @@ curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/download/$VERSI
 Install the Argo CD CLI binary:
 
 ```bash
-sudo install -m 555 argocd-darwin-$(uname -m) /usr/local/bin/argocd
-rm argocd-darwin-$(uname -m)
+sudo install -m 555 argocd /usr/local/bin/argocd
+rm argocd
 ```
 
 After finishing either of the instructions above, you should now be able to run `argocd` commands.
